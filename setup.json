@@ -1,0 +1,30 @@
+{
+    "name": "aiida-kkr",
+    "author": "Philipp Ruessmann, Jens Broeder",
+    "author_email": "jens.broeder@fz-juelich.de",
+    "description": "AiiDA plugin for the KKR code",
+    "url": "https://github.com/broeder-j/aiida-kkr",
+    "license": "MIT",
+    "classifiers": [
+        "Programming Language :: Python"
+    ],
+    "version": "0.1.0",
+    "setup_requires": ["reentry"],
+    "reentry_register": true,
+    "install_requires": [
+        "aiida >= 0.9"
+    ],
+    "entry_points": {
+        "aiida.calculations": [
+            "kkr.kkrimp = aiida_kkr.calculations.kkrimp:KkrimpCalculation"
+            ],
+        "aiida.parsers": [
+            "kkr.kkrimpparser = aiida_kkr.parsers.kkrimp:KkrimpParser"
+            ],
+        "aiida.data": [
+            "kkr.kkrstructure = aiida_kkr.data.kkrstructure:KkrStructuredata"
+            ],                                                                                "console_scripts": [
+            "kkrstructure = aiida_kkr.cmdline.data_cli:cli"
+            ]
+    },
+}
