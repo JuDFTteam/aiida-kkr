@@ -6,7 +6,7 @@ from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.orm import DataFactory
 
-ParameterData = DataFactory('parameters')
+ParameterData = DataFactory('parameter')
 StructureData = DataFactory('structure')
 
 class KkrimpCalculation(JobCalculation):

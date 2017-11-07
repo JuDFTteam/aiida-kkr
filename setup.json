@@ -22,9 +22,10 @@
             "kkr.kkrimpparser = aiida_kkr.parsers.kkrimp:KkrimpParser"
             ],
         "aiida.data": [
-            "kkr.kkrstructure = aiida_kkr.data.kkrstructure:KkrStructuredata"
-            ],                                                                                "console_scripts": [
+            "kkr.kkrstructure = aiida_kkr.data.kkrstructure:KkrstructureData"
+            ],
+        "console_scripts": [
             "kkrstructure = aiida_kkr.cmdline.data_cli:cli"
             ]
-    },
+    }
 }
