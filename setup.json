@@ -12,18 +12,18 @@
     "setup_requires": ["reentry"],
     "reentry_register": true,
     "install_requires": [
-        "aiida_core >= 0.9",
+        "aiida-core >= 0.9",
         "pytest-cov"
     ],
     "entry_points": {
         "aiida.calculations": [
-            "kkr.kkr = aiida_kkr.calculations.kkr:KkrCalculation"
-            "kkr.voro = aiida_kkr.calculations.voro:VoronoiCalculation"
+            "kkr.kkr = aiida_kkr.calculations.kkr:KkrCalculation",
+            "kkr.voro = aiida_kkr.calculations.voro:VoronoiCalculation",
             "kkr.kkrimp = aiida_kkr.calculations.kkrimp:KkrimpCalculation"
             ],
         "aiida.parsers": [
-            "kkr.voroparser = aiida_kkr.parsers.voro:VoronoiParser"
-            "kkr.kkrparser = aiida_kkr.parsers.kkr:KkrParser"
+            "kkr.voroparser = aiida_kkr.parsers.voro:VoronoiParser",
+            "kkr.kkrparser = aiida_kkr.parsers.kkr:KkrParser",
             "kkr.kkrimpparser = aiida_kkr.parsers.kkrimp:KkrimpParser"
             ],
         "aiida.data": [
