@@ -62,7 +62,7 @@ class KkrCalculation(JobCalculation):
             "structure": {
                 'valid_types': StructureData,
                 'additional_parameter': None,
-                'linkname': 'parameters',
+                'linkname': 'structure',
                 'docstring':
                 ("Use a node that specifies the input crystal structure ")
                 },
@@ -103,6 +103,7 @@ class KkrCalculation(JobCalculation):
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
         with open(input_filename, 'w') as infile:
             json.dump(input_dict, infile)
+        
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()

@@ -1,13 +1,17 @@
 import json
 
+from scipy import array
 from aiida.orm.calculation.job import JobCalculation
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
+from aiida.common.constants import elements as PeriodicTableElements
 from aiida.orm import DataFactory
+from aiida_kkr.tools.kkrcontrol import write_kkr_inputcard_template, fill_keywords_to_inputcard, create_keyword_default_values
 
 ParameterData = DataFactory('parameter')
 StructureData = DataFactory('structure')
+a_to_bohr = 1.8897261254578281
 
 class VoronoiCalculation(JobCalculation):
     """
@@ -20,18 +24,19 @@ class VoronoiCalculation(JobCalculation):
         Init internal parameters at class load time
         """
         # reuse base class function
-        super(KkrCalculation, self)._init_internal_params()
+        super(VoronoiCalculation, self)._init_internal_params()
 
         # List of mandatory input files
-        self._INPUTCARD = 'inputcard'
+        self._INPUT_FILE_NAME = 'inputcard' # will be shown with inputcat
+        #self._INPUTCARD = 'inputcard'
 	
 	# List of output files that should always be present
-        self._OUT_POTENTIAL_voronoi = 'output.pot'
-        self._ATOMINFO = 'atominfo.dat'
-
+        #self._OUT_POTENTIAL_voronoi = 'output.pot'
+        #self._ATOMINFO = 'atominfo.dat'
+        self._OUTPUT_FILE_NAME = 'atominfo.dat' # will be shown with outputcat
 
         # template.product entry point defined in setup.json
-        self._default_parser = 'kkr.voroParser'
+        self._default_parser = 'kkr.voroparser'
 
     @classproperty
     def _use_methods(cls):
@@ -53,7 +58,7 @@ class VoronoiCalculation(JobCalculation):
             "structure": {
                 'valid_types': StructureData,
                 'additional_parameter': None,
-                'linkname': 'parameters',
+                'linkname': 'structure',
                 'docstring':
                 ("Use a node that specifies the input crystal structure ")
                 },
@@ -79,21 +84,56 @@ class VoronoiCalculation(JobCalculation):
             raise InputValidationError("parameters not of type "
                                        "ParameterData")
         try:
+            structure = inputdict.pop(self.get_linkname('structure'))
+        except KeyError:
+            raise InputValidationError("No structure specified for this "
+                                       "calculation")
+        if not isinstance(structure, StructureData):
+            raise InputValiddationError("structure not of type "
+                                        "StructureData")
+        
+        try:
             code = inputdict.pop(self.get_linkname('code'))
         except KeyError:
             raise InputValidationError("No code specified for this "
                                        "calculation")
         if inputdict:
-            raise ValidationError("Unknown inputs")
+                raise ValidationError("Unknown inputs: {}".format(inputdict))
 
-        # In this example, the input file is simply a json dict.
-        # Adapt for your particular code!
+        # Prepare Structure
+
+
+        # Get the connection between coordination number and element symbol
+        # maybe do in a differnt way
+        
+        _atomic_numbers = {data['symbol']: num for num,
+                        data in PeriodicTableElements.iteritems()}
+        
+        # KKr wants units in bohr and relativ coordinates
+        bravais = array(structure.cell)*a_to_bohr
+        
+        sites = structure.sites
+        natyp = len(sites)
+        positions = []
+        charges = []
+        for site in sites:
+            pos = site.position 
+            #TODO convert to rel pos and make sure that type is rigth for script (array or tuple)
+            relpos = array(pos) 
+            positions.append(relpos)
+            sitekind = structure.get_kind(site.kind_name)
+            site_symbol = sitekind.symbol
+            charges.append(_atomic_numbers[site_symbol])
+            # TODO does not work for Charged atoms, find out how...
+        # TODO get empty spheres
+        positions = array(positions)
+
+        # Prepare keywords for kkr
         input_dict = parameters.get_dict()
 
         # Write input to file
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
-        with open(input_filename, 'w') as infile:
-            json.dump(input_dict, infile)
+        write_kkr_inputcard_template(bravais, natyp, positions, charges, outfile=input_filename)#'inputcard.tmpl')
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()
