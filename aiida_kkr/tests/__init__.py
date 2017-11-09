@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 '''
-AiiDA-FLEUR
+AiiDA-KKR
 '''
 
 __copyright__ = u"Copyright (c), 2015-2017, Forschungszentrum Juelich GmbH, Germany. All rights reserved."

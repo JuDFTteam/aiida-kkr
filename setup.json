@@ -12,15 +12,15 @@
     "setup_requires": ["reentry"],
     "reentry_register": true,
     "install_requires": [
-        "aiida >= 0.9",
+        "aiida_core >= 0.9",
         "pytest-cov"
     ],
     "entry_points": {
         "aiida.calculations": [
-            "kkr.kkrimp = aiida_kkr.calculations.kkrimp:KkrimpCalculation"
+            "kkr.kkr = aiida_kkr.calculations.kkr:KkrCalculation"
             ],
         "aiida.parsers": [
-            "kkr.kkrimpparser = aiida_kkr.parsers.kkrimp:KkrimpParser"
+            "kkr.kkrparser = aiida_kkr.parsers.kkr:KkrParser"
             ],
         "aiida.data": [
             "kkr.kkrstructure = aiida_kkr.data.kkrstructure:KkrstructureData"

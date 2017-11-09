@@ -4,9 +4,9 @@ from aiida.parsers.parser import Parser
 from aiida.orm.data.parameter import ParameterData
 
 
-class KkrimpParser(Parser):
+class KkrParser(Parser):
     """
-    Parser class for parsing output of KKRimp code..
+    Parser class for parsing output of KKR code..
     """
 
     # pylint: disable=protected-access
