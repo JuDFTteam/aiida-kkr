@@ -34,7 +34,7 @@ class VoronoiCalculation(JobCalculation):
         #self._OUT_POTENTIAL_voronoi = 'output.pot'
         #self._ATOMINFO = 'atominfo.dat'
         self._OUTPUT_FILE_NAME = 'atominfo.dat' # will be shown with outputcat
-
+        #out_voronoi
         # template.product entry point defined in setup.json
         self._default_parser = 'kkr.voroparser'
 
@@ -100,8 +100,9 @@ class VoronoiCalculation(JobCalculation):
         if inputdict:
                 raise ValidationError("Unknown inputs: {}".format(inputdict))
 
-        # Prepare Structure
 
+        ###################################
+        # Prepare Structure
 
         # Get the connection between coordination number and element symbol
         # maybe do in a differnt way
@@ -127,13 +128,25 @@ class VoronoiCalculation(JobCalculation):
             # TODO does not work for Charged atoms, find out how...
         # TODO get empty spheres
         positions = array(positions)
-
+        
+        ######################################
         # Prepare keywords for kkr
         input_dict = parameters.get_dict()
+        keywords = create_keyword_default_values()
+        for key, val in input_dict.iteritems():
+            keywords[key] = val 
+            # TODO IF the input node scheme is changed from [val, format] to val this needs to be changed
+
+        # we always overwride these keys:
+        keywords['NATYP'][0] = natyp
+        keywords['ALATBASIS'][0] = 1.0
 
         # Write input to file
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
         write_kkr_inputcard_template(bravais, natyp, positions, charges, outfile=input_filename)#'inputcard.tmpl')
+        print input_filename
+        fill_keywords_to_inputcard(keywords, runops=[], testops=[], CPAconc=[], template=input_filename, output=input_filename)
+
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()
