@@ -9,9 +9,9 @@ from aiida.orm import DataFactory
 ParameterData = DataFactory('parameter')
 StructureData = DataFactory('structure')
 
-class KkrCalculation(JobCalculation):
+class VoronoiCalculation(JobCalculation):
     """
-    AiiDA calculation plugin for a KKR calculation
+    AiiDA calculation plugin for a voronoi calculation (creation of starting potential and shapefun)
     .
     """
 
@@ -24,23 +24,14 @@ class KkrCalculation(JobCalculation):
 
         # List of mandatory input files
         self._INPUTCARD = 'inputcard'
-        self._POTENTIAL = 'potential'
-
-        # List of optional input files (may be mandatory for some setting in inputputcard)
-        self._SHAPEFUN = 'shapefun'
-        self._SCOEF = 'scoef'
-        self._NONCO_ANGLES = 'nonco_angles.dat'
-
 	
 	# List of output files that should always be present
-        self._OUT_POTENTIAL = 'out_potential'
-        self._OUTPUT_0_INIT = 'output.0.txt'
-        self._OUTPUT_000 = 'output.000.txt'
-        self._OUT_TIMING_000 = 'out_timing.000.txt'
+        self._OUT_POTENTIAL_voronoi = 'output.pot'
+        self._ATOMINFO = 'atominfo.dat'
 
 
         # template.product entry point defined in setup.json
-        self._default_parser = 'kkr.kkrParser'
+        self._default_parser = 'kkr.voroParser'
 
     @classproperty
     def _use_methods(cls):
