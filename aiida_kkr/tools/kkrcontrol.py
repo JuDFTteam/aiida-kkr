@@ -366,8 +366,8 @@ def fill_keywords_to_inputcard(keywords, runops=[], testops=[], CPAconc=[], temp
         tmpl = tmpl.replace(strkey, repltxt)
 
     open(output, 'w').write(tmpl)
-    if added > 0:
-        open(template, 'w').write(tmpl_clean)
+    #if added > 0:
+    #   open(template, 'w').write(tmpl_clean)
 
 
 def get_fermi_energy(potfile='potential'):
