@@ -18,9 +18,13 @@
     "entry_points": {
         "aiida.calculations": [
             "kkr.kkr = aiida_kkr.calculations.kkr:KkrCalculation"
+            "kkr.voro = aiida_kkr.calculations.voro:VoronoiCalculation"
+            "kkr.kkrimp = aiida_kkr.calculations.kkrimp:KkrimpCalculation"
             ],
         "aiida.parsers": [
+            "kkr.voroparser = aiida_kkr.parsers.voro:VoronoiParser"
             "kkr.kkrparser = aiida_kkr.parsers.kkr:KkrParser"
+            "kkr.kkrimpparser = aiida_kkr.parsers.kkrimp:KkrimpParser"
             ],
         "aiida.data": [
             "kkr.kkrstructure = aiida_kkr.data.kkrstructure:KkrstructureData"
