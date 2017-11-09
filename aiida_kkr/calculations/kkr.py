@@ -9,7 +9,7 @@ from aiida.orm import DataFactory
 ParameterData = DataFactory('parameter')
 StructureData = DataFactory('structure')
 
-class KkrimpCalculation(JobCalculation):
+class KkrCalculation(JobCalculation):
     """
     AiiDA calculation plugin for a KKR calculation
     .
@@ -20,12 +20,12 @@ class KkrimpCalculation(JobCalculation):
         Init internal parameters at class load time
         """
         # reuse base class function
-        super(KkrimpCalculation, self)._init_internal_params()
+        super(KkrCalculation, self)._init_internal_params()
 
         self._INPUT_FILE_NAME = 'inputfilename'
         self._OUTPUT_FILE_NAME = 'outputfilename'
         # template.product entry point defined in setup.json
-        self._default_parser = 'kkr.kkrimpparser'
+        self._default_parser = 'kkr.kkrparser'
 
     @classproperty
     def _use_methods(cls):

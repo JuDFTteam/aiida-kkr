@@ -10,12 +10,12 @@ class TestAiida_fleur_entrypoints:
     """
     
     # Calculation
-    def test_kkrimpcalculation_entry_point(aiida_env):
+    def test_kkrcalculation_entry_point(aiida_env):
         from aiida.orm import CalculationFactory
-        from aiida_kkr.calculations.kkrimp import KkrimpCalculation
+        from aiida_kkr.calculations.kkr import KkrCalculation
 
-        kkrimp_calculation = CalculationFactory('kkr.kkrimp')
-        assert kkrimp_calculation == KkrimpCalculation
+        kkr_calculation = CalculationFactory('kkr.kkr')
+        assert kkr_calculation == KkrCalculation
 
     
     # Data
@@ -31,12 +31,12 @@ class TestAiida_fleur_entrypoints:
 
     # Parsers
 
-    def test_kkrimp_parser_entry_point(aiida_env):
+    def test_kkr_parser_entry_point(aiida_env):
         from aiida.parsers import ParserFactory
-        from aiida_kkr.parsers.kkrimp import KkrimpParser
+        from aiida_kkr.parsers.kkr import KkrParser
 
-        parser = ParserFactory('kkr.kkrimpparser')
-        assert parser == KkrimpParser
+        parser = ParserFactory('kkr.kkrparser')
+        assert parser == KkrParser
 
     # Workchains
 
