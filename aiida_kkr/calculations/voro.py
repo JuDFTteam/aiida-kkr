@@ -1,4 +1,7 @@
-import json
+# -*- coding: utf-8 -*-
+"""
+Input plug-in for a voronoi calculation.
+"""
 
 from scipy import array
 from aiida.orm.calculation.job import JobCalculation
@@ -98,7 +101,7 @@ class VoronoiCalculation(JobCalculation):
             raise InputValidationError("No structure specified for this "
                                        "calculation")
         if not isinstance(structure, StructureData):
-            raise InputValiddationError("structure not of type "
+            raise InputValidationError("structure not of type "
                                         "StructureData")
         
         try:
