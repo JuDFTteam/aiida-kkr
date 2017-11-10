@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
+#-*- coding: utf-8 -*-
 
 from aiida.parsers.parser import Parser
 from aiida.orm.data.parameter import ParameterData
-
+from aiida_kkr.tools.kkrcontrol import check_voronoi_output
 
 class VoronoiParser(Parser):
     """
@@ -57,15 +57,21 @@ class VoronoiParser(Parser):
             self.logger.error("Output file not found")
             return success, node_list
 
-        try:
-            with open(out_folder.get_abs_path(
-                    self._calc._OUTPUT_FILE_NAME)) as f:
-                #out_dict = json.load(f)
-                pass
-        except ValueError:
-            self.logger.error("Error parsing the output json")
-            return success, node_list
-        out_dict = {}
+        #try:
+        #    with open(out_folder.get_abs_path(
+        #            self._calc._OUTPUT_FILE_NAME)) as f:
+        #        #out_dict = json.load(f)
+        #        pass
+        #except ValueError:
+        #    self.logger.error("Error parsing the output json")
+        #    return success, node_list
+        
+        outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
+        potfile = out_folder.get_abs_path(self._calc._OUT_POTENTIAL_voronoi)
+        emin = check_voronoi_output(potfile, outfile)
+        out_dict = {'EMIN' : emin}
+
+
         output_data = ParameterData(dict=out_dict)
         link_name = self.get_linkname_outparams()
         node_list = [(link_name, output_data)]
