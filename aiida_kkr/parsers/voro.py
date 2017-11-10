@@ -9,6 +9,21 @@ class VoronoiParser(Parser):
     Parser class for parsing output of voronoi code..
     """
 
+    def __init__(self, calc):
+        """
+        Initialize the instance of Fleur_inputgenParser
+        """
+        # check for valid input
+        #if not isinstance(calc, FleurinputgenCalculation):
+        #    raise FleurOutputParsingError(
+        #        "Input calc must be a FleurInpgenCalculation")
+
+        # these files should be at least present after success of inpgen
+        #self._default_files = {calc._OUTPUT_FILE_NAME, calc._INPXML_FILE_NAME}
+        #self._other_files = {calc._SHELLOUT_FILE_NAME}
+
+        super(VoronoiParser, self).__init__(calc)
+
     # pylint: disable=protected-access
     def parse_with_retrieved(self, retrieved):
         """
@@ -23,6 +38,7 @@ class VoronoiParser(Parser):
           * ``node_list``: list of new nodes to be stored in the db
             (as a list of tuples ``(link_name, node)``)
         """
+        
         success = False
         node_list = ()
 
@@ -49,7 +65,7 @@ class VoronoiParser(Parser):
         except ValueError:
             self.logger.error("Error parsing the output json")
             return success, node_list
-
+        out_dict = {}
         output_data = ParameterData(dict=out_dict)
         link_name = self.get_linkname_outparams()
         node_list = [(link_name, output_data)]
