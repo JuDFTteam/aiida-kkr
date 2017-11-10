@@ -49,7 +49,8 @@ class KkrParser(Parser):
         except ValueError:
             self.logger.error("Error parsing the output json")
             return success, node_list
-
+        
+        out_dict = {}
         output_data = ParameterData(dict=out_dict)
         link_name = self.get_linkname_outparams()
         node_list = [(link_name, output_data)]
