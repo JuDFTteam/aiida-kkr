@@ -26,12 +26,16 @@ class VoronoiCalculation(JobCalculation):
         # reuse base class function
         super(VoronoiCalculation, self)._init_internal_params()
 
+        # Default input and output files
+        self._DEFAULT_INPUT_FILE = 'inputcard' # will be shown with inputcat
+        self._DEFAULT_OUTPUT_FILE = 'out_voronoi' #'shell output will be shown with outputca
+
         # List of mandatory input files
-        self._INPUT_FILE_NAME = 'inputcard' # will be shown with inputcat
+        self._INPUT_FILE_NAME = 'inputcard'
         #self._INPUTCARD = 'inputcard'
 	
 	# List of output files that should always be present
-        self._OUTPUT_FILE_NAME = 'out_voronoi' # will be shown with outputcat
+        self._OUTPUT_FILE_NAME = 'out_voronoi'
        
        # template.product entry point defined in setup.json
         self._default_parser = 'kkr.voroparser'
@@ -164,6 +168,7 @@ class VoronoiCalculation(JobCalculation):
 
         codeinfo = CodeInfo()
         codeinfo.cmdline_params = []
+        codeinfo.stdout_name = self._OUTPUT_FILE_NAME
         codeinfo.code_uuid = code.uuid
         calcinfo.codes_info = [codeinfo]
 
