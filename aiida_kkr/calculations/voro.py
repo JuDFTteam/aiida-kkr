@@ -31,12 +31,17 @@ class VoronoiCalculation(JobCalculation):
         #self._INPUTCARD = 'inputcard'
 	
 	# List of output files that should always be present
-        #self._OUT_POTENTIAL_voronoi = 'output.pot'
-        #self._ATOMINFO = 'atominfo.dat'
-        self._OUTPUT_FILE_NAME = 'atominfo.dat' # will be shown with outputcat
-        #out_voronoi
-        # template.product entry point defined in setup.json
+        self._OUTPUT_FILE_NAME = 'out_voronoi' # will be shown with outputcat
+       
+       # template.product entry point defined in setup.json
         self._default_parser = 'kkr.voroparser'
+        
+        # File names
+        self._ATOMINFO = 'atominfo.dat'
+        self._RADII = 'radii.dat'
+        self._SHAPEFUN = 'shapefun'
+        self._VERTIVES = 'vertices.dat'
+        self._OUT_POTENTIAL_voronoi = 'output.pot'
 
     @classproperty
     def _use_methods(cls):
@@ -112,7 +117,8 @@ class VoronoiCalculation(JobCalculation):
         
         # KKr wants units in bohr and relativ coordinates
         bravais = array(structure.cell)*a_to_bohr
-        
+        alat = bravais.max()
+        bravais = bravais/alat
         sites = structure.sites
         natyp = len(sites)
         positions = []
@@ -139,7 +145,7 @@ class VoronoiCalculation(JobCalculation):
 
         # we always overwride these keys:
         keywords['NATYP'][0] = natyp
-        keywords['ALATBASIS'][0] = 1.0
+        keywords['ALATBASIS'][0] = alat
 
         # Write input to file
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
@@ -153,12 +159,11 @@ class VoronoiCalculation(JobCalculation):
         calcinfo.uuid = self.uuid
         calcinfo.local_copy_list = []
         calcinfo.remote_copy_list = []
-        calcinfo.retrieve_list = [self._OUTPUT_FILE_NAME]
+        calcinfo.retrieve_list = [self._OUTPUT_FILE_NAME, self._ATOMINFO, self._RADII,
+                                        self._SHAPEFUN, self._VERTIVES, self._OUT_POTENTIAL_voronoi]
 
         codeinfo = CodeInfo()
-        codeinfo.cmdline_params = [
-            self._INPUT_FILE_NAME, self._OUTPUT_FILE_NAME
-        ]
+        codeinfo.cmdline_params = []
         codeinfo.code_uuid = code.uuid
         calcinfo.codes_info = [codeinfo]
 
