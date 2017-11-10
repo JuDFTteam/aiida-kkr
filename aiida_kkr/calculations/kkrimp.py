@@ -20,7 +20,7 @@ class KkrimpCalculation(JobCalculation):
         Init internal parameters at class load time
         """
         # reuse base class function
-        super(KkrCalculation, self)._init_internal_params()
+        super(KkrimpCalculation, self)._init_internal_params()
 
         # List of mandatory input files
         self._INPUTCARD = 'inputcard'
