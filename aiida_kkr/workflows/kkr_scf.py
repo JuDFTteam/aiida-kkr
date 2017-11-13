@@ -100,6 +100,7 @@ class kkr_scf_wc(WorkChain):
             if_(cls.validate_input)(
                 cls.run_voronoi),
             cls.run_kkr,
+            cls.inspect_kkr,
             while_(cls.condition)(
                 cls.run_kkr,
                 cls.inspect_kkr,
@@ -183,12 +184,6 @@ class kkr_scf_wc(WorkChain):
                 error = ("The code you provided for kkr does not "
                          "use the plugin kkr.kkr")
                 self.control_end_wc(error)
-
-        # maybe ckeck here is unessesary...
-        wf_dict = self.inputs.wf_parameters.get_dict()
-
-        if wf_dict == {}:
-            wf_dict = self._wf_default
 
         return run_voronoi
 
@@ -437,6 +432,7 @@ class kkr_scf_wc(WorkChain):
         Handle a failure of voronoi
         """
         return
+
 
     def control_end_wc(self, errormsg):
         """
