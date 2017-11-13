@@ -217,10 +217,10 @@ class KkrCalculation(JobCalculation):
             keywords[key] = val 
             # TODO IF the input node scheme is changed from [val, format] to val this needs to be changed
 
-        # we always overwride these keys:
+        # we always overwride these keys, and since we start from the defaults they are present
         keywords['NATYP'][0] = natyp
         keywords['ALATBASIS'][0] = alat
-
+        
         # Set some keywords from voronoi output
         emin = parent_calc.res.EMIN
         keywords['EMIN'][0] = emin
