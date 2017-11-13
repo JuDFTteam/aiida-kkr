@@ -385,28 +385,24 @@ class kkr_scf_wc(WorkChain):
 
         if self.ctx.successful:
             self.report('STATUS: Done, the convergence criteria are reached.\n'
-                        'INFO: The charge density of the FLEUR calculation pk= '
-                        'converged after {} FLEUR runs and {} iterations to {} '
-                        '"me/bohr^3" \n'
-                        'INFO: The total energy difference of the last two iterations '
-                        'is {} htr \n'.format(self.ctx.loop_count,
+                        'INFO: The charge density of the KKR calculation pk= '
+                        'converged after {} KKR runs and {} iterations to {} '
+                        '"me/bohr^3" \n'.format(self.ctx.loop_count,
                                        last_calc_out_dict.get('number_of_iterations_total', None),
-                                       last_calc_out_dict.get('charge_density', None), self.ctx.energydiff))
+                                       last_calc_out_dict.get('charge_density', None)))
 
         else: # Termination ok, but not converged yet...
             if self.ctx.abort: # some error occured, donot use the output.
                 self.report('STATUS/ERROR: I abort, see logs and '
-                            'erros/warning/hints in output_scf_wc_para')
+                            'erros/warning/hints in output_kkr_scf_wc_para')
             else:
                 self.report('STATUS/WARNING: Done, the maximum number of runs '
                             'was reached or something failed.\n INFO: The '
-                            'charge density of the FLEUR calculation pk= '
-                            'after {} FLEUR runs and {} iterations is {} "me/bohr^3"\n'
-                            'INFO: The total energy difference of the last '
-                            'two interations is {} htr'
+                            'charge density of the KKR calculation pk= '
+                            'after {} KKR runs and {} iterations is {} "me/bohr^3"\n'
                             ''.format(self.ctx.loop_count,
                             last_calc_out_dict.get('number_of_iterations_total', None),
-                            last_calc_out_dict.get('charge_density', None), self.ctx.energydiff))
+                            last_calc_out_dict.get('charge_density', None)))
 
         #also lognotes, which then can be parsed from subworkflow too workflow, list of calculations involved (pks, and uuids),
         #This node should contain everything you wish to plot, here iteration versus, total energy and distance.
