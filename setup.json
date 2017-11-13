@@ -29,6 +29,9 @@
         "aiida.data": [
             "kkr.kkrstructure = aiida_kkr.data.kkrstructure:KkrstructureData"
             ],
+        "aiida.workflows":[
+            "kkr.scf = aiida_kkr.workflows.kkr_scf:kkr_scf_wc"
+            ],
         "console_scripts": [
             "kkrstructure = aiida_kkr.cmdline.data_cli:cli"
             ]
