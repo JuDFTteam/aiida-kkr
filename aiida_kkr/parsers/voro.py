@@ -66,10 +66,33 @@ class VoronoiParser(Parser):
         #    self.logger.error("Error parsing the output json")
         #    return success, node_list
         
-        outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
-        potfile = out_folder.get_abs_path(self._calc._OUT_POTENTIAL_voronoi)
-        emin = check_voronoi_output(potfile, outfile)
-        out_dict = {'EMIN' : emin}
+        #Parse voronoi output, results that are stored in database are in out_dict
+        try:
+            outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
+            potfile = out_folder.get_abs_path(self._calc._OUT_POTENTIAL_voronoi)
+            emin = check_voronoi_output(potfile, outfile)
+            out_dict = {'EMIN' : emin}
+        except:
+            self.logger.error("Error parsing output of voronoi: 'EMIN'")
+            return success, node_list
+            
+        
+        #TODO: parse version info (out_voronoi)
+        #TODO: RMT0/Rout (radii.dat)
+        #TODO: Rout/distNN (radii.dat)
+        #TODO: Ncls (out_voronoi)
+        #TODO: icls-list (out_voronoi)
+        #TODO: NclsSites-list (out_voronoi)
+        #TODO: atom volumes vs total volume, (out_voronoi)
+        #TODO: Jellstart/Genpotstart+potserial (out_voronoi)
+        #TODO: <SHAPE> array (atominfo)
+        
+        #try:
+        #    emin = check_voronoi_output(potfile, outfile)
+        #    out_dict['EMIN'] = emin
+        #except:
+        #    self.logger.error("Error parsing output of voronoi: 'EMIN'")
+        #    return success, node_list
 
 
         output_data = ParameterData(dict=out_dict)
