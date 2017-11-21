@@ -3,23 +3,26 @@
 Input plug-in for a KKR calculation.
 """
 import os
-from scipy import array
+from numpy import array
 
 from aiida.orm.calculation.job import JobCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.utils import classproperty
 from aiida.common.constants import elements as PeriodicTableElements
-from aiida.common.exceptions import (InputValidationError, ValidationError)
+from aiida.common.exceptions import (InputValidationError, ValidationError, NotExistent)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.orm import DataFactory
 from aiida.common.exceptions import UniquenessError
-from aiida_kkr.tools.kkrcontrol import write_kkr_inputcard_template, fill_keywords_to_inputcard, create_keyword_default_values
+from aiida_kkr.tools.kkr_params import kkrparams
+from aiida_kkr.tools.common_functions import get_alat_from_bravais, get_Ang2aBohr
 
+#define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
 ParameterData = DataFactory('parameter')
 StructureData = DataFactory('structure')
-a_to_bohr = 1.8897261254578281
 
+#list of globally used constants
+a_to_bohr = get_Ang2aBohr()
 
 class KkrCalculation(JobCalculation):
     """
@@ -34,21 +37,21 @@ class KkrCalculation(JobCalculation):
         # reuse base class function
         super(KkrCalculation, self)._init_internal_params()
        
-       
-       # Default input and output files
+        # Default input and output files
         self._DEFAULT_INPUT_FILE = 'inputcard' # will be shown with inputcat
-        self._DEFAULT_OUTPUT_FILE = 'out_kkr' #'shell output will be shown with outputca
+        self._DEFAULT_OUTPUT_FILE = 'out_kkr'  # verdi shell output will be shown with outputcat
         
+        # same as _DEFAULT_OUTPUT_FILE: piped output of kkr execution to this file
         self._OUTPUT_FILE_NAME = 'out_kkr'
 
         # List of mandatory input files
         self._INPUT_FILE_NAME = 'inputcard'
         self._POTENTIAL = 'potential'
 
-        # List of optional input files (may be mandatory for some setting in inputputcard)
-        self._SHAPEFUN = 'shapefun'
-        self._SCOEF = 'scoef'
-        self._NONCO_ANGLES = 'nonco_angles.dat'
+        # List of optional input files (may be mandatory for some settings in inputcard)
+        self._SHAPEFUN = 'shapefun' # mandatory if nonspherical calculation
+        self._SCOEF = 'scoef' # mandatory for KKRFLEX calculation
+        self._NONCO_ANGLES = 'nonco_angles.dat' # mandatory if noncollinear directions are used that are not (theta, phi)= (0,0) for all atoms
 
 	
 	   # List of output files that should always be present
@@ -56,14 +59,16 @@ class KkrCalculation(JobCalculation):
         self._OUTPUT_0_INIT = 'output.0.txt'
         self._OUTPUT_000 = 'output.000.txt'
         self._OUT_TIMING_000 = 'out_timing.000.txt'
+        self._NONCO_ANGLES_OUT = 'nonco_angles_out.dat'
 
-
+        
         # template.product entry point defined in setup.json
         self._default_parser = 'kkr.kkrparser'
         
         # files that will be copied from local computer if parent was KKR calc
         self._copy_filelist_kkr = [self._SHAPEFUN, self._OUT_POTENTIAL]
 
+        
     @classproperty
     def _use_methods(cls):
         """
@@ -92,13 +97,6 @@ class KkrCalculation(JobCalculation):
                     "uploaded from the repository.")
             },
             })
-            #"structure": {
-            #    'valid_types': StructureData,
-            #    'additional_parameter': None,
-            #    'linkname': 'structure',
-            #    'docstring':
-            #    ("Use a node that specifies the input crystal structure ")
-            #},
         return use_dict
 
     def _prepare_for_submission(self, tempfolder, inputdict):
@@ -147,9 +145,9 @@ class KkrCalculation(JobCalculation):
                     "".format(n_parents, "" if n_parents == 0 else "s"))
             parent_calc = parent_calcs[0]
             has_parent = True
-        if n_parents:
+        if n_parents == 1:
             parent_calc = parent_calcs[0]
-            has_parent = True          
+            has_parent = True         
         
         # check that it is a valid parent
         #self._check_valid_parent(parent_calc)
@@ -160,19 +158,34 @@ class KkrCalculation(JobCalculation):
         # Parent calc does not has to be on the same computer.
         #TODO so far we copy every thing from local computer ggf if kkr we want to copy remotely
 
-
                 
         # get StructureData node from Parent if Voronoi
         structure = None        
+        self.logger.info("Get structure node from voronoi parent")
         if isinstance(parent_calc, VoronoiCalculation):
+            self.logger.info("Parent is Voronoi calculation")
             try:            
                 structure = parent_calc.get_inputs_dict()['structure']    
             except KeyError:
                 # raise InputvaluationError # TODO raise some error
+                self.logger.error('Could not get structure from Voronoi parent.')
                 pass
-                print('Could not get structure from parent.')
+        elif isinstance(parent_calc, KkrCalculation):
+            self.logger.info("Parent is KKR calculation")
+            #try:            
+            self.logger.error('extract structure from KKR parent')
+            structure = self.find_parent_struc(parent_calc)   
+            #except KeyError:
+            #    # raise InputvaluationError # TODO raise some error
+            #    pass
+            #    self.logger.info('Could not get structure from KKR parent.')
+        else:
+            self.logger.info("Parent is neither Voronoi nor KKR calculation!")
+            self.logger.error('Could not get structure from parent.')
+            raise ValidationError()
             
         if inputdict:
+            self.logger.error('Unknown inputs for structure lookup')
             raise ValidationError("Unknown inputs")
 
 
@@ -185,12 +198,13 @@ class KkrCalculation(JobCalculation):
         _atomic_numbers = {data['symbol']: num for num,
                         data in PeriodicTableElements.iteritems()}
         
-        # KKr wants units in bohr and relativ coordinates
+        # KKR wants units in bohr and relativ coordinates
         bravais = array(structure.cell)*a_to_bohr
-        alat = bravais.max()
+        alat = get_alat_from_bravais(bravais)
         bravais = bravais/alat
+        
         sites = structure.sites
-        natyp = len(sites)
+        naez = len(sites)
         positions = []
         charges = []
         for site in sites:
@@ -201,34 +215,35 @@ class KkrCalculation(JobCalculation):
             sitekind = structure.get_kind(site.kind_name)
             site_symbol = sitekind.symbol
             charges.append(_atomic_numbers[site_symbol])
-            # TODO does not work for Charged atoms, find out how...
-        # TODO get empty spheres
+            
         positions = array(positions)
+        #TODO get empty spheres
+        #TODO deal with alloys (CPA, VCA)
+        #TODO default is bulk, get 2D from structure.pbc info (periodic boundary contitions)
+        
 
         ######################################
-        # Prepare keywords for kkr from input
-
-        # TODO: policy, override from user input, or from previous calculation?
-        # my opinion, user input should override..., because otherwise in db
-        # you have input was EMIN = x und used was EMIN=Y
-        input_dict = parameters.get_dict()
-        keywords = create_keyword_default_values()
-        for key, val in input_dict.iteritems():
-            keywords[key] = val 
-            # TODO IF the input node scheme is changed from [val, format] to val this needs to be changed
-
-        # we always overwride these keys, and since we start from the defaults they are present
-        keywords['NATYP'][0] = natyp
-        keywords['ALATBASIS'][0] = alat
+        # Prepare keywords for kkr from input structure
         
-        # Set some keywords from voronoi output
-        emin = parent_calc.res.EMIN
-        keywords['EMIN'][0] = emin
+        # get parameter dictionary
+        input_dict = parameters.get_dict()
+        # empty kkrparams instance (contains formatting info etc.)
+        params = kkrparams()
+        for key in input_dict.keys():
+            params.set_value(key, input_dict[key])
 
         # Write input to file
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
-        write_kkr_inputcard_template(bravais, natyp, positions, charges, outfile=input_filename)
-        fill_keywords_to_inputcard(keywords, runops=[], testops=[], CPAconc=[], template=input_filename, output=input_filename)
+        params.set_multiple_values(BRAVAIS=bravais, ALATBASIS=alat, NAEZ=naez, ZATOM=charges, RBASIS=positions)
+        
+        #TODO check if parent is voronoi calculation, otherwise take input, right now takes only voronoi calculation
+        if isinstance(parent_calc, VoronoiCalculation):
+            self.logger.info('Overwriting EMIN with value from voronoi output')
+            emin = parent_calc.res.EMIN
+            params.set_value('EMIN', emin)
+        
+        params.fill_keywords_to_inputfile(output=input_filename)
+
 
         #################
         # Decide what files to copy
@@ -269,7 +284,7 @@ class KkrCalculation(JobCalculation):
                                   self._POTENTIAL,
                                   self._SHAPEFUN,
                                   self._SCOEF,
-                                  self._NONCO_ANGLES,
+                                  self._NONCO_ANGLES_OUT,
                                   self._OUT_POTENTIAL,
                                   self._OUTPUT_0_INIT,
                                   self._OUTPUT_000,
@@ -296,11 +311,9 @@ class KkrCalculation(JobCalculation):
                 raise ValueError("Parent calculation must be a VoronoiCalculation, a "
                                  "KkrCalculation or a CopyonlyCalculation")
         except ImportError:
-            if ((not isinstance(calc, VoronoiCalculation))
-                            and (not isinstance(calc, KkrCalculation)) ):
+            if ((not isinstance(calc, KkrCalculation)) ):
                 raise ValueError("Parent calculation must be a VoronoiCalculation or "
                                  "a KkrCalculation")
-
 
 
     def use_parent_calculation(self, calc):
@@ -325,7 +338,7 @@ class KkrCalculation(JobCalculation):
         self._set_parent_remotedata(remotedata)
 
 
-    def _set_parent_remotedata(self,remotedata):
+    def _set_parent_remotedata(self, remotedata):
         """
         Used to set a parent remotefolder in the restart of fleur.
         """
@@ -339,3 +352,78 @@ class KkrCalculation(JobCalculation):
                                   "KKR calculation")
 
         self.use_parent_folder(remotedata)
+
+        
+    def get_struc(self, parent_calc):
+        """
+        Get structure from a parent_folder (result of a calculation, typically a remote folder)
+        """
+        return parent_calc.inp.structure
+        
+        
+    def has_struc(self, parent_folder):
+        """
+        Check if parent_folder has structure information in its input
+        """
+        success = True
+        try:
+            parent_folder.inp.structure
+        except:
+            success = False
+        if success:
+            print('struc found')
+        else:
+            print('no struc found')
+        return success
+        
+        
+    def get_remote(self, parent_folder):
+        """
+        get remote_folder from input if parent_folder is not already a remote folder
+        """
+        parent_folder_tmp0 = parent_folder
+        try:
+            parent_folder_tmp = parent_folder_tmp0.inp.remote_folder
+            print('input has remote folder')
+        except:
+            #TODO check if this is a remote folder
+            parent_folder_tmp = parent_folder_tmp0
+            print('input is remote folder')
+        return parent_folder_tmp
+        
+        
+    def get_parent(self, input_folder):
+        """
+        get the  parent folder of the calculation. If not parent was found return input folder
+        """
+        input_folder_tmp0 = input_folder
+        try:
+            parent_folder_tmp = input_folder_tmp0.inp.parent_calc_folder
+            print('input has parent folder')
+        except:
+            parent_folder_tmp = input_folder_tmp0
+            print('input is parent folder')
+        return parent_folder_tmp
+        
+        
+    def find_parent_struc(self, parent_folder):
+        """
+        Find the Structure node recuresively in chain of parent calculations (structure node is input to voronoi calculation)
+        """
+        iiter = 0
+        Nmaxiter = 100
+        parent_folder_tmp = self.get_remote(parent_folder)
+        while not self.has_struc(parent_folder_tmp) and iiter<Nmaxiter:
+            parent_folder_tmp = self.get_remote(self.get_parent(parent_folder_tmp))
+            iiter += 1
+        print(iiter)
+        if self.has_struc(parent_folder_tmp):
+            struc = self.get_struc(parent_folder_tmp)
+            return struc
+        else:
+            print('struc not found')
+            
+        
+        
+
+    #parent_folder_tmp = parent_folder.copy()

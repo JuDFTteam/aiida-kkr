@@ -82,28 +82,28 @@ def parse_kkr_outputfile(outfile):
     #outfi = open(outfile, 'r') # TODO try block
     outtxt = outfile#outfile.readlines()
     try:
-        results['rms'] = array([float(outtxt[iline].split('=')[1].replace('D', 'E')) for iline in range(len(outtxt)) if 'average rms-error' in outtxt[iline]])
+        results['rms'] = array([float(outtxt[iline].split('=')[1].replace('D', 'E')) for iline in range(len(outtxt)) if 'average rms-error' in outtxt[iline]])[-1]
     except:
-        results['rms'] = array([-1.0])
+        results['rms'] = None
     try:
-        results['charge_neutrality'] = array([float(outtxt[iline].split('=')[1]) for iline in range(len(outtxt)) if 'charge neutrality in unit cell' in outtxt[iline]])
+        results['charge_neutrality'] = array([float(outtxt[iline].split('=')[1]) for iline in range(len(outtxt)) if 'charge neutrality in unit cell' in outtxt[iline]])[-1]
     except:
-        results['charge_neutrality'] = array([-1.0])
+        results['charge_neutrality'] = None
     try:
-        results['total_magnetic_moment'] = array([float(outtxt[iline].split('=')[1]) for iline in range(len(outtxt)) if 'TOTAL mag. moment in unit cell' in outtxt[iline]])
+        results['total_magnetic_moment'] = array([float(outtxt[iline].split('=')[1]) for iline in range(len(outtxt)) if 'TOTAL mag. moment in unit cell' in outtxt[iline]])[-1]
     except:
-        results['total_magnetic_moment'] = array([-1.0])
+        results['total_magnetic_moment'] = None
     try:
-        results['EF'] = array([float(outtxt[iline].split('FERMI')[1].split()[0]) for iline in range(len(outtxt)) if 'E FERMI' in outtxt[iline]])
+        results['EF'] = array([float(outtxt[iline].split('FERMI')[1].split()[0]) for iline in range(len(outtxt)) if 'E FERMI' in outtxt[iline]])[-1]
     except:
-        results['EF'] = array([-1.0])
+        results['EF'] = None
     try:
-        results['DOS_EF'] = array([float(outtxt[iline].split('=')[1]) for iline in range(len(outtxt)) if 'DOS(E_F)' in outtxt[iline]])
+        results['DOS_EF'] = array([float(outtxt[iline].split('=')[1]) for iline in range(len(outtxt)) if 'DOS(E_F)' in outtxt[iline]])[-1]
     except:
-        results['DOS_EF'] = array([-1.0])
+        results['DOS_EF'] = None
     try:
-        results['total_energy'] = array([float(outtxt[iline].split(':')[1]) for iline in range(len(outtxt)) if 'TOTAL ENERGY in ryd.' in outtxt[iline]])
+        results['total_energy'] = array([float(outtxt[iline].split(':')[1]) for iline in range(len(outtxt)) if 'TOTAL ENERGY in ryd.' in outtxt[iline]])[-1]
     except:
-        results['total_energy'] = array([-1.0])
+        results['total_energy'] = None
         
     return results
