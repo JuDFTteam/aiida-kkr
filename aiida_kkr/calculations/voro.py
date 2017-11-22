@@ -28,7 +28,7 @@ class VoronoiCalculation(JobCalculation):
         """
         Init internal parameters at class load time
         """
-        # reuse base class function
+        # reuse base class (i.e. JobCalculation) functions
         super(VoronoiCalculation, self)._init_internal_params()
 
         # Default input and output files

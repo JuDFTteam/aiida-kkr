@@ -170,7 +170,7 @@ class kkrparams(object):
                 set_values.append([key, self.values[key]])
                 added += 1
         if added == 0:
-            print('Not values set')
+            print('No values set')
         return set_values
 
 
@@ -185,7 +185,6 @@ class kkrparams(object):
 
     def is_mandatory(self, key):
         """Returns mandatory flag (True/False) for keyword 'key'"""
-        self._update_mandatory()
         return self._mandatory[key]
 
 
@@ -221,7 +220,7 @@ class kkrparams(object):
                                 ('KSHAPE', [None, '%i', False, 'Description of lattice, shape functions: 0 for ASA ([INS]=0), 2 for full potential ([INS]=1)']),
                                 ('<SHAPE>', [None, '%i', False, 'Description of lattice, shape functions: Indexes which shape function from the shape-function file to use in which atom. Default is that each atom has its own shape function.']),
                                 # chemistry
-                                ('<ZATOM>', [None, '%f', False, 'Chemistry, Atom types: Nuclear charge per atom. Negative value signals to use value read in from the potential file.']),
+                                ('<ZATOM>', [None, '%f', True, 'Chemistry, Atom types: Nuclear charge per atom. Negative value signals to use value read in from the potential file.']),
                                 ('NSPIN', [None, '%i', True, 'Chemistry, Atom types: Number of spin directions in potential. Values 1 or 2']),
                                 ('KVREL', [None, '%i', False, 'Chemistry, Atom types: Relativistic treatment of valence electrons. Takes values 0 (Schroedinger), 1 (Scalar relativistic), 2 (Dirac ; works only in ASA mode)']),
                                 ('<SOCSCL>', [None, '%f', False, 'Chemistry, Atom types: Spin-orbit coupling scaling per atom. Takes values between 0. (no spin-orbit) and 1. (full spin-orbit). Works only in combination with the Juelich spin orbit solver (runoption NEWSOSOL)']),
@@ -314,7 +313,7 @@ class kkrparams(object):
                 runopts.append(runopt.strip())
 
         #For a KKR calculation these keywords are always mandatory:
-        mandatory_list = ['ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'NSPIN', 'LMAX', 'RMAX', 'GMAX']
+        mandatory_list = ['ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'NSPIN', 'LMAX', 'RMAX', 'GMAX', '<ZATOM>']
 
         if self.values['NPOL'] is not None and self.values['NPOL'] != 0:
                 mandatory_list += ['EMIN']
@@ -341,11 +340,17 @@ class kkrparams(object):
             self.update_mandatory_voronoi()
 
 
-    def _check_mandatory(self):
+    def _check_mandatory(self, assume_struc_present=False):
         """Check if all mandatory keywords are set"""
         self._update_mandatory()
         if self.__params_type == 'voronoi':
             self.update_mandatory_voronoi()
+        # remove BRAVAIS, NZEZ, ALATBASIS, <RBASIS> and <ZATOM> from list of mandatory keys
+        if assume_struc_present:
+            for delkey in ['BRAVAIS', 'NAEZ', 'ALATBASIS', '<RBASIS>', '<ZATOM>']:
+                #print('removing {} from list of mandatory keys'.format(delkey), self._mandatory[delkey])
+                self._mandatory[delkey] = False
+                #print(self._mandatory[delkey])
         for key in self.values.keys():
             if self._mandatory[key] and self.values[key] is None:
                 print('Error not all mandatory keys are set!')
@@ -365,7 +370,7 @@ class kkrparams(object):
         for key in self.__listargs.keys():
             if self.values[key] is not None:
                 tmpsuccess = True
-                print('checking', key, self.values[key], self.__listargs[key])
+                #print('checking', key, self.values[key], self.__listargs[key])
                 if type(self.values[key]) not in [list, ndarray]:
                     self.values[key] = array([self.values[key]])
                 cmpdims = (self.__listargs[key], )
@@ -389,12 +394,13 @@ class kkrparams(object):
                     raise TypeError
 
 
-    def _check_input_consistency(self):
+    def _check_input_consistency(self, assume_struc_present=False):
         """Check consistency of input, to be done before wrinting to inputcard"""
         from numpy import array
 
         # first check if all mandatory values are there
-        self._check_mandatory()
+        #print(assume_struc_present)
+        self._check_mandatory(assume_struc_present=assume_struc_present)
 
         # lists of array arguments
         keywords = self.values
@@ -416,7 +422,7 @@ class kkrparams(object):
                          ['<ZATOM>', natyp], ['<SOCSCL>', natyp], ['<SITE>', natyp], ['<CPA-CONC>', natyp],
                          ['<KAOEZL>', nlbasis], ['<KAOEZR>', nrbasis], ['XINIPOL', natyp], ['<RMTREF>', natyp],
                          ['<RMTREFL>', nlbasis], ['<RMTREFR>', nrbasis], ['<FPRADIUS>', natyp], ['BZDIVIDE', 3],
-                         ['<RBLEFT>', nrbasis], ['ZPERIODL', 1], ['<RBRIGHT>', nrbasis], ['ZPERIODR', 1],
+                         ['<RBLEFT>', nrbasis], ['ZPERIODL', 3], ['<RBRIGHT>', nrbasis], ['ZPERIODR', 3],
                          ['LDAU_PARA', 5], ['CPAINFO', 2], ['<DELTAE>', 2], ['FILES', 2]])
         special_formatting = ['BRAVAIS', 'RUNOPT', 'TESTOPT', 'FILES']
 
@@ -429,12 +435,14 @@ class kkrparams(object):
         # some special checks
         bulkmode = False
         set_values = [key[0] for key in self.get_set_values()]
-        if 'INTERFACE' not in set_values:
+        if 'INTERFACE' not in set_values or self.values['INTERFACE']:
             bulkmode = True
-        bravais = array(self.values['BRAVAIS'])
-        if bulkmode and sum(bravais[2]**2)==0:
-            print("Error: 'BRAVAIS' matches 2D calculation but 'INTERFACE' is not set to True!")
-            raise ValueError
+            
+        if not assume_struc_present:
+            bravais = array(self.values['BRAVAIS'])
+            if bulkmode and sum(bravais[2]**2)==0:
+                print("Error: 'BRAVAIS' matches 2D calculation but 'INTERFACE' is not set to True!")
+                raise ValueError
 
 
     def fill_keywords_to_inputfile(self, is_voro_calc=False, output='inputcard'):
@@ -631,7 +639,7 @@ class kkrparams(object):
                 runopts.append(runopt.strip())
 
         #For a KKR calculation these keywords are always mandatory:
-        mandatory_list = ['ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'NSPIN', 'LMAX', 'RCLUSTZ']
+        mandatory_list = ['ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'NSPIN', 'LMAX', 'RCLUSTZ', '<ZATOM>']
 
         #Mandatory in 2D
         if self.values['INTERFACE']:
@@ -653,3 +661,8 @@ class kkrparams(object):
                 missing.append(key)
         return missing
 
+
+#kv = kkrparams(params_type='voronoi')
+#kv.set_multiple_values(NSPIN=1, LMAX=2, RCLUSTZ=1.5)
+#kv._check_input_consistency(assume_struc_present=True)
+#kv._check_input_consistency(assume_struc_present=False)

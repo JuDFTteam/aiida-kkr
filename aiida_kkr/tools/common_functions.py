@@ -6,6 +6,7 @@ Created on Thu Nov 16 13:25:35 2017
 @author: ruess
 """
 
+
 #helper functions used in calculation, parser etc.
 def get_alat_from_bravais(bravais):
     from numpy import sqrt, sum
@@ -18,4 +19,4 @@ def get_Ang2aBohr():
 def get_aBohr2Ang():
     return 1/1.8897261254578281
     
-
+        

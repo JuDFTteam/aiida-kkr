@@ -13,13 +13,14 @@ from aiida.work.process_registry import ProcessRegistry
 from aiida.common.datastructures import calc_states
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
+from aiida_kkr.tools.kkr_params import kkrparams
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.27"
-__contributors__ = "Jens Broeder"
+__version__ = "0.1"
+__contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 
 RemoteData = DataFactory('remote')
@@ -65,7 +66,7 @@ class kkr_scf_wc(WorkChain):
     1. This workflow does not work with local codes!
     """
 
-    _workflowversion = "0.1.0"
+    _workflowversion = "0.1.1"
     _wf_default = {'kkr_runmax': 4,              # Maximum number of kkr jobs/starts (defauld iterations per start)
                    'density_criterion' : 0.00002,  # Stop if charge denisty is converged below this value
                    'energy_criterion' : 0.002,     # if converge energy run also this total energy convergered below this value
@@ -74,8 +75,8 @@ class kkr_scf_wc(WorkChain):
                    'resue' : True,                 # AiiDA fastforwarding (currently not there yet)
                    'queue_name' : '',              # Queue name to submit jobs too
                    'resources': {"num_machines": 1},# resources to allowcate for the job
-                   'walltime_sec' : 60*60,          # walltime after which the job gets killed (gets parsed to fleur)
-                   'serial' : False,                # execute fleur with mpi or without
+                   'walltime_sec' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)
+                   'serial' : False,                # execute KKR with mpi or without
                    'custom_scheduler_commands' : ''}
 
     @classmethod
@@ -130,17 +131,35 @@ class kkr_scf_wc(WorkChain):
 
         if wf_dict == {}:
             wf_dict = self._wf_default
-
-        self.ctx.serial = wf_dict.get('serial', True)
+            self.report('INFO: using default wf parameter')
 
         # set values, or defaults
-        self.ctx.max_number_runs = wf_dict.get('fleur_runmax', 4)
+        self.ctx.serial = wf_dict.get('serial', True)
+        self.ctx.max_number_runs = wf_dict.get('KKR_runmax', 4)
         self.ctx.resources = wf_dict.get('resources', {"num_machines": 1})
         self.ctx.walltime_sec = wf_dict.get('walltime_sec', 60*60)
         self.ctx.queue = wf_dict.get('queue_name', '')
         self.ctx.custom_scheduler_commands = wf_dict.get('custom_scheduler_commands', '')
-        self.ctx.description_wf = self.inputs.get('_description', '') + '|kkr_scf_wc|'
+        self.ctx.description_wf = self.inputs.get('_description', 'Workflow for '
+                                                  'a KKR scf calculation starting '
+                                                  'either from a structure with '
+                                                  'automatic voronoi calculation '
+                                                  'or a valid RemoteData node of '
+                                                  'a previous calculation')
         self.ctx.label_wf = self.inputs.get('_label', 'kkr_scf_wc')
+        
+        self.report('INFO: use the following parameter:\n'
+                    'serial: {}\n'
+                    'Nmax_runs: {}\n'
+                    'Resources: {}\n'
+                    'Walltime (s): {}\n'
+                    'queue name: {}\n'
+                    'scheduler command: {}\n'
+                    'description: {}\n'
+                    'label: {}\n'.format(self.ctx.serial, self.ctx.max_number_runs, 
+                                self.ctx.resources, self.ctx.walltime_sec, 
+                                self.ctx.queue, self.ctx.custom_scheduler_commands, 
+                                self.ctx.description_wf, self.ctx.label_wf))
 
         # return para/vars
         self.ctx.successful = True
@@ -152,17 +171,19 @@ class kkr_scf_wc(WorkChain):
     def validate_input(self):
         """
         # validate input and find out which path (1, or 2) to take
-        # return True means run inpgen if false run fleur directly
+        # return True means run voronoi if false run kkr directly
         """
         run_voronoi = True
         inputs = self.inputs
 
         if 'structure' in inputs:
+            self.report('INFO: Found structure in input. Start with Voronoi calculation.')
             if not 'voronoi' in inputs:
                 error = 'ERROR: StructureData was provided, but no voronoi code was provided'
                 self.ctx.errors.append(error)
                 self.control_end_wc(error)
         elif 'remote_data' in inputs:
+            self.report('INFO: Found remote_data in input. Continue calculation without running voronoi step.')
             run_voronoi = False
         else:
             error = 'ERROR: No StructureData nor remote_data was provided as Input'
@@ -201,14 +222,16 @@ class kkr_scf_wc(WorkChain):
         if 'calc_parameters' in self.inputs:
             params = self.inputs.calc_parameters
         else:
-            params = None # TODO use the defaults
+            params = None # TODO: use defaults?
+            
+        self.check_input_params(params, is_voronoi=True)
 
         options = {"max_wallclock_seconds": self.ctx.walltime_sec,
                    "resources": self.ctx.resources,
                    "queue_name" : self.ctx.queue}
 
         inputs = get_inputs_voronoi(structure, voronoicode, options, label, description, params=params)
-        self.report('INFO: run voronoi')
+        self.report('INFO: run voronoi step')
         future = submit(VoronoiProcess, **inputs)
 
         return ToContext(voronoi=future, last_calc=future)
@@ -222,7 +245,10 @@ class kkr_scf_wc(WorkChain):
         if 'calc_parameters' in self.inputs:
             params = self.inputs.calc_parameters
         else:
-            params = None # TODO, currently will fail.  
+            params = None 
+            
+        self.check_input_params(params)
+            
         # TODO for now, but this should (take the defaults?) overwrite user input and overwrite some keys
         # which we gain out ouf the voronoi calc
         
@@ -231,8 +257,7 @@ class kkr_scf_wc(WorkChain):
         # overwrite things from voronoi
         # ggf overwrite things from user input
         
-        # if calculation before was a KKR run, check if things need to be changed..
-
+        # if calculation before was a KKR run, check if things need to be changed.
         
         return params
         
@@ -288,7 +313,7 @@ class kkr_scf_wc(WorkChain):
         #expected_states = [calc_states.FINISHED, calc_states.FAILED, 
         #                   calc_states.SUBMISSIONFAILED]
         #print(self.ctx['last_calc'])
-        #self.report('I am in inspect_fleur')
+        #self.report('I am in inspect_KKR')
         try:
             calculation = self.ctx.last_calc
         except AttributeError:
@@ -337,7 +362,7 @@ class kkr_scf_wc(WorkChain):
         # TODO do a test first if last_calculation was successful, otherwise,
         # 'output_parameters' wont exist.
         
-        return False #TODO:  So war for testing
+        return False #TODO:  So war for testing, i.e. do a single KKR calculation only
 
 
     def return_results(self):
@@ -357,6 +382,10 @@ class kkr_scf_wc(WorkChain):
             last_calc_out = None
             last_calc_out_dict = {}
 
+        try: # do the same for RemoteData node to be able to create a link
+            last_RemoteData = self.ctx.last_calc.out.remote_folder
+        except AttributeError:
+            last_RemoteData = None
 
 
         outputnode_dict = {}
@@ -404,15 +433,18 @@ class kkr_scf_wc(WorkChain):
 
 
         outputnode_t = ParameterData(dict=outputnode_dict)
+        outputnode_t.label = 'kkr_scf_wc_results'
+        outputnode_t.description = 'Contains results of workflow (e.g. workflow version number, info about success of wf, lis tof warnings that occured during execution, ...)'
         
          # this is unsafe so far, because last_calc_out could not exist...
         if last_calc_out:
-            outdict = create_scf_result_node(outpara=outputnode_t, last_calc_out=last_calc_out)
+            outdict = create_scf_result_node(outpara=outputnode_t, last_calc_out=last_calc_out, last_RemoteData=last_RemoteData)
         else:
             outdict = create_scf_result_node(outpara=outputnode_t)
 
         if last_calc_out:
             outdict['last_kkr_calc_output'] = last_calc_out
+            outdict['last_kkr_calc_RemoteData'] = last_RemoteData
 
         # TODO return other nodes? depending what calculation was run
 
@@ -438,66 +470,91 @@ class kkr_scf_wc(WorkChain):
         """
         Controled way to shutdown the workchain. will initalize the output nodes
         """
+        self.report('ERROR: shutting workchain down in a controlled way.')
         self.ctx.successful = False
         self.ctx.abort = True
         self.report(errormsg) # because return_results still fails somewhen
         self.return_results()
         #self.abort_nowait(errormsg)
         self.abort(errormsg)
-
-'''
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description=('SCF with FLEUR. workflow to'
-                 ' converge the chargedensity and optional the total energy.'))
-    parser.add_argument('--wf_para', type=ParameterData, dest='wf_parameters',
-                        help='The pseudopotential family', required=False)
-    parser.add_argument('--structure', type=StructureData, dest='structure',
-                        help='The crystal structure node', required=False)
-    parser.add_argument('--calc_para', type=ParameterData, dest='calc_parameters',
-                        help='Parameters for the FLEUR calculation', required=False)
-    parser.add_argument('--fleurinp', type=FleurInpData, dest='fleurinp',
-                        help='FleurinpData from which to run the FLEUR calculation', required=False)
-    parser.add_argument('--remote', type=RemoteData, dest='remote_data',
-                        help=('Remote Data of older FLEUR calculation, '
-                        'from which files will be copied (broyd ...)'), required=False)
-    parser.add_argument('--inpgen', type=Code, dest='inpgen',
-                        help='The inpgen code node to use', required=False)
-    parser.add_argument('--fleur', type=Code, dest='fleur',
-                        help='The FLEUR code node to use', required=True)
-
-    args = parser.parse_args()
-    res = run(fleur_scf_wc, 
-              wf_parameters=args.wf_parameters,
-              structure=args.structure,
-              calc_parameters=args.calc_parameters,
-              fleurinp=args.fleurinp,
-              remote_data=args.remote_data,
-              inpgen = args.inpgen,
-              fleur=args.fleur)
-'''
-
+        
+        
+    def check_input_params(self, params, is_voronoi=False):
+        """
+        Checks input parameter consistency and aborts wf if check fails.
+        """
+        if params is None:
+            error = 'ERROR: calc_parameters not given as input but are needed!'
+            self.ctx.errors.append(error)
+            self.control_end_wc(error)
+        else:
+            input_dict = params.get_dict()
+            if is_voronoi:
+                para_check = kkrparams(params_type='voronoi')
+            else:
+                para_check = kkrparams()
+            # step 1 try to fill keywords
+            try:
+                for key, val in input_dict.iteritems():
+                    para_check.set_value(key, val)
+            except:
+                error = 'ERROR: calc_parameters given are not consistent! Hint: did you give an unknown keyword?'
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
+            # step 2: check if all mandatory keys are there
+            #try:
+            para_check._check_input_consistency(assume_struc_present=True)
+            #except:
+            #    error = 'ERROR: calc_parameters given are not consistent! Hint: are all mandatory keys set?'
+            #    self.ctx.errors.append(error)
+            #    self.control_end_wc(error)
+   
+             
 
 @wf
 def create_scf_result_node(**kwargs):
     """
-    This is a pseudo wf, to create the rigth graph structure of AiiDA.
-    This wokfunction will create the output node in the database.
+    This is a pseudo wf, to create the right graph structure of AiiDA.
+    This workfunction will create the output node in the database.
     It also connects the output_node to all nodes the information commes from.
     So far it is just also parsed in as argument, because so far we are to lazy
     to put most of the code overworked from return_results in here.
     """
+    
+    has_last_outpara = False
+    has_last_calc_out_dict = False
+    has_last_RemoteData = False
     for key, val in kwargs.iteritems():
-        if key == 'outpara': #  should be alwasys there
+        if key == 'outpara': #  should always be there
             outpara = val
+            has_last_outpara = True
+        elif key == 'last_calc_out':
+            has_last_calc_out_dict = True
+            last_calc_out_dict = val
+        elif key =='last_RemoteData':
+            last_RemoteData_dict = val
+            has_last_RemoteData = True
+            
     outdict = {}
-    outputnode = outpara.copy()
-    outputnode.label = 'output_kkr_scf_wc_para'
-    outputnode.description = ('Contains self-consistency results and '
-                             'information of an kkr_scf_wc run.')
-
-    outdict['output_kkr_scf_wc_para'] = outputnode
+    if has_last_outpara:
+        outputnode = outpara.copy()
+        outputnode.label = 'output_kkr_scf_wc_para'
+        outputnode.description = ('Contains self-consistency results and '
+                                  'information of an kkr_scf_wc run.')
+        outdict['output_kkr_scf_wc_ParameterResults'] = outputnode
+    if has_last_calc_out_dict:
+        outputnode2 = last_calc_out_dict.copy()
+        outputnode2.label = 'output_kkr_scf_wc_lastResults'
+        outputnode2.description = ('Contains the Results Parameter node from the output '
+                                   'of the last calculation done in the workflow.')
+        outdict['output_kkr_scf_wc_lastResults'] = outputnode2
+    if has_last_RemoteData:
+        outputnode3 = last_RemoteData_dict.copy()
+        outputnode3.label = 'output_kkr_scf_wc_lastRemoteData'
+        outputnode3.description = ('Contains a link to the latest remote data node '
+                                   'where the output of the calculation can be accessed.')
+        outdict['output_kkr_scf_wc_lastRemoteData'] = outputnode3
+    
     # copy, because we rather produce the same node twice then have a circle in the database for now...
     #output_para = args[0]
     #return {'output_eos_wc_para'}
@@ -570,7 +627,6 @@ def get_inputs_kkr(code, remote, options, label='', description='', parameters=N
     get the input for a KKR calc
     """
     inputs = KkrProcess.get_inputs_template()
-    #print('Template fleur {} '.format(inputs))
     if remote:
         inputs.parent_folder = remote
     if code:

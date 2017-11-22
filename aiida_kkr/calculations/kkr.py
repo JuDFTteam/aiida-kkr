@@ -161,31 +161,31 @@ class KkrCalculation(JobCalculation):
                 
         # get StructureData node from Parent if Voronoi
         structure = None        
-        self.logger.info("Get structure node from voronoi parent")
+        self.logger.info("KkrCalculation: Get structure node from voronoi parent")
         if isinstance(parent_calc, VoronoiCalculation):
-            self.logger.info("Parent is Voronoi calculation")
+            self.logger.info("KkrCalculation: Parent is Voronoi calculation")
             try:            
                 structure = parent_calc.get_inputs_dict()['structure']    
             except KeyError:
                 # raise InputvaluationError # TODO raise some error
-                self.logger.error('Could not get structure from Voronoi parent.')
+                self.logger.error('KkrCalculation: Could not get structure from Voronoi parent.')
                 pass
         elif isinstance(parent_calc, KkrCalculation):
-            self.logger.info("Parent is KKR calculation")
+            self.logger.info("KkrCalculation: Parent is KKR calculation")
             #try:            
-            self.logger.error('extract structure from KKR parent')
+            self.logger.error('KkrCalculation: extract structure from KKR parent')
             structure = self.find_parent_struc(parent_calc)   
             #except KeyError:
             #    # raise InputvaluationError # TODO raise some error
             #    pass
             #    self.logger.info('Could not get structure from KKR parent.')
         else:
-            self.logger.info("Parent is neither Voronoi nor KKR calculation!")
-            self.logger.error('Could not get structure from parent.')
+            self.logger.info("KkrCalculation: Parent is neither Voronoi nor KKR calculation!")
+            self.logger.error('KkrCalculation: Could not get structure from parent.')
             raise ValidationError()
             
         if inputdict:
-            self.logger.error('Unknown inputs for structure lookup')
+            self.logger.error('KkrCalculation: Unknown inputs for structure lookup')
             raise ValidationError("Unknown inputs")
 
 
@@ -229,6 +229,14 @@ class KkrCalculation(JobCalculation):
         input_dict = parameters.get_dict()
         # empty kkrparams instance (contains formatting info etc.)
         params = kkrparams()
+        
+        # in case of starting from Voronoi set EMIN automatically
+        if isinstance(parent_calc, VoronoiCalculation):
+            self.logger.info('Overwriting EMIN with value from voronoi output')
+            emin = parent_calc.res.EMIN
+            params.set_value('EMIN', emin)
+            
+        # overwrite keywords with input parameter
         for key in input_dict.keys():
             params.set_value(key, input_dict[key])
 
@@ -236,11 +244,6 @@ class KkrCalculation(JobCalculation):
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
         params.set_multiple_values(BRAVAIS=bravais, ALATBASIS=alat, NAEZ=naez, ZATOM=charges, RBASIS=positions)
         
-        #TODO check if parent is voronoi calculation, otherwise take input, right now takes only voronoi calculation
-        if isinstance(parent_calc, VoronoiCalculation):
-            self.logger.info('Overwriting EMIN with value from voronoi output')
-            emin = parent_calc.res.EMIN
-            params.set_value('EMIN', emin)
         
         params.fill_keywords_to_inputfile(output=input_filename)
 
@@ -316,28 +319,6 @@ class KkrCalculation(JobCalculation):
                                  "a KkrCalculation")
 
 
-    def use_parent_calculation(self, calc):
-        """
-        Set the parent calculation of KKR,
-        from which it will inherit the outputsubfolder.
-        The link will be created from parent RemoteData to KkrCalculation
-        """
-        from aiida.common.exceptions import NotExistent
-
-        self._check_valid_parent(calc)
-
-        remotedatas = calc.get_outputs(type=RemoteData)
-        if not remotedatas:
-            raise NotExistent("No output remotedata found in "
-                                  "the parent")
-        if len(remotedatas) != 1:
-            raise UniquenessError("More than one output remotedata found in "
-                                  "the parent")
-        remotedata = remotedatas[0]
-
-        self._set_parent_remotedata(remotedata)
-
-
     def _set_parent_remotedata(self, remotedata):
         """
         Used to set a parent remotefolder in the restart of fleur.
@@ -354,14 +335,14 @@ class KkrCalculation(JobCalculation):
         self.use_parent_folder(remotedata)
 
         
-    def get_struc(self, parent_calc):
+    def _get_struc(self, parent_calc):
         """
         Get structure from a parent_folder (result of a calculation, typically a remote folder)
         """
         return parent_calc.inp.structure
         
         
-    def has_struc(self, parent_folder):
+    def _has_struc(self, parent_folder):
         """
         Check if parent_folder has structure information in its input
         """
@@ -377,7 +358,7 @@ class KkrCalculation(JobCalculation):
         return success
         
         
-    def get_remote(self, parent_folder):
+    def _get_remote(self, parent_folder):
         """
         get remote_folder from input if parent_folder is not already a remote folder
         """
@@ -392,7 +373,7 @@ class KkrCalculation(JobCalculation):
         return parent_folder_tmp
         
         
-    def get_parent(self, input_folder):
+    def _get_parent(self, input_folder):
         """
         get the  parent folder of the calculation. If not parent was found return input folder
         """
@@ -406,24 +387,22 @@ class KkrCalculation(JobCalculation):
         return parent_folder_tmp
         
         
-    def find_parent_struc(self, parent_folder):
+    def _find_parent_struc(self, parent_folder):
         """
         Find the Structure node recuresively in chain of parent calculations (structure node is input to voronoi calculation)
         """
         iiter = 0
         Nmaxiter = 100
-        parent_folder_tmp = self.get_remote(parent_folder)
-        while not self.has_struc(parent_folder_tmp) and iiter<Nmaxiter:
-            parent_folder_tmp = self.get_remote(self.get_parent(parent_folder_tmp))
+        parent_folder_tmp = self._get_remote(parent_folder)
+        while not self._has_struc(parent_folder_tmp) and iiter<Nmaxiter:
+            parent_folder_tmp = self._get_remote(self._get_parent(parent_folder_tmp))
             iiter += 1
         print(iiter)
-        if self.has_struc(parent_folder_tmp):
-            struc = self.get_struc(parent_folder_tmp)
+        if self._has_struc(parent_folder_tmp):
+            struc = self._get_struc(parent_folder_tmp)
             return struc
         else:
             print('struc not found')
-            
-        
-        
+    
 
-    #parent_folder_tmp = parent_folder.copy()
+        
