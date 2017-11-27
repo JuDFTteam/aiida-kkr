@@ -10,7 +10,6 @@ from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.common.constants import elements as PeriodicTableElements
 from aiida.orm import DataFactory
-#from aiida_kkr.tools.kkrcontrol import write_kkr_inputcard_template, fill_keywords_to_inputcard, create_keyword_default_values
 from aiida_kkr.tools.kkr_params import kkrparams
 from aiida_kkr.tools.common_functions import get_alat_from_bravais, get_Ang2aBohr
 

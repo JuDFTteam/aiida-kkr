@@ -2,7 +2,8 @@
 
 from aiida.parsers.parser import Parser
 from aiida.orm.data.parameter import ParameterData
-from aiida_kkr.tools.kkrcontrol import check_voronoi_output
+#from aiida_kkr.tools.kkrcontrol import check_voronoi_output
+from aiida_kkr.tools.voronoi_helper import check_voronoi_output
 
 class VoronoiParser(Parser):
     """
