@@ -77,7 +77,7 @@ class VoronoiParser(Parser):
             outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
             potfile = out_folder.get_abs_path(self._calc._OUT_POTENTIAL_voronoi)
             emin = check_voronoi_output(potfile, outfile)
-            out_dict = ['EMIN'] = emin
+            out_dict['EMIN'] = emin
         except:
             self.logger.error("Error parsing output of voronoi: 'EMIN'")
             return success, node_list
