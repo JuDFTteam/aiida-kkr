@@ -45,7 +45,7 @@ class VoronoiCalculation(JobCalculation):
         self._default_parser = 'kkr.voroparser'
         
         # File names
-        self._ATOMINFO = 'atominfo.dat'
+        self._ATOMINFO = 'atominfo.txt'
         self._RADII = 'radii.dat'
         self._SHAPEFUN = 'shapefun'
         self._VERTICES = 'vertices.dat'
