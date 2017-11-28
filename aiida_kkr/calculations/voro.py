@@ -38,10 +38,10 @@ class VoronoiCalculation(JobCalculation):
         self._INPUT_FILE_NAME = 'inputcard'
         #self._INPUTCARD = 'inputcard'
 	
-	# List of output files that should always be present
+	   # List of output files that should always be present
         self._OUTPUT_FILE_NAME = 'out_voronoi'
        
-       # template.product entry point defined in setup.json
+        # template.product entry point defined in setup.json
         self._default_parser = 'kkr.voroparser'
         
         # File names

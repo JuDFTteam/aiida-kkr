@@ -2,8 +2,9 @@
 
 from aiida.parsers.parser import Parser
 from aiida.orm.data.parameter import ParameterData
-#from aiida_kkr.tools.kkrcontrol import check_voronoi_output
 from aiida_kkr.tools.voronoi_helper import check_voronoi_output
+from aiida_kkr.tools.common_functions import search_string
+#from aiida_kkr.calculation import VoronoiCalculation
 
 class VoronoiParser(Parser):
     """
@@ -12,17 +13,19 @@ class VoronoiParser(Parser):
 
     def __init__(self, calc):
         """
-        Initialize the instance of Fleur_inputgenParser
+        Initialize the instance of Voronoi_Parser
         """
         # check for valid input
-        #if not isinstance(calc, FleurinputgenCalculation):
-        #    raise FleurOutputParsingError(
-        #        "Input calc must be a FleurInpgenCalculation")
+        #if not isinstance(calc, VoronoiCalculation):
+        #    raise InputValidationError("Input calc must be a Voronoi Calculation")
 
-        # these files should be at least present after success of inpgen
-        #self._default_files = {calc._OUTPUT_FILE_NAME, calc._INPXML_FILE_NAME}
-        #self._other_files = {calc._SHELLOUT_FILE_NAME}
+        # these files should be at least present after success of voronoi
+        self._default_files = {'inputfile': calc._INPUT_FILE_NAME,
+                               'outfile': calc._OUTPUT_FILE_NAME, 
+                               'atominfo': calc._ATOMINFO, 
+                               'radii': calc._RADII}
 
+        #reuse init of base class
         super(VoronoiParser, self).__init__(calc)
 
     # pylint: disable=protected-access
@@ -67,19 +70,80 @@ class VoronoiParser(Parser):
         except:
             self.logger.error("Error parsing output of voronoi: 'EMIN'")
             return success, node_list
-            
         
-        #TODO: parse version info (out_voronoi)
-        #TODO: RMT0/Rout (radii.dat)
-        #TODO: Rout/distNN (radii.dat)
-        #TODO: Ncls (out_voronoi)
-        #TODO: icls-list (out_voronoi)
-        #TODO: NclsSites-list (out_voronoi)
-        #TODO: atom volumes vs total volume, (out_voronoi)
-        #TODO: Jellstart/Genpotstart+potserial (out_voronoi)
-        #TODO: <SHAPE> array (atominfo): should always be set to have correct clusters
+        try:
+            code_version, compile_options, serial_number = self._get_version_info()
+            out_dict['Code_version'] = code_version
+            out_dict['Compile_options'] = compile_options
+            out_dict['Calculation_serial_number'] = serial_number
+        except:
+            self.logger.error("Error parsing output of voronoi: Version Info")
+            return success, node_list
         
-
+        try:
+            Ncls, results = self._get_cls_info()
+            out_dict['Cluster_number'] = Ncls
+            tmpdict_all = {}
+            for icls in range(Ncls):
+                tmpdict = {}
+                tmpdict['iatom'] = results[icls][0]
+                tmpdict['Refpot'] = results[icls][1]
+                tmpdict['RMTref'] = results[icls][2]
+                tmpdict['TB-cluster'] = results[icls][3]
+                tmpdict['sites'] = results[icls][4]
+                tmpdict_all[icls] = tmpdict
+            out_dict['Cluster_info'] = tmpdict_all
+        except:
+            self.logger.error("Error parsing output of voronoi: Cluster Info")
+            return success, node_list
+        
+        try:
+            out_dict['Start_from_jellium_potentials'] = self._startpot_jellium()
+        except:
+            self.logger.error("Error parsing output of voronoi: Jellium startpot")
+            return success, node_list
+        
+        try:
+            natyp, naez, shapes = self._get_shape_array()
+            out_dict['Shapes'] = shapes
+        except:
+            self.logger.error("Error parsing output of voronoi: SHAPE Info")
+            return success, node_list
+        
+        try:
+            Vtot, results = self._get_volumes()
+            out_dict['Volume_total_alat^3'] = Vtot
+            tmpdict_all = {}
+            for icls in range(naez):
+                tmpdict = {}
+                tmpdict['iatom'] = results[icls][0]
+                tmpdict['V_alat^3'] = results[icls][1]
+                tmpdict_all[icls] = tmpdict
+            out_dict['Volume_atoms'] = tmpdict_all
+        except:
+            self.logger.error("Error parsing output of voronoi: Volume Info")
+            return success, node_list
+        
+        try:
+            results = self._get_radii(naez)
+            tmpdict_all = {}
+            for icls in range(naez):
+                tmpdict = {}
+                tmpdict['iatom'] = results[icls][0]
+                tmpdict['Rmt0'] = results[icls][1]
+                tmpdict['Rout'] = results[icls][2]
+                tmpdict['dist_NN'] = results[icls][4]
+                tmpdict['Rmt0/Rout'] = results[icls][3]
+                tmpdict['Rout/dist_NN'] = results[icls][5]
+                tmpdict_all[icls] = tmpdict
+            out_dict['radii_atoms'] = tmpdict_all
+        except:
+            self.logger.error("Error parsing output of voronoi: radii.dat Info")
+            return success, node_list  
+        
+        
+        # some consistency checks comparing lists with natyp/naez numbers
+        #TODO implement checks
 
         output_data = ParameterData(dict=out_dict)
         link_name = self.get_linkname_outparams()
@@ -87,3 +151,122 @@ class VoronoiParser(Parser):
         success = True
 
         return success, node_list
+    
+    # here follow the parser functions:
+    
+    def _startpot_jellium(self):
+        f = open(self._default_files['outfile'])
+        tmptxt = f.readlines()
+        f.close()
+        itmp = search_string('JELLSTART POTENTIALS', tmptxt)
+        if itmp ==-1:
+            return True
+        else:
+            return False
+    
+    
+    def _get_volumes(self):
+        f = open(self._default_files['outfile'])
+        tmptxt = f.readlines()
+        f.close()
+        
+        itmp = search_string('Total volume (alat^3)', tmptxt)
+        if itmp>=0:
+            Vtot = tmptxt.pop(itmp)
+        
+        itmp = 0
+        results = []
+        while itmp>=0:
+            itmp = search_string(' Volume(alat^3)  :', tmptxt)
+            if itmp>=0:
+                tmpstr = tmptxt.pop(itmp)
+                tmpstr = tmpstr.split()
+                tmpstr = [int(tmpstr[2]), float(tmpstr[5])]
+                results.append(tmpstr)
+        return Vtot, results
+    
+    
+    def _get_cls_info(self):
+        f = open(self._default_files['outfile'])
+        tmptxt = f.readlines()
+        f.close()
+        Ncls = 0
+        results = []
+        while Ncls>=0:
+            Ncls = search_string('CLSGEN_TB: Atom', tmptxt)
+            if Ncls>=0:
+                tmpstr = tmptxt.pop(Ncls)
+                tmpstr = tmpstr.split()
+                tmpstr = [int(tmpstr[2]), int(tmpstr[4]), float(tmpstr[6]), int(tmpstr[8]), int(tmpstr[10])]
+                results.append(tmpstr)
+        return Ncls, results
+    
+    
+    def _get_version_info(self):
+        f = open(self._default_files['outfile'])
+        tmptxt = f.readlines()
+        f.close()
+        itmp = search_string('Code version:', tmptxt)
+        code_version = tmptxt.pop(itmp)
+        itmp = search_string('Compile options:', tmptxt)
+        compile_options = tmptxt.pop(itmp)
+        itmp = search_string('serial number for files:', tmptxt)
+        serial_number = tmptxt.pop(itmp)
+        return code_version, compile_options, serial_number
+    
+    
+    def _get_shape_array(self):
+        f = open(self._default_files['inputfile'])
+        inp = f.readlines()
+        f.close()
+        #naez/natyp number of items either one number (=ishape without cpa or two =[iatom, ishape] with CPA)
+        # read in naez and/or natyp and then find ishape array (1..natyp[=naez without CPA])
+        itmp = search_string('NAEZ', inp)
+        if itmp>=0:
+            naez = int(inp.pop(itmp).split()[-1])
+        else:
+            naez = -1
+        itmp = search_string('NATYP', inp)
+        if itmp>=0:
+            natyp = int(inp.pop(itmp).split()[-1])
+        else:
+            natyp = -1
+            
+        # consistency check
+        if naez==-1 and natyp>0:
+            naez = natyp
+        elif natyp==-1 and naez>0:
+            natyp = naez
+        else:
+            raise ValueError('Neither NAEZ nor NATYP found in %s'%self._default_files['inputfile'])
+        
+        # read shape index from atominfo file
+        f = open(self._default_files['atominfo'])
+        tmptxt = f.readlines()
+        f.close()
+        
+        itmp = search_string('<SHAPE>', tmptxt) + 1
+        ishape = []
+        for iatom in range(natyp):
+            txt = tmptxt[itmp+iatom]
+            if natyp>naez: #CPA option
+                ishape.append(int(txt.split()[0]))
+            else:
+                ishape.append(int(txt.split()[1]))
+        
+        return natyp, naez, ishape
+    
+    
+    def _get_radii(self, naez):
+        f = open(self._default_files['radii'])
+        txt = f.readlines()
+        f.close()
+        results = []
+        for iatom in range(naez):
+            # IAT    Rmt0           Rout            Ratio(%)   dist(NN)      Rout/dist(NN) (%)              
+            # 1   0.5000001547   0.7071070000       70.71   1.0000003094       70.71
+            tmpline = txt[3+iatom].split()
+            tmpline = [int(tmpline[0]), float(tmpline[1]), float(tmpline[2]), float(tmpline[3]), float(tmpline[4]), float(tmpline[5])]
+            results.append(tmpline)
+        return results
+    
