@@ -20,13 +20,10 @@ class VoronoiParser(Parser):
         #if not isinstance(calc, VoronoiCalculation):
         #    raise InputValidationError("Input calc must be a Voronoi Calculation")
 
-        # these files should be at least present after success of voronoi
-        self._default_files = {'inputfile': calc._INPUT_FILE_NAME,
-                               'outfile': calc._OUTPUT_FILE_NAME, 
+        # these files should be present after success of voronoi
+        self._default_files = {'outfile': calc._OUTPUT_FILE_NAME, 
                                'atominfo': calc._ATOMINFO, 
                                'radii': calc._RADII}
-        print(self._default_files)
-        print(os.path.abspath(os.curdir))
 
         #reuse init of base class
         super(VoronoiParser, self).__init__(calc)
@@ -65,17 +62,9 @@ class VoronoiParser(Parser):
             return success, node_list
         
         #Parse voronoi output, results that are stored in database are in out_dict
-        try:
-            outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
-            potfile = out_folder.get_abs_path(self._calc._OUT_POTENTIAL_voronoi)
-            emin = check_voronoi_output(potfile, outfile)
-            out_dict = {'EMIN' : emin}
-        except:
-            self.logger.error("Error parsing output of voronoi: 'EMIN'")
-            return success, node_list
+        out_dict = {}
         
         try:
-            print('parsing version info')
             code_version, compile_options, serial_number = self._get_version_info(out_folder)
             out_dict['Code_version'] = code_version
             out_dict['Compile_options'] = compile_options
@@ -85,7 +74,15 @@ class VoronoiParser(Parser):
             return success, node_list
         
         try:
-            print('parsing Cluster info')
+            outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
+            potfile = out_folder.get_abs_path(self._calc._OUT_POTENTIAL_voronoi)
+            emin = check_voronoi_output(potfile, outfile)
+            out_dict = ['EMIN'] = emin
+        except:
+            self.logger.error("Error parsing output of voronoi: 'EMIN'")
+            return success, node_list
+        
+        try:
             Ncls, results = self._get_cls_info(out_folder)
             out_dict['Cluster_number'] = Ncls
             tmpdict_all = []
@@ -103,14 +100,12 @@ class VoronoiParser(Parser):
             return success, node_list
         
         try:
-            print('parsing jellstart')
             out_dict['Start_from_jellium_potentials'] = self._startpot_jellium(out_folder)
         except:
             self.logger.error("Error parsing output of voronoi: Jellium startpot")
             return success, node_list
         
         try:
-            print('parsing shape info')
             natyp, naez, shapes = self._get_shape_array(out_folder)
             out_dict['Shapes'] = shapes
         except:
@@ -118,7 +113,6 @@ class VoronoiParser(Parser):
             return success, node_list
         
         try:
-            print('parsing volume info')
             Vtot, results = self._get_volumes(out_folder)
             out_dict['Volume_total'] = Vtot
             tmpdict_all = []
@@ -133,7 +127,6 @@ class VoronoiParser(Parser):
             return success, node_list
         
         try:
-            print('parsing radii info')
             results = self._get_radii(naez, out_folder)
             tmpdict_all = []
             for icls in range(naez):
@@ -204,15 +197,12 @@ class VoronoiParser(Parser):
         results = []
         while itmp>=0:
             itmp = search_string('CLSGEN_TB: Atom', tmptxt)
-            print(itmp)
             if itmp>=0:
                 tmpstr = tmptxt.pop(itmp)
                 tmpstr = tmpstr.split()
                 tmpstr = [int(tmpstr[2]), int(tmpstr[4]), float(tmpstr[6]), int(tmpstr[8]), int(tmpstr[10])]
                 results.append(tmpstr)
                 Ncls += 1
-                print(itmp, Ncls)
-        print(Ncls)
         return Ncls, results
     
     
@@ -252,13 +242,9 @@ class VoronoiParser(Parser):
         elif natyp==-1 and naez>0:
             natyp = naez
         elif natyp==-1 and naez==-1:
-            raise ValueError('Neither NAEZ nor NATYP found in %s'%self._default_files['inputfile'])
+            raise ValueError('Neither NAEZ nor NATYP found in %s'%self._calc._OUTPUT_FILE_NAME)
         
         # read shape index from atominfo file
-        print('filename', self._default_files['atominfo'])
-        print(os.path.abspath(os.curdir))
-        #f = open(self._default_files['atominfo'])
-        print(out_folder.get_abs_path(self._calc._ATOMINFO))
         f = open(out_folder.get_abs_path(self._calc._ATOMINFO))
         tmptxt = f.readlines()
         f.close()
@@ -276,10 +262,6 @@ class VoronoiParser(Parser):
     
     
     def _get_radii(self, naez, out_folder):
-        print('filename', self._default_files['radii'])
-        print(os.path.abspath(os.curdir))
-        #f = open(self._default_files['radii'])
-        print(out_folder.get_abs_path(self._calc._RADII))
         f = open(out_folder.get_abs_path(self._calc._RADII))
         txt = f.readlines()
         f.close()
