@@ -148,6 +148,11 @@ class kkrparams(object):
         """Sets value of keyword 'key'"""
         self.values[key] = value
         self._check_valuetype(key)
+        
+        
+    def remove_value(self, key):
+        """Removes value of keyword 'key', i.e. resets to None"""
+        self.values[key] = None
 
 
     def set_multiple_values(self, **kwargs):

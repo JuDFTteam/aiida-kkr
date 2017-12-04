@@ -72,13 +72,12 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     positions = []
     charges = []
     weights = [] # for CPA
-    ncpa_add = 0 # number of additional kinds per site for CPA
     isitelist = [] # counter sites array for CPA
     isite = 0
     for site in sites:
         pos = site.position 
         #TODO maybe convert to rel pos and make sure that type is right for script (array or tuple)
-        abspos = array(pos) 
+        abspos = array(pos)*a_to_bohr/alat # also in units of alat
         positions.append(abspos)
         isite += 1
         sitekind = structure.get_kind(site.kind_name)
@@ -90,7 +89,6 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
                 charges.append(0.0)
             #TODO deal with VCA case
             if sitekind.is_alloy():
-                ncpa_add+=1
                 weights.append(sitekind.weights[ikind])
             else:
                 weights.append(1.)
@@ -102,7 +100,6 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     charges = array(charges)
     positions = array(positions)
     #TODO default is bulk, get 2D from structure.pbc info (periodic boundary contitions)
-    
 
     ######################################
     # Prepare keywords for kkr from input structure
@@ -130,8 +127,8 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     params.set_multiple_values(BRAVAIS=bravais, ALATBASIS=alat, NAEZ=naez, 
                                ZATOM=charges, RBASIS=positions, CARTESIAN=True)
     # for CPA case:
-    if ncpa_add>0:
-        natyp = naez+ncpa_add
+    if len(weights)>naez:
+        natyp = len(weights)
         params.set_value('NATYP', natyp)
         params.set_value('<CPA-CONC>', weights)
         params.set_value('<SITE>', isitelist)
