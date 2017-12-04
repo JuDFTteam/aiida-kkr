@@ -146,9 +146,8 @@ class kkrparams(object):
 
     def set_value(self, key, value):
         """Sets value of keyword 'key'"""
-        if value is not None:
-            self.values[key] = value
-            self._check_valuetype(key)
+        self.values[key] = value
+        self._check_valuetype(key)
 
 
     def set_multiple_values(self, **kwargs):

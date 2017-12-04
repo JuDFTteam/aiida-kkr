@@ -92,8 +92,7 @@ def update_params(node, nodename=None, **kwargs):
     # copy values from input node
     for key in inp_params:
         value = inp_params[key]
-        if value is not None:
-            params.set_value(key, value)
+        params.set_value(key, value)
             
     # check if values are given as **kwargs (otherwise return input node)
     if len(kwargs)==0:
@@ -112,3 +111,15 @@ def update_params(node, nodename=None, **kwargs):
     ParaNode.label = nodename
     
     return ParaNode
+
+#TODO implment VCA functionality
+# maybe one starts from a calculation closest to the VCA case and slowly 
+# increase ZATOM which violates the _do_never_modify rule in KKR calculation
+# this should then create a new structure and modify the old potential accordingly
+# general rule: Nover destroy the data provenance!!!
+@wf
+def prepare_VCA_structure_wf():
+    pass
+
+def prepare_VCA_structure():
+    pass

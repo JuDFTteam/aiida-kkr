@@ -4,8 +4,16 @@ from aiida.parsers.parser import Parser
 from aiida.orm.data.parameter import ParameterData
 from aiida_kkr.tools.voronoi_helper import check_voronoi_output
 from aiida_kkr.tools.common_functions import search_string
-#from aiida_kkr.calculation import VoronoiCalculation
-import os
+from aiida_kkr.calculations.voro import VoronoiCalculation
+from aiida.common.exceptions import InputValidationError
+
+
+__copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
+                 "IAS-1/PGI-1, Germany. All rights reserved.")
+__license__ = "MIT license, see LICENSE.txt file"
+__version__ = "0.1"
+__contributors__ = ("Jens Broeder", "Philipp Rüßmann")
+
 
 class VoronoiParser(Parser):
     """
@@ -17,13 +25,15 @@ class VoronoiParser(Parser):
         Initialize the instance of Voronoi_Parser
         """
         # check for valid input
-        #if not isinstance(calc, VoronoiCalculation):
-        #    raise InputValidationError("Input calc must be a Voronoi Calculation")
+        if not isinstance(calc, VoronoiCalculation):
+            raise InputValidationError("Input calc must be a Voronoi Calculation")
 
         # these files should be present after success of voronoi
         self._default_files = {'outfile': calc._OUTPUT_FILE_NAME, 
                                'atominfo': calc._ATOMINFO, 
                                'radii': calc._RADII}
+        
+        self._ParserVersion = __version__
 
         #reuse init of base class
         super(VoronoiParser, self).__init__(calc)
@@ -62,7 +72,7 @@ class VoronoiParser(Parser):
             return success, node_list
         
         #Parse voronoi output, results that are stored in database are in out_dict
-        out_dict = {}
+        out_dict = {'ParserVersion': self._ParserVersion}
         
         try:
             code_version, compile_options, serial_number = self._get_version_info(out_folder)
@@ -78,6 +88,7 @@ class VoronoiParser(Parser):
             potfile = out_folder.get_abs_path(self._calc._OUT_POTENTIAL_voronoi)
             emin = check_voronoi_output(potfile, outfile)
             out_dict['EMIN'] = emin
+            out_dict['units_EMIN'] = 'Ry'
         except:
             self.logger.error("Error parsing output of voronoi: 'EMIN'")
             return success, node_list
@@ -122,6 +133,7 @@ class VoronoiParser(Parser):
                 tmpdict['V_atom'] = results[icls][1]
                 tmpdict_all.append(tmpdict)
             out_dict['Volume_atoms'] = tmpdict_all
+            out_dict['units_Volume'] = 'alat^3'
         except:
             self.logger.error("Error parsing output of voronoi: Volume Info")
             return success, node_list
@@ -139,6 +151,7 @@ class VoronoiParser(Parser):
                 tmpdict['Rout/dist_NN'] = results[icls][5]
                 tmpdict_all.append(tmpdict)
             out_dict['radii_atoms'] = tmpdict_all
+            out_dict['units_radii'] = 'alat'
         except:
             self.logger.error("Error parsing output of voronoi: radii.dat Info")
             return success, node_list  
@@ -227,12 +240,16 @@ class VoronoiParser(Parser):
         # read in naez and/or natyp and then find ishape array (1..natyp[=naez without CPA])
         itmp = search_string('NAEZ= ', txt)
         if itmp>=0:
-            naez = int(txt[itmp].split()[-1])
+            tmp = txt[itmp]
+            ipos = tmp.find('NAEZ=')
+            naez = int(tmp[ipos+5:].split()[0])
         else:
             naez = -1
         itmp = search_string('NATYP= ', txt)
         if itmp>=0:
-            natyp = int(txt[itmp].split()[-1])
+            tmp = txt[itmp]
+            ipos = tmp.find('NATYP=')
+            natyp = int(tmp[ipos+6:].split()[0])
         else:
             natyp = -1
             

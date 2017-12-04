@@ -3,19 +3,15 @@
 Input plug-in for a voronoi calculation.
 """
 
-from numpy import array
 from aiida.orm.calculation.job import JobCalculation
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
-from aiida.common.constants import elements as PeriodicTableElements
 from aiida.orm import DataFactory
-from aiida_kkr.tools.kkr_params import kkrparams
-from aiida_kkr.tools.common_functions import get_alat_from_bravais, get_Ang2aBohr
+from aiida_kkr.tools.common_functions import generate_inputcard_from_structure
 
 ParameterData = DataFactory('parameter')
 StructureData = DataFactory('structure')
-a_to_bohr = get_Ang2aBohr()
 
 class VoronoiCalculation(JobCalculation):
     """
@@ -116,50 +112,9 @@ class VoronoiCalculation(JobCalculation):
 
 
         ###################################
-        # Prepare Structure
-
-        # Get the connection between coordination number and element symbol
-        # maybe do in a differnt way
-        
-        _atomic_numbers = {data['symbol']: num for num,
-                        data in PeriodicTableElements.iteritems()}
-        
-        # KKR wants units in bohr and relativ coordinates
-        bravais = array(structure.cell)*a_to_bohr
-        alat = get_alat_from_bravais(bravais)
-        bravais = bravais/alat
-        
-        sites = structure.sites
-        naez = len(sites)
-        positions = []
-        charges = []
-        for site in sites:
-            pos = site.position 
-            #TODO convert to rel pos and make sure that type is rigth for script (array or tuple)
-            relpos = array(pos) 
-            positions.append(relpos)
-            sitekind = structure.get_kind(site.kind_name)
-            site_symbol = sitekind.symbol
-            charges.append(_atomic_numbers[site_symbol])
-            
-        # TODO get empty spheres
-        positions = array(positions)
-        
-        ######################################
-        # Prepare keywords for kkr
-        # get parameter dictionary
-        input_dict = parameters.get_dict()
-        print 'input parameter dict', input_dict
-        # empty kkrparams instance (contains formatting info etc.)
-        params = kkrparams()
-        print 'new kkrparams instance', params
-        for key in input_dict.keys():
-            params.set_value(key, input_dict[key])
-
-        # Write input to file
+        # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
-        params.set_multiple_values(BRAVAIS=bravais, ALATBASIS=alat, NAEZ=naez, ZATOM=charges, RBASIS=positions)
-        params.fill_keywords_to_inputfile(output=input_filename)
+        generate_inputcard_from_structure(parameters, structure, input_filename)
 
 
         # Prepare CalcInfo to be returned to aiida

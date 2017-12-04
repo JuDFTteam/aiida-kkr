@@ -3,26 +3,22 @@
 Input plug-in for a KKR calculation.
 """
 import os
-from numpy import array
 
 from aiida.orm.calculation.job import JobCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.utils import classproperty
-from aiida.common.constants import elements as PeriodicTableElements
-from aiida.common.exceptions import (InputValidationError, ValidationError, NotExistent)
+from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.orm import DataFactory
 from aiida.common.exceptions import UniquenessError
-from aiida_kkr.tools.kkr_params import kkrparams
-from aiida_kkr.tools.common_functions import get_alat_from_bravais, get_Ang2aBohr
+from aiida_kkr.tools.common_functions import generate_inputcard_from_structure
+
 
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
 ParameterData = DataFactory('parameter')
 StructureData = DataFactory('structure')
 
-#list of globally used constants
-a_to_bohr = get_Ang2aBohr()
 
 class KkrCalculation(JobCalculation):
     """
@@ -67,6 +63,14 @@ class KkrCalculation(JobCalculation):
         
         # files that will be copied from local computer if parent was KKR calc
         self._copy_filelist_kkr = [self._SHAPEFUN, self._OUT_POTENTIAL]
+        
+        # list of keywords that are not allowed to be modified (new calculation 
+        # starting from structure and voronoi run is needed instead):
+        self._do_never_modify = ['ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'CARTESIAN', 
+                                 'INTERFACE', '<NLBASIS>', '<RBLEFT>', 'ZPERIODL', 
+                                 '<NRBASIS>', '<RBRIGHT>', 'ZPERIODR', 'KSHAPE', '<SHAPE>', 
+                                 '<ZATOM>', 'NATYP', '<SITE>', '<CPA-CONC>', '<KAOEZL>', '<KAOEZR>']
+        #TODO implement workfunction to modify structure (e.g. to use VCA)
 
         
     @classproperty
@@ -149,12 +153,20 @@ class KkrCalculation(JobCalculation):
             parent_calc = parent_calcs[0]
             has_parent = True         
         
-        # check that it is a valid parent
+        #TODO check that it is a valid parent
         #self._check_valid_parent(parent_calc)
+        
+        # check if no keys are illegally overwritten:
+        for key in parameters.get_dict().keys():
+            value = parameters.get_dict()[key]
+            self.logger.info("Checking {} {}".format(key, value))
+            if not value is None:
+                if key in self._do_never_modify:
+                    self.logger.error("You are trying to set keyword {} = {} but this is not allowed since the structure would be modified. Please use a suitable workfunction instead.".format(key, value))
+                    raise InputValidationError("You are trying to modify a keyword that is not allowed!")
 
 
-        # if voronoi calc do
-        # check if folder from db given, or get folder from rep.
+        #TODO if voronoi calc check if folder from db given, or get folder from rep.
         # Parent calc does not has to be on the same computer.
         #TODO so far we copy every thing from local computer ggf if kkr we want to copy remotely
 
@@ -174,7 +186,7 @@ class KkrCalculation(JobCalculation):
             self.logger.info("KkrCalculation: Parent is KKR calculation")
             #try:            
             self.logger.error('KkrCalculation: extract structure from KKR parent')
-            structure = self.find_parent_struc(parent_calc)   
+            structure = self._find_parent_struc(parent_calc)   
             #except KeyError:
             #    # raise InputvaluationError # TODO raise some error
             #    pass
@@ -190,62 +202,9 @@ class KkrCalculation(JobCalculation):
 
 
         ###################################
-        # Prepare Structure
-
-        # Get the connection between coordination number and element symbol
-        # maybe do in a differnt way
-        
-        _atomic_numbers = {data['symbol']: num for num,
-                        data in PeriodicTableElements.iteritems()}
-        
-        # KKR wants units in bohr and relativ coordinates
-        bravais = array(structure.cell)*a_to_bohr
-        alat = get_alat_from_bravais(bravais)
-        bravais = bravais/alat
-        
-        sites = structure.sites
-        naez = len(sites)
-        positions = []
-        charges = []
-        for site in sites:
-            pos = site.position 
-            #TODO convert to rel pos and make sure that type is rigth for script (array or tuple)
-            relpos = array(pos) 
-            positions.append(relpos)
-            sitekind = structure.get_kind(site.kind_name)
-            site_symbol = sitekind.symbol
-            charges.append(_atomic_numbers[site_symbol])
-            
-        positions = array(positions)
-        #TODO get empty spheres
-        #TODO deal with alloys (CPA, VCA)
-        #TODO default is bulk, get 2D from structure.pbc info (periodic boundary contitions)
-        
-
-        ######################################
-        # Prepare keywords for kkr from input structure
-        
-        # get parameter dictionary
-        input_dict = parameters.get_dict()
-        # empty kkrparams instance (contains formatting info etc.)
-        params = kkrparams()
-        
-        # in case of starting from Voronoi set EMIN automatically
-        if isinstance(parent_calc, VoronoiCalculation):
-            self.logger.info('Overwriting EMIN with value from voronoi output')
-            emin = parent_calc.res.EMIN
-            params.set_value('EMIN', emin)
-            
-        # overwrite keywords with input parameter
-        for key in input_dict.keys():
-            params.set_value(key, input_dict[key])
-
-        # Write input to file
+        # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
-        params.set_multiple_values(BRAVAIS=bravais, ALATBASIS=alat, NAEZ=naez, ZATOM=charges, RBASIS=positions)
-        
-        
-        params.fill_keywords_to_inputfile(output=input_filename)
+        generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc)
 
 
         #################
