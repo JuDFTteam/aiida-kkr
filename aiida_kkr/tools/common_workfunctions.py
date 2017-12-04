@@ -123,3 +123,13 @@ def prepare_VCA_structure_wf():
 
 def prepare_VCA_structure():
     pass
+
+
+#TODO implement 2D input helper
+# a helper workfunction would be nice to create the vacuum region etc. for 2D calculation
+@wf
+def prepare_2Dcalc_wf():
+    pass
+
+def prepare_2Dcalc():
+    pass

@@ -11,7 +11,7 @@ from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.orm import DataFactory
 from aiida.common.exceptions import UniquenessError
-from aiida_kkr.tools.common_functions import generate_inputcard_from_structure
+from aiida_kkr.tools.common_functions import generate_inputcard_from_structure, check_2Dinput
 
 
 #define aiida structures from DataFactory of aiida
@@ -202,6 +202,12 @@ class KkrCalculation(JobCalculation):
 
 
         ###################################
+        
+        # Check for 2D case
+        twoDimcheck, msg = check_2Dinput(structure, parameters)
+        if not twoDimcheck:
+            raise InputValidationError(msg)
+        
         # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
         generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc)

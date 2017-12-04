@@ -37,6 +37,8 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     
     optional argument
     :param input: parent_calc, parent calculation node used to determine if EMIN parameter is automatically overwritten (from voronoi output) or not
+    
+    :note: assumes valid structure, i.e. for 2D case all necessary information has to be given. This is checked with function 'check_2D_input'
     """
     
     from aiida_kkr.tools.common_functions import get_alat_from_bravais, get_Ang2aBohr
@@ -99,7 +101,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     isitelist = array(isitelist)
     charges = array(charges)
     positions = array(positions)
-    #TODO default is bulk, get 2D from structure.pbc info (periodic boundary contitions)
+        
 
     ######################################
     # Prepare keywords for kkr from input structure
@@ -137,7 +139,43 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     params.fill_keywords_to_inputfile(output=input_filename)
     
     
-# tests etc.
+def check_2Dinput(structure, parameters):
+    """
+    Check if structure and parameter data are complete and matching.
+    
+    :param input: structure, needs to be a valid aiida StructureData node
+    :param input: parameters, needs to be valid aiida ParameterData node
+    
+    returns (False, errormessage) if an inconsistency has been found, otherwise return (True, '2D consistency check complete')
+    """
+    # default is bulk, get 2D info from structure.pbc info (periodic boundary contitions)
+    is2D = False
+    if not all(structure.pbc):
+        # check periodicity, assumes finite size in z-direction
+        if structure.pbc != (True, True, False):
+            return (False, "Structure.pbc is neither (True, True, True) for bulk nor (True, True, False) for surface calculation!")
+        is2D = True
+    
+    # check for necessary info in 2D case
+    inp_dict = parameters.get_dict()
+    set_keys = [i for i in inp_dict.keys() if inp_dict[i] is not None]
+    has2Dinfo = True
+    for icheck in ['INTERFACE', '<NRBASIS>', '<RBLEFT>', '<RBRIGHT>', 'ZPERIODL', 'ZPERIODR', '<NLBASIS>']:
+        if icheck not in set_keys:
+            has2Dinfo = False
+    if has2Dinfo and not inp_dict['INTERFACE'] and is2D:
+        return (False, "'INTERFACE' parameter set to False but structure is 2D")
+        
+    if has2Dinfo!=is2D:
+        return (False, "2D info given in parameters but structure is 3D")
+    
+    # if everything is ok:
+    return (True, "2D consistency check complete")
+    
+
+
+"""
+# testing ...
 
 def submission(calc, submit_test=False):
     import os
@@ -205,3 +243,4 @@ if __name__=='__main__':
     
     #!verdi calculation logshow 195
     
+"""
