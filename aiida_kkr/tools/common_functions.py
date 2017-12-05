@@ -8,10 +8,12 @@ Created on Thu Nov 16 13:25:35 2017
 
 
 #helper functions used in calculation, parser etc.
-def get_alat_from_bravais(bravais):
+def get_alat_from_bravais(bravais, is3D=True):
     from numpy import sqrt, sum
-    #return bravais.max()
-    return sqrt(sum(bravais**2, axis=1)).max()
+    bravais_tmp = bravais
+    if not is3D:
+        bravais_tmp = bravais[:2,:]
+    return sqrt(sum(bravais_tmp**2, axis=1)).max()
     
 def get_Ang2aBohr():
     return 1.8897261254578281
@@ -41,7 +43,6 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     :note: assumes valid structure, i.e. for 2D case all necessary information has to be given. This is checked with function 'check_2D_input'
     """
     
-    from aiida_kkr.tools.common_functions import get_alat_from_bravais, get_Ang2aBohr
     from aiida.common.constants import elements as PeriodicTableElements
     from numpy import array
     from aiida_kkr.calculations.voro import VoronoiCalculation
@@ -66,7 +67,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     
     # KKR wants units in bohr
     bravais = array(structure.cell)*a_to_bohr
-    alat = get_alat_from_bravais(bravais)
+    alat = get_alat_from_bravais(bravais, is3D=structure.pbc[2])
     bravais = bravais/alat
     
     sites = structure.sites

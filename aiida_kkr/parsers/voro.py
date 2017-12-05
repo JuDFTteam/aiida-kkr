@@ -81,7 +81,7 @@ class VoronoiParser(Parser):
             out_dict['Calculation_serial_number'] = serial_number
         except:
             self.logger.error("Error parsing output of voronoi: Version Info")
-            return success, node_list
+            return success, self._get_nodelist(out_dict)
         
         try:
             outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
@@ -91,7 +91,7 @@ class VoronoiParser(Parser):
             out_dict['units_EMIN'] = 'Ry'
         except:
             self.logger.error("Error parsing output of voronoi: 'EMIN'")
-            return success, node_list
+            return success, self._get_nodelist(out_dict)
         
         try:
             Ncls, results = self._get_cls_info(out_folder)
@@ -108,20 +108,20 @@ class VoronoiParser(Parser):
             out_dict['Cluster_info'] = tmpdict_all
         except:
             self.logger.error("Error parsing output of voronoi: Cluster Info")
-            return success, node_list
+            return success, self._get_nodelist(out_dict)
         
         try:
             out_dict['Start_from_jellium_potentials'] = self._startpot_jellium(out_folder)
         except:
             self.logger.error("Error parsing output of voronoi: Jellium startpot")
-            return success, node_list
+            return success, self._get_nodelist(out_dict)
         
         try:
             natyp, naez, shapes = self._get_shape_array(out_folder)
             out_dict['Shapes'] = shapes
         except:
             self.logger.error("Error parsing output of voronoi: SHAPE Info")
-            return success, node_list
+            return success, self._get_nodelist(out_dict)
         
         try:
             Vtot, results = self._get_volumes(out_folder)
@@ -136,7 +136,7 @@ class VoronoiParser(Parser):
             out_dict['units_Volume'] = 'alat^3'
         except:
             self.logger.error("Error parsing output of voronoi: Volume Info")
-            return success, node_list
+            return success, self._get_nodelist(out_dict)
         
         try:
             results = self._get_radii(naez, out_folder)
@@ -154,20 +154,24 @@ class VoronoiParser(Parser):
             out_dict['units_radii'] = 'alat'
         except:
             self.logger.error("Error parsing output of voronoi: radii.dat Info")
-            return success, node_list  
+            return success, self._get_nodelist(out_dict)
         
         
         # some consistency checks comparing lists with natyp/naez numbers
         #TODO implement checks
 
+        success = True
+
+        return success, self._get_nodelist(out_dict)
+    
+    # here follow the parser functions:
+    
+    def _get_nodelist(self, out_dict):
         output_data = ParameterData(dict=out_dict)
         link_name = self.get_linkname_outparams()
         node_list = [(link_name, output_data)]
-        success = True
-
-        return success, node_list
+        return node_list
     
-    # here follow the parser functions:
     
     def _startpot_jellium(self, out_folder):
         f = open(out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME))
