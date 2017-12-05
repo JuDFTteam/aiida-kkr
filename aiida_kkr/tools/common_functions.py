@@ -12,7 +12,8 @@ def get_alat_from_bravais(bravais, is3D=True):
     from numpy import sqrt, sum
     bravais_tmp = bravais
     if not is3D:
-        bravais_tmp = bravais[:2,:]
+        #take only in-plane lattice to find maximum as alat
+        bravais_tmp = bravais[:2,:2]
     return sqrt(sum(bravais_tmp**2, axis=1)).max()
     
 def get_Ang2aBohr():

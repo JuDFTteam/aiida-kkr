@@ -134,7 +134,8 @@ class KkrCalculation(JobCalculation):
         except KeyError:
             raise InputValidationError("Voronoi files needed for KKR calculation, "
                                        "you need to provide a Parent Folder/RemoteData node.")
-                                       
+                                  
+        #TODO deal with data from folder data if calculation is continued on a different machine
         if not isinstance(parent_calc_folder, RemoteData):
             raise InputValidationError("parent_calc_folder, if specified,"
                                            "must be of type RemoteData")
@@ -153,22 +154,32 @@ class KkrCalculation(JobCalculation):
             parent_calc = parent_calcs[0]
             has_parent = True         
         
-        #TODO check that it is a valid parent
-        #self._check_valid_parent(parent_calc)
+        # check if parent is either Voronoi or previous KKR calculation
+        self._check_valid_parent(parent_calc)
         
-        # check if no keys are illegally overwritten:
+        # extract parent input parameter dict for following check
+        try:
+            parent_inp_dict = parent_calc.inp.parameters.get_dict()
+        except:
+            self.logger.error("Failed trying to find input parameter of parent {}".format(parent_calc))
+            raise InputValidationError("No parameter node found of parent calculation.")
+            
+        # check if no keys are illegally overwritten (i.e. compare with keys in self._do_never_modify)
         for key in parameters.get_dict().keys():
             value = parameters.get_dict()[key]
             self.logger.info("Checking {} {}".format(key, value))
             if not value is None:
                 if key in self._do_never_modify:
-                    self.logger.error("You are trying to set keyword {} = {} but this is not allowed since the structure would be modified. Please use a suitable workfunction instead.".format(key, value))
-                    raise InputValidationError("You are trying to modify a keyword that is not allowed!")
+                    oldvalue = parent_inp_dict[key]
+                    if value != oldvalue:
+                        self.logger.error("You are trying to set keyword {} = {} but this is not allowed since the structure would be modified. Please use a suitable workfunction instead.".format(key, value))
+                        raise InputValidationError("You are trying to modify a keyword that is not allowed to be changed!")
 
 
-        #TODO if voronoi calc check if folder from db given, or get folder from rep.
+        #TODO check for remote folder (starting from folder data not implemented yet)
+        # if voronoi calc check if folder from db given, or get folder from rep.
         # Parent calc does not has to be on the same computer.
-        #TODO so far we copy every thing from local computer ggf if kkr we want to copy remotely
+        # so far we copy every thing from local computer ggf if kkr we want to copy remotely
 
                 
         # get StructureData node from Parent if Voronoi
