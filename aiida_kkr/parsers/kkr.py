@@ -88,18 +88,23 @@ class KkrParser(Parser):
         
         
         out_dict = {'parser_version': self._ParserVersion}
-        success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out)
+        #TODO job title, compound description
+        success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, 
+                                                           outfile_0init, 
+                                                           outfile_000, 
+                                                           timing_file, 
+                                                           potfile_out)
         out_dict['parser_warnings'] = msg_list
         
-        return success, self._get_nodelist(out_dict)
-    
-    # here follow the parser functions:
-    
-    def _get_nodelist(self, out_dict):
         output_data = ParameterData(dict=out_dict)
         link_name = self.get_linkname_outparams()
         node_list = [(link_name, output_data)]
-        return node_list
+        
+        return success, node_list
+    
+    
+##########################################################
+# here follow the parser functions:
 
 
 def parse_array_float(outfile, searchstring, splitinfo, replacepair=None):
@@ -276,10 +281,6 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
     """
     Parser method for the kkr outfile. It returns a dictionary with results
     """
-    # TODO This still needs to be overworked.
-    # If we want to store the arrays we have to store them as array data
-    # If only certain results are imported they have to be distilled and stored in the output node
-    
     # scaling factors
     Ry2eV = get_Ry2eV()
     
@@ -333,8 +334,36 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg = "Error parsing output of KKR: total magnetic moment"
         tempsave_fail(msg_list, msg)
     
-    #TODO orbital moment, moment per atom, moment direction per atom
-    # should be added to magnetism group
+    try:
+        result, vec, angles = get_spinmom_per_atom(outfile)
+        if len(result)>0:
+            tmp_dict['spin_moment_per_atom'] = result[-1,:]
+            tmp_dict['spin_moment_vector_per_atom'] = vec[-1,:]
+            tmp_dict['spin_moment_angles_per_atom'] = angles[-1,:]
+            out_dict['convergence_group']['spin_moment_per_atom_all_iterations'] = result[:,:]
+            out_dict['convergence_group']['spin_moment_angles_per_atom_all_iterations'] = angles[:,:]
+            tmp_dict['spin_moment_unit'] = 'mu_Bohr'
+            tmp_dict['spin_moment_angles_per_atom_unit'] = 'degree'
+            out_dict['magnetism_group'] = tmp_dict
+    except:
+        msg = "Error parsing output of KKR: spin moment per atom"
+        tempsave_fail(msg_list, msg)
+    
+    try:
+        result, vec, angles = get_orbmom(outfile)
+        if len(result)>0:
+            tmp_dict['total_orbital_moment'] = sum(result[-1,:])
+            tmp_dict['orbital_moment_per_atom'] = result[-1,:]
+            tmp_dict['orbital_moment_vector_per_atom'] = vec[-1,:]
+            tmp_dict['orbital_moment_angles_per_atom'] = angles[-1,:]
+            out_dict['convergence_group']['orbital_moment_per_atom_all_iterations'] = result[:,:]
+            out_dict['convergence_group']['orbital_moment_angles_per_atom_all_iterations'] = angles[:,:]
+            tmp_dict['orbital_moment_unit'] = 'mu_Bohr'
+            tmp_dict['orbital_moment_angles_per_atom_unit'] = 'degree'
+            out_dict['magnetism_group'] = tmp_dict
+    except:
+        msg = "Error parsing output of KKR: orbital moment"
+        tempsave_fail(msg_list, msg)
 
     try:
         result = get_EF(outfile)
@@ -432,6 +461,56 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg = "Error parsing output of KKR: core_states"
         tempsave_fail(msg_list, msg)
         
+    #TODO number of iterations
+    try:
+        niter, converged, nmax_reached = get_scfinfo(outfile_000)
+        out_dict['number_of_iterations'] = niter
+        out_dict['calculation_converged'] = converged
+        out_dict['nsteps_exhausted'] = nmax_reached
+    except:
+        msg = "Error parsing output of KKR: scfinfo"
+        tempsave_fail(msg_list, msg)
+    
+    #TODO k-meshes
+    try:
+        nkmesh, kmesh_ie = get_kmeshinfo(outfile_0init, outfile_000)
+        tmp_dict = {}
+        tmp_dict['number_different_kmeshes'] = nkmesh[0]
+        tmp_dict['number_kpoints_per_kmesh'] = nkmesh[1]
+        tmp_dict['kmesh_energypoint'] = kmesh_ie[0]
+        out_dict['kmesh_group'] = tmp_dict
+    except:
+        msg = "Error parsing output of KKR: kmesh"
+        tempsave_fail(msg_list, msg)
+    
+    #TODO symmetries
+    try:
+        nsym, desc = get_symmetries(outfile_0init)
+        tmp_dict = {}
+        tmp_dict['number_of_symmetries'] = nsym
+        tmp_dict['symmetry_description'] = desc
+        out_dict['symmetries_group'] = tmp_dict
+    except:
+        msg = "Error parsing output of KKR: symmetries"
+        tempsave_fail(msg_list, msg)
+        
+    #TODO Ewald summation
+    try:
+        rsum, gsum, info = get_ewald(outfile_0init)
+        tmp_dict = {}
+        tmp_dict['ewald_summation_mode'] = info
+        tmp_dict['rsum_cutoff'] = rsum[0]
+        tmp_dict['rsum_number_of_vectors'] = rsum[1]
+        tmp_dict['rsum_cutoff_unit'] = ''
+        tmp_dict['gsum_cutoff'] = gsum[0]
+        tmp_dict['gsum_number_of_vectors'] = gsum[1]
+        tmp_dict['gsum_cutoff_unit'] = ''
+        out_dict['ewald_sum_group'] = tmp_dict
+    except:
+        msg = "Error parsing output of KKR: ewald summation for madelung poterntial"
+        tempsave_fail(msg_list, msg)
+        
+        
     #convert arrays to lists
     from numpy import ndarray
     for key in out_dict.keys():
@@ -442,7 +521,8 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
                 if type(out_dict[key][subkey])==ndarray:
                     out_dict[key][subkey] = list(out_dict[key][subkey])
                     
-    # return output
+                    
+    # return output with error messages if there are any
     if len(msg_list)>0:
         return False, msg_list, out_dict
     else:
