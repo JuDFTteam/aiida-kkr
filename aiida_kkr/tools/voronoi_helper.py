@@ -2,48 +2,13 @@
 
 from __future__ import print_function
 import sys
+from aiida_kkr.tools.common_functions import get_corestates_from_potential, get_highest_core_state
 
 # redefine raw_input for python 3/2.7 compatilbility
 if sys.version_info[0] >= 3:
     def raw_input(msg):
         return input(msg)
 
-
-def get_corestates_from_potential(potfile='potential'):
-    """Read core states from potential file"""
-    from scipy import zeros
-    txt = open(potfile).readlines()
-
-    #get start of each potential part
-    istarts = [iline for iline in range(len(txt)) if 'POTENTIAL' in txt[iline]]
-
-    n_core_states = [] #number of core states per potential
-    e_core_states = [] #energies of core states
-    l_core_states = [] #angular momentum index, i.e. 0=s, 1=p etc...
-    for ipot in range(len(istarts)):
-        line = txt[istarts[ipot]+6]
-        n = int(line.split()[0])
-        n_core_states.append(n)
-        elevels = zeros(n) #temp array for energies
-        langmom = zeros(n, dtype=int) #temp array for angular momentum index
-        for icore in range(n):
-            line = txt[istarts[ipot]+7+icore].split()
-            langmom[icore] = int(line[0])
-            elevels[icore] = float(line[1].replace('D', 'E'))
-        e_core_states.append(elevels)
-        l_core_states.append(langmom)
-
-    return n_core_states, e_core_states, l_core_states
-
-
-def get_highest_core_state(nstates, energies, lmoments):
-    """Find highest lying core state from list of core states, needed to find and check energy contour"""
-    idx = energies.argmax()
-    lval = lmoments[idx]
-    nquant = sum(lmoments == lval) + lval
-    level_descr = '%i%s'%(nquant, 'spdfgh'[lval])
-
-    return lval, energies[idx], level_descr
 
 
 def get_valence_min(outfile='out_voronoi'):

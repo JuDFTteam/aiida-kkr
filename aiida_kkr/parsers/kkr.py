@@ -12,7 +12,8 @@ if __name__=='__main__':
 
 from aiida.parsers.parser import Parser
 from aiida.orm.data.parameter import ParameterData
-from aiida_kkr.tools.common_functions import search_string, get_version_info, get_Ry2eV
+from aiida_kkr.tools.common_functions import (search_string, get_version_info, get_Ry2eV,
+                                              get_corestates_from_potential, get_highest_core_state)
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida.common.exceptions import InputValidationError
 
@@ -80,14 +81,14 @@ class KkrParser(Parser):
         outfile_0init = out_folder.get_abs_path(self._calc._OUTPUT_0_INIT)
         outfile_000 = out_folder.get_abs_path(self._calc._OUTPUT_000)
         #potfile_in = out_folder.get_abs_path(self._calc._POTENTIAL)
-        #potfile_out = out_folder.get_abs_path(self._calc._OUT_POTENTIAL)
+        potfile_out = out_folder.get_abs_path(self._calc._OUT_POTENTIAL)
         timing_file = out_folder.get_abs_path(self._calc._OUT_TIMING_000)
         #scoef_file = out_folder.get_abs_path(self._calc._SCOEF)
         #nonco_out_file = out_folder.get_abs_path(self._calc._NONCO_ANGLES_OUT)
         
         
         out_dict = {'ParserVersion': self._ParserVersion}
-        success, msg, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file)
+        success, msg, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out)
 
         return success, self._get_nodelist(out_dict)
     
@@ -251,7 +252,21 @@ def get_econt_info(outfile_0init):
     return emin, tempr, Nepts, Npol, N1, N2, N3
 
 
-def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file):
+def get_core_states(potfile):
+    ncore, energies, lmoments = get_corestates_from_potential(potfile=potfile)
+    emax, lmax, descr_max = [], [], []
+    for ipot in range(len(ncore)):
+        if ncore[ipot] > 0:
+            lvalmax, energy_max, descr = get_highest_core_state(ncore[ipot], energies[ipot], lmoments[ipot])
+        else:
+            lvalmax, energy_max, descr = None, None, 'no core states'
+        emax.append(energy_max)
+        lmax.append(lvalmax)
+        descr_max.append(descr)
+    return ncore, emax, lmax, descr_max
+
+
+def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out):
     """
     Parser method for the kkr outfile. It returns a dictionary with results
     """
@@ -271,19 +286,22 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg = "Error parsing output of KKR: Version Info"
         return False, msg, out_dict
     
+    tmp_dict = {} # used to group convergence info (rms, rms per atom, charge neutrality)
     try:
         result, result_atoms_last = get_rms(outfile, outfile_000)
-        out_dict['rms'] = result[-1]
-        out_dict['rms_all_iterations'] = result
-        out_dict['rms_per_atom'] = result_atoms_last
+        tmp_dict['rms'] = result[-1]
+        tmp_dict['rms_all_iterations'] = result
+        tmp_dict['rms_per_atom'] = result_atoms_last
+        out_dict['convergence'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: rms-error"
         return False, msg, out_dict
     
     try:
         result = get_neutr(outfile)
-        out_dict['charge_neutrality'] = result[-1]
-        out_dict['charge_neutrality_all_iterations'] = result
+        tmp_dict['charge_neutrality'] = result[-1]
+        tmp_dict['charge_neutrality_all_iterations'] = result
+        out_dict['convergence'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: charge neutrality"
         return False, msg, out_dict
@@ -373,7 +391,16 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg = "Error parsing output of KKR: energy contour"
         return False, msg, out_dict
     
-        
+    try:
+        ncore, emax, lmax, descr_max = get_core_states(potfile_out)
+        tmp_dict = {}
+        tmp_dict['number_of_core_states_per_atom'] = ncore
+        tmp_dict['energy_highest_lying_core_state_per_atom'] = emax
+        tmp_dict['descr_highest_lying_core_state_per_atom'] = descr_max
+        out_dict['core_states'] = tmp_dict
+    except:
+        msg = "Error parsing output of KKR: core_states"
+        return False, msg, out_dict
 
     
     return True, "Completed parsing of KKR output successfully.", out_dict
@@ -392,8 +419,9 @@ if __name__=='__main__':
     outfile_0init = path0+'output.0.txt'
     outfile_000 = path0+'output.000.txt'
     timing_file = path0+'out_timing.000.txt'
+    potfile_out = path0+'out_potential'
     out_dict = {}
-    success, msg, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file)
+    success, msg, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out)
     if not success:
         print 'Error-msg:', msg
     print(out_dict)
