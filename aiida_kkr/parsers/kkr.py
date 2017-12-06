@@ -364,18 +364,17 @@ def get_kmeshinfo(outfile_0init, outfile_000):
     
     return nkmesh, kmesh_ie
     
+
 def get_symmetries(outfile_0init):
     f = open(outfile_0init)
     tmptxt = f.readlines()
     f.close()
     itmp = search_string('symmetries found for this lattice:', tmptxt)
-    print itmp
     nsym = int(tmptxt[itmp].split(':')[1].split()[0])
     itmp = search_string('<SYMTAUMAT>', tmptxt)
     tmpdict = {}
     for isym in range(nsym):
         tmpval = tmptxt[itmp+5+isym].split()
-        print tmpval
         desc = tmpval[1]
         inversion = int(tmpval[2])
         euler = [float(tmpval[3]), float(tmpval[4]), float(tmpval[5])]
@@ -384,7 +383,21 @@ def get_symmetries(outfile_0init):
     desc = tmpdict
     return nsym, desc
     
+
 def get_ewald(outfile_0init):
+    f = open(outfile_0init)
+    tmptxt = f.readlines()
+    f.close()
+    itmp = search_string('< LATTICE3D >', tmptxt)
+    tmpval = tmptxt[itmp+7].split()[2:]
+    rsum = float(tmpval[2]), int(tmpval[0]), int(tmpval[1])
+    tmpval = tmptxt[itmp+8].split()[2:]
+    gsum = float(tmpval[2]), int(tmpval[0]), int(tmpval[1])
+    itmp = search_string('setting bulk Madelung coefficients', tmptxt)
+    if itmp>=0:
+        info = '3D'
+    else:
+        info = '2D'
     return rsum, gsum, info
 
 def get_spinmom_per_atom(outfile):
@@ -578,7 +591,6 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg = "Error parsing output of KKR: core_states"
         msg_list.append(msg)
         
-    #TODO alatinfo
     try:
         alat, twopioveralat = get_alatinfo(outfile_0init)
         out_dict['alat_internal'] = alat
@@ -589,7 +601,6 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg = "Error parsing output of KKR: alat, 2*pi/alat"
         msg_list.append(msg)
         
-    #TODO number of iterations
     try:
         niter, nitermax, converged, nmax_reached, mixinfo = get_scfinfo(outfile_0init, outfile_000, outfile)
         out_dict['convergence_group']['number_of_iterations'] = niter
@@ -606,7 +617,6 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg = "Error parsing output of KKR: scfinfo"
         msg_list.append(msg)
     
-    #TODO k-meshes
     try:
         nkmesh, kmesh_ie = get_kmeshinfo(outfile_0init, outfile_000)
         tmp_dict = {}
@@ -618,16 +628,15 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg = "Error parsing output of KKR: kmesh"
         msg_list.append(msg)
     
-    #TODO symmetries
-    if 1: #try:
+    try:
         nsym, desc = get_symmetries(outfile_0init)
         tmp_dict = {}
         tmp_dict['number_of_symmetries'] = nsym
         tmp_dict['symmetry_description'] = desc
         out_dict['symmetries_group'] = tmp_dict
-    #except:
-    #    msg = "Error parsing output of KKR: symmetries"
-    #    msg_list.append(msg)
+    except:
+        msg = "Error parsing output of KKR: symmetries"
+        msg_list.append(msg)
         
     #TODO Ewald summation
     try:
@@ -636,10 +645,12 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         tmp_dict['ewald_summation_mode'] = info
         tmp_dict['rsum_cutoff'] = rsum[0]
         tmp_dict['rsum_number_of_vectors'] = rsum[1]
-        tmp_dict['rsum_cutoff_unit'] = ''
+        tmp_dict['rsum_number_of_shells'] = rsum[2]
+        tmp_dict['rsum_cutoff_unit'] = 'a_Bohr'
         tmp_dict['gsum_cutoff'] = gsum[0]
         tmp_dict['gsum_number_of_vectors'] = gsum[1]
-        tmp_dict['gsum_cutoff_unit'] = ''
+        tmp_dict['gsum_number_of_shells'] = gsum[2]
+        tmp_dict['gsum_cutoff_unit'] = '1/a_Bohr'
         out_dict['ewald_sum_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: ewald summation for madelung poterntial"
