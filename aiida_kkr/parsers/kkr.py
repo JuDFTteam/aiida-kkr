@@ -283,8 +283,48 @@ def get_alatinfo(outfile_0init):
     return alat, twopialat
 
 
-def get_scfinfo(outfile_000):
-    return niter, converged, nmax_reached
+def get_scfinfo(outfile_0init, outfile_000, outfile):
+    f = open(outfile_000)
+    tmptxt = f.readlines()
+    f.close()
+    
+    itmp = search_string('ITERATION :', tmptxt)
+    tmpval = tmptxt[itmp].split(':')[1].split()
+    niter = int(tmpval[0])
+    nitermax = int(tmpval[3])
+    
+    f = open(outfile)
+    tmptxt = f.readlines()
+    f.close()
+    itmp1 = search_string('SCF ITERATION CONVERGED', tmptxt)
+    itmp2 = search_string('NUMBER OF SCF STEPS EXHAUSTED', tmptxt)
+    if itmp1>=0:
+        converged = True
+    else:
+        converged = False
+    if itmp2>=0:
+        nmax_reached = True
+    else:
+        nmax_reached = False
+       
+    f = open(outfile_0init)
+    tmptxt = f.readlines()
+    f.close()
+    itmp = search_string('STRMIX        FCM       QBOUND', tmptxt)
+    tmpval = tmptxt[itmp+1].split()
+    strmix = float(tmpval[0])
+    fcm = float(tmpval[1])
+    qbound = float(tmpval[2])
+    tmpval = tmptxt[itmp+4].split()
+    brymix = float(tmpval[0])
+    itmp = search_string('IMIX    IGF    ICC', tmptxt)
+    imix = int(tmptxt[itmp+1].split()[0])
+    idtbry = int(tmptxt[itmp+4].split()[0])
+    
+    mixinfo = [imix, strmix, qbound, fcm, idtbry, brymix]
+        
+    return niter, nitermax, converged, nmax_reached, mixinfo
+
 
 def get_kmeshinfo(outfile_0init, outfile_000):
     """
@@ -533,14 +573,21 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg_list.append(msg)
         
     #TODO number of iterations
-    try:
-        niter, converged, nmax_reached = get_scfinfo(outfile_000)
-        out_dict['number_of_iterations'] = niter
-        out_dict['calculation_converged'] = converged
-        out_dict['nsteps_exhausted'] = nmax_reached
-    except:
-        msg = "Error parsing output of KKR: scfinfo"
-        msg_list.append(msg)
+    if 1: #try:
+        niter, nitermax, converged, nmax_reached, mixinfo = get_scfinfo(outfile_0init, outfile_000, outfile)
+        out_dict['convergence_group']['number_of_iterations'] = niter
+        out_dict['convergence_group']['number_of_iterations_max'] = nitermax
+        out_dict['convergence_group']['calculation_converged'] = converged
+        out_dict['convergence_group']['nsteps_exhausted'] = nmax_reached
+        out_dict['convergence_group']['imix'] = mixinfo[0]
+        out_dict['convergence_group']['strmix'] = mixinfo[1]
+        out_dict['convergence_group']['qbound'] = mixinfo[2]
+        out_dict['convergence_group']['fcm'] = mixinfo[3]
+        out_dict['convergence_group']['idtbry'] = mixinfo[4]
+        out_dict['convergence_group']['brymix'] = mixinfo[5]
+    #except:
+    #    msg = "Error parsing output of KKR: scfinfo"
+    #    msg_list.append(msg)
     
     #TODO k-meshes
     try:
