@@ -365,6 +365,23 @@ def get_kmeshinfo(outfile_0init, outfile_000):
     return nkmesh, kmesh_ie
     
 def get_symmetries(outfile_0init):
+    f = open(outfile_0init)
+    tmptxt = f.readlines()
+    f.close()
+    itmp = search_string('symmetries found for this lattice:', tmptxt)
+    print itmp
+    nsym = int(tmptxt[itmp].split(':')[1].split()[0])
+    itmp = search_string('<SYMTAUMAT>', tmptxt)
+    tmpdict = {}
+    for isym in range(nsym):
+        tmpval = tmptxt[itmp+5+isym].split()
+        print tmpval
+        desc = tmpval[1]
+        inversion = int(tmpval[2])
+        euler = [float(tmpval[3]), float(tmpval[4]), float(tmpval[5])]
+        unitary = int(tmpval[6].replace('T', '1').replace('F', '0'))
+        tmpdict[desc] = {'has_inversion':inversion, 'is_unitary':unitary, 'euler_angles':euler} 
+    desc = tmpdict
     return nsym, desc
     
 def get_ewald(outfile_0init):
@@ -573,7 +590,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg_list.append(msg)
         
     #TODO number of iterations
-    if 1: #try:
+    try:
         niter, nitermax, converged, nmax_reached, mixinfo = get_scfinfo(outfile_0init, outfile_000, outfile)
         out_dict['convergence_group']['number_of_iterations'] = niter
         out_dict['convergence_group']['number_of_iterations_max'] = nitermax
@@ -585,9 +602,9 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['convergence_group']['fcm'] = mixinfo[3]
         out_dict['convergence_group']['idtbry'] = mixinfo[4]
         out_dict['convergence_group']['brymix'] = mixinfo[5]
-    #except:
-    #    msg = "Error parsing output of KKR: scfinfo"
-    #    msg_list.append(msg)
+    except:
+        msg = "Error parsing output of KKR: scfinfo"
+        msg_list.append(msg)
     
     #TODO k-meshes
     try:
@@ -602,15 +619,15 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg_list.append(msg)
     
     #TODO symmetries
-    try:
+    if 1: #try:
         nsym, desc = get_symmetries(outfile_0init)
         tmp_dict = {}
         tmp_dict['number_of_symmetries'] = nsym
         tmp_dict['symmetry_description'] = desc
         out_dict['symmetries_group'] = tmp_dict
-    except:
-        msg = "Error parsing output of KKR: symmetries"
-        msg_list.append(msg)
+    #except:
+    #    msg = "Error parsing output of KKR: symmetries"
+    #    msg_list.append(msg)
         
     #TODO Ewald summation
     try:
