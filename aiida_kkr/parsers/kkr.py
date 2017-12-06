@@ -273,8 +273,68 @@ def get_core_states(potfile):
     return array(ncore), array(emax), array(lmax), array(descr_max)
 
 
-def tempsave_fail(msg_list, msg):
-    msg_list.append(msg)
+def get_alatinfo(outfile_0init):
+    f = open(outfile_0init)
+    tmptxt = f.readlines()
+    f.close()
+    itmp = search_string('Lattice constants :', tmptxt)
+    alat = float(tmptxt[itmp].split(':')[1].split('=')[1].split()[0])
+    twopialat = float(tmptxt[itmp].split(':')[1].split('=')[2].split()[0])
+    return alat, twopialat
+
+
+def get_scfinfo(outfile_000):
+    return niter, converged, nmax_reached
+
+def get_kmeshinfo(outfile_0init, outfile_000):
+    """
+    Extract kmesh info from output.0.txt and output.000.txt
+    """
+    # first get info from output.0.txt
+    f = open(outfile_0init)
+    tmptxt = f.readlines()
+    f.close()
+    nkmesh = []
+    itmp = search_string('number of different k-meshes', tmptxt)
+    nkmesh.append( int(tmptxt[itmp].split(':')[1].split()[0]) )
+    itmp = search_string('k-mesh NofKs', tmptxt)
+    nofks, nkx, nky, nkz = [],[],[],[]
+    for ik in range(nkmesh[0]):
+        tmpval = tmptxt[itmp+2+ik].split()
+        nofks.append(int(tmpval[1]))
+        nkx.append(int(tmpval[2]))
+        nky.append(int(tmpval[3]))
+        nkz.append(int(tmpval[4]))
+    
+    tmpdict = {'number_of_kpts':nofks, 'n_kx':nkx, 'n_ky':nky, 'n_kz':nkz}
+    nkmesh.append(tmpdict)
+    
+    #next get kmesh_ie from output.000.txt
+    f = open(outfile_000)
+    tmptxt = f.readlines()
+    f.close()
+    kmesh_ie = []
+    itmp = 0
+    while itmp>=0:
+        itmp = search_string('KMESH =', tmptxt)
+        print itmp
+        if itmp>=0:
+            tmpval = int(tmptxt.pop(itmp).split()[-1])
+            kmesh_ie.append(tmpval)
+    
+    return nkmesh, kmesh_ie
+    
+def get_symmetries(outfile_0init):
+    return nsym, desc
+    
+def get_ewald(outfile_0init):
+    return rsum, gsum, info
+
+def get_spinmom_per_atom(outfile):
+    return result, vec, angles
+
+def get_orbmom(outfile):
+    return result, vec, angles
 
 
 def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out):
@@ -296,7 +356,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['code_info_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: Version Info"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
     
     tmp_dict = {} # used to group convergence info (rms, rms per atom, charge neutrality)
     # also initialize convegence_group where all info stored for all iterations is kept
@@ -310,7 +370,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['convergence_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: rms-error"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
     
     try:
         result = get_neutr(outfile)
@@ -320,7 +380,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['convergence_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: charge neutrality"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
        
     tmp_dict = {} # used to group magnetism info (spin and orbital moments)
     try:
@@ -332,7 +392,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
             out_dict['magnetism_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: total magnetic moment"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
     
     try:
         result, vec, angles = get_spinmom_per_atom(outfile)
@@ -347,7 +407,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
             out_dict['magnetism_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: spin moment per atom"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
     
     try:
         result, vec, angles = get_orbmom(outfile)
@@ -363,7 +423,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
             out_dict['magnetism_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: orbital moment"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
 
     try:
         result = get_EF(outfile)
@@ -371,7 +431,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['convergence_group']['fermi_energy_all_iterations'] = result
     except:
         msg = "Error parsing output of KKR: EF"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
 
     try:
         result = get_DOS_EF(outfile)
@@ -379,7 +439,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['convergence_group']['dos_at_fermi_energy_all_iterations'] = result
     except:
         msg = "Error parsing output of KKR: DOS@EF"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
 
     try:
         result = get_Etot(outfile)
@@ -390,7 +450,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['convergence_group']['total_energy_Ry_all_iterations'] = result
     except:
         msg = "Error parsing output of KKR: total energy"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
 
     try:
         result = find_warnings(outfile)
@@ -400,7 +460,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['warnings_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: search for warnings"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
 
     try:
         result = extract_timings(timing_file)
@@ -408,7 +468,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['timings_unit'] = 'seconds'
     except:
         msg = "Error parsing output of KKR: timings"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
     
     try:
         result = get_single_particle_energies(outfile_000)
@@ -416,7 +476,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['single_particle_energies_unit'] = 'eV'
     except:
         msg = "Error parsing output of KKR: single particle energies"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
     
     try:
         result_WS, result_tot, result_C = get_charges_per_atom(outfile_000)
@@ -430,7 +490,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['charge_valence_states_per_atom_unit'] = 'electron charge'
     except:
         msg = "Error parsing output of KKR: charges"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
     
     try:
         emin, tempr, Nepts, Npol, N1, N2, N3 = get_econt_info(outfile_0init)
@@ -447,7 +507,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['energy_contour_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: energy contour"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
     
     try:
         ncore, emax, lmax, descr_max = get_core_states(potfile_out)
@@ -459,7 +519,18 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['core_states_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: core_states"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
+        
+    #TODO alatinfo
+    try:
+        alat, twopioveralat = get_alatinfo(outfile_0init)
+        out_dict['alat_internal'] = alat
+        out_dict['two_pi_over_alat_internal'] = twopioveralat
+        out_dict['alat_internal_unit'] = 'a_Bohr'
+        out_dict['two_pi_over_alat_internal_unit'] = '1/a_Bohr'
+    except:
+        msg = "Error parsing output of KKR: alat, 2*pi/alat"
+        msg_list.append(msg)
         
     #TODO number of iterations
     try:
@@ -469,7 +540,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['nsteps_exhausted'] = nmax_reached
     except:
         msg = "Error parsing output of KKR: scfinfo"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
     
     #TODO k-meshes
     try:
@@ -477,11 +548,11 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         tmp_dict = {}
         tmp_dict['number_different_kmeshes'] = nkmesh[0]
         tmp_dict['number_kpoints_per_kmesh'] = nkmesh[1]
-        tmp_dict['kmesh_energypoint'] = kmesh_ie[0]
+        tmp_dict['kmesh_energypoint'] = kmesh_ie
         out_dict['kmesh_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: kmesh"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
     
     #TODO symmetries
     try:
@@ -492,7 +563,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['symmetries_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: symmetries"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
         
     #TODO Ewald summation
     try:
@@ -508,7 +579,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['ewald_sum_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: ewald summation for madelung poterntial"
-        tempsave_fail(msg_list, msg)
+        msg_list.append(msg)
         
         
     #convert arrays to lists
@@ -551,5 +622,5 @@ if __name__=='__main__':
     if not success:
         print 'Number of parser_errors', len(msg_list)
         for msg in msg_list:
-            print 'Error-msg:', msg
+            print msg
 #"""
