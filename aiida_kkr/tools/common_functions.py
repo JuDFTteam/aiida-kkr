@@ -39,11 +39,11 @@ def get_version_info(outfile):
     tmptxt = f.readlines()
     f.close()
     itmp = search_string('Code version:', tmptxt)
-    code_version = tmptxt.pop(itmp)
+    code_version = tmptxt.pop(itmp).split(':')[1].strip()
     itmp = search_string('Compile options:', tmptxt)
-    compile_options = tmptxt.pop(itmp)
+    compile_options = tmptxt.pop(itmp).split(':')[1].strip()
     itmp = search_string('serial number for files:', tmptxt)
-    serial_number = tmptxt.pop(itmp)
+    serial_number = tmptxt.pop(itmp).split(':')[1].strip()
     return code_version, compile_options, serial_number
 
 

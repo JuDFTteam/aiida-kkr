@@ -87,9 +87,10 @@ class KkrParser(Parser):
         #nonco_out_file = out_folder.get_abs_path(self._calc._NONCO_ANGLES_OUT)
         
         
-        out_dict = {'ParserVersion': self._ParserVersion}
-        success, msg, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out)
-
+        out_dict = {'parser_version': self._ParserVersion}
+        success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out)
+        out_dict['parser_warnings'] = msg_list
+        
         return success, self._get_nodelist(out_dict)
     
     # here follow the parser functions:
@@ -171,7 +172,7 @@ def find_warnings(outfile):
         if itmp>=0:
             tmpval = tmptxt_caps.pop(itmp)
             tmpval = tmptxt.pop(itmp)
-            res.append(tmpval)
+            res.append(tmpval.strip())
     return array(res)
 
 
@@ -197,7 +198,7 @@ def extract_timings(outfile):
         if len(tmpvals)>0:
             res.append(tmpvals)
     res = array(res)[-1]
-    return [[search_keys[i], res[i]] for i in range(len(res))]
+    return [[search_keys[i].strip(), res[i]] for i in range(len(res))]
 
 
 def get_charges_per_atom(outfile_000):
@@ -253,6 +254,7 @@ def get_econt_info(outfile_0init):
 
 
 def get_core_states(potfile):
+    from numpy import array
     ncore, energies, lmoments = get_corestates_from_potential(potfile=potfile)
     emax, lmax, descr_max = [], [], []
     for ipot in range(len(ncore)):
@@ -263,7 +265,11 @@ def get_core_states(potfile):
         emax.append(energy_max)
         lmax.append(lvalmax)
         descr_max.append(descr)
-    return ncore, emax, lmax, descr_max
+    return array(ncore), array(emax), array(lmax), array(descr_max)
+
+
+def tempsave_fail(msg_list, msg):
+    msg_list.append(msg)
 
 
 def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out):
@@ -276,139 +282,177 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
     
     # scaling factors
     Ry2eV = get_Ry2eV()
+    
+    # collection of parsing error messages
+    msg_list = []
         
     try:
         code_version, compile_options, serial_number = get_version_info(outfile)
-        out_dict['Code_version'] = code_version
-        out_dict['Compile_options'] = compile_options
-        out_dict['Calculation_serial_number'] = serial_number
+        tmp_dict = {}
+        tmp_dict['code_version'] = code_version
+        tmp_dict['compile_options'] = compile_options
+        tmp_dict['calculation_serial_number'] = serial_number
+        out_dict['code_info_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: Version Info"
-        return False, msg, out_dict
+        tempsave_fail(msg_list, msg)
     
     tmp_dict = {} # used to group convergence info (rms, rms per atom, charge neutrality)
+    # also initialize convegence_group where all info stored for all iterations is kept
+    out_dict['convergence_group'] = tmp_dict
     try:
         result, result_atoms_last = get_rms(outfile, outfile_000)
         tmp_dict['rms'] = result[-1]
         tmp_dict['rms_all_iterations'] = result
         tmp_dict['rms_per_atom'] = result_atoms_last
-        out_dict['convergence'] = tmp_dict
+        tmp_dict['rms_unit'] = 'unitless'
+        out_dict['convergence_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: rms-error"
-        return False, msg, out_dict
+        tempsave_fail(msg_list, msg)
     
     try:
         result = get_neutr(outfile)
         tmp_dict['charge_neutrality'] = result[-1]
-        tmp_dict['charge_neutrality_all_iterations'] = result
-        out_dict['convergence'] = tmp_dict
+        out_dict['convergence_group']['charge_neutrality_all_iterations'] = result
+        tmp_dict['charge_neutrality_unit'] = 'electrons'
+        out_dict['convergence_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: charge neutrality"
-        return False, msg, out_dict
-    
+        tempsave_fail(msg_list, msg)
+       
+    tmp_dict = {} # used to group magnetism info (spin and orbital moments)
     try:
         result = get_magtot(outfile)
         if len(result)>0:
-            out_dict['total_magnetic_moment'] = result[-1]
-            out_dict['total_magnetic_moment_all_iterations'] = result
+            tmp_dict['total_spin_moment'] = result[-1]
+            out_dict['convergence_group']['total_spin_moment_all_iterations'] = result
+            tmp_dict['total_spin_moment_unit'] = 'mu_Bohr'
+            out_dict['magnetism_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: total magnetic moment"
-        return False, msg, out_dict
+        tempsave_fail(msg_list, msg)
+    
+    #TODO orbital moment, moment per atom, moment direction per atom
+    # should be added to magnetism group
 
     try:
         result = get_EF(outfile)
-        out_dict['EF'] = result[-1]
-        out_dict['EF_all_iterations'] = result
+        out_dict['fermi_energy'] = result[-1]
+        out_dict['convergence_group']['fermi_energy_all_iterations'] = result
     except:
         msg = "Error parsing output of KKR: EF"
-        return False, msg, out_dict
+        tempsave_fail(msg_list, msg)
 
     try:
         result = get_DOS_EF(outfile)
-        out_dict['DOS_EF'] = result[-1]
-        out_dict['DOS_EF_all_iterations'] = result
+        out_dict['dos_at_fermi_energy'] = result[-1]
+        out_dict['convergence_group']['dos_at_fermi_energy_all_iterations'] = result
     except:
         msg = "Error parsing output of KKR: DOS@EF"
-        return False, msg, out_dict
+        tempsave_fail(msg_list, msg)
 
     try:
         result = get_Etot(outfile)
-        out_dict['total_energy'] = result[-1]*Ry2eV
-        out_dict['units_total_energy'] = 'eV'
+        out_dict['energy'] = result[-1]*Ry2eV
+        out_dict['energy_unit'] = 'eV'
         out_dict['total_energy_Ry'] = result[-1]
-        out_dict['total_energy_Ry_all_iterations'] = result
+        out_dict['total_energy_Ry_unit'] = 'Rydberg'
+        out_dict['convergence_group']['total_energy_Ry_all_iterations'] = result
     except:
         msg = "Error parsing output of KKR: total energy"
-        return False, msg, out_dict
+        tempsave_fail(msg_list, msg)
 
     try:
         result = find_warnings(outfile)
-        out_dict['number_of_warnings'] = len(result)
-        out_dict['warnings_list'] = result
+        tmp_dict = {}
+        tmp_dict['number_of_warnings'] = len(result)
+        tmp_dict['warnings_list'] = result
+        out_dict['warnings_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: search for warnings"
-        return False, msg, out_dict
+        tempsave_fail(msg_list, msg)
 
     try:
         result = extract_timings(timing_file)
-        out_dict['timings'] = result
-        out_dict['units_timings'] = 'seconds'
+        out_dict['timings_group'] = result
+        out_dict['timings_unit'] = 'seconds'
     except:
         msg = "Error parsing output of KKR: timings"
-        return False, msg, out_dict
+        tempsave_fail(msg_list, msg)
     
     try:
         result = get_single_particle_energies(outfile_000)
         out_dict['single_particle_energies'] = result*Ry2eV
-        out_dict['units_single_particle_energies'] = 'eV'
+        out_dict['single_particle_energies_unit'] = 'eV'
     except:
         msg = "Error parsing output of KKR: single particle energies"
-        return False, msg, out_dict
+        tempsave_fail(msg_list, msg)
     
     try:
         result_WS, result_tot, result_C = get_charges_per_atom(outfile_000)
-        niter = len(out_dict['rms_all_iterations'])
+        niter = len(out_dict['convergence_group']['rms_all_iterations'])
         natyp = len(result_tot)/niter
         out_dict['nuclear_charge_per_atom'] = result_tot[-natyp:]
         out_dict['charge_core_states_per_atom'] = result_C[-natyp:]
         out_dict['charge_valence_states_per_atom'] = result_WS[-natyp:]-result_C[-natyp:]
+        out_dict['nuclear_charge_per_atom_unit'] = 'electron charge'
+        out_dict['charge_core_states_per_atom_unit'] = 'electron charge'
+        out_dict['charge_valence_states_per_atom_unit'] = 'electron charge'
     except:
-        msg = "Error parsing output of KKR: single particle energies"
-        return False, msg, out_dict
+        msg = "Error parsing output of KKR: charges"
+        tempsave_fail(msg_list, msg)
     
     try:
         emin, tempr, Nepts, Npol, N1, N2, N3 = get_econt_info(outfile_0init)
         tmp_dict = {}
-        tmp_dict['EMIN'] = emin
-        tmp_dict['Nepts'] = Nepts
-        tmp_dict['Temperature'] = tempr
-        tmp_dict['Npol'] = Npol
-        tmp_dict['N1'] = N1
-        tmp_dict['N2'] = N2
-        tmp_dict['N3'] = N3
-        out_dict['energy_contour'] = tmp_dict
+        tmp_dict['emin'] = emin
+        tmp_dict['emin_unit'] = 'Rydberg'
+        tmp_dict['number_of_energy_points'] = Nepts
+        tmp_dict['temperature'] = tempr
+        tmp_dict['temperature_unit'] = 'Kelvin'
+        tmp_dict['npol'] = Npol
+        tmp_dict['n1'] = N1
+        tmp_dict['n2'] = N2
+        tmp_dict['n3'] = N3
+        out_dict['energy_contour_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: energy contour"
-        return False, msg, out_dict
+        tempsave_fail(msg_list, msg)
     
     try:
         ncore, emax, lmax, descr_max = get_core_states(potfile_out)
         tmp_dict = {}
         tmp_dict['number_of_core_states_per_atom'] = ncore
         tmp_dict['energy_highest_lying_core_state_per_atom'] = emax
+        tmp_dict['energy_highest_lying_core_state_per_atom_unit'] = 'Rydberg'
         tmp_dict['descr_highest_lying_core_state_per_atom'] = descr_max
-        out_dict['core_states'] = tmp_dict
+        out_dict['core_states_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: core_states"
-        return False, msg, out_dict
-
-    
-    return True, "Completed parsing of KKR output successfully.", out_dict
+        tempsave_fail(msg_list, msg)
+        
+    #convert arrays to lists
+    from numpy import ndarray
+    for key in out_dict.keys():
+        if type(out_dict[key])==ndarray:
+            out_dict[key] = list(out_dict[key])
+        elif type(out_dict[key])==dict:
+            for subkey in out_dict[key].keys():
+                if type(out_dict[key][subkey])==ndarray:
+                    out_dict[key][subkey] = list(out_dict[key][subkey])
+                    
+    # return output
+    if len(msg_list)>0:
+        return False, msg_list, out_dict
+    else:
+        return True, [], out_dict
       
 
 #"""
 # for testing
 if __name__=='__main__':
+    from pprint import pprint
     from aiida import is_dbenv_loaded, load_dbenv
     if not is_dbenv_loaded():
         load_dbenv()
@@ -421,8 +465,11 @@ if __name__=='__main__':
     timing_file = path0+'out_timing.000.txt'
     potfile_out = path0+'out_potential'
     out_dict = {}
-    success, msg, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out)
+    success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out)
+    
+    pprint(out_dict)
     if not success:
-        print 'Error-msg:', msg
-    print(out_dict)
+        print 'Number of parser_errors', len(msg_list)
+        for msg in msg_list:
+            print 'Error-msg:', msg
 #"""
