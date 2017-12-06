@@ -3,7 +3,7 @@
 from aiida.parsers.parser import Parser
 from aiida.orm.data.parameter import ParameterData
 from aiida_kkr.tools.voronoi_helper import check_voronoi_output
-from aiida_kkr.tools.common_functions import search_string
+from aiida_kkr.tools.common_functions import search_string, get_version_info
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.exceptions import InputValidationError
 
@@ -75,7 +75,8 @@ class VoronoiParser(Parser):
         out_dict = {'ParserVersion': self._ParserVersion}
         
         try:
-            code_version, compile_options, serial_number = self._get_version_info(out_folder)
+            outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
+            code_version, compile_options, serial_number = get_version_info(outfile)
             out_dict['Code_version'] = code_version
             out_dict['Compile_options'] = compile_options
             out_dict['Calculation_serial_number'] = serial_number
@@ -221,19 +222,6 @@ class VoronoiParser(Parser):
                 results.append(tmpstr)
                 Ncls += 1
         return Ncls, results
-    
-    
-    def _get_version_info(self, out_folder):
-        f = open(out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME))
-        tmptxt = f.readlines()
-        f.close()
-        itmp = search_string('Code version:', tmptxt)
-        code_version = tmptxt.pop(itmp)
-        itmp = search_string('Compile options:', tmptxt)
-        compile_options = tmptxt.pop(itmp)
-        itmp = search_string('serial number for files:', tmptxt)
-        serial_number = tmptxt.pop(itmp)
-        return code_version, compile_options, serial_number
     
     
     def _get_shape_array(self, out_folder):

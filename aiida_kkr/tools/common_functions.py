@@ -21,6 +21,9 @@ def get_Ang2aBohr():
     
 def get_aBohr2Ang():
     return 1/get_Ang2aBohr()
+
+def get_Ry2eV():
+    return 13.605693009
     
 def search_string(searchkey, txt):
     iline = 0
@@ -29,6 +32,20 @@ def search_string(searchkey, txt):
             return iline
         iline+=1
     return -1
+
+
+def get_version_info(outfile):
+    f = open(outfile)
+    tmptxt = f.readlines()
+    f.close()
+    itmp = search_string('Code version:', tmptxt)
+    code_version = tmptxt.pop(itmp)
+    itmp = search_string('Compile options:', tmptxt)
+    compile_options = tmptxt.pop(itmp)
+    itmp = search_string('serial number for files:', tmptxt)
+    serial_number = tmptxt.pop(itmp)
+    return code_version, compile_options, serial_number
+
 
 def generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc=None):
     """
