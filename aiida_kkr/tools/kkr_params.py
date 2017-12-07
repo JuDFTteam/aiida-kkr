@@ -409,17 +409,11 @@ class kkrparams(object):
             self.update_mandatory_voronoi()
 
 
-    def _check_mandatory(self, assume_struc_present=False):
+    def _check_mandatory(self):
         """Check if all mandatory keywords are set"""
         self._update_mandatory()
         if self.__params_type == 'voronoi':
             self.update_mandatory_voronoi()
-        # remove BRAVAIS, NZEZ, ALATBASIS, <RBASIS> and <ZATOM> from list of mandatory keys
-        if assume_struc_present:
-            for delkey in ['BRAVAIS', 'NAEZ', 'ALATBASIS', '<RBASIS>', '<ZATOM>']:
-                #print('removing {} from list of mandatory keys'.format(delkey), self._mandatory[delkey])
-                self._mandatory[delkey] = False
-                #print(self._mandatory[delkey])
         for key in self.values.keys():
             if self._mandatory[key] and self.values[key] is None:
                 print('Error not all mandatory keys are set!')
@@ -463,13 +457,12 @@ class kkrparams(object):
                     raise TypeError
 
 
-    def _check_input_consistency(self, assume_struc_present=False):
+    def _check_input_consistency(self):
         """Check consistency of input, to be done before wrinting to inputcard"""
         from numpy import array
 
         # first check if all mandatory values are there
-        #print(assume_struc_present)
-        self._check_mandatory(assume_struc_present=assume_struc_present)
+        self._check_mandatory()
 
         # lists of array arguments
         keywords = self.values
@@ -507,11 +500,10 @@ class kkrparams(object):
         if 'INTERFACE' not in set_values or self.values['INTERFACE']:
             bulkmode = True
             
-        if not assume_struc_present:
-            bravais = array(self.values['BRAVAIS'])
-            if bulkmode and sum(bravais[2]**2)==0:
-                print("Error: 'BRAVAIS' matches 2D calculation but 'INTERFACE' is not set to True!")
-                raise ValueError
+        bravais = array(self.values['BRAVAIS'])
+        if bulkmode and sum(bravais[2]**2)==0:
+            print("Error: 'BRAVAIS' matches 2D calculation but 'INTERFACE' is not set to True!")
+            raise ValueError
 
 
     def fill_keywords_to_inputfile(self, is_voro_calc=False, output='inputcard'):
@@ -726,12 +718,10 @@ class kkrparams(object):
         manlist = self.get_all_mandatory()
         missing = []
         for key in manlist:
-            if key not in setlist and (not use_aiida and key not in ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ']):
-                missing.append(key)
+            if key not in setlist:
+                if not use_aiida:
+                    missing.append(key)
+                else:
+                    if key not in ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ']:
+                        missing.append(key)
         return missing
-
-
-#kv = kkrparams(params_type='voronoi')
-#kv.set_multiple_values(NSPIN=1, LMAX=2, RCLUSTZ=1.5)
-#kv._check_input_consistency(assume_struc_present=True)
-#kv._check_input_consistency(assume_struc_present=False)

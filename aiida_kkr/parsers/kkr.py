@@ -9,7 +9,7 @@ from aiida.parsers.parser import Parser
 from aiida.orm.data.parameter import ParameterData
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida.common.exceptions import InputValidationError
-from aiida_kkr.parsers.kkrparser_functions import parse_kkr_outputfile
+from aiida_kkr.tools.kkrparser_functions import parse_kkr_outputfile
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "

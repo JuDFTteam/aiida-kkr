@@ -216,6 +216,11 @@ class Test_fill_inputfile():
         p.set_value('<CPA-CONC>', cpa_conc)
         p.set_value('FILES', ['output.pot', ''])
         p.fill_keywords_to_inputfile(is_voro_calc=True)
+        
+        
+    #def test_(self):  
+        
+        
 
 #TODO: implement and test read_inputfile
 """
