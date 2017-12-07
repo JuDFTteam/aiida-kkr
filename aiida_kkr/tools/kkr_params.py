@@ -146,8 +146,12 @@ class kkrparams(object):
 
     def set_value(self, key, value):
         """Sets value of keyword 'key'"""
-        self.values[key] = value
-        self._check_valuetype(key)
+        if value is None:
+            print('Warning setting value None is not permitted!')
+            print('Use remove_value funciton instead! Ignore keyword {}'.format(key))
+        else:
+            self.values[key] = value
+            self._check_valuetype(key)
         
         
     def remove_value(self, key):
@@ -180,6 +184,7 @@ class kkrparams(object):
 
     def get_all_mandatory(self):
         """Return a list of mandatory keys"""
+        self._update_mandatory()
         mandatory_list = []
         for key in self.values.keys():
             if self.is_mandatory(key):
@@ -661,7 +666,7 @@ class kkrparams(object):
         manlist = self.get_all_mandatory()
         missing = []
         for key in manlist:
-            if key not in setlist and (not use_aiida and key not in ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS']):
+            if key not in setlist and (not use_aiida and key not in ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ']):
                 missing.append(key)
         return missing
 

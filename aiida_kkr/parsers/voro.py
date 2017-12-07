@@ -88,7 +88,7 @@ class VoronoiParser(Parser):
             outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
             potfile = out_folder.get_abs_path(self._calc._OUT_POTENTIAL_voronoi)
             emin = check_voronoi_output(potfile, outfile)
-            out_dict['EMIN'] = emin
+            out_dict['emin'] = emin
             out_dict['units_EMIN'] = 'Ry'
         except:
             self.logger.error("Error parsing output of voronoi: 'EMIN'")
@@ -119,7 +119,7 @@ class VoronoiParser(Parser):
         
         try:
             natyp, naez, shapes = self._get_shape_array(out_folder)
-            out_dict['Shapes'] = shapes
+            out_dict['shapes'] = shapes
         except:
             self.logger.error("Error parsing output of voronoi: SHAPE Info")
             return success, self._get_nodelist(out_dict)

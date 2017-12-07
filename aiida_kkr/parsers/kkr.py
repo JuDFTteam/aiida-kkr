@@ -400,10 +400,36 @@ def get_ewald(outfile_0init):
         info = '2D'
     return rsum, gsum, info
 
+
 def get_spinmom_per_atom(outfile):
+    """
+    tmp_dict['spin_moment_per_atom'] = result[-1,:]
+            tmp_dict['spin_moment_vector_per_atom'] = vec[-1,:]
+            tmp_dict['spin_moment_angles_per_atom'] = angles[-1,:]
+            out_dict['convergence_group']['spin_moment_per_atom_all_iterations'] = result[:,:]
+            out_dict['convergence_group']['spin_moment_angles_per_atom_all_iterations'] = angles[:,:]
+            tmp_dict['spin_moment_unit'] = 'mu_Bohr'
+            tmp_dict['spin_moment_angles_per_atom_unit'] = 'degree'
+            out_dict['magnetism_group'] = tmp_dict
+    """
+    
     return result, vec, angles
 
+
 def get_orbmom(outfile):
+    """
+    
+            tmp_dict['total_orbital_moment'] = sum(result[-1,:])
+            tmp_dict['orbital_moment_per_atom'] = result[-1,:]
+            tmp_dict['orbital_moment_vector_per_atom'] = vec[-1,:]
+            tmp_dict['orbital_moment_angles_per_atom'] = angles[-1,:]
+            out_dict['convergence_group']['orbital_moment_per_atom_all_iterations'] = result[:,:]
+            out_dict['convergence_group']['orbital_moment_angles_per_atom_all_iterations'] = angles[:,:]
+            tmp_dict['orbital_moment_unit'] = 'mu_Bohr'
+            tmp_dict['orbital_moment_angles_per_atom_unit'] = 'degree'
+            out_dict['magnetism_group'] = tmp_dict
+    """
+    
     return result, vec, angles
 
 
@@ -638,7 +664,6 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg = "Error parsing output of KKR: symmetries"
         msg_list.append(msg)
         
-    #TODO Ewald summation
     try:
         rsum, gsum, info = get_ewald(outfile_0init)
         tmp_dict = {}

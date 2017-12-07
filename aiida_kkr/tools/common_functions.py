@@ -84,31 +84,32 @@ def get_highest_core_state(nstates, energies, lmoments):
     return lval, energies[idx], level_descr
 
 
-def generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc=None):
+def generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc=None, shapes=None):
     """
     Takes information from parameter and structure data and writes input file 'input_filename'
     
-    :param input: parameters, parameter node containing KKR-related input parameter
-    :param input: structure, structure node containing lattice information
-    :param input: input_filename, filename created, typically called 'inputcard'
+    :param parameters: input parameters node containing KKR-related input parameter
+    :param structure: input structure node containing lattice information
+    :param input_filename: input filename, typically called 'inputcard'
     
-    optional argument
-    :param input: parent_calc, parent calculation node used to determine if EMIN parameter is automatically overwritten (from voronoi output) or not
     
-    :note: assumes valid structure, i.e. for 2D case all necessary information has to be given. This is checked with function 'check_2D_input'
+    optional arguments
+    :param parent_calc: input parent calculation node used to determine if EMIN 
+                        parameter is automatically overwritten (from voronoi output)
+                        or not
+    :param shapes: input shapes array (set automatically by 
+                   aiida_kkr.calculations.Kkrcaluation and shall not be overwritten)
+    
+    
+    :note: assumes valid structure and parameters, i.e. for 2D case all necessary 
+           information has to be given. This is checked with function 
+           'check_2D_input' called in aiida_kkr.calculations.Kkrcaluation
     """
     
     from aiida.common.constants import elements as PeriodicTableElements
     from numpy import array
     from aiida_kkr.calculations.voro import VoronoiCalculation
     from aiida_kkr.tools.kkr_params import kkrparams
-    
-    
-    # check if calculation is voronoi calculatino or not
-    if isinstance(parent_calc, VoronoiCalculation):
-        parentisvoronoi = True
-    else:
-        parentisvoronoi = False
     
     #list of globally used constants
     a_to_bohr = get_Ang2aBohr()
@@ -166,15 +167,13 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     input_dict = parameters.get_dict()
     
     # empty kkrparams instance (contains formatting info etc.)
-    if parentisvoronoi:
-        params = kkrparams(params_type='voronoi')
-    else:
-        params = kkrparams()
+    params = kkrparams()
     
-    # in case of starting from Voronoi set EMIN automatically
-    if parentisvoronoi:
-        print('Overwriting EMIN with value from voronoi output')
-        emin = parent_calc.res.EMIN
+    # for KKR calculation set EMIN automatically from parent_calc (ausways in res.emin of voronoi and kkr)
+    if ('EMIN' not in input_dict.keys() or input_dict['EMIN'] is None) and parent_calc is not None:
+        print('Overwriting EMIN with value from parent calculation')
+        emin = parent_calc.res.emin
+        print('Setting emin:',emin, 'is emin None?',emin is None)
         params.set_value('EMIN', emin)
         
     # overwrite keywords with input parameter
@@ -191,6 +190,10 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
         params.set_value('<CPA-CONC>', weights)
         params.set_value('<SITE>', isitelist)
         
+    # write shapes (extracted from voronoi parent automatically in kkr calculation plugin)
+    if shapes is not None:
+        params.set_value('<SHAPE>', shapes)
+    
     # write inputfile
     params.fill_keywords_to_inputfile(output=input_filename)
     

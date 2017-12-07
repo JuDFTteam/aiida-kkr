@@ -188,28 +188,30 @@ class KkrCalculation(JobCalculation):
         if isinstance(parent_calc, VoronoiCalculation):
             self.logger.info("KkrCalculation: Parent is Voronoi calculation")
             try:            
-                structure = parent_calc.get_inputs_dict()['structure']    
-            except KeyError:
-                # raise InputvaluationError # TODO raise some error
+                structure = parent_calc.get_inputs_dict()['structure'] 
+                voro_parent = parent_calc
+            except:
                 self.logger.error('KkrCalculation: Could not get structure from Voronoi parent.')
-                pass
+                raise ValidationError("Cound not find structure node")
         elif isinstance(parent_calc, KkrCalculation):
             self.logger.info("KkrCalculation: Parent is KKR calculation")
-            #try:            
-            self.logger.error('KkrCalculation: extract structure from KKR parent')
-            structure = self._find_parent_struc(parent_calc)   
-            #except KeyError:
-            #    # raise InputvaluationError # TODO raise some error
-            #    pass
-            #    self.logger.info('Could not get structure from KKR parent.')
+            try:            
+                self.logger.error('KkrCalculation: extract structure from KKR parent')
+                structure, voro_parent = self._find_parent_struc(parent_calc) 
+            except:
+                self.logger.error('Could not get structure from parent.')
+                raise ValidationError('Cound not find structure node')
         else:
-            self.logger.info("KkrCalculation: Parent is neither Voronoi nor KKR calculation!")
-            self.logger.error('KkrCalculation: Could not get structure from parent.')
-            raise ValidationError()
+            self.logger.error("KkrCalculation: Parent is neither Voronoi nor KKR calculation!")
+            raise ValidationError('Cound not find structure node')
             
         if inputdict:
             self.logger.error('KkrCalculation: Unknown inputs for structure lookup')
             raise ValidationError("Unknown inputs")
+            
+        # get shapes array from voronoi parent
+        shapes = voro_parent.res.shapes
+        
 
 
         ###################################
@@ -221,7 +223,7 @@ class KkrCalculation(JobCalculation):
         
         # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
-        generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc)
+        generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes)
 
 
         #################
@@ -376,7 +378,7 @@ class KkrCalculation(JobCalculation):
         print(iiter)
         if self._has_struc(parent_folder_tmp):
             struc = self._get_struc(parent_folder_tmp)
-            return struc
+            return struc, parent_folder_tmp
         else:
             print('struc not found')
     
