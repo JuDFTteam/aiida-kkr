@@ -71,12 +71,34 @@ class KkrParser(Parser):
             return success, node_list
 
         # Parse output files of KKR calculation
-        outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
-        outfile_0init = out_folder.get_abs_path(self._calc._OUTPUT_0_INIT)
-        outfile_000 = out_folder.get_abs_path(self._calc._OUTPUT_000)
+        try:
+            outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
+        except OSError:
+            self.logger.error
+        
+        # get path to files and catch errors if files are not present
+        file_errors = []
+        try:
+            fname = self._calc._OUTPUT_0_INIT
+            outfile_0init = out_folder.get_abs_path(fname)  
+        except OSError:
+            file_errors.append("Critical error! OUTPUT_0_INIT not found {}".format(fname))
+        try:
+            fname = self._calc._OUTPUT_000
+            outfile_000 = out_folder.get_abs_path(fname)
+        except OSError:
+            file_errors.append("Critical error! OUTPUT_000 not found {}".format(fname))
+        try:
+            fname = self._calc._OUT_POTENTIAL
+            potfile_out = out_folder.get_abs_path(fname)
+        except OSError:
+            file_errors.append("Critical error! OUT_POTENTIAL not found {}".format(fname))
+        try:
+            fname = self._calc._OUT_TIMING_000
+            timing_file = out_folder.get_abs_path(fname)
+        except OSError:
+            file_errors.append("Critical error! OUT_TIMING_000  not found {}".format(fname))
         #potfile_in = out_folder.get_abs_path(self._calc._POTENTIAL)
-        potfile_out = out_folder.get_abs_path(self._calc._OUT_POTENTIAL)
-        timing_file = out_folder.get_abs_path(self._calc._OUT_TIMING_000)
         #scoef_file = out_folder.get_abs_path(self._calc._SCOEF)
         #nonco_out_file = out_folder.get_abs_path(self._calc._NONCO_ANGLES_OUT)
         
@@ -88,8 +110,13 @@ class KkrParser(Parser):
                                                            outfile_000, 
                                                            timing_file, 
                                                            potfile_out)
-        out_dict['parser_warnings'] = msg_list
+        out_dict['parser_errors'] = msg_list
+         # add file open errors to parser output of error messages
+        for f_err in file_errors: 
+            msg_list.append(f_err)
+        out_dict['parser_errors'] = msg_list
         
+        #create output node and link
         output_data = ParameterData(dict=out_dict)
         link_name = self.get_linkname_outparams()
         node_list = [(link_name, output_data)]

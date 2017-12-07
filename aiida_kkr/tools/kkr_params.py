@@ -62,9 +62,69 @@ class kkrparams(object):
             self.__description[key] = keyw[key][3]
             
 
-    def get_dict(self):
-        """Returns values dictionary"""
+    def get_dict(self, group=None, subgroup=None):
+        """
+        Returns values dictionary.
+        
+        Prints values belonging to a certain group only if the 'group' argument
+        is one of the following: 'lattice', 'chemistry', 'accuracy', 
+                                 'external fields', 'scf cycle', 'other'
+          
+        Additionally the subgroups argument allows to print only a subset of 
+        all keys in a certain group. The following subgroups are available:
+        in 'lattice' group:   '2D mode', 'shape functions'
+        in 'chemistry' group: 'Atom types', 'Exchange-correlation', 'CPA mode', 
+                              '2D mode'
+        in 'accuracy' group:  'Valence energy contour', 'Semicore energy contour',
+                              'CPA mode', 'Screening clusters', 'Radial solver', 
+                              'Ewald summation', 'LLoyd'
+        """
         out_dict = self.values
+        
+        #check for grouping
+        group_searchstrings = {'lattice':'Description of lattice', 
+                               'chemistry':'Chemistry', 
+                               'external fields':'External fields:', 
+                               'accuracy':'Accuracy', 
+                               'scf cycle':'Self-consistency control:', 
+                               'other':['Running and test options', 'Name of potential and shapefun file']}
+        subgroups_all = {'lattice':['2D mode', 'shape functions'], 
+                         'chemistry':['Atom types', 'Exchange-correlation', 'CPA mode', '2D mode'],
+                         'accuracy':['Valence energy contour', 'Semicore energy contour',
+                                     'CPA mode', 'Screening clusters', 'Radial solver', 
+                                     'Ewald summation', 'LLoyd']}
+        if group in ['lattice', 'chemistry', 'accuracy', 'external fields', 'scf cycle', 'other']:
+            print('Returning only values belonging to group %s'%group)
+            tmp_dict = {}
+            for key in out_dict.keys():
+                desc = self.__description[key]
+                key_in_group = False
+                if group_searchstrings[group] != 'other':
+                    if group_searchstrings[group] in desc:
+                        key_in_group = True
+                else:
+                    if group_searchstrings[group][0] in desc or group_searchstrings[group][1] in desc:
+                        key_in_group = True
+                if key_in_group:
+                    tmp_dict[key] = self.values[key]
+            
+            #check for subgrouping and overwrite tmp_dict accordingly
+            if group in ['lattice', 'chemistry', 'accuracy']:
+                if subgroup in subgroups_all[group]:
+                    print('Restrict keys additionally to subgroup %s'%subgroup)
+                    tmp_dict2 = {}
+                    for key in tmp_dict.keys():
+                        desc = self.__description[key]
+                        key_in_group = False
+                        if subgroup in desc:
+                            key_in_group = True
+                            if key_in_group:
+                                tmp_dict2[key] = self.values[key]
+                    tmp_dict = tmp_dict2
+                    
+            # overwrite out_dict with tmp_dict
+            out_dict = tmp_dict
+        
         return out_dict
 
         
@@ -287,7 +347,7 @@ class kkrparams(object):
                                 ('<DELTAE>', [None, '(%f, %f)', False, "Accuracy, LLoyd's formula: Energy difference for derivative calculation in Lloyd's formula"]),
                                 ('<TOLRDIF>', [None, '%f', False, 'Accuracy, Virtual atoms: For distance between scattering-centers smaller than [<TOLRDIF>], free GF is set to zero. Units are Bohr radii.']),
                                 # scf cycle
-                                ('NSTEPS', [None, '%i', False, 'Self-consistency controlMax. number of self-consistency iterations. Is reset to 1 in several cases that require only 1 iteration (DOS, Jij, write out GF).']),
+                                ('NSTEPS', [None, '%i', False, 'Self-consistency control: Max. number of self-consistency iterations. Is reset to 1 in several cases that require only 1 iteration (DOS, Jij, write out GF).']),
                                 ('IMIX', [None, '%i', False, "Self-consistency control: Mixing scheme for potential. 0 means straignt (linear) mixing, 3 means Broyden's 1st method, 4 means Broyden's 2nd method, 5 means Anderson's method"]),
                                 ('STRMIX', [None, '%f', False, 'Self-consistency control: Linear mixing parameter Set to 0. if [NPOL]=0']),
                                 ('ITDBRY', [None, '%i', False, 'Self-consistency control: ow many iterations to keep in the Broyden/Anderson mixing scheme.']),

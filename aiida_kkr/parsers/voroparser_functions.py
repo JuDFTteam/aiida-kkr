@@ -147,7 +147,7 @@ def parse_voronoi_output(out_dict, outfile, potfile, atominfo, radii, inputfile)
         
     try:
         results = get_fpradius(naez, atominfo)
-        out_dict['fpradius_atoms'] = tmpdict_all
+        out_dict['fpradius_atoms'] = results
         out_dict['fpradius_atoms_unit'] = 'alat'
     except:
         msg = "Error parsing ourput of voronoi: full potential radius"

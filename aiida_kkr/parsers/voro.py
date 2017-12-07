@@ -68,22 +68,45 @@ class VoronoiParser(Parser):
 
         # we need at least the output file name as defined in calcs.py
         if self._calc._OUTPUT_FILE_NAME not in list_of_files:
-            self.logger.error("Output file not found")
+            self.logger.error("Output file '{}' not found".format(self._calc._OUTPUT_FILE_NAME))
             return success, node_list
         
         #Parse voronoi output, results that are stored in database are in out_dict
+        
+        # get path to files and catch errors if files are not present
+        file_errors = []
+        try:
+            potfile = out_folder.get_abs_path(self._calc._OUT_POTENTIAL_voronoi)
+        except OSError:
+            file_errors.append("Critical error! potfile not found {}".format(self._calc._OUT_POTENTIAL_voronoi))
+        try:
+            outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
+        except OSError:
+            file_errors.append("Critical error! outfile not found {}".format(self._calc._OUTPUT_FILE_NAME))
+        try:
+            atominfo = out_folder.get_abs_path(self._calc._ATOMINFO)
+        except OSError:  
+            file_errors.append("Critical error! atominfo not found {}".format(self._calc._ATOMINFO))
+        try:
+            radii = out_folder.get_abs_path(self._calc._RADII)
+        except OSError:  
+            file_errors.append("Critical error! radii not found {}".format(self._calc._RADII))
+        try:
+            inputfile = out_folder.get_abs_path(self._calc._INPUT_FILE_NAME)
+        except OSError:
+            file_errors.append("Critical error! inputfile not found {}".format(self._calc._INPUT_FILE_NAME))
+        # initialize out_dict and parse output files
         out_dict = {'parser_version': self._ParserVersion}
-        potfile = out_folder.get_abs_path(self._calc._OUT_POTENTIAL_voronoi)
-        outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
-        atominfo = out_folder.get_abs_path(self._calc._ATOMINFO)
-        radii = out_folder.get_abs_path(self._calc._RADII)
-        inputfile = out_folder.get_abs_path(self._calc._INPUT_FILE_NAME)
+        #TODO add job description, compound name, calculation title
         success, msg_list, out_dict = parse_voronoi_output(out_dict, outfile, 
                                                            potfile, atominfo, 
                                                            radii, inputfile)
+        # add file open errors to parser output of error messages
+        for f_err in file_errors: 
+            msg_list.append(f_err)
+        out_dict['parser_errors'] = msg_list
         
-        out_dict['parser_warnings'] = msg_list
-        
+        #create output node and link
         output_data = ParameterData(dict=out_dict)
         link_name = self.get_linkname_outparams()
         node_list = [(link_name, output_data)]
