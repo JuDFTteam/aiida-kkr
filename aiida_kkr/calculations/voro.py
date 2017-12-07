@@ -127,8 +127,10 @@ class VoronoiCalculation(JobCalculation):
         calcinfo.uuid = self.uuid
         calcinfo.local_copy_list = []
         calcinfo.remote_copy_list = []
-        calcinfo.retrieve_list = [self._OUTPUT_FILE_NAME, self._ATOMINFO, self._RADII,
-                                        self._SHAPEFUN, self._VERTICES, self._OUT_POTENTIAL_voronoi]
+        calcinfo.retrieve_list = [self._OUTPUT_FILE_NAME, self._ATOMINFO, 
+                                  self._RADII, self._SHAPEFUN, self._VERTICES, 
+                                  self._OUT_POTENTIAL_voronoi, 
+                                  self._INPUT_FILE_NAME]
 
         codeinfo = CodeInfo()
         codeinfo.cmdline_params = []
