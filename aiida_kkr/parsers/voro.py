@@ -11,7 +11,7 @@ from aiida_kkr.parsers.voroparser_functions import parse_voronoi_output
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1"
+__version__ = "0.2"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -73,11 +73,14 @@ class VoronoiParser(Parser):
         
         #Parse voronoi output, results that are stored in database are in out_dict
         out_dict = {'parser_version': self._ParserVersion}
-        outfile = 
-        potfile = 
-        atominfo = 
-        radii = 
-        success, msg_list, out_dict = parse_voronoi_output(out_dict, outfile, potfile, atominfo, radii)
+        potfile = out_folder.get_abs_path(self._calc._OUT_POTENTIAL_voronoi)
+        outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
+        atominfo = out_folder.get_abs_path(self._calc._ATOMINFO)
+        radii = out_folder.get_abs_path(self._calc._RADII)
+        inputfile = out_folder.get_abs_path(self._calc._INPUT_FILE_NAME)
+        success, msg_list, out_dict = parse_voronoi_output(out_dict, outfile, 
+                                                           potfile, atominfo, 
+                                                           radii, inputfile)
         
         out_dict['parser_warnings'] = msg_list
         
