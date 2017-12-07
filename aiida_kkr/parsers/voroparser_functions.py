@@ -2,7 +2,10 @@
 
 from __future__ import print_function
 import sys
+
 from aiida_kkr.tools.common_functions import get_corestates_from_potential, get_highest_core_state
+from aiida_kkr.tools.common_functions import search_string, get_version_info
+
 
 # redefine raw_input for python 3/2.7 compatilbility
 if sys.version_info[0] >= 3:
@@ -49,4 +52,10 @@ def check_voronoi_output(potfile, outfile):
         print_warning('Highest core level is too close to valence band: check results carefully!')
 
     return emin_guess
+
+def parse_voronoi_output():
+    """
+    
+    """
+    pass
 
