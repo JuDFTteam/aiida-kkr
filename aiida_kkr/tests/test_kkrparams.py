@@ -218,8 +218,52 @@ class Test_fill_inputfile():
         p.fill_keywords_to_inputfile(is_voro_calc=True)
         
         
-    #def test_(self):  
+class Test_other():
+    def test_get_missing_keys(self): 
+        p = kkrparams()
+        missing = p.get_missing_keys()
+        assert set(missing)==set(['<ZATOM>', 'BRAVAIS', 'LMAX', 'GMAX', 'RMAX', 'NAEZ', '<RBASIS>', 'NSPIN', 'ALATBASIS'])
+        missing = p.get_missing_keys(use_aiida=True)
+        assert set(missing)==set(['LMAX', 'GMAX', 'RMAX', 'NSPIN'])
         
+        p = kkrparams(params_type='voronoi', EMIN=-2, LMAX=3)
+        missing = p.get_missing_keys()
+        assert set(missing)==set(['<ZATOM>', 'BRAVAIS', 'RCLUSTZ', 'NAEZ', '<RBASIS>', 'NSPIN', 'ALATBASIS'])
+    
+    def test_set_value_None(self): 
+        p = kkrparams()
+        p.set_value('EMIN', -1)
+        assert p.values['EMIN'] == -1
+        
+        p.set_value('EMIN',None)
+        assert p.values['EMIN'] == -1
+        
+        p.remove_value('EMIN')
+        assert p.values['EMIN'] is None
+        
+    def test_set_potname_empty(self):  
+        p = kkrparams()
+        p.set_multiple_values(RMAX=1, GMAX=1, NSPIN=1, RBASIS=[0,0,0], LMAX=2, RCLUSTZ=1.2, NAEZ=1, ZATOM=[0], BRAVAIS=[[1,0,0],[0,1,0],[0,0,1]], ALATBASIS=1, FILES=['','shapenew'])
+        p.fill_keywords_to_inputfile()
+        from aiida_kkr.tools.common_functions import search_string
+        txt = open('inputcard').readlines()
+        itmp = search_string('FILES', txt)
+        potname = txt[itmp+2].split()[0]
+        shapename = txt[itmp+4].split()[0]
+        assert 'potential' == potname
+        assert 'shapenew' == shapename
+    
+    def test_get_dict(self):
+        d0 = {'ICST': None, '<RMTREF>': None, 'N1SEMI': None, '<FPRADIUS>': None, '<NRBASIS>': None, '<SOCSCL>': None, 'XINIPOL': None, 'EMAX': None, '<RBLEFT>': None, 'NLEFTHOS': None, '<ZATOM>': [0.0], 'RCLUSTXY': None, 'NPAN_EQ': None, '<RBRIGHT>': None, 'BRAVAIS': [[1, 0, 0], [0, 1, 0], [0, 0, 1]], 'INS': None, 'NAT_LDAU': None, '<RMTREFR>': None, 'ZPERIODL': None, 'TESTOPT': None, 'KEXCOR': None, '<TOLRDIF>': None, 'TEMPR': None, 'EBOTSEMI': None, 'NATYP': None, 'RUNOPT': None, 'HFIELD': None, 'NPOL': None, 'RCLUSTZ': 1.2, 'ZPERIODR': None, 'N3SEMI': None, 'LMAX': 2, 'ITDBRY': None, '<KAOEZR>': None, '<LLOYD>': None, 'STRMIX': None, 'CPAINFO': None, 'FCM': None, '<SHAPE>': None, 'NPAN_LOG': None, 'CARTESIAN': None, 'FSEMICORE': None, 'LAMBDA_XC': None, 'GMAX': None, '<CPA-CONC>': None, 'RMAX': None, 'NCHEB': None, 'EMIN': None, 'NAEZ': 1, '<DELTAE>': None, 'KREADLDAU': None, '<RBASIS>': [0, 0, 0], '<SITE>': None, 'NPT2': None, 'NPT3': None, 'NPT1': None, 'N2SEMI': None, 'NPOLSEMI': None, '<RMTREFL>': None, 'FILES': ['', 'shapenew'], 'LDAU_PARA': None, 'NSPIN': 1, 'QBOUND': None, 'NRIGHTHO': None, 'KVREL': None, 'TKSEMI': None, '<KAOEZL>': None, 'NSTEPS': None, 'KSHAPE': None, '<NLBASIS>': None, 'LINIPOL': None, 'BZDIVIDE': None, 'INTERFACE': None, 'BRYMIX': None, 'EMUSEMI': None, 'ALATBASIS': 1.0, 'R_LOG': None, 'IMIX': None, 'VCONST': None}
+        p = kkrparams()
+        p.set_multiple_values(RMAX=1, GMAX=1, NSPIN=1, RBASIS=[0,0,0], LMAX=2, RCLUSTZ=1.2, NAEZ=1, ZATOM=[0], BRAVAIS=[[1,0,0],[0,1,0],[0,0,1]], ALATBASIS=1, FILES=['','shapenew'])
+        assert set(d0.keys()) == set(p.get_dict().keys())
+        
+        l0 = ['<SHAPE>', 'KSHAPE', 'ZPERIODL', '<NRBASIS>', '<NLBASIS>', '<RBASIS>', 'NAEZ', 'CARTESIAN', '<RBRIGHT>', '<RBLEFT>', 'INTERFACE', 'BRAVAIS', 'ALATBASIS', 'ZPERIODR']
+        assert p.get_dict(group='lattice').keys() == l0
+        
+        l0 = ['ZPERIODL', '<NRBASIS>', '<NLBASIS>', '<RBRIGHT>', '<RBLEFT>', 'INTERFACE', 'ZPERIODR']
+        assert l0 == p.get_dict(group='lattice', subgroup='2D mode').keys() 
         
 
 #TODO: implement and test read_inputfile

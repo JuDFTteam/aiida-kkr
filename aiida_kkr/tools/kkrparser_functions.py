@@ -608,27 +608,3 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
     else:
         return True, [], out_dict
       
-
-#"""
-# for testing
-if __name__=='__main__':
-    from pprint import pprint
-    
-    path0 = '/Users/ruess/sourcecodes/aiida/repositories/scratch_local_machine/73/a4/2752-db84-4073-a3fc-489863d74720/'
-    outfile = path0+'out_kkr'
-    outfile_0init = path0+'output.0.txt'
-    outfile_000 = path0+'output.000.txt'
-    timing_file = path0+'out_timing.000.txt'
-    potfile_out = path0+'out_potential'
-    out_dict = {}
-    success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out)
-    
-    pprint(out_dict)
-    if not success:
-        print 'Number of parser_errors', len(msg_list)
-        for msg in msg_list:
-            print msg
-    tmp = [i for i in out_dict.keys() if 'group' in i]
-    print 'groups:'
-    pprint(tmp)
-#"""

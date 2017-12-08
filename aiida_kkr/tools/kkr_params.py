@@ -358,7 +358,7 @@ class kkrparams(object):
                                 ('RUNOPT', [None, '%s%s%s%s%s%s%s%s', False, 'Running and test options: 8-character keywords in a row without spaces between them']),
                                 ('TESTOPT', [None, '%s%s%s%s%s%s%s%s\n%s%s%s%s%s%s%s%s', False, 'Running and test options: optional 8-character keywords in a row without spaces between them plus a secod row of the same.']),
                                 #file names
-                                ('FILES', [None, '%s', False, 'Name of potential and shapefun file (empty string will set back to default of one one file is supposed to be changed)'])
+                                ('FILES', [None, '%s', False, 'Name of potential and shapefun file (list of two strings, empty string will set back to default of the one file that is supposed to be changed)'])
                                 ])
 
         for key in kwargs:

@@ -318,26 +318,3 @@ def get_alat(inpfile):
     result = float(txt[itmp].split('ALATBASIS')[1].split('=')[1].split()[0])
     return result
     
-#Testing:
-#"""
-if __name__=='__main__':
-    from pprint import pprint
-    out_dict = {'parser_version': 'some_version_number'}
-    path0 = '/Users/ruess/sourcecodes/aiida/repositories/scratch_local_machine/c6/d3/787a-5c2e-4a5c-8abb-3e3c2c6a05cb/'
-    outfile = path0+'out_voronoi'
-    potfile = path0+'output.pot'
-    atominfo = path0+'atominfo.txt'
-    radii = path0+'radii.dat'
-    inputfile = path0+'inputcard'
-    success, msg_list, out_dict = parse_voronoi_output(out_dict, outfile, potfile, atominfo, radii, inputfile)
-    out_dict['parser_warnings'] = msg_list
-    
-    pprint(out_dict)
-    if not success:
-        print('Number of parser_errors', len(msg_list))
-        for msg in msg_list:
-            print(msg)
-    tmp = [i for i in out_dict.keys() if 'group' in i]
-    print('groups:')
-    pprint(tmp)
-#"""
