@@ -33,6 +33,48 @@ def search_string(searchkey, txt):
         iline+=1
     return -1
 
+def angles_to_vec(magnitude, theta, phi):
+    """
+    convert (magnitude, theta, phi) to (x,y,z)
+    
+    theta/phi need to be in radians!
+    
+    Input can be single number, list of numpy.ndarray data
+    Returns x,y,z vector 
+    """
+    from numpy import ndarray, array, cos, sin
+    # correct data type if necessary
+    if type(magnitude) != ndarray:
+        magnitude = array(magnitude)
+    if type(theta) != ndarray:
+        theta = array(theta)
+    if type(phi) != ndarray:
+        phi = array(phi)
+    vec = []
+    for ivec in range(len(magnitude)):
+        r_inplane = magnitude[ivec]*sin(theta[ivec])
+        x = r_inplane*cos(phi[ivec])
+        y = r_inplane*sin(phi[ivec])
+        z = cos(theta[ivec])*magnitude[ivec]
+        vec.append([x,y,z])
+    return array(vec)
+
+def vec_to_angles(vec):
+    """
+    converts vector (x,y,z) to (magnitude, theta, phi)
+    """
+    from numpy import array, arctan2, sqrt, shape
+    magnitude, theta, phi = [], [], []
+    if len(vec)<=3 and len(shape(vec))<2:
+        vec = [vec]
+    for ivec in range(len(vec)):
+        phi.append(arctan2(vec[ivec, 1], vec[ivec, 0]))
+        r_inplane = sqrt(vec[ivec, 0]**2+vec[ivec, 1]**2)
+        theta.append(arctan2(r_inplane, vec[ivec, 2]))
+        magnitude.append(sqrt(r_inplane**2+vec[ivec, 2]**2))
+    return array(magnitude), array(theta), array(phi)
+    
+
 
 def get_version_info(outfile):
     f = open(outfile)

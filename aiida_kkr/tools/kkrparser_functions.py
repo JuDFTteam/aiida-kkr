@@ -41,8 +41,8 @@ def parse_array_float(outfile, searchstring, splitinfo, replacepair=None):
 
 
 def get_rms(outfile, outfile2):
-    res = parse_array_float(outfile, 'average rms-error', [1, '=', 1], ['D', 'E'])
-    res2 = parse_array_float(outfile2, 'rms-error for atom', [1, '=', 1], ['D', 'E'])
+    res = parse_array_float(outfile, 'average rms-error', [2, '=', 1, 0], ['D', 'E'])
+    res2 = parse_array_float(outfile2, 'rms-error for atom', [2, '=', 1, 0], ['D', 'E'])
     niter = len(res) # number of iterations
     natoms = len(res2)/niter # number of atoms in system, needed to take only atom resolved rms of last iteration
     return res, res2[-natoms:]
@@ -116,7 +116,7 @@ def extract_timings(outfile):
 
 
 def get_charges_per_atom(outfile_000):
-    res1 = parse_array_float(outfile_000, 'charge in wigner seitz sphere', [1, '=', 1])
+    res1 = parse_array_float(outfile_000, 'charge in wigner seitz', [1, '=', 1])
     res2 = parse_array_float(outfile_000, 'nuclear charge', [2, 'nuclear charge', 1, 0])
     res3 = parse_array_float(outfile_000, 'core charge', [1, '=', 1])
     return res1, res2, res3
@@ -266,7 +266,6 @@ def get_kmeshinfo(outfile_0init, outfile_000):
     itmp = 0
     while itmp>=0:
         itmp = search_string('KMESH =', tmptxt)
-        print itmp
         if itmp>=0:
             tmpval = int(tmptxt.pop(itmp).split()[-1])
             kmesh_ie.append(tmpval)
@@ -280,9 +279,11 @@ def get_symmetries(outfile_0init):
     f.close()
     itmp = search_string('symmetries found for this lattice:', tmptxt)
     nsym = int(tmptxt[itmp].split(':')[1].split()[0])
+    itmp = search_string('symmetries will be used', tmptxt)
+    nsym_used = int(tmptxt[itmp].split()[3])
     itmp = search_string('<SYMTAUMAT>', tmptxt)
     tmpdict = {}
-    for isym in range(nsym):
+    for isym in range(nsym_used):
         tmpval = tmptxt[itmp+5+isym].split()
         desc = tmpval[1]
         inversion = int(tmpval[2])
@@ -290,7 +291,7 @@ def get_symmetries(outfile_0init):
         unitary = int(tmpval[6].replace('T', '1').replace('F', '0'))
         tmpdict[desc] = {'has_inversion':inversion, 'is_unitary':unitary, 'euler_angles':euler} 
     desc = tmpdict
-    return nsym, desc
+    return nsym, nsym_used, desc
     
 
 def get_ewald(outfile_0init):
@@ -310,39 +311,100 @@ def get_ewald(outfile_0init):
     return rsum, gsum, info
 
 
-def get_spinmom_per_atom(outfile):
+def get_nspin(outfile_0init):
     """
-    tmp_dict['spin_moment_per_atom'] = result[-1,:]
-            tmp_dict['spin_moment_vector_per_atom'] = vec[-1,:]
-            tmp_dict['spin_moment_angles_per_atom'] = angles[-1,:]
-            out_dict['convergence_group']['spin_moment_per_atom_all_iterations'] = result[:,:]
-            out_dict['convergence_group']['spin_moment_angles_per_atom_all_iterations'] = angles[:,:]
-            tmp_dict['spin_moment_unit'] = 'mu_Bohr'
-            tmp_dict['spin_moment_angles_per_atom_unit'] = 'degree'
-            out_dict['magnetism_group'] = tmp_dict
+    extract NSPIN value from output.0.txt
     """
+    f = open(outfile_0init)
+    tmptxt = f.readlines()
+    f.close()
+    itmp = search_string('NSPIN', tmptxt)
+    nspin = int(tmptxt[itmp+1].split()[0])
+    return nspin
+
+
+def get_natom(outfile_0init):
+    """
+    extract NATYP value from output.0.txt
+    """
+    f = open(outfile_0init)
+    tmptxt = f.readlines()
+    f.close()
+    itmp = search_string('NATYP', tmptxt)
+    natom = int(tmptxt[itmp+1].split()[0])
+    return natom
+
+
+def use_newsosol(outfile_0init):
+    """
+    extract NEWSOSOL info from output.0.txt
+    """
+    f = open(outfile_0init)
+    tmptxt = f.readlines()
+    f.close()
+    itmp = search_string('NEWSOSOL', tmptxt)
+    newsosol = False
+    if itmp>=0:
+        newsosol = True
+    return newsosol
+
+
+def get_spinmom_per_atom(outfile, natom, nonco_out_file=None):
+    """
+    Extract spin moment information from outfile and nonco_angles_out (if given)
+    """
+    from aiida_kkr.tools.common_functions import angles_to_vec
+    from numpy import array
+    f = open(outfile)
+    tmptxt = f.readlines()
+    f.close()
+    itmp = 0
+    result = []
+    while itmp >= 0:
+        itmp = search_string('m_spin', tmptxt)
+        if itmp>=0:
+            tmpline = tmptxt.pop(itmp)
+            tmparray = []
+            for iatom in range(natom):
+                tmpline = tmptxt.pop(itmp)
+                tmparray.append(float(tmpline.split()[3]))
+            result.append(tmparray)
     
-    return result, vec, angles
+    # if the file is there, i.e. NEWSOSOL is used, then extract also direction of spins (angles theta and phi)
+    if nonco_out_file is not None and result != []:
+        from numpy import loadtxt
+        angles = loadtxt(nonco_out_file)
+        vec = angles_to_vec(result[-1], angles[:,0], angles[:,1])
+    else:
+        vec, angles = [],[]
+        
+    return array(result), vec, angles
 
 
-def get_orbmom(outfile):
+def get_orbmom(outfile, natom):
     """
-    
-            tmp_dict['total_orbital_moment'] = sum(result[-1,:])
-            tmp_dict['orbital_moment_per_atom'] = result[-1,:]
-            tmp_dict['orbital_moment_vector_per_atom'] = vec[-1,:]
-            tmp_dict['orbital_moment_angles_per_atom'] = angles[-1,:]
-            out_dict['convergence_group']['orbital_moment_per_atom_all_iterations'] = result[:,:]
-            out_dict['convergence_group']['orbital_moment_angles_per_atom_all_iterations'] = angles[:,:]
-            tmp_dict['orbital_moment_unit'] = 'mu_Bohr'
-            tmp_dict['orbital_moment_angles_per_atom_unit'] = 'degree'
-            out_dict['magnetism_group'] = tmp_dict
+    read orbmom info from outfile and return array (iteration, atom)=orbmom
     """
+    from numpy import array
+    f = open(outfile)
+    tmptxt = f.readlines()
+    f.close()
+    itmp = 0
+    result = []
+    while itmp >= 0:
+        itmp = search_string('m_spin', tmptxt)
+        if itmp>=0:
+            tmpline = tmptxt.pop(itmp)
+            tmparray = []
+            for iatom in range(natom):
+                tmpline = tmptxt.pop(itmp)
+                tmparray.append(float(tmpline.split()[4]))
+            result.append(tmparray)
     
-    return result, vec, angles
+    return array(result)#, vec, angles
 
 
-def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out):
+def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file):
     """
     Parser method for the kkr outfile. It returns a dictionary with results
     """
@@ -398,34 +460,57 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
     except:
         msg = "Error parsing output of KKR: total magnetic moment"
         msg_list.append(msg)
+        
+    try:
+        nspin = get_nspin(outfile_0init)
+        natom = get_natom(outfile_0init)
+        newsosol = use_newsosol(outfile_0init)
+        out_dict['nspin'] = nspin
+        out_dict['number_pf_atoms_in_unit_cell'] = natom
+        out_dict['use_newsosol'] = newsosol
+    except:
+        msg = "Error parsing output of KKR: nspin/natom"
+        msg_list.append(msg)
     
     try:
-        result, vec, angles = get_spinmom_per_atom(outfile)
-        if len(result)>0:
-            tmp_dict['spin_moment_per_atom'] = result[-1,:]
-            tmp_dict['spin_moment_vector_per_atom'] = vec[-1,:]
-            tmp_dict['spin_moment_angles_per_atom'] = angles[-1,:]
-            out_dict['convergence_group']['spin_moment_per_atom_all_iterations'] = result[:,:]
-            out_dict['convergence_group']['spin_moment_angles_per_atom_all_iterations'] = angles[:,:]
-            tmp_dict['spin_moment_unit'] = 'mu_Bohr'
-            tmp_dict['spin_moment_angles_per_atom_unit'] = 'degree'
-            out_dict['magnetism_group'] = tmp_dict
+        if nspin>1:
+            if not newsosol:
+                #reset automatically to None to turn off reading of nonco angles file
+                nonco_out_file = None
+            
+            result, vec, angles = get_spinmom_per_atom(outfile, natom, nonco_out_file)
+            if len(result)>0:
+                tmp_dict['spin_moment_per_atom'] = result[-1,:]
+                if newsosol:
+                    tmp_dict['spin_moment_vector_per_atom'] = vec[:]
+                    tmp_dict['spin_moment_angles_per_atom'] = angles[:]
+                    tmp_dict['spin_moment_angles_per_atom_unit'] = 'degree'
+                out_dict['convergence_group']['spin_moment_per_atom_all_iterations'] = result[:,:]
+                tmp_dict['spin_moment_unit'] = 'mu_Bohr'
+                out_dict['magnetism_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: spin moment per atom"
         msg_list.append(msg)
     
+    # add orbital moments to magnetis group in parser output
     try:
-        result, vec, angles = get_orbmom(outfile)
-        if len(result)>0:
-            tmp_dict['total_orbital_moment'] = sum(result[-1,:])
-            tmp_dict['orbital_moment_per_atom'] = result[-1,:]
-            tmp_dict['orbital_moment_vector_per_atom'] = vec[-1,:]
-            tmp_dict['orbital_moment_angles_per_atom'] = angles[-1,:]
-            out_dict['convergence_group']['orbital_moment_per_atom_all_iterations'] = result[:,:]
-            out_dict['convergence_group']['orbital_moment_angles_per_atom_all_iterations'] = angles[:,:]
-            tmp_dict['orbital_moment_unit'] = 'mu_Bohr'
-            tmp_dict['orbital_moment_angles_per_atom_unit'] = 'degree'
-            out_dict['magnetism_group'] = tmp_dict
+        if nspin>1 and newsosol:
+            #TODO orbital moment full vectors
+            # so far the KKR code writes only the component of the orbital moment 
+            # parallel to the spin moment, thus vec and angles are returned empty 
+            # by construction. This might change in the future 
+            #result, vec, angles = get_orbmom(outfile, natom, nonco_angles_orbmom)
+            # so for now return only result= array containing all iterations, all atoms, orbital moment parallel to spin quantization axis
+            result = get_orbmom(outfile, natom)
+            if len(result)>0:
+                tmp_dict['total_orbital_moment'] = sum(result[-1,:])
+                tmp_dict['orbital_moment_per_atom'] = result[-1,:]
+                #tmp_dict['orbital_moment_vector_per_atom'] = vec[-1,:]
+                #tmp_dict['orbital_moment_angles_per_atom'] = angles[-1,:]
+                out_dict['convergence_group']['orbital_moment_per_atom_all_iterations'] = result[:,:]
+                tmp_dict['orbital_moment_unit'] = 'mu_Bohr'
+                #tmp_dict['orbital_moment_angles_per_atom_unit'] = 'degree'
+                out_dict['magnetism_group'] = tmp_dict
     except:
         msg = "Error parsing output of KKR: orbital moment"
         msg_list.append(msg)
@@ -564,9 +649,10 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg_list.append(msg)
     
     try:
-        nsym, desc = get_symmetries(outfile_0init)
+        nsym, nsym_used, desc = get_symmetries(outfile_0init)
         tmp_dict = {}
-        tmp_dict['number_of_symmetries'] = nsym
+        tmp_dict['number_of_lattice_symmetries'] = nsym
+        tmp_dict['number_of_used_symmetries'] = nsym_used
         tmp_dict['symmetry_description'] = desc
         out_dict['symmetries_group'] = tmp_dict
     except:
@@ -599,7 +685,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         elif type(out_dict[key])==dict:
             for subkey in out_dict[key].keys():
                 if type(out_dict[key][subkey])==ndarray:
-                    out_dict[key][subkey] = list(out_dict[key][subkey])
+                    out_dict[key][subkey] = (out_dict[key][subkey]).tolist()
                     
                     
     # return output with error messages if there are any
@@ -607,4 +693,18 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         return False, msg_list, out_dict
     else:
         return True, [], out_dict
-      
+  
+"""
+path0 = '../tests/files/kkr/kkr_run_slab_soc_mag/'
+outfile = path0+'out_kkr'
+outfile_0init = path0+'output.0.txt'
+outfile_000 = path0+'output.000.txt'
+timing_file = path0+'out_timing.000.txt'
+potfile_out = path0+'out_potential'
+nonco_out_file = path0+'nonco_angle_out.dat'
+out_dict = {}
+success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file)
+out_dict['parser_warnings'] = msg_list
+print success
+print msg_list
+#"""

@@ -98,9 +98,15 @@ class KkrParser(Parser):
             timing_file = out_folder.get_abs_path(fname)
         except OSError:
             file_errors.append("Critical error! OUT_TIMING_000  not found {}".format(fname))
+        try:
+            fname = self._calc._NONCO_ANGLES_OUT
+            nonco_out_file = out_folder.get_abs_path(fname)
+        except OSError:
+            file_errors.append("Warning! NONCO_ANGELS_OUT not found {}".format(fname))
+            nonco_out_file = None
+        #
         #potfile_in = out_folder.get_abs_path(self._calc._POTENTIAL)
         #scoef_file = out_folder.get_abs_path(self._calc._SCOEF)
-        #nonco_out_file = out_folder.get_abs_path(self._calc._NONCO_ANGLES_OUT)
         
         
         out_dict = {'parser_version': self._ParserVersion}
@@ -109,7 +115,8 @@ class KkrParser(Parser):
                                                            outfile_0init, 
                                                            outfile_000, 
                                                            timing_file, 
-                                                           potfile_out)
+                                                           potfile_out,
+                                                           nonco_out_file)
         out_dict['parser_errors'] = msg_list
          # add file open errors to parser output of error messages
         for f_err in file_errors: 

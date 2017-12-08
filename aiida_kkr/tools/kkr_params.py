@@ -61,6 +61,11 @@ class kkrparams(object):
             self._mandatory[key] = keyw[key][2]
             self.__description[key] = keyw[key][3]
             
+        # overwrite mandatory list for voronoi case abd update keyset
+        if self.__params_type == 'voronoi':
+            self._update_mandatory_voronoi()
+            self._update_keyset_voronoi()
+            
 
     def get_dict(self, group=None, subgroup=None):
         """
@@ -406,14 +411,14 @@ class kkrparams(object):
 
         # overwrite if mandatory list needs to be changed (determinded from value of self.__params_type):
         if self.__params_type == 'voronoi':
-            self.update_mandatory_voronoi()
+            self._update_mandatory_voronoi()
 
 
     def _check_mandatory(self):
         """Check if all mandatory keywords are set"""
         self._update_mandatory()
         if self.__params_type == 'voronoi':
-            self.update_mandatory_voronoi()
+            self._update_mandatory_voronoi()
         for key in self.values.keys():
             if self._mandatory[key] and self.values[key] is None:
                 print('Error not all mandatory keys are set!')
@@ -486,6 +491,12 @@ class kkrparams(object):
                          ['<RMTREFL>', nlbasis], ['<RMTREFR>', nrbasis], ['<FPRADIUS>', natyp], ['BZDIVIDE', 3],
                          ['<RBLEFT>', nrbasis], ['ZPERIODL', 3], ['<RBRIGHT>', nrbasis], ['ZPERIODR', 3],
                          ['LDAU_PARA', 5], ['CPAINFO', 2], ['<DELTAE>', 2], ['FILES', 2]])
+        # deal with special stuff for voronoi:
+        if self.__params_type == 'voronoi':
+            listargs['<RMTCORE>'] = natyp
+            self.update_to_voronoi()
+        
+        
         special_formatting = ['BRAVAIS', 'RUNOPT', 'TESTOPT', 'FILES']
 
         self.__listargs = listargs
@@ -686,9 +697,20 @@ class kkrparams(object):
         else:
             return valtxt
     '''
+    
+    def _update_keyset_voronoi(self):
+        """Add keys with description only used in voronoi code"""
+        keyw = {'<RMTCORE>':[None, '%f', False, 'Accuracy: Muffin tin radium in Bohr radii for each atom site. This sets the value of RMT used internally in the KKRcode. Needs to be smaller than the touching RMT of the cells. In particular for structure relaxations this should be kept constant.']}
 
+        for key in keyw:
+            self.values[key] = keyw[key][0]
+            self.__format[key] = keyw[key][1]
+            self._mandatory[key] = keyw[key][2]
+            self.__description[key] = keyw[key][3]
+        
+        
     # redefine _update_mandatory for voronoi code
-    def update_mandatory_voronoi(self):
+    def _update_mandatory_voronoi(self):
         """Change mandatory flags to match requirements of voronoi code"""
         # initialize all mandatory flags to False and update list afterwards
         for key in self.values.keys():
@@ -725,3 +747,13 @@ class kkrparams(object):
                     if key not in ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ']:
                         missing.append(key)
         return missing
+    
+    
+    def update_to_voronoi(self):
+        """
+        Update parameter settings to match voronoi specification.
+        Sets self.__params_type and calls _update_mandatory_voronoi() and self._update_keyset_voronoi()
+        """
+        self.__params_type == 'voronoi'
+        self._update_mandatory_voronoi()
+        self._update_keyset_voronoi()
