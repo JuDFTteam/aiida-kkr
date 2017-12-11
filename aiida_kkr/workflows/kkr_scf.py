@@ -66,29 +66,41 @@ class kkr_scf_wc(WorkChain):
     1. This workflow does not work with local codes!
     """
 
-    _workflowversion = "0.1.1"
-    _wf_default = {'kkr_runmax': 4,              # Maximum number of kkr jobs/starts (defauld iterations per start)
-                   'density_criterion' : 0.00002,  # Stop if charge denisty is converged below this value
-                   'energy_criterion' : 0.002,     # if converge energy run also this total energy convergered below this value
-                   'converge_density' : True,      # converge the charge density
-                   'converge_energy' : False,      # converge the total energy (usually converged before density)
-                   'resue' : True,                 # AiiDA fastforwarding (currently not there yet)
-                   'queue_name' : '',              # Queue name to submit jobs too
-                   'resources': {"num_machines": 1},# resources to allowcate for the job
-                   'walltime_sec' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)
-                   'serial' : False,                # execute KKR with mpi or without
-                   'custom_scheduler_commands' : ''}
+    _workflowversion = "0.1.2"
+    _wf_default = {'kkr_runmax': 4,                          # Maximum number of kkr jobs/starts (defauld iterations per start)
+                   'convergence_criterion' : 10**-5,         # Stop if charge denisty is converged below this value
+                   'resue' : True,                           # AiiDA fastforwarding (currently not there yet)
+                   'queue_name' : '',                        # Queue name to submit jobs too
+                   'resources': {"num_machines": 1},         # resources to allowcate for the job
+                   'walltime_sec' : 60*60,                   # walltime after which the job gets killed (gets parsed to KKR)
+                   'mpirun' : False,                         # execute KKR with mpi or without
+                   'custom_scheduler_commands' : '',         # some additional scheduler commands 
+                   'check_dos' : True,                       # check starting DOS for inconsistencies
+                   'check_dos_params' : {"nepts": 40,        # DOS params: number of points in contour
+                                         "tempr": 200}       # DOS params: temperature
+                   'mag_init' : False,                       # initialize and converge magnetic calculation
+                   'mixreduce': 0.5,                         # reduce mixing factor by this factor if calculaito fails due to too large mixing
+                   'threshold_aggressive_mixing': 10**-3,    # threshold after which agressive mixing is used
+                   'strmix': 0.01,                           # mixing factor of simple mixing
+                   'brymix': 0.01,                           # mixing factor of aggressive mixing
+                   'nsteps': 30,                             # number of iterations done per KKR calculation
+                   'kkr_default_params': {"rclustz": 2.0,    # fallback defaults: screening cluster radius
+                                          "lmax": 3,         # fallback defaults: lmax-cutoff
+                                          "ins": 1,          # fallback defaults: use shape corrections (full potential)
+                                          "nspin": 2,        # fallback defaults: spin-polarized calculation
+                                          "rmax_ewald": 10., # fallback defaults: Madelung sum real-space cutoff
+                                          "gmax_ewald": 100.}# fallback defaults: Madelung sum reciprocal-space cutoff
+                   }
 
     @classmethod
     def define(cls, spec):
+        """
+        Defines the outline of the workflow. 
+        """
+        # Take input of the workflow or use defaults defined above
         super(kkr_scf_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
-                   default=ParameterData(dict={'kkr_runmax': 4,
-                                               'resources': {"num_machines": 1},
-                                               'walltime_sec': 60*60,
-                                               'queue_name': '',
-                                               'serial' : True,
-                                               'custom_scheduler_commands' : ''}))
+                   default=ParameterData(dict=cls._wf_default))
         spec.input("structure", valid_type=StructureData, required=False)
         spec.input("calc_parameters", valid_type=ParameterData, required=False)
         #spec.input("settings", valid_type=ParameterData, required=False)
@@ -96,10 +108,12 @@ class kkr_scf_wc(WorkChain):
         spec.input("voronoi", valid_type=Code, required=False)
         spec.input("kkr", valid_type=Code, required=True)
 
+        # Here the structure of the workflow is defined
         spec.outline(
             cls.start,
             if_(cls.validate_input)(
-                cls.run_voronoi),
+                cls.run_voronoi,
+                cls.get_dos),
             cls.run_kkr,
             cls.inspect_kkr,
             while_(cls.condition)(
@@ -109,6 +123,7 @@ class kkr_scf_wc(WorkChain):
             cls.return_results
         )
         #spec.dynamic_output()
+
 
     def start(self):
         """
@@ -493,6 +508,7 @@ class kkr_scf_wc(WorkChain):
                 para_check = kkrparams(params_type='voronoi')
             else:
                 para_check = kkrparams()
+                
             # step 1 try to fill keywords
             try:
                 for key, val in input_dict.iteritems():
@@ -501,13 +517,13 @@ class kkr_scf_wc(WorkChain):
                 error = 'ERROR: calc_parameters given are not consistent! Hint: did you give an unknown keyword?'
                 self.ctx.errors.append(error)
                 self.control_end_wc(error)
+                
             # step 2: check if all mandatory keys are there
-            #try:
-            para_check._check_input_consistency(assume_struc_present=True)
-            #except:
-            #    error = 'ERROR: calc_parameters given are not consistent! Hint: are all mandatory keys set?'
-            #    self.ctx.errors.append(error)
-            #    self.control_end_wc(error)
+            missing_list = para_check.get_missing_keys(use_aiida=True)
+            if missing_list != []:
+                error = 'ERROR: calc_parameters given are not consistent! Hint: are all mandatory keys set?'
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
    
              
 

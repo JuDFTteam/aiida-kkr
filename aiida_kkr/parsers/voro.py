@@ -79,22 +79,27 @@ class VoronoiParser(Parser):
             potfile = out_folder.get_abs_path(self._calc._OUT_POTENTIAL_voronoi)
         except OSError:
             file_errors.append("Critical error! potfile not found {}".format(self._calc._OUT_POTENTIAL_voronoi))
+            potfile = 'file_not_found'
         try:
             outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
         except OSError:
             file_errors.append("Critical error! outfile not found {}".format(self._calc._OUTPUT_FILE_NAME))
+            outfile = 'file_not_found'
         try:
             atominfo = out_folder.get_abs_path(self._calc._ATOMINFO)
         except OSError:  
             file_errors.append("Critical error! atominfo not found {}".format(self._calc._ATOMINFO))
+            atominfo = 'file_not_found'
         try:
             radii = out_folder.get_abs_path(self._calc._RADII)
         except OSError:  
             file_errors.append("Critical error! radii not found {}".format(self._calc._RADII))
+            radii = 'file_not_found'
         try:
             inputfile = out_folder.get_abs_path(self._calc._INPUT_FILE_NAME)
         except OSError:
             file_errors.append("Critical error! inputfile not found {}".format(self._calc._INPUT_FILE_NAME))
+            inputfile = 'file_not_found'
         # initialize out_dict and parse output files
         out_dict = {'parser_version': self._ParserVersion}
         #TODO add job description, compound name, calculation title
