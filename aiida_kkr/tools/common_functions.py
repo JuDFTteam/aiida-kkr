@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Nov 16 13:25:35 2017
-
-@author: ruess
+Here commonly used functions that do not need aiida-stuff (i.e. can be tested 
+without a database) are collected.
 """
 
 
@@ -150,7 +149,6 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     
     from aiida.common.constants import elements as PeriodicTableElements
     from numpy import array
-    from aiida_kkr.calculations.voro import VoronoiCalculation
     from aiida_kkr.tools.kkr_params import kkrparams
     
     #list of globally used constants
@@ -272,6 +270,106 @@ def check_2Dinput(structure, parameters):
     
     # if everything is ok:
     return (True, "2D consistency check complete")
+
+
+def interpolate_dos(dospath, return_original=False, ):
+    """
+    interpolation function copied from complexdos3 fortran code
+    
+    Principle of DOS here: Two-point contour integration
+    for DOS in the middle of the two points. The input DOS
+    and energy must be complex. Parameter deltae should be
+    of the order of magnitude of eim. 
+    
+        
+          <-2*deltae->   _
+               /\        |     DOS=(n(1)+n(2))/2 + (n(1)-n(2))*eim/deltae
+              /  \       |
+            (1)  (2)   2*i*eim=2*i*pi*Kb*Tk
+            /      \     |
+           /        \    |
+    ------------------------ (Real E axis)
+    
+    :param input: dospath, path where 'complex.dos' file can be found
+    
+    :returns: E_Fermi, numpy array of interpolated dos 
+    
+    :note: output units are in Ry!
+    """
+    from numpy import array, real, imag
+    
+    f = open(dospath+'/complex.dos', 'r')
+    text = f.readline() # dummy readin of header, may be replaced later
+    npot = int(f.readline().split()[0])
+    iemax = int(f.readline().split()[0])
+    lmax = int(f.readline().split()[0])
+    
+    dosnew_all_atoms = []
+    dos_all_atoms = []
+    
+    for i1 in range(npot):
+        print('Reading potential',i1)
+        # Read header (not used)
+        for iheader in range(3):
+            text = f.readline()
+        
+        # extract EF
+        ef = float(f.readline().split()[7])
+        
+        # some more dummy lines
+        for iheader in range(5,9+1):
+            text = f.readline()
+        
+        # now header is done. start reading DOS
+        # Read dos: (total dos stored at DOS(LMAX+1,IE))
+        dos_l_cmplx = []
+        for ie in range(iemax):
+            tmpline = f.readline().replace('(','').replace(')','').replace(',','').split()
+            ez = float(tmpline[0])+1j*float(tmpline[1])
+            dostmp_complex = [[tmpline[len(tmpline)-2], tmpline[len(tmpline)-1]]]
+            dostmp_complex += [[tmpline[iline], tmpline[iline+1]] for iline in range(2,len(tmpline)-2,2)]
+            dostmp = [ez]+[float(ds[0])+1j*float(ds[1]) for ds in dostmp_complex]
+            dos_l_cmplx.append(dostmp)
+        dos_l_cmplx = array(dos_l_cmplx)
+        dos_l = -imag(dos_l_cmplx)
+        dos_l[:,0] = real(dos_l_cmplx[:,0])
+        dos_all_atoms.append(dos_l)
+        
+        # Compute and write out corrected dos at new (middle) energy points:
+        dosnew = []
+        ez = dos_l_cmplx[:,0]
+        for ie in range(1, iemax-1):
+            print ie, iemax
+            deltae = real(ez[ie+1] - ez[ie])
+            eim = imag(ez[ie])
+            enew = real(ez[ie]) # Real quantity
+        
+            tmpdos = [enew]
+            for ll in range(1,lmax+3):
+                tmpdos.append(dos_l_cmplx[ie, ll] + 0.5*(dos_l_cmplx[ie-1, ll]-dos_l_cmplx[ie+1, ll])*(0.+1j*eim)/deltae)
+            tmpdos = array(tmpdos)
+            # reorder to bring total dos to first column
+            # and build imaginary part (factor 1/2pi is already included)
+            tmpdos = array([real(tmpdos[0])]+[-imag(ds) for ds in tmpdos[1:]])
+            dosnew.append(tmpdos)
+        
+        # save to big array with all atoms
+        dosnew_all_atoms.append(dosnew)
+        
+        if i1 != npot:
+            text = f.readline() # dummy line
+            
+    dosnew_all_atoms = array(dosnew_all_atoms)
+    dos_all_atoms = array(dos_all_atoms)
+    
+    # close complex.dos file
+    f.close()
+    
+    if return_original:
+        return ef, dos_all_atoms, dosnew_all_atoms
+    else:
+        return ef, dosnew_all_atoms
+
     
 
 

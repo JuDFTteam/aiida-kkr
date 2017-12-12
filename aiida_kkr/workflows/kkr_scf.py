@@ -7,13 +7,14 @@ some helper methods to do so with AiiDA
 
 from aiida.orm import Code, DataFactory
 from aiida.work.workchain import WorkChain, while_, if_, ToContext
-from aiida.work.run import submit, run
+from aiida.work.run import submit
 from aiida.work import workfunction as wf
 from aiida.work.process_registry import ProcessRegistry
 from aiida.common.datastructures import calc_states
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.tools.kkr_params import kkrparams
+from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkr, get_inputs_voronoi
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
@@ -67,31 +68,48 @@ class kkr_scf_wc(WorkChain):
     """
 
     _workflowversion = "0.1.2"
-    _wf_default = {'kkr_runmax': 4,                          # Maximum number of kkr jobs/starts (defauld iterations per start)
-                   'convergence_criterion' : 10**-5,         # Stop if charge denisty is converged below this value
-                   'resue' : True,                           # AiiDA fastforwarding (currently not there yet)
-                   'queue_name' : '',                        # Queue name to submit jobs too
-                   'resources': {"num_machines": 1},         # resources to allowcate for the job
-                   'walltime_sec' : 60*60,                   # walltime after which the job gets killed (gets parsed to KKR)
-                   'mpirun' : False,                         # execute KKR with mpi or without
-                   'custom_scheduler_commands' : '',         # some additional scheduler commands 
-                   'check_dos' : True,                       # check starting DOS for inconsistencies
-                   'check_dos_params' : {"nepts": 40,        # DOS params: number of points in contour
-                                         "tempr": 200}       # DOS params: temperature
-                   'mag_init' : False,                       # initialize and converge magnetic calculation
-                   'mixreduce': 0.5,                         # reduce mixing factor by this factor if calculaito fails due to too large mixing
-                   'threshold_aggressive_mixing': 10**-3,    # threshold after which agressive mixing is used
-                   'strmix': 0.01,                           # mixing factor of simple mixing
-                   'brymix': 0.01,                           # mixing factor of aggressive mixing
-                   'nsteps': 30,                             # number of iterations done per KKR calculation
-                   'kkr_default_params': {"rclustz": 2.0,    # fallback defaults: screening cluster radius
-                                          "lmax": 3,         # fallback defaults: lmax-cutoff
-                                          "ins": 1,          # fallback defaults: use shape corrections (full potential)
-                                          "nspin": 2,        # fallback defaults: spin-polarized calculation
-                                          "rmax_ewald": 10., # fallback defaults: Madelung sum real-space cutoff
-                                          "gmax_ewald": 100.}# fallback defaults: Madelung sum reciprocal-space cutoff
+    _wf_default = {'kkr_runmax': 4,                           # Maximum number of kkr jobs/starts (defauld iterations per start)
+                   'convergence_criterion' : 10**-6,          # Stop if charge denisty is converged below this value
+                   'queue_name' : '',                         # Queue name to submit jobs too
+                   'resources': {"num_machines": 1},          # resources to allowcate for the job
+                   'walltime_sec' : 60*60,                    # walltime after which the job gets killed (gets parsed to KKR)
+                   'mpirun' : False,                          # execute KKR with mpi or without
+                   'custom_scheduler_commands' : '',          # some additional scheduler commands 
+                   'check_dos' : True,                        # check starting DOS for inconsistencies
+                   'dos_params' : {"nepts": 40,               # DOS params: number of points in contour
+                                   "tempr": 200},             # DOS params: temperature
+                   'mag_init' : False,                        # initialize and converge magnetic calculation
+                   'mixreduce': 0.5,                          # reduce mixing factor by this factor if calculaito fails due to too large mixing
+                   'threshold_aggressive_mixing': 8*10**-3,   # threshold after which agressive mixing is used
+                   'strmix': 0.01,                            # mixing factor of simple mixing
+                   'brymix': 0.01,                            # mixing factor of aggressive mixing
+                   'nsteps': 30,                              # number of iterations done per KKR calculation
+                   'kkr_default_params': {"rclustz": 2.0,     # fallback defaults: screening cluster radius
+                                          "lmax": 3,          # fallback defaults: lmax-cutoff
+                                          "ins": 1,           # fallback defaults: use shape corrections (full potential)
+                                          "nspin": 2,         # fallback defaults: spin-polarized calculation
+                                          "rmax_ewald": 10.,  # fallback defaults: Madelung sum real-space cutoff
+                                          "gmax_ewald": 100.},# fallback defaults: Madelung sum reciprocal-space cutoff
+                   'convergence_setting_coarse': {
+                        'npol': 7, 
+                        'n1': 3,
+                        'n2': 11,
+                        'n3': 3,
+                        'tempr': 1400.0,
+                        'kmesh': [10, 10, 10]},
+                   'convergence_setting_fine': {}
                    }
-
+             
+    # intended to guide user interactively in setting up a valid wf_params node
+    def get_wf_defaults(self):
+        """
+        Print and return _wf_defaults dictionary. Can be used to easily create set of wf_parameters.
+        returns _wf_defaults
+        """
+        print('Version of workflow: {}'.format(self._workflowversion))
+        return self._wf_default
+    
+    
     @classmethod
     def define(cls, spec):
         """
@@ -575,151 +593,3 @@ def create_scf_result_node(**kwargs):
     #output_para = args[0]
     #return {'output_eos_wc_para'}
     return outdict
-
-
-
-def test_and_get_codenode(codenode, expected_code_type, use_exceptions=False):
-    """
-    Pass a code node and an expected code (plugin) type. Check that the
-    code exists, is unique, and return the Code object.
-
-    :param codenode: the name of the code to load (in the form label@machine)
-    :param expected_code_type: a string with the plugin that is expected to
-      be loaded. In case no plugins exist with the given name, show all existing
-      plugins of that type
-    :param use_exceptions: if True, raise a ValueError exception instead of
-      calling sys.exit(1)
-    :return: a Code object
-    """
-    import sys
-    from aiida.common.exceptions import NotExistent
-    from aiida.orm import Code
-
-
-    try:
-        if codenode is None:
-            raise ValueError
-        code = codenode
-        if code.get_input_plugin_name() != expected_code_type:
-            raise ValueError
-    except (NotExistent, ValueError):
-        from aiida.orm.querybuilder import QueryBuilder
-        qb = QueryBuilder()
-        qb.append(Code,
-                  filters={'attributes.input_plugin':
-                               {'==': expected_code_type}},
-                  project='*')
-
-        valid_code_labels = ["{}@{}".format(c.label, c.get_computer().name)
-                             for [c] in qb.all()]
-
-        if valid_code_labels:
-            msg = ("Pass as further parameter a valid code label.\n"
-                   "Valid labels with a {} executable are:\n".format(
-                expected_code_type))
-            msg += "\n".join("* {}".format(l) for l in valid_code_labels)
-
-            if use_exceptions:
-                raise ValueError(msg)
-            else:
-                print >> sys.stderr, msg
-                sys.exit(1)
-        else:
-            msg = ("Code not valid, and no valid codes for {}.\n"
-                   "Configure at least one first using\n"
-                   "    verdi code setup".format(
-                expected_code_type))
-            if use_exceptions:
-                raise ValueError(msg)
-            else:
-                print >> sys.stderr, msg
-                sys.exit(1)
-
-    return code
-
-    
-def get_inputs_kkr(code, remote, options, label='', description='', parameters=None, serial=False):
-    """
-    get the input for a KKR calc
-    """
-    inputs = KkrProcess.get_inputs_template()
-    if remote:
-        inputs.parent_folder = remote
-    if code:
-        inputs.code = code
-    if parameters:
-        inputs.parameters = parameters
-    for key, val in options.iteritems():
-        if val==None:
-            continue
-        else:
-            inputs._options[key] = val
-
-    if description:
-        inputs['_description'] = description
-    else:
-        inputs['_description'] = ''
-    if label:
-        inputs['_label'] = label
-    else:
-        inputs['_label'] = ''
-
-    if serial:
-        inputs._options.withmpi = False # for now
-        inputs._options.resources = {"num_machines": 1}
-
-
-    '''
-    options = {
-    "max_wallclock_seconds": int,
-    "resources": dict,
-    "custom_scheduler_commands": unicode,
-    "queue_name": basestring,
-    "computer": Computer,
-    "withmpi": bool,
-    "mpirun_extra_params": Any(list, tuple),
-    "import_sys_environment": bool,
-    "environment_variables": dict,
-    "priority": unicode,
-    "max_memory_kb": int,
-    "prepend_text": unicode,
-    "append_text": unicode}
-    '''
-    return inputs
-
-
-def get_inputs_voronoi(structure, voronoicode, options, label='', description='', params=None, serial=True):
-    """
-    get the input for a voronoi calc
-    """
-    inputs = VoronoiProcess.get_inputs_template()
-    #print('Template voronoi {} '.format(inputs))
-
-    if structure:
-        inputs.structure = structure
-    if voronoicode:
-        inputs.code = voronoicode
-    if params:
-        inputs.parameters = params
-    for key, val in options.iteritems():
-        if val==None:
-            #leave them out, otherwise the dict schema won't validate
-            continue
-        else:
-            inputs._options[key] = val
-
-    if description:
-        inputs['_description'] = description
-    else:
-        inputs['_description'] = ''
-
-    if label:
-        inputs['_label'] = label
-    else:
-        inputs['_label'] = ''
-
-    if serial:
-        inputs._options.withmpi = False # for now
-        inputs._options.resources = {"num_machines": 1}
-
-    return inputs

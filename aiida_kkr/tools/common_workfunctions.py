@@ -1,9 +1,8 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
-Created on Wed Nov 22 10:06:23 2017
-
-@author: ruess
+Here workfunctions and normal functions using aiida-stuff (typically used 
+within workfunctions) are collected.
 """
 
 
@@ -40,7 +39,7 @@ def update_params_wf(parameternode, updatenode):
     else:
         nodename = None
     if 'nodedesc' in updatenode_dict.keys():
-        # take nodename out of dict (should only contain valid KKR parameter)
+        # take nodename out of dict (should only contain valid KKR parameter later on)
         nodedesc = updatenode_dict.pop('nodedesc')
     else:
         nodedesc = None
@@ -50,11 +49,12 @@ def update_params_wf(parameternode, updatenode):
         print('Input node is empty, do nothing!')
         raise InputValidationError('Nothing to store in input') 
     # 
-    new_parameternode = update_params(parameternode, nodename=nodename, **updatenode_dict)
+    new_parameternode = update_params(parameternode, nodename=nodename, 
+                                      nodedesc=nodedesc, **updatenode_dict)
     return new_parameternode
     
         
-def update_params(node, nodename=None, **kwargs):
+def update_params(node, nodename=None, nodedesc=None, **kwargs):
     """
     Update parameter node given with the values given as kwargs.
     Returns new node.
@@ -69,6 +69,7 @@ def update_params(node, nodename=None, **kwargs):
     :example usage: OutputNode = KkrCalculation.update_params(InputNode, EMIN=-1, NSTEPS=30)
     
     :note: Keys are set as in kkrparams class. Check documentation of kkrparams for further information.
+    :note: By default nodename is 'updated KKR parameters' and description contains list of changed 
     """    
     # check if node is a valid KKR parameters node
     if not isinstance(node, ParameterData):
@@ -94,21 +95,34 @@ def update_params(node, nodename=None, **kwargs):
         value = inp_params[key]
         params.set_value(key, value)
             
+    # to keep track of changed values:
+    changed_params = {}
+    
     # check if values are given as **kwargs (otherwise return input node)
     if len(kwargs)==0:
         print('No additional input keys given, return input node')
         return node
     else:
         for key in kwargs:
-            params.set_value(key, kwargs[key])
+            if kwargs[key] != inp_params[key]:
+                params.set_value(key, kwargs[key])
+                changed_params[key] = kwargs[key]
+                
+    if len(changed_params.keys())==0:
+        print('No keys have been changed, return input node')
+        return node
             
     # set linkname with input or default value
     if nodename is None or type(nodename) is not str:
         nodename = 'updated KKR parameters'
+    if nodedesc is None or type(nodedesc) is not str:
+        nodedesc = 'changed parameters: {}'.format(changed_params)
+        
         
     # create new node
     ParaNode = ParameterData(dict=params.values)
     ParaNode.label = nodename
+    ParaNode.description = nodedesc
     
     return ParaNode
 
@@ -133,3 +147,172 @@ def prepare_2Dcalc_wf():
 
 def prepare_2Dcalc():
     pass
+
+
+def test_and_get_codenode(codenode, expected_code_type, use_exceptions=False):
+    """
+    Pass a code node and an expected code (plugin) type. Check that the
+    code exists, is unique, and return the Code object.
+
+    :param codenode: the name of the code to load (in the form label@machine)
+    :param expected_code_type: a string with the plugin that is expected to
+      be loaded. In case no plugins exist with the given name, show all existing
+      plugins of that type
+    :param use_exceptions: if True, raise a ValueError exception instead of
+      calling sys.exit(1)
+    :return: a Code object
+    
+    Example usage (from kkr_scf workchain):
+        if 'voronoi' in inputs:
+            try:
+                test_and_get_codenode(inputs.voronoi, 'kkr.voro', use_exceptions=True)
+            except ValueError:
+                error = ("The code you provided for voronoi  does not "
+                         "use the plugin kkr.voro")
+                self.control_end_wc(error)
+    """
+    import sys
+    from aiida.common.exceptions import NotExistent
+    from aiida.orm import Code
+
+
+    try:
+        if codenode is None:
+            raise ValueError
+        code = codenode
+        if code.get_input_plugin_name() != expected_code_type:
+            raise ValueError
+    except (NotExistent, ValueError):
+        from aiida.orm.querybuilder import QueryBuilder
+        qb = QueryBuilder()
+        qb.append(Code,
+                  filters={'attributes.input_plugin':
+                               {'==': expected_code_type}},
+                  project='*')
+
+        valid_code_labels = ["{}@{}".format(c.label, c.get_computer().name)
+                             for [c] in qb.all()]
+
+        if valid_code_labels:
+            msg = ("Pass as further parameter a valid code label.\n"
+                   "Valid labels with a {} executable are:\n".format(
+                expected_code_type))
+            msg += "\n".join("* {}".format(l) for l in valid_code_labels)
+
+            if use_exceptions:
+                raise ValueError(msg)
+            else:
+                print >> sys.stderr, msg
+                sys.exit(1)
+        else:
+            msg = ("Code not valid, and no valid codes for {}.\n"
+                   "Configure at least one first using\n"
+                   "    verdi code setup".format(
+                expected_code_type))
+            if use_exceptions:
+                raise ValueError(msg)
+            else:
+                print >> sys.stderr, msg
+                sys.exit(1)
+
+    return code
+
+    
+def get_inputs_kkr(code, remote, options, label='', description='', parameters=None, serial=False):
+    """
+    Get the input for a voronoi calc.
+    Wrapper for VoronoiProcess setting structure, code, options, label, description etc.
+    """
+    from aiida_kkr.calculations.kkr import KkrCalculation
+    KkrProcess = KkrCalculation.process()
+    inputs = KkrProcess.get_inputs_template()
+    if remote:
+        inputs.parent_folder = remote
+    if code:
+        inputs.code = code
+    if parameters:
+        inputs.parameters = parameters
+    for key, val in options.iteritems():
+        if val==None:
+            continue
+        else:
+            inputs._options[key] = val
+
+    if description:
+        inputs['_description'] = description
+    else:
+        inputs['_description'] = ''
+    if label:
+        inputs['_label'] = label
+    else:
+        inputs['_label'] = ''
+
+    if serial:
+        inputs._options.withmpi = False # for now
+        inputs._options.resources = {"num_machines": 1}
+
+
+    '''
+    options = {
+    "max_wallclock_seconds": int,
+    "resources": dict,
+    "custom_scheduler_commands": unicode,
+    "queue_name": basestring,
+    "computer": Computer,
+    "withmpi": bool,
+    "mpirun_extra_params": Any(list, tuple),
+    "import_sys_environment": bool,
+    "environment_variables": dict,
+    "priority": unicode,
+    "max_memory_kb": int,
+    "prepend_text": unicode,
+    "append_text": unicode}
+    '''
+    return inputs
+
+
+def get_inputs_voronoi(structure, voronoicode, options, label='', description='', params=None, serial=True):
+    """
+    Get the input for a voronoi calc.
+    Wrapper for VoronoiProcess setting structure, code, options, label, description etc.
+    """
+    from aiida_kkr.calculations.voro import VoronoiCalculation
+    VoronoiProcess = VoronoiCalculation.process()
+    inputs = VoronoiProcess.get_inputs_template()
+
+    if structure:
+        inputs.structure = structure
+    if voronoicode:
+        inputs.code = voronoicode
+    if params:
+        inputs.parameters = params
+    for key, val in options.iteritems():
+        if val==None:
+            #leave them out, otherwise the dict schema won't validate
+            continue
+        else:
+            inputs._options[key] = val
+
+    if description:
+        inputs['_description'] = description
+    else:
+        inputs['_description'] = ''
+
+    if label:
+        inputs['_label'] = label
+    else:
+        inputs['_label'] = ''
+
+    if serial:
+        inputs._options.withmpi = False # for now
+        inputs._options.resources = {"num_machines": 1}
+
+    return inputs
+
+def get_parent_paranode(remote_data):
+    """
+    Return the input parameter of the parent calulation giving the remote_data node
+    """
+    #TODO implmenet this!
+    pass
+    

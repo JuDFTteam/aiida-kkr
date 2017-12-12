@@ -60,7 +60,7 @@ class TestAiida_fleur_entrypoints:
 
     # Workchains
 
-    def test_kkrscf_workchain_entry_point(aiida_env):
+    def test_scf_workchain_entry_point(aiida_env):
         from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
         from aiida.orm import WorkflowFactory
         
@@ -68,3 +68,43 @@ class TestAiida_fleur_entrypoints:
         assert wf == kkr_scf_wc
 
 
+    def test_dos_workchain_entry_point(aiida_env):
+        from aiida_kkr.workflows.dos import kkr_dos_wc
+        from aiida.orm import WorkflowFactory
+        
+        wf = WorkflowFactory('kkr.dos')
+        assert wf == kkr_dos_wc
+
+
+    def test_eos_workchain_entry_point(aiida_env):
+        from aiida_kkr.workflows.eos import kkr_eos_wc
+        from aiida.orm import WorkflowFactory
+        
+        wf = WorkflowFactory('kkr.eos')
+        assert wf == kkr_eos_wc
+
+
+    def test_startpot_workchain_entry_point(aiida_env):
+        from aiida_kkr.workflows.voro_start import kkr_startpot_wc
+        from aiida.orm import WorkflowFactory
+        
+        wf = WorkflowFactory('kkr.startpot')
+        assert wf == kkr_startpot_wc
+
+
+    def test_maginit_workchain_entry_point(aiida_env):
+        from aiida_kkr.workflows.mag_init import kkr_maginit_wc
+        from aiida.orm import WorkflowFactory
+        
+        wf = WorkflowFactory('kkr.mag_init')
+        assert wf == kkr_maginit_wc
+
+
+    def test_conv_workchain_entry_point(aiida_env):
+        from aiida_kkr.workflows.check_para_convergence import kkr_check_para_wc
+        from aiida.orm import WorkflowFactory
+        
+        wf = WorkflowFactory('kkr.convergence_check')
+        assert wf == kkr_check_para_wc
+        
+        

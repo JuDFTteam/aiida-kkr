@@ -1,7 +1,7 @@
 {
     "name": "aiida-kkr",
     "author": "Philipp Ruessmann, Jens Broeder",
-    "author_email": "jens.broeder@fz-juelich.de",
+    "author_email": "p.ruessmann@fz-juelich.de",
     "description": "AiiDA plugin for the KKR code",
     "url": "https://github.com/broeder-j/aiida-kkr",
     "license": "MIT",
@@ -30,7 +30,12 @@
             "kkr.kkrstructure = aiida_kkr.data.kkrstructure:KkrstructureData"
             ],
         "aiida.workflows":[
-            "kkr.scf = aiida_kkr.workflows.kkr_scf:kkr_scf_wc"
+            "kkr.scf = aiida_kkr.workflows.kkr_scf:kkr_scf_wc",
+            "kkr.dos = aiida_kkr.workflows.dos:kkr_dos_wc",
+            "kkr.eos = aiida_kkr.workflows.eos:kkr_eos_wc",
+            "kkr.startpot = aiida_kkr.workflows.voro_start:kkr_startpot_wc",
+            "kkr.mag_init = aiida_kkr.workflows.mag_init:kkr_maginit_wc",
+            "kkr.convergence_check = aiida_kkr.workflows.check_para_convergence:kkr_check_para_wc"
             ],
         "console_scripts": [
             "kkrstructure = aiida_kkr.cmdline.data_cli:cli"
