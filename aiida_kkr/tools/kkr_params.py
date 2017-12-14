@@ -209,6 +209,19 @@ class kkrparams(object):
         return success
 
 
+    def get_value(self, key):
+        """Sets value of keyword 'key'"""
+        if key not in self.values.keys():
+            print('Error key not found in values dict!')
+            raise KeyError
+        else:
+            # deal with special cases of runopt and testopt (lists of codewords)
+            if key in ['RUNOPT', 'TESTOPT'] and self.values[key] is None:
+                return []
+            else:
+                return self.values[key]
+
+
     def set_value(self, key, value):
         """Sets value of keyword 'key'"""
         if value is None:

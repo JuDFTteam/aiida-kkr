@@ -9,13 +9,13 @@ from aiida.parsers.parser import Parser
 from aiida.orm.data.parameter import ParameterData
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida.common.exceptions import InputValidationError
-from aiida_kkr.tools.kkrparser_functions import parse_kkr_outputfile
+from aiida_kkr.tools.kkrparser_functions import parse_kkr_outputfile, check_error_category
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
+__version__ = "0.3"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -78,38 +78,44 @@ class KkrParser(Parser):
         
         # get path to files and catch errors if files are not present
         file_errors = []
+        # append tupels (error_category, error_message) where error_category is 
+        # 1: critical error, always leads to failing of calculation
+        # 2: warning, is inspected and checked for consistency with read-in 
+        #    out_dict values (e.g. nspin, newsosol, ...)
         try:
             fname = self._calc._OUTPUT_0_INIT
             outfile_0init = out_folder.get_abs_path(fname)  
         except OSError:
-            file_errors.append("Critical error! OUTPUT_0_INIT not found {}".format(fname))
+            file_errors.append((1, "Critical error! OUTPUT_0_INIT not found {}".format(fname)))
         try:
             fname = self._calc._OUTPUT_000
             outfile_000 = out_folder.get_abs_path(fname)
         except OSError:
-            file_errors.append("Critical error! OUTPUT_000 not found {}".format(fname))
+            file_errors.append((1, "Critical error! OUTPUT_000 not found {}".format(fname)))
         try:
             fname = self._calc._OUT_POTENTIAL
             potfile_out = out_folder.get_abs_path(fname)
         except OSError:
-            file_errors.append("Critical error! OUT_POTENTIAL not found {}".format(fname))
+            file_errors.append((1, "Critical error! OUT_POTENTIAL not found {}".format(fname)))
         try:
             fname = self._calc._OUT_TIMING_000
             timing_file = out_folder.get_abs_path(fname)
         except OSError:
-            file_errors.append("Critical error! OUT_TIMING_000  not found {}".format(fname))
+            file_errors.append((1, "Critical error! OUT_TIMING_000  not found {}".format(fname)))
         try:
             fname = self._calc._NONCO_ANGLES_OUT
             nonco_out_file = out_folder.get_abs_path(fname)
         except OSError:
-            file_errors.append("Warning! NONCO_ANGELS_OUT not found {}".format(fname))
+            file_errors.append((2, "Error! NONCO_ANGELS_OUT not found {}".format(fname)))
             nonco_out_file = None
         #
         #potfile_in = out_folder.get_abs_path(self._calc._POTENTIAL)
         #scoef_file = out_folder.get_abs_path(self._calc._SCOEF)
         
         
-        out_dict = {'parser_version': self._ParserVersion}
+        out_dict = {'parser_version': self._ParserVersion, 
+                    'calculation_plugin_version': self._calc._CALCULATION_PLUGIN_VERSION}
+        
         #TODO job title, compound description
         success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, 
                                                            outfile_0init, 
@@ -119,8 +125,15 @@ class KkrParser(Parser):
                                                            nonco_out_file)
         out_dict['parser_errors'] = msg_list
          # add file open errors to parser output of error messages
-        for f_err in file_errors: 
-            msg_list.append(f_err)
+        for (err_cat, f_err) in file_errors: 
+            if err_cat == 1:
+                msg_list.append(f_err)
+            elif check_error_category(err_cat, f_err, out_dict):
+                msg_list.append(f_err)
+            else:
+                if 'parser_warnings' not in out_dict.keys():
+                    out_dict['parser_warnings'] = []
+                out_dict['parser_warnings'].append(f_err.replace('Error', 'Warning'))
         out_dict['parser_errors'] = msg_list
         
         #create output node and link

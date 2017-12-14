@@ -117,6 +117,7 @@ def extract_timings(outfile):
 
 def get_charges_per_atom(outfile_000):
     res1 = parse_array_float(outfile_000, 'charge in wigner seitz', [1, '=', 1])
+    # these two are not in output of DOS calculation (and are then ignored)
     res2 = parse_array_float(outfile_000, 'nuclear charge', [2, 'nuclear charge', 1, 0])
     res3 = parse_array_float(outfile_000, 'core charge', [1, '=', 1])
     return res1, res2, res3
@@ -155,14 +156,19 @@ def get_econt_info(outfile_0init):
     itmp = search_string('Number of energy points', tmptxt)
     Nepts = int(tmptxt[itmp].split(':')[1].split()[0])
     
-    itmp = search_string('poles =', tmptxt)
-    Npol = int(tmptxt[itmp].split('=')[1].split()[0])
-    
-    itmp = search_string('contour:', tmptxt)
-    tmp = tmptxt[itmp].replace(',','').split(':')[1].split()
-    N1 = int(tmp[2])
-    N2 = int(tmp[5])
-    N3 = int(tmp[8])
+    doscalc = search_string('Density-of-States calculation', tmptxt)
+    if doscalc == -1:
+        # npol
+        itmp = search_string('poles =', tmptxt)
+        Npol = int(tmptxt[itmp].split('=')[1].split()[0])
+        # npt1, npt2, npt3
+        itmp = search_string('contour:', tmptxt)
+        tmp = tmptxt[itmp].replace(',','').split(':')[1].split()
+        N1 = int(tmp[2])
+        N2 = int(tmp[5])
+        N3 = int(tmp[8])
+    else:
+        Npol, N1, N2, N3 = 0, 0, Nepts, 0
     
     return emin, tempr, Nepts, Npol, N1, N2, N3
 
@@ -408,8 +414,9 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
     """
     Parser method for the kkr outfile. It returns a dictionary with results
     """
-    # scaling factors
+    # scaling factors etc. defined globally
     Ry2eV = get_Ry2eV()
+    doscalc = False
     
     # collection of parsing error messages
     msg_list = []
@@ -466,7 +473,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         natom = get_natom(outfile_0init)
         newsosol = use_newsosol(outfile_0init)
         out_dict['nspin'] = nspin
-        out_dict['number_pf_atoms_in_unit_cell'] = natom
+        out_dict['number_of_atoms_in_unit_cell'] = natom
         out_dict['use_newsosol'] = newsosol
     except:
         msg = "Error parsing output of KKR: nspin/natom"
@@ -572,10 +579,12 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         result_WS, result_tot, result_C = get_charges_per_atom(outfile_000)
         niter = len(out_dict['convergence_group']['rms_all_iterations'])
         natyp = len(result_tot)/niter
-        out_dict['nuclear_charge_per_atom'] = result_tot[-natyp:]
+        out_dict['total_charge_per_atom'] = result_tot[-natyp:]
         out_dict['charge_core_states_per_atom'] = result_C[-natyp:]
-        out_dict['charge_valence_states_per_atom'] = result_WS[-natyp:]-result_C[-natyp:]
-        out_dict['nuclear_charge_per_atom_unit'] = 'electron charge'
+        # this check deals with the DOS case where output is slightly different
+        if len(result_WS) == len(result_C):
+            out_dict['charge_valence_states_per_atom'] = result_WS[-natyp:]-result_C[-natyp:]
+        out_dict['total_charge_per_atom_unit'] = 'electron charge'
         out_dict['charge_core_states_per_atom_unit'] = 'electron charge'
         out_dict['charge_valence_states_per_atom_unit'] = 'electron charge'
     except:
@@ -595,6 +604,8 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         tmp_dict['n2'] = N2
         tmp_dict['n3'] = N3
         out_dict['energy_contour_group'] = tmp_dict
+        if Npol == 0:
+            doscalc = True
     except:
         msg = "Error parsing output of KKR: energy contour"
         msg_list.append(msg)
@@ -659,23 +670,24 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg = "Error parsing output of KKR: symmetries"
         msg_list.append(msg)
         
-    try:
-        rsum, gsum, info = get_ewald(outfile_0init)
-        tmp_dict = {}
-        tmp_dict['ewald_summation_mode'] = info
-        tmp_dict['rsum_cutoff'] = rsum[0]
-        tmp_dict['rsum_number_of_vectors'] = rsum[1]
-        tmp_dict['rsum_number_of_shells'] = rsum[2]
-        tmp_dict['rsum_cutoff_unit'] = 'a_Bohr'
-        tmp_dict['gsum_cutoff'] = gsum[0]
-        tmp_dict['gsum_number_of_vectors'] = gsum[1]
-        tmp_dict['gsum_number_of_shells'] = gsum[2]
-        tmp_dict['gsum_cutoff_unit'] = '1/a_Bohr'
-        out_dict['ewald_sum_group'] = tmp_dict
-    except:
-        msg = "Error parsing output of KKR: ewald summation for madelung poterntial"
-        msg_list.append(msg)
-        
+    if not doscalc: # in case of dos calculation no ewald summation is done
+        try:
+            rsum, gsum, info = get_ewald(outfile_0init)
+            tmp_dict = {}
+            tmp_dict['ewald_summation_mode'] = info
+            tmp_dict['rsum_cutoff'] = rsum[0]
+            tmp_dict['rsum_number_of_vectors'] = rsum[1]
+            tmp_dict['rsum_number_of_shells'] = rsum[2]
+            tmp_dict['rsum_cutoff_unit'] = 'a_Bohr'
+            tmp_dict['gsum_cutoff'] = gsum[0]
+            tmp_dict['gsum_number_of_vectors'] = gsum[1]
+            tmp_dict['gsum_number_of_shells'] = gsum[2]
+            tmp_dict['gsum_cutoff_unit'] = '1/a_Bohr'
+            out_dict['ewald_sum_group'] = tmp_dict
+        except:
+            msg = "Error parsing output of KKR: ewald summation for madelung poterntial"
+            msg_list.append(msg)
+            
         
     #convert arrays to lists
     from numpy import ndarray
@@ -693,9 +705,32 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         return False, msg_list, out_dict
     else:
         return True, [], out_dict
+    
+def check_error_category(err_cat, err_msg, out_dict):
+    """
+    Check if parser error of the non-critical category (err_cat != 1) are 
+    actually consistent and may be discarded.
+    
+    :param err_cat: the error-category of the error message to be investigated
+    :param err_msg: the error-message
+    :param out_dict: the dict of results obtained from the parser function
+    
+    :returns: True/False if message is an error or warning
+    """
+    if err_cat == 1:
+        return True
+    
+    # check special cases:
+    # 1. nonco_angle_file not present, but newsosol==False anyways
+    if 'NONCO_ANGELS_OUT' in err_msg:
+        if out_dict["use_newsosol"]:
+            return True
+        else:
+            return False
+        
   
 """
-path0 = '../tests/files/kkr/kkr_run_slab_soc_mag/'
+path0 = '../tests/files/kkr/kkr_run_dos_output/' #'../tests/files/kkr/kkr_run_slab_soc_mag/'
 outfile = path0+'out_kkr'
 outfile_0init = path0+'output.0.txt'
 outfile_000 = path0+'output.000.txt'

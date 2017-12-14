@@ -1,0 +1,390 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+In this module you find the base workflow for a dos calculation and
+some helper methods to do so with AiiDA
+"""
+if __name__=='__main__':
+    from aiida import is_dbenv_loaded, load_dbenv
+    if not is_dbenv_loaded():
+        load_dbenv()
+        
+        
+
+from aiida.orm import Code, DataFactory
+from aiida.work.workchain import WorkChain, if_, ToContext
+from aiida.work.run import submit
+#from aiida.work import workfunction as wf
+from aiida.work.process_registry import ProcessRegistry
+from aiida.common.datastructures import calc_states
+from aiida_kkr.tools.kkr_params import kkrparams
+from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
+from aiida_kkr.calculations.kkr import KkrCalculation
+
+
+__copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
+                 "IAS-1/PGI-1, Germany. All rights reserved.")
+__license__ = "MIT license, see LICENSE.txt file"
+__version__ = "0.1"
+__contributors__ = u"Philipp Rüßmann"
+
+
+RemoteData = DataFactory('remote')
+StructureData = DataFactory('structure')
+ParameterData = DataFactory('parameter')
+KkrProcess = KkrCalculation.process()
+
+
+class kkr_dos_wc(WorkChain):
+    """
+    Workchain a DOS calculation with KKR starting from the remoteData node 
+    of a previous calculation (either Voronoi or KKR).
+
+    :param wf_parameters: (ParameterData); Workchain specifications
+    :param remote_data: (RemoteData), mandatory; from a KKR or Vornoi calculation
+    :param kkr: (Code), mandatory; KKR code running the dos calculation
+
+    :return result_kkr_dos_wc: (ParameterData), Information of workflow results 
+        like Success, last result node, list with convergence behavior
+    """
+
+    _workflowversion = "0.1.1"
+    _wf_label = 'kkr_dos_wc'
+    _wf_description = 'Workflow for a KKR dos calculation starting either from a structure with automatic voronoi calculation or a valid RemoteData node of a previous calculation.'
+    _wf_default = {'queue_name' : '',                        # Queue name to submit jobs too
+                   'resources': {"num_machines": 1},         # resources to allowcate for the job
+                   'walltime_sec' : 60*60,                   # walltime after which the job gets killed (gets parsed to KKR)
+                   'use_mpi' : False,                        # execute KKR with mpi or without
+                   'custom_scheduler_commands' : '',         # some additional scheduler commands 
+                   'dos_params' : {"nepts": 61,              # DOS params: number of points in contour
+                                   "tempr": 200,             # DOS params: temperature
+                                   "emin": -1,               # DOS params: start of energy contour
+                                   "emax": 1,                # DOS params: end of energy contour
+                                   "kmesh": [50, 50, 50]}    # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
+                   }
+             
+    # intended to guide user interactively in setting up a valid wf_params node
+    @classmethod
+    def get_wf_defaults(self):
+        """
+        Print and return _wf_defaults dictionary. Can be used to easily create set of wf_parameters.
+        returns _wf_defaults
+        """
+        print('Version of workflow: {}'.format(self._workflowversion))
+        return self._wf_default
+
+    @classmethod
+    def define(cls, spec):
+        """
+        Defines the outline of the workflow. 
+        """
+        # Take input of the workflow or use defaults defined above
+        super(kkr_dos_wc, cls).define(spec)
+        spec.input("wf_parameters", valid_type=ParameterData, required=False,
+                   default=ParameterData(dict=cls._wf_default))
+        spec.input("remote_data", valid_type=RemoteData, required=True)
+        spec.input("kkr", valid_type=Code, required=True)
+
+        # Here the structure of the workflow is defined
+        spec.outline(
+            # initialize workflow
+            cls.start,
+            # validate input
+            if_(cls.validate_input)(
+                # set DOS contour in parameter node
+                cls.set_params_dos,
+                # calculate DOS and interpolate result
+                cls.get_dos),
+            #  collect results and store DOS output as ArrayData node (dos, lmdos, dos.interpolate, ...)
+            cls.return_results
+        )
+        
+        
+    def start(self):
+        """
+        init context and some parameters
+        """
+        self.report('INFO: started KKR dos workflow version {}\n'
+                    'INFO: Workchain node identifiers: {}'
+                    ''.format(self._workflowversion, ProcessRegistry().current_calc_node))
+
+        ####### init    #######
+
+        # internal para /control para
+        self.ctx.abort = False
+
+        # input para
+        wf_dict = self.inputs.wf_parameters.get_dict()
+
+        #TODO: check for completeness
+        if wf_dict == {}:
+            wf_dict = self._wf_default
+            self.report('INFO: using default wf parameter')
+
+        # set values, or defaults
+        self.ctx.use_mpi = wf_dict.get('use_mpi', self._wf_default['use_mpi'])
+        self.ctx.resources = wf_dict.get('resources', self._wf_default['resources'])
+        self.ctx.walltime_sec = wf_dict.get('walltime_sec', self._wf_default['walltime_sec'])
+        self.ctx.queue = wf_dict.get('queue_name', self._wf_default['queue_name'])
+        self.ctx.custom_scheduler_commands = wf_dict.get('custom_scheduler_commands', self._wf_default['custom_scheduler_commands'])
+        
+        self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
+        self.ctx.dos_kkrparams = None # is set in set_params_dos
+        
+        self.ctx.description_wf = self.inputs.get('_description', self._wf_description)
+        self.ctx.label_wf = self.inputs.get('_label', self._wf_label)
+        
+        self.report('INFO: use the following parameter:\n'
+                    'use_mpi: {}\n'
+                    'Resources: {}\n'
+                    'Walltime (s): {}\n'
+                    'queue name: {}\n'
+                    'scheduler command: {}\n'
+                    'description: {}\n'
+                    'label: {}\n'
+                    'dos_params: {}\n'.format(self.ctx.use_mpi, self.ctx.resources, self.ctx.walltime_sec, 
+                                              self.ctx.queue, self.ctx.custom_scheduler_commands, 
+                                              self.ctx.description_wf, self.ctx.label_wf, 
+                                              self.ctx.dos_params_dict))
+
+        # return para/vars
+        self.ctx.successful = True
+        self.ctx.errors = []
+        self.ctx.formula = ''
+        
+        
+    def validate_input(self):
+        """
+        # validate input and find out which path (1, or 2) to take
+        # return True means run voronoi if false run kkr directly
+        """
+        inputs = self.inputs
+        
+        if 'remote_data' in inputs:
+            input_ok = True
+        else:
+            error = 'ERROR: No remote_data was provided as Input'
+            self.ctx.errors.append(error)
+            self.control_end_wc(error)
+            input_ok = False
+        
+        if 'kkr' in inputs:
+            try:
+                test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
+            except ValueError:
+                error = ("The code you provided for kkr does not "
+                         "use the plugin kkr.kkr")
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
+                input_ok = False
+        
+        # set self.ctx.input_params_KKR
+        self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
+        
+        return input_ok
+    
+    
+    def set_params_dos(self):
+        """
+        take input parameter node and change to DOS contour according to input from wf_parameter input
+        internally calls the update_params work function to keep track of provenance
+        """
+        params = self.ctx.input_params_KKR
+        input_dict = params.get_dict()
+        para_check = kkrparams()
+                
+        # step 1 try to fill keywords
+        try:
+            for key, val in input_dict.iteritems():
+                para_check.set_value(key, val)
+        except:
+            error = 'ERROR: calc_parameters given are not consistent! Hint: did you give an unknown keyword?'
+            self.ctx.errors.append(error)
+            self.control_end_wc(error)
+            
+        # step 2: check if all mandatory keys are there
+        missing_list = para_check.get_missing_keys(use_aiida=True)
+        if missing_list != []:
+            error = 'ERROR: calc_parameters given are not consistent! Hint: are all mandatory keys set?'
+            self.ctx.errors.append(error)
+            self.control_end_wc(error)
+            
+        # overwrite energy contour to DOS contour no matter what is in input parameter node. 
+        # Contour parameter given as input to workflow.
+        econt_new = self.ctx.dos_params_dict
+        # always overwrite NPOL, N1, N3, thus add these to econt_new
+        econt_new['NPOL'] = 0
+        econt_new['NPT1'] = 0
+        econt_new['NPT3'] = 0
+        if 1:#try:
+            for key, val in econt_new.iteritems():
+                if key=='kmesh':
+                    key = 'BZDIVIDE'
+                elif key=='nepts':
+                    key = 'NPT2'
+                elif key=='emin':
+                    key = 'EMIN'
+                elif key=='emax':
+                    key = 'EMAX'
+                elif key=='tempr':
+                    key = 'TEMPR'
+                # set params
+                para_check.set_value(key, val)
+        #except:
+        #    error = 'ERROR: dos_params given in wf_params are not valid!'
+        #    self.ctx.errors.append(error)
+        #    self.control_end_wc(error)
+            
+        paranode_dos = update_params_wf(self.ctx.input_params_KKR, ParameterData(dict=para_check.get_dict()))
+        self.ctx.dos_kkrparams = paranode_dos
+        
+        
+    def get_dos(self):
+        """
+        submit a dos calculation and interpolate result if returns complete
+        """
+        
+        label = 'dos calulation'
+        dosdict = self.ctx.dos_params_dict
+        description = 'using the following parameter set. emin= {}, emax= {}, nepts= {}, tempr={}, kmesh={}'.format(dosdict['emin'], dosdict['emax'], dosdict['nepts'], dosdict['tempr'], dosdict['kmesh'])           
+        code = self.inputs.kkr
+        remote = self.inputs.remote_data
+        params = self.ctx.dos_kkrparams
+        options = {"max_wallclock_seconds": self.ctx.walltime_sec,
+                   "resources": self.ctx.resources,
+                   "queue_name" : self.ctx.queue}#,
+        if self.ctx.custom_scheduler_commands:
+            options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
+        inputs = get_inputs_kkr(code, remote, options, label, description, parameters=params, serial=(not self.ctx.use_mpi))
+
+        # run the DOS calculation
+        #from pprint import pprint
+        #pprint(inputs)
+        self.report('INFO: doing calculation')
+        dosrun = submit(KkrProcess, **inputs)
+        
+        """
+        # capture error of unsuccessful DOS run
+        calc_state = dosrun.get_state()
+        if calc_state != calc_states.FINISHED:
+            self.ctx.successful = False
+            self.ctx.abort = True
+            error = ('ERROR: DOS calculation failed somehow it is '
+                    'in state {}'.format(calc_state))
+            self.control_end_wc(error)
+            return 
+        """
+
+        return ToContext(dosrun=dosrun)
+    
+        
+    def return_results(self):
+        """
+        return the results of the dos calculations
+        This should run through and produce output nodes even if everything failed,
+        therefore it only uses results from context.
+        """
+
+        # create dict to store results of workflow output
+        outputnode_dict = {}
+        outputnode_dict['workflow_name'] = self.__class__.__name__
+        outputnode_dict['workflow_version'] = self._workflowversion
+        outputnode_dict['successful'] = self.ctx.successful
+        outputnode_dict['list_of_errors'] = self.ctx.errors
+        outputnode_dict['use_mpi'] = self.ctx.use_mpi
+        outputnode_dict['resources'] = self.ctx.resources
+        outputnode_dict['walltime_sec'] = self.ctx.walltime_sec
+        outputnode_dict['queue'] = self.ctx.queue
+        outputnode_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
+        outputnode_dict['dos_params'] = self.ctx.dos_params_dict
+        outputnode_dict['remote_data_node_doscalc'] = self.ctx.dosrun
+        outputnode_dict['nspin'] = self.ctx.dosrun.res.nspin
+        
+        outputnode = ParameterData(dict=outputnode_dict)
+        outputnode.label = 'kkr_scf_wc_results'
+        outputnode.description = ''
+        
+        # create XyData nodes (two nodes for non interpolated and interpolated 
+        # data, i.e. function returns a list of two nodes) to store the dos arrays
+        dosXyDatas = parse_dosfiles(self.ctx.dosrun.out.retrieved.get_abs_path(''))
+        
+        
+        # put it all in outdict and return the nodes
+        outdict = {}
+        outdict['results_wf'] = outputnode
+        outdict['dos_data'] = dosXyDatas[0]
+        outdict['dos_data_interpol'] = dosXyDatas[1]
+        
+        for link_name, node in outdict.iteritems():
+            self.out(link_name, node)
+            
+        
+    def control_end_wc(self, errormsg):
+        """
+        Controled way to shutdown the workchain. will initalize the output nodes
+        """
+        self.report('ERROR: shutting workchain down in a controlled way.')
+        self.ctx.successful = False
+        self.ctx.abort = True
+        self.report(errormsg) # because return_results still fails somewhen
+        self.return_results()
+        #self.abort_nowait(errormsg)
+        self.abort(errormsg)
+    
+    
+def parse_dosfiles(dospath):
+    """
+    parse dos files to XyData nodes
+    """
+    from aiida_kkr.tools.common_functions import interpolate_dos
+    from aiida_kkr.tools.common_functions import get_Ry2eV
+    
+    eVscale = get_Ry2eV()
+    
+    print dospath
+    
+    ef, dos, dos_int = interpolate_dos(dospath, return_original=True)
+    # convert to eV units
+    dos[:,0,:] = (dos[:,0,:]-ef)*eVscale
+    dos[:,1:,:] = dos[:,1:,:]/eVscale
+    dos_int[:,0,:] = (dos_int[:,0,:]-ef)*eVscale
+    dos_int[:,1:,:] = dos_int[:,1:,:]/eVscale
+    
+    # create output nodes
+    from aiida.orm import DataFactory
+    XyData = DataFactory('array.xy')
+    dosnode = XyData()
+    dosnode.set_x(dos[:,:,0], 'E-EF', 'eV')
+    name = ['tot', 's', 'p', 'd', 'f', 'g']
+    name = name[:len(dos[0,0,1:])-1]+['ns']
+    ylists = [[],[],[]]
+    for l in range(len(name)):
+        ylists[0].append(dos[:,:,1+l])
+        ylists[1].append('dos '+name[l])
+        ylists[2].append('states/eV')
+    dosnode.set_y(ylists[0], ylists[1], ylists[2])
+    dosnode.label = 'dos_data'
+    dosnode.description = 'Array data containing uniterpolated DOS (i.e. dos at finite imaginary part of energy). 3D array with (atoms, energy point, l-channel) dimensions.'
+    
+    # now create XyData node for interpolated data
+    dosnode2 = XyData()
+    dosnode2.set_x(dos_int[:,:,0], 'E-EF', 'eV')
+    ylists = [[],[],[]]
+    for l in range(len(name)):
+        ylists[0].append(dos_int[:,:,1+l])
+        ylists[1].append('interpolated dos '+name[l])
+        ylists[2].append('states/eV')
+    dosnode2.set_y(ylists[0], ylists[1], ylists[2])
+    dosnode2.label = 'dos_interpol_data'
+    dosnode2.description = 'Array data containing interpolated DOS (i.e. dos at real axis). 3D array with (atoms, energy point, l-channel) dimensions.'
+   
+    return dosnode, dosnode2
+        
+    
+        
+if __name__=='__main__':
+    from aiida import is_dbenv_loaded, load_dbenv
+    if not is_dbenv_loaded():
+        load_dbenv()
+    d0 = '/Users/ruess/sourcecodes/aiida/development/'
+    dosnodes = parse_dosfiles(d0)

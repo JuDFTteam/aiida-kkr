@@ -101,6 +101,7 @@ class kkr_scf_wc(WorkChain):
                    }
              
     # intended to guide user interactively in setting up a valid wf_params node
+    @classmethod
     def get_wf_defaults(self):
         """
         Print and return _wf_defaults dictionary. Can be used to easily create set of wf_parameters.

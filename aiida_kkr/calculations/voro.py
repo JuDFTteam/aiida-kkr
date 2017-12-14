@@ -119,7 +119,7 @@ class VoronoiCalculation(JobCalculation):
         
         # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
-        generate_inputcard_from_structure(parameters, structure, input_filename)
+        natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename)
 
 
         # Prepare CalcInfo to be returned to aiida

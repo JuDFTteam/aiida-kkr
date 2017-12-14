@@ -229,6 +229,8 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
         params.set_value('NATYP', natyp)
         params.set_value('<CPA-CONC>', weights)
         params.set_value('<SITE>', isitelist)
+    else:
+        natyp = naez
         
     # write shapes (extracted from voronoi parent automatically in kkr calculation plugin)
     if shapes is not None:
@@ -236,6 +238,14 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     
     # write inputfile
     params.fill_keywords_to_inputfile(output=input_filename)
+    
+    nspin = params.get_value('NSPIN')
+    
+    newsosol = False
+    if 'NEWSOSOL' in params.get_value('RUNOPT'):
+        newsosol = True
+    
+    return natyp, nspin, newsosol
     
     
 def check_2Dinput(structure, parameters):
@@ -308,7 +318,7 @@ def interpolate_dos(dospath, return_original=False, ):
     dos_all_atoms = []
     
     for i1 in range(npot):
-        print('Reading potential',i1)
+        #print('Reading potential',i1)
         # Read header (not used)
         for iheader in range(3):
             text = f.readline()
@@ -331,7 +341,7 @@ def interpolate_dos(dospath, return_original=False, ):
             dostmp = [ez]+[float(ds[0])+1j*float(ds[1]) for ds in dostmp_complex]
             dos_l_cmplx.append(dostmp)
         dos_l_cmplx = array(dos_l_cmplx)
-        dos_l = -imag(dos_l_cmplx)
+        dos_l = imag(dos_l_cmplx)
         dos_l[:,0] = real(dos_l_cmplx[:,0])
         dos_all_atoms.append(dos_l)
         
@@ -339,7 +349,6 @@ def interpolate_dos(dospath, return_original=False, ):
         dosnew = []
         ez = dos_l_cmplx[:,0]
         for ie in range(1, iemax-1):
-            print ie, iemax
             deltae = real(ez[ie+1] - ez[ie])
             eim = imag(ez[ie])
             enew = real(ez[ie]) # Real quantity
@@ -349,8 +358,8 @@ def interpolate_dos(dospath, return_original=False, ):
                 tmpdos.append(dos_l_cmplx[ie, ll] + 0.5*(dos_l_cmplx[ie-1, ll]-dos_l_cmplx[ie+1, ll])*(0.+1j*eim)/deltae)
             tmpdos = array(tmpdos)
             # reorder to bring total dos to first column
-            # and build imaginary part (factor 1/2pi is already included)
-            tmpdos = array([real(tmpdos[0])]+[-imag(ds) for ds in tmpdos[1:]])
+            # and build imaginary part (factor -1/2pi is already included)
+            tmpdos = array([real(tmpdos[0])]+[imag(ds) for ds in tmpdos[1:]])
             dosnew.append(tmpdos)
         
         # save to big array with all atoms
@@ -369,7 +378,6 @@ def interpolate_dos(dospath, return_original=False, ):
         return ef, dos_all_atoms, dosnew_all_atoms
     else:
         return ef, dosnew_all_atoms
-
     
 
 

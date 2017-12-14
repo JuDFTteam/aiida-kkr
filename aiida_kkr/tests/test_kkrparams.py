@@ -122,6 +122,33 @@ class Test_get_info():
         p = kkrparams()
         man = p.is_mandatory('EMAX')
         assert (not man)
+        
+    def test_get_value(self):
+        p = kkrparams(LMAX=3)
+        # check for KeyError if wrong key is checked
+        known_error = False
+        try:
+            p.get_value('something_wrong')
+        except KeyError:
+            known_error = True
+        assert known_error
+        # check for returning unset value
+        npol = p.get_value('NPOL')
+        assert npol == None
+        # check correct LMAX value
+        lmax = p.get_value('LMAX')
+        assert lmax == 3
+        # check for returning lists for RUNOPT and TESTOPT
+        runopt = p.get_value('RUNOPT')
+        testopt = p.get_value('TESTOPT')
+        assert runopt == []
+        assert testopt == []
+        p = kkrparams(TESTOPT=['test1', 'test2'], RUNOPT=['NEWSOSOL'])
+        runopt = p.get_value('RUNOPT')
+        testopt = p.get_value('TESTOPT')
+        assert runopt == ['NEWSOSOL']
+        assert set(testopt) == set(['test1', 'test2'])
+        
 
     
 class Test_fill_inputfile():

@@ -56,6 +56,12 @@ class KkrCalculation(JobCalculation):
         self._OUTPUT_000 = 'output.000.txt'
         self._OUT_TIMING_000 = 'out_timing.000.txt'
         self._NONCO_ANGLES_OUT = 'nonco_angles_out.dat'
+        
+        # special files (some runs)
+        #DOS files
+        self._COMPLEXDOS = 'complex.dos'
+        self._DOS_ATOM = 'dos.atom%i'
+        self._LMDOS = 'lmdos.%2i.%i.dat'
 
         
         # template.product entry point defined in setup.json
@@ -196,7 +202,7 @@ class KkrCalculation(JobCalculation):
         elif isinstance(parent_calc, KkrCalculation):
             self.logger.info("KkrCalculation: Parent is KKR calculation")
             try:            
-                self.logger.error('KkrCalculation: extract structure from KKR parent')
+                self.logger.info('KkrCalculation: extract structure from KKR parent')
                 structure, voro_parent = self._find_parent_struc(parent_calc) 
             except:
                 self.logger.error('Could not get structure from parent.')
@@ -223,7 +229,7 @@ class KkrCalculation(JobCalculation):
         
         # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
-        generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes)
+        natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes)
 
 
         #################
@@ -270,6 +276,21 @@ class KkrCalculation(JobCalculation):
                                   self._OUTPUT_0_INIT,
                                   self._OUTPUT_000,
                                   self._OUT_TIMING_000]
+        
+        # for special cases add files to retireve list:
+        # 1. dos calculation, add *dos* files if NPOL==0
+        print 'NPOL in parameter input:', parameters.get_dict()['NPOL']
+        if 'NPOL' in  parameters.get_dict().keys():
+            if parameters.get_dict()['NPOL'] == 0:
+                print 'adding files for dos output', self._COMPLEXDOS, self._DOS_ATOM, self._LMDOS
+                add_files = [self._COMPLEXDOS]
+                for iatom in range(natom):
+                    add_files.append(self._DOS_ATOM%(iatom+1))
+                    for ispin in range(nspin):
+                        add_files.append((self._LMDOS%(iatom+1, ispin+1)).replace(' ','0'))
+                print add_files
+                calcinfo.retrieve_list += add_files
+                
 
         codeinfo = CodeInfo()
         codeinfo.cmdline_params = []

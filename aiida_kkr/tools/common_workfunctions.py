@@ -313,6 +313,6 @@ def get_parent_paranode(remote_data):
     """
     Return the input parameter of the parent calulation giving the remote_data node
     """
-    #TODO implmenet this!
-    pass
+    inp_para = remote_data.inp.remote_folder.inp.parameters
+    return inp_para
     
