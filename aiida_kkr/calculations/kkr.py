@@ -2,6 +2,7 @@
 """
 Input plug-in for a KKR calculation.
 """
+
 import os
 
 from aiida.orm.calculation.job import JobCalculation
@@ -20,6 +21,14 @@ ParameterData = DataFactory('parameter')
 StructureData = DataFactory('structure')
 
 
+__copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
+                 "IAS-1/PGI-1, Germany. All rights reserved.")
+__license__ = "MIT license, see LICENSE.txt file"
+__version__ = "0.2"
+__contributors__ = ("Jens Broeder", "Philipp Rüßmann")
+
+
+
 class KkrCalculation(JobCalculation):
     """
     AiiDA calculation plugin for a KKR calculation
@@ -32,6 +41,9 @@ class KkrCalculation(JobCalculation):
         """
         # reuse base class function
         super(KkrCalculation, self)._init_internal_params()
+        
+        # calculation plugin version
+        self._CALCULATION_PLUGIN_VERSION = __version__
        
         # Default input and output files
         self._DEFAULT_INPUT_FILE = 'inputcard' # will be shown with inputcat

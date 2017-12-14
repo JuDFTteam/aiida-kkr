@@ -76,8 +76,6 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
         print('Input node is not a valid ParameterData node')
         raise InputValidationError('update_params needs valid parameter node as input')
     
-    print('input kwargs', kwargs)
-    
     #initialize temporary kkrparams instance containing all possible KKR parameters
     params = kkrparams()
     
@@ -93,7 +91,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
     # copy values from input node
     for key in inp_params:
         value = inp_params[key]
-        params.set_value(key, value)
+        params.set_value(key, value, silent=True)
             
     # to keep track of changed values:
     changed_params = {}
@@ -105,7 +103,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
     else:
         for key in kwargs:
             if kwargs[key] != inp_params[key]:
-                params.set_value(key, kwargs[key])
+                params.set_value(key, kwargs[key], silent=True)
                 changed_params[key] = kwargs[key]
                 
     if len(changed_params.keys())==0:

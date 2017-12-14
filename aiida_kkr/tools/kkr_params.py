@@ -222,11 +222,12 @@ class kkrparams(object):
                 return self.values[key]
 
 
-    def set_value(self, key, value):
+    def set_value(self, key, value, silent=False):
         """Sets value of keyword 'key'"""
         if value is None:
-            print('Warning setting value None is not permitted!')
-            print('Use remove_value funciton instead! Ignore keyword {}'.format(key))
+            if not silent:
+                print('Warning setting value None is not permitted!')
+                print('Use remove_value funciton instead! Ignore keyword {}'.format(key))
         else:
             self.values[key] = value
             self._check_valuetype(key)

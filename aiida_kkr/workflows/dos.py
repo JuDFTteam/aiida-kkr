@@ -14,9 +14,8 @@ if __name__=='__main__':
 from aiida.orm import Code, DataFactory
 from aiida.work.workchain import WorkChain, if_, ToContext
 from aiida.work.run import submit
-#from aiida.work import workfunction as wf
+from aiida.work import workfunction as wf
 from aiida.work.process_registry import ProcessRegistry
-from aiida.common.datastructures import calc_states
 from aiida_kkr.tools.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
@@ -25,7 +24,7 @@ from aiida_kkr.calculations.kkr import KkrCalculation
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1"
+__version__ = "0.2"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -196,7 +195,7 @@ class kkr_dos_wc(WorkChain):
         # step 1 try to fill keywords
         try:
             for key, val in input_dict.iteritems():
-                para_check.set_value(key, val)
+                para_check.set_value(key, val, silent=True)
         except:
             error = 'ERROR: calc_parameters given are not consistent! Hint: did you give an unknown keyword?'
             self.ctx.errors.append(error)
@@ -229,13 +228,17 @@ class kkr_dos_wc(WorkChain):
                 elif key=='tempr':
                     key = 'TEMPR'
                 # set params
-                para_check.set_value(key, val)
+                para_check.set_value(key, val, silent=True)
         #except:
         #    error = 'ERROR: dos_params given in wf_params are not valid!'
         #    self.ctx.errors.append(error)
         #    self.control_end_wc(error)
-            
-        paranode_dos = update_params_wf(self.ctx.input_params_KKR, ParameterData(dict=para_check.get_dict()))
+        
+        updatenode = ParameterData(dict=para_check.get_dict())
+        updatenode.label = 'KKR parameter for DOS contour'
+        updatenode.description = 'KKR parameter node extracted from parent parameters and wf_parameter input node.'
+        
+        paranode_dos = update_params_wf(self.ctx.input_params_KKR, updatenode)
         self.ctx.dos_kkrparams = paranode_dos
         
         
@@ -244,9 +247,9 @@ class kkr_dos_wc(WorkChain):
         submit a dos calculation and interpolate result if returns complete
         """
         
-        label = 'dos calulation'
+        label = 'dos calulation input'
         dosdict = self.ctx.dos_params_dict
-        description = 'using the following parameter set. emin= {}, emax= {}, nepts= {}, tempr={}, kmesh={}'.format(dosdict['emin'], dosdict['emax'], dosdict['nepts'], dosdict['tempr'], dosdict['kmesh'])           
+        description = 'dos calculation using the following parameter set. emin= {}, emax= {}, nepts= {}, tempr={}, kmesh={}'.format(dosdict['emin'], dosdict['emax'], dosdict['nepts'], dosdict['tempr'], dosdict['kmesh'])           
         code = self.inputs.kkr
         remote = self.inputs.remote_data
         params = self.ctx.dos_kkrparams
@@ -262,6 +265,8 @@ class kkr_dos_wc(WorkChain):
         #pprint(inputs)
         self.report('INFO: doing calculation')
         dosrun = submit(KkrProcess, **inputs)
+        dosrun.label = 'DOS calculation'
+        dosrun.description = 'DOS calculation with KKR'
         
         """
         # capture error of unsuccessful DOS run
@@ -297,25 +302,23 @@ class kkr_dos_wc(WorkChain):
         outputnode_dict['queue'] = self.ctx.queue
         outputnode_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
         outputnode_dict['dos_params'] = self.ctx.dos_params_dict
-        outputnode_dict['remote_data_node_doscalc'] = self.ctx.dosrun
         outputnode_dict['nspin'] = self.ctx.dosrun.res.nspin
         
         outputnode = ParameterData(dict=outputnode_dict)
         outputnode.label = 'kkr_scf_wc_results'
         outputnode.description = ''
+        outputnode.store()
         
-        # create XyData nodes (two nodes for non interpolated and interpolated 
-        # data, i.e. function returns a list of two nodes) to store the dos arrays
-        dosXyDatas = parse_dosfiles(self.ctx.dosrun.out.retrieved.get_abs_path(''))
+        self.report("INFO: create dos results nodes. outputnode={}, dos calc retrieved node={}".format(outputnode, self.ctx.dosrun.out.retrieved))
+        self.report("INFO: type outputnode={}".format(type(outputnode)))
         
-        
-        # put it all in outdict and return the nodes
-        outdict = {}
-        outdict['results_wf'] = outputnode
-        outdict['dos_data'] = dosXyDatas[0]
-        outdict['dos_data_interpol'] = dosXyDatas[1]
+        # interpol dos file and store to XyData nodes
+        outdict = create_dos_result_node(outputnode, self.ctx.dosrun.out.retrieved)
+    
         
         for link_name, node in outdict.iteritems():
+            self.report("INFO: storing node '{}' with link name '{}'".format(node, link_name))
+            self.report("INFO: node type: {}".format(type(node)))
             self.out(link_name, node)
             
         
@@ -338,6 +341,8 @@ def parse_dosfiles(dospath):
     """
     from aiida_kkr.tools.common_functions import interpolate_dos
     from aiida_kkr.tools.common_functions import get_Ry2eV
+    from aiida.orm import DataFactory
+    XyData = DataFactory('array.xy')
     
     eVscale = get_Ry2eV()
     
@@ -345,14 +350,12 @@ def parse_dosfiles(dospath):
     
     ef, dos, dos_int = interpolate_dos(dospath, return_original=True)
     # convert to eV units
-    dos[:,0,:] = (dos[:,0,:]-ef)*eVscale
-    dos[:,1:,:] = dos[:,1:,:]/eVscale
-    dos_int[:,0,:] = (dos_int[:,0,:]-ef)*eVscale
-    dos_int[:,1:,:] = dos_int[:,1:,:]/eVscale
+    dos[:,:,0] = (dos[:,:,0]-ef)*eVscale
+    dos[:,:,1:] = dos[:,:,1:]/eVscale
+    dos_int[:,:,0] = (dos_int[:,:,0]-ef)*eVscale
+    dos_int[:,:,1:] = dos_int[:,:,1:]/eVscale
     
     # create output nodes
-    from aiida.orm import DataFactory
-    XyData = DataFactory('array.xy')
     dosnode = XyData()
     dosnode.set_x(dos[:,:,0], 'E-EF', 'eV')
     name = ['tot', 's', 'p', 'd', 'f', 'g']
@@ -379,12 +382,31 @@ def parse_dosfiles(dospath):
     dosnode2.description = 'Array data containing interpolated DOS (i.e. dos at real axis). 3D array with (atoms, energy point, l-channel) dimensions.'
    
     return dosnode, dosnode2
+
+@wf
+def create_dos_result_node(outputnode, dos_retrieved):
+    """
+    This is a pseudo wf, to create the right graph structure of AiiDA.
+    """
+    # create XyData nodes (two nodes for non interpolated and interpolated 
+    # data, i.e. function returns a list of two nodes) to store the dos arrays
+    print dos_retrieved
+    print dos_retrieved.get_abs_path('')
+    dosXyDatas = parse_dosfiles(dos_retrieved.get_abs_path(''))
+    outdict = {}
+    outdict['results_wf'] = outputnode.copy()
+    outdict['dos_data'] = dosXyDatas[0]
+    outdict['dos_data_interpol'] = dosXyDatas[1]
+    return outdict
+
+        
         
     
-        
+"""   
 if __name__=='__main__':
     from aiida import is_dbenv_loaded, load_dbenv
     if not is_dbenv_loaded():
         load_dbenv()
     d0 = '/Users/ruess/sourcecodes/aiida/development/'
     dosnodes = parse_dosfiles(d0)
+"""

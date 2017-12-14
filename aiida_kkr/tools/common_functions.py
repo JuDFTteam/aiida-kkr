@@ -218,7 +218,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
         
     # overwrite keywords with input parameter
     for key in input_dict.keys():
-        params.set_value(key, input_dict[key])
+        params.set_value(key, input_dict[key], silent=True)
 
     # Write input to file (the parameters that are set here are not allowed to be modfied externally)
     params.set_multiple_values(BRAVAIS=bravais, ALATBASIS=alat, NAEZ=naez, 
