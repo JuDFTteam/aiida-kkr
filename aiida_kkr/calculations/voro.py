@@ -10,6 +10,14 @@ from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.orm import DataFactory
 from aiida_kkr.tools.common_functions import generate_inputcard_from_structure, check_2Dinput
 
+
+__copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
+                 "IAS-1/PGI-1, Germany. All rights reserved.")
+__license__ = "MIT license, see LICENSE.txt file"
+__version__ = "0.3"
+__contributors__ = ("Jens Broeder", "Philipp Rüßmann")
+
+
 ParameterData = DataFactory('parameter')
 StructureData = DataFactory('structure')
 
@@ -26,6 +34,9 @@ class VoronoiCalculation(JobCalculation):
         # reuse base class (i.e. JobCalculation) functions
         super(VoronoiCalculation, self)._init_internal_params()
 
+        # calculation plugin version
+        self._CALCULATION_PLUGIN_VERSION = __version__
+        
         # Default input and output files
         self._DEFAULT_INPUT_FILE = 'inputcard' # will be shown with inputcat
         self._DEFAULT_OUTPUT_FILE = 'out_voronoi' #'shell output will be shown with outputca
@@ -119,8 +130,10 @@ class VoronoiCalculation(JobCalculation):
         
         # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
-        natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename)
-
+        try:
+            natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename, isvoronoi=True)
+        except ValueError as e:
+            raise InputValidationError("Input ParameterData not consistent: {}".format(e))
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()

@@ -469,7 +469,7 @@ class kkrparams(object):
                 set_of_mandatory = set(self.get_all_mandatory())
                 set_of_keys = set([key[0] for key in self.get_set_values()])
                 print(set_of_mandatory-set_of_keys, 'missing')
-                raise ValueError
+                raise ValueError("Missing mandatory key(s): {}".format(set_of_mandatory-set_of_keys))
 
 
     def _check_array_consistency(self):

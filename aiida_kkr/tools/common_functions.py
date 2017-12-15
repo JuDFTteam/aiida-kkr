@@ -125,7 +125,7 @@ def get_highest_core_state(nstates, energies, lmoments):
     return lval, energies[idx], level_descr
 
 
-def generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc=None, shapes=None):
+def generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc=None, shapes=None, isvoronoi=False):
     """
     Takes information from parameter and structure data and writes input file 'input_filename'
     
@@ -207,7 +207,10 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     input_dict = parameters.get_dict()
     
     # empty kkrparams instance (contains formatting info etc.)
-    params = kkrparams()
+    if not isvoronoi:
+        params = kkrparams()
+    else:
+        params = kkrparams(params_type='voronoi')
     
     # for KKR calculation set EMIN automatically from parent_calc (ausways in res.emin of voronoi and kkr)
     if ('EMIN' not in input_dict.keys() or input_dict['EMIN'] is None) and parent_calc is not None:

@@ -102,6 +102,7 @@ class VoronoiParser(Parser):
             inputfile = 'file_not_found'
         # initialize out_dict and parse output files
         out_dict = {'parser_version': self._ParserVersion}
+        out_dict['calculation_plugin_version'] = self._calc._CALCULATION_PLUGIN_VERSION
         #TODO add job description, compound name, calculation title
         success, msg_list, out_dict = parse_voronoi_output(out_dict, outfile, 
                                                            potfile, atominfo, 

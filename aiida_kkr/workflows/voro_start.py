@@ -148,7 +148,6 @@ class kkr_startpot_wc(WorkChain):
         
         # iterative rerunning parameters
         self.ctx.Nrerun = self.inputs.get('num_rerun', self._wf_default['num_rerun'])
-        self.ctx.fac_cls_increase = self.inputs.get('fac_cls_increase', self._wf_default['fac_cls_increase'])
         
         # initialize checking booleans
         self.ctx.is_starting_iter = True
@@ -296,19 +295,43 @@ class kkr_startpot_wc(WorkChain):
         # check calculation state (calculation must be completed)
         calc_state = self.ctx.voro_calc.get_state()
         if calc_state != calc_states.FINISHED:
+            self.report("ERROR: Voronoi calculation not in FINISHED state")
+            self.ctx.voro_ok = False
+            self.control_end_wc("Voronoi calculation unsuccessful. Check inputs.")
+            
+            
+        # check if parser returned some error
+        voro_parser_errors = self.ctx.voro_calc.res.parser_errors
+        if voro_parser_errors != []:
+            self.report("ERROR: Voronoi Parser returned Error(s): {}".format(voro_parser_errors))
+            self.ctx.voro_ok = False
+            self.control_end_wc("Voronoi calculation unsuccessful. Check inputs.")
+        
+        # check self.ctx.nclsmin condition
+        clsinfo = self.ctx.voro_calc.res.cluster_info_group
+        ncls = clsinfo.pop('number_of_clusters')
+        
+        nclsmin_last_calc = 1000
+        for icls in range(len(clsinfo['cluster_info_atoms'])):
+            tmp_ncls = clsinfo['cluster_info_atoms'][icls]['sites']
+            if tmp_ncls < nclsmin_last_calc:
+                nclsmin_last_calc = tmp_ncls
+        self.report("INFO: number of atoms in smallest cluster: {}".format(nclsmin_last_calc))
+                
+        if self.ctx.nclsmin > nclsmin_last_calc or ncls < 1:
+            self.report("WARNING: minimal cluster smaller than threshold of {}".format(self.ctx.nclsmin))
             self.ctx.voro_ok = False
         
-        #TODO check self.ctx.nclsmin condition
-        voro_out_cls_info = res.cluster_info_group
-        ncls = voro_out_cls_info.pop('number_of_clusters')
-        
-        if self.ctx.nclsmin > nclsmin_last_calc:
+        # check radii condition
+        radii = self.ctx.voro_calc.res.radii_atoms_group
+        r_ratio1 = radii[0]['rout_over_dist_nn']
+        r_ratio2 = radii[0]['rmt0_over_rout']
+        if r_ratio1>=100. or r_ratio2>=100.:
+            self.report("ERROR: radii information inconsistent: Rout/dis_NN={}, RMT0/Rout={}".format(r_ratio1, r_ratio2))
             self.ctx.voro_ok = False
-        
-        #TODO check radii condition
-        voro_out_radii = self.ctx.voro_calc.res.radii
-        
-        #TODO other checks?
+            self.control_end_wc("Voronoi calculation unsuccessful. Structure inconsistent. Maybe you need empty spheres?")
+
+        #TODO implement other checks?
         
         # finally return result of check
         return self.ctx.voro_ok
@@ -358,7 +381,43 @@ class kkr_startpot_wc(WorkChain):
         checks if dos of starting potential is ok
         """
         dos_ok = False
-        #TODO implement checks for negative DOS, starting EMIN, semi-core-states
+        
+        # check parser output
+        doscal = self.ctx.doscal
+        dos_outdict = doscal.out.results_wf.get_dict()
+        if not dos_outdict['successful']:
+            self.report("ERROR: DOS workflow unsuccessful")
+            self.ctx.doscheck_ok = False
+            self.control_end_wc("DOS run unsuccessful. Check inputs.")
+            
+        if dos_outdict['list_of_errors'] != []:
+            self.report("ERROR: DOS wf output contains errors: {}".format(dos_outdict['list_of_errors']))
+            self.ctx.doscheck_ok = False
+            self.control_end_wc("DOS run unsuccessful. Check inputs.")
+            
+        #TODO check for negative DOS
+        dosdata = doscal.out.dos_data
+        natom = len(self.ctx.voro_calc.res.shapes)
+        nspin = dos_outdict['nspin']
+        
+        ener = dosdata.get_x()[1] # shape= natom*nspin, nept
+        totdos = dosdata.get_y()[0][1] # shape= natom*nspin, nept
+        
+        if len(ener) != nspin*natom:
+            self.report("ERROR: DOS output shape does not fit nspin, natom information: len(energies)={}, natom={}, nspin={}".format(len(ener), natom, nspin))
+            self.ctx.doscheck_ok = False
+            self.control_end_wc("DOS run inconsistent. Check inputs.")
+        ener = ener.reshape()
+        for ispin
+            
+            
+
+        
+        #TODO check starting EMIN
+        dosdata_interpol = doscal.out.dos_data_interpol
+        
+        
+        #TODO check semi-core-states
         
         # finally set the value in context (needed in do_iteration_check)
         if dos_ok:
