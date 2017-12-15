@@ -56,7 +56,7 @@ def check_voronoi_output(potfile, outfile):
 
 def parse_voronoi_output(out_dict, outfile, potfile, atominfo, radii, inputfile):
     """
-    
+    Parse output of voronoi calculation and return (success, error_messages_list, out_dict)
     """
     # for collection of error messages:
     msg_list = []
@@ -82,7 +82,8 @@ def parse_voronoi_output(out_dict, outfile, potfile, atominfo, radii, inputfile)
     
     try:
         Ncls, natom,  results = get_cls_info(outfile)
-        tmpdict_all = []
+        clsinfo = []
+        tmpdict_all = {}
         for icls in range(natom):
             tmpdict = {}
             tmpdict['iatom'] = results[icls][0]
@@ -90,8 +91,9 @@ def parse_voronoi_output(out_dict, outfile, potfile, atominfo, radii, inputfile)
             tmpdict['rmt_ref'] = results[icls][2]
             tmpdict['tb_cluster_id'] = results[icls][3]
             tmpdict['sites'] = results[icls][4]
-            tmpdict_all.append(tmpdict)
-        tmpdict_all.append({'number_of_clusters':Ncls})
+            clsinfo.append(tmpdict)
+        tmpdict_all['cluster_info_atoms'] = clsinfo
+        tmpdict_all['number_of_clusters'] = Ncls
         out_dict['cluster_info_group'] = tmpdict_all
     except:
         msg = "Error parsing output of voronoi: Cluster Info"

@@ -47,7 +47,7 @@ class kkr_dos_wc(WorkChain):
         like Success, last result node, list with convergence behavior
     """
 
-    _workflowversion = "0.1.1"
+    _workflowversion = __version__
     _wf_label = 'kkr_dos_wc'
     _wf_description = 'Workflow for a KKR dos calculation starting either from a structure with automatic voronoi calculation or a valid RemoteData node of a previous calculation.'
     _wf_default = {'queue_name' : '',                        # Queue name to submit jobs too
