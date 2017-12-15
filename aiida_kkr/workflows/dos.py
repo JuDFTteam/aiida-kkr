@@ -265,8 +265,6 @@ class kkr_dos_wc(WorkChain):
         #pprint(inputs)
         self.report('INFO: doing calculation')
         dosrun = submit(KkrProcess, **inputs)
-        dosrun.label = 'DOS calculation'
-        dosrun.description = 'DOS calculation with KKR'
         
         """
         # capture error of unsuccessful DOS run
