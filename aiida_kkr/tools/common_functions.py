@@ -344,8 +344,8 @@ def interpolate_dos(dospath, return_original=False, ):
             dostmp = [ez]+[float(ds[0])+1j*float(ds[1]) for ds in dostmp_complex]
             dos_l_cmplx.append(dostmp)
         dos_l_cmplx = array(dos_l_cmplx)
-        dos_l = imag(dos_l_cmplx)
-        dos_l[:,0] = real(dos_l_cmplx[:,0])
+        dos_l = imag(dos_l_cmplx.copy())
+        dos_l[:,0] = real(dos_l_cmplx.copy()[:,0])
         dos_all_atoms.append(dos_l)
         
         # Compute and write out corrected dos at new (middle) energy points:
@@ -358,10 +358,12 @@ def interpolate_dos(dospath, return_original=False, ):
         
             tmpdos = [enew]
             for ll in range(1,lmax+3):
-                tmpdos.append(dos_l_cmplx[ie, ll] + 0.5*(dos_l_cmplx[ie-1, ll]-dos_l_cmplx[ie+1, ll])*(0.+1j*eim)/deltae)
+                t = (dos_l_cmplx[ie-1, ll]-dos_l_cmplx[ie+1, ll])*0.5*(0.0+eim*1j)/deltae
+                #print ie+1, ll,  dos_l_cmplx[ie, ll], deltae, eim, t, shape(dos_l_cmplx[ie]), lmax
+                #tmpdos.append(dos_l_cmplx[ie, ll] + 0.5*(dos_l_cmplx[ie-1, ll]-dos_l_cmplx[ie+1, ll])*(0.+1j*eim)/deltae)
+                tmpdos.append(dos_l_cmplx[ie, ll]+t)
             tmpdos = array(tmpdos)
-            # reorder to bring total dos to first column
-            # and build imaginary part (factor -1/2pi is already included)
+            # build imaginary part (factor -1/2pi is already included)
             tmpdos = array([real(tmpdos[0])]+[imag(ds) for ds in tmpdos[1:]])
             dosnew.append(tmpdos)
         
@@ -382,75 +384,13 @@ def interpolate_dos(dospath, return_original=False, ):
     else:
         return ef, dosnew_all_atoms
     
-
-
-"""
-# testing ...
-
-def submission(calc, submit_test=False):
-    import os
-    if submit_test:
-        subfolder, script_filename = calc.submit_test()
-        print "Test_submit for calculation (uuid='{}')".format(
-            calc.uuid)
-        print "Submit file in {}".format(os.path.join(
-            os.path.relpath(subfolder.abspath),
-            script_filename
-        ))
-        return -1
-    else:
-        calc.store_all()
-        print "created calculation; calc=Calculation(uuid='{}') # ID={}".format(
-            calc.uuid, calc.dbnode.pk)
-        calc.submit()
-        print "submitted calculation; calc=Calculation(uuid='{}') # ID={}".format(
-            calc.uuid, calc.dbnode.pk)
-        return calc.dbnode.pk
-    
-    
-if __name__=='__main__':
-    from aiida import load_dbenv, is_dbenv_loaded
-    if not is_dbenv_loaded():
-        load_dbenv()
-    from aiida.orm import Code, load_node
-    from aiida_kkr.calculations.kkr import KkrCalculation
-    resubmit = True
-    # Load aiida structure  and initial parameter node node 
-    Cu = load_node(577)
-    ParaNode = load_node(583)
-    
-    # step0: voronoi calculation
-    VoroCalc = load_node(596)
-    ResultedParameterVoro = VoroCalc
-    ParaNode4 = load_node(645)
-    print ParaNode4.get_dict()
-    remote_voro = ResultedParameterVoro.get_outputs_dict()['remote_folder']
-    
-    # setup new kkr calculation
-    KKRcode = Code.get_from_string('KKRcode@my_mac')
-    KKRcalc = KkrCalculation()
-    KKRcalc.label = 'KKR calculation'
-    KKRcalc.set_withmpi(False)
-    KKRcalc.set_resources({"num_machines" : 1})
-    KKRcalc.set_max_wallclock_seconds(300)
-    KKRcalc.set_computer('my_mac')
-    KKRcalc.use_code(KKRcode)
-    KKRcalc.use_parameters(ParaNode4)
-    KKRcalc.use_parent_folder(remote_voro)
-    
-    from subprocess import call
-    call('rm ../*/*pyc', shell=True)
-    
-    if resubmit:
-        sid = submission(KKRcalc, submit_test=False)
-    else:
-        sid = 211
-       
-    KKRcalc = load_node(sid)
-    
-    print KKRcalc.has_finished_ok()
-    print KKRcalc.has_finished()
-    
-    #!verdi calculation logshow 195
-    
-"""
+def get_ef_from_potfile(potfile):
+    """
+    extract fermi energy from potfile
+    """
+    f = open(potfile)
+    txt = f.readlines()
+    f.close()
+    ef = float(txt[3].split()[1])
+    return ef
+  

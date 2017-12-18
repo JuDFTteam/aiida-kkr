@@ -723,10 +723,13 @@ def check_error_category(err_cat, err_msg, out_dict):
     # check special cases:
     # 1. nonco_angle_file not present, but newsosol==False anyways
     if 'NONCO_ANGELS_OUT' in err_msg:
-        if out_dict["use_newsosol"]:
-            return True
+        if "use_newsosol" in out_dict.keys():
+            if out_dict["use_newsosol"]:
+                return True
+            else:
+                return False
         else:
-            return False
+            return True
         
   
 """

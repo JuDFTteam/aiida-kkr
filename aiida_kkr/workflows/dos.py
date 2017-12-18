@@ -19,6 +19,7 @@ from aiida.work.process_registry import ProcessRegistry
 from aiida_kkr.tools.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
+from aiida.common.datastructures import calc_states
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
@@ -204,7 +205,7 @@ class kkr_dos_wc(WorkChain):
         # step 2: check if all mandatory keys are there
         missing_list = para_check.get_missing_keys(use_aiida=True)
         if missing_list != []:
-            error = 'ERROR: calc_parameters given are not consistent! Hint: are all mandatory keys set?'
+            error = 'ERROR: calc_parameters misses keys: {}'.format(missing_list)
             self.ctx.errors.append(error)
             self.control_end_wc(error)
             
@@ -215,7 +216,7 @@ class kkr_dos_wc(WorkChain):
         econt_new['NPOL'] = 0
         econt_new['NPT1'] = 0
         econt_new['NPT3'] = 0
-        if 1:#try:
+        try:
             for key, val in econt_new.iteritems():
                 if key=='kmesh':
                     key = 'BZDIVIDE'
@@ -229,10 +230,10 @@ class kkr_dos_wc(WorkChain):
                     key = 'TEMPR'
                 # set params
                 para_check.set_value(key, val, silent=True)
-        #except:
-        #    error = 'ERROR: dos_params given in wf_params are not valid!'
-        #    self.ctx.errors.append(error)
-        #    self.control_end_wc(error)
+        except:
+            error = 'ERROR: dos_params given in wf_params are not valid!'
+            self.ctx.errors.append(error)
+            self.control_end_wc(error)
         
         updatenode = ParameterData(dict=para_check.get_dict())
         updatenode.label = 'KKR parameter for DOS contour'
@@ -265,18 +266,6 @@ class kkr_dos_wc(WorkChain):
         #pprint(inputs)
         self.report('INFO: doing calculation')
         dosrun = submit(KkrProcess, **inputs)
-        
-        """
-        # capture error of unsuccessful DOS run
-        calc_state = dosrun.get_state()
-        if calc_state != calc_states.FINISHED:
-            self.ctx.successful = False
-            self.ctx.abort = True
-            error = ('ERROR: DOS calculation failed somehow it is '
-                    'in state {}'.format(calc_state))
-            self.control_end_wc(error)
-            return 
-        """
 
         return ToContext(dosrun=dosrun)
     
@@ -287,31 +276,54 @@ class kkr_dos_wc(WorkChain):
         This should run through and produce output nodes even if everything failed,
         therefore it only uses results from context.
         """
+        
+        # capture error of unsuccessful DOS run
+        calc_state = self.ctx.dosrun.get_state()
+        if calc_state != calc_states.FINISHED:
+            self.ctx.successful = False
+            error = ('ERROR: DOS calculation failed somehow it is '
+                    'in state {}'.format(calc_state))
+            self.ctx.errors.append(error)
 
         # create dict to store results of workflow output
         outputnode_dict = {}
         outputnode_dict['workflow_name'] = self.__class__.__name__
         outputnode_dict['workflow_version'] = self._workflowversion
-        outputnode_dict['successful'] = self.ctx.successful
-        outputnode_dict['list_of_errors'] = self.ctx.errors
         outputnode_dict['use_mpi'] = self.ctx.use_mpi
         outputnode_dict['resources'] = self.ctx.resources
         outputnode_dict['walltime_sec'] = self.ctx.walltime_sec
         outputnode_dict['queue'] = self.ctx.queue
         outputnode_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
         outputnode_dict['dos_params'] = self.ctx.dos_params_dict
-        outputnode_dict['nspin'] = self.ctx.dosrun.res.nspin
-        
+        try:
+            outputnode_dict['nspin'] = self.ctx.dosrun.res.nspin
+        except:
+            error = "ERROR: nspin not extracted"
+            self.report(error)
+            self.ctx.successful = False
+            self.ctx.errors.append(error)
+        outputnode_dict['successful'] = self.ctx.successful
+        outputnode_dict['list_of_errors'] = self.ctx.errors
+            
         outputnode = ParameterData(dict=outputnode_dict)
         outputnode.label = 'kkr_scf_wc_results'
         outputnode.description = ''
         outputnode.store()
         
-        self.report("INFO: create dos results nodes. outputnode={}, dos calc retrieved node={}".format(outputnode, self.ctx.dosrun.out.retrieved))
-        self.report("INFO: type outputnode={}".format(type(outputnode)))
-        
+        self.report("INFO: create dos results nodes: outputnode={}".format(outputnode))
+        try:
+            self.report("INFO: create dos results nodes. dos calc retrieved node={}".format(self.ctx.dosrun.out.retrieved))
+            has_dosrun = True
+        except AttributeError as e:
+            self.report("ERROR: no dos calc retrieved node found")
+            self.report("Caught AttributeError {}".format(e))
+            has_dosrun = False
+            
         # interpol dos file and store to XyData nodes
-        outdict = create_dos_result_node(outputnode, self.ctx.dosrun.out.retrieved)
+        if has_dosrun:
+            outdict = create_dos_result_node(outputnode, self.ctx.dosrun.out.retrieved)
+        else:
+            outdict = create_dos_result_node_minimal(outputnode)
     
         
         for link_name, node in outdict.iteritems():
@@ -347,6 +359,7 @@ def parse_dosfiles(dospath):
     print dospath
     
     ef, dos, dos_int = interpolate_dos(dospath, return_original=True)
+    
     # convert to eV units
     dos[:,:,0] = (dos[:,:,0]-ef)*eVscale
     dos[:,:,1:] = dos[:,:,1:]/eVscale
@@ -390,11 +403,30 @@ def create_dos_result_node(outputnode, dos_retrieved):
     # data, i.e. function returns a list of two nodes) to store the dos arrays
     print dos_retrieved
     print dos_retrieved.get_abs_path('')
-    dosXyDatas = parse_dosfiles(dos_retrieved.get_abs_path(''))
+    
+    try:
+        dosXyDatas = parse_dosfiles(dos_retrieved.get_abs_path(''))
+        dos_extracted = True
+    except IOError as e:
+        print 'caught IOError: {}'.format(e)
+        dos_extracted = False        
+        
     outdict = {}
     outdict['results_wf'] = outputnode.copy()
-    outdict['dos_data'] = dosXyDatas[0]
-    outdict['dos_data_interpol'] = dosXyDatas[1]
+    if dos_extracted:
+        outdict['dos_data'] = dosXyDatas[0]
+        outdict['dos_data_interpol'] = dosXyDatas[1]
+        
+    return outdict
+
+@wf
+def create_dos_result_node_minimal(outputnode):
+    """
+    This is a pseudo wf, to create the right graph structure of AiiDA.
+    minimal if dosrun unsuccesful
+    """
+    outdict = {}
+    outdict['results_wf'] = outputnode.copy()
     return outdict
 
         

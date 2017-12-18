@@ -87,21 +87,25 @@ class KkrParser(Parser):
             outfile_0init = out_folder.get_abs_path(fname)  
         except OSError:
             file_errors.append((1, "Critical error! OUTPUT_0_INIT not found {}".format(fname)))
+            outfile_0init = None
         try:
             fname = self._calc._OUTPUT_000
             outfile_000 = out_folder.get_abs_path(fname)
         except OSError:
             file_errors.append((1, "Critical error! OUTPUT_000 not found {}".format(fname)))
+            outfile_000 = None
         try:
             fname = self._calc._OUT_POTENTIAL
             potfile_out = out_folder.get_abs_path(fname)
         except OSError:
             file_errors.append((1, "Critical error! OUT_POTENTIAL not found {}".format(fname)))
+            potfile_out = None
         try:
             fname = self._calc._OUT_TIMING_000
             timing_file = out_folder.get_abs_path(fname)
         except OSError:
             file_errors.append((1, "Critical error! OUT_TIMING_000  not found {}".format(fname)))
+            timing_file = None
         try:
             fname = self._calc._NONCO_ANGLES_OUT
             nonco_out_file = out_folder.get_abs_path(fname)
