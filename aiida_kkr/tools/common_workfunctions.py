@@ -5,7 +5,6 @@ Here workfunctions and normal functions using aiida-stuff (typically used
 within workfunctions) are collected.
 """
 
-
 from aiida.common.exceptions import InputValidationError
 from aiida.work import workfunction as wf
 from aiida.orm import DataFactory
@@ -313,4 +312,165 @@ def get_parent_paranode(remote_data):
     """
     inp_para = remote_data.inp.remote_folder.inp.parameters
     return inp_para
+
+
+def generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc=None, shapes=None, isvoronoi=False):
+    """
+    Takes information from parameter and structure data and writes input file 'input_filename'
     
+    :param parameters: input parameters node containing KKR-related input parameter
+    :param structure: input structure node containing lattice information
+    :param input_filename: input filename, typically called 'inputcard'
+    
+    
+    optional arguments
+    :param parent_calc: input parent calculation node used to determine if EMIN 
+                        parameter is automatically overwritten (from voronoi output)
+                        or not
+    :param shapes: input shapes array (set automatically by 
+                   aiida_kkr.calculations.Kkrcaluation and shall not be overwritten)
+    
+    
+    :note: assumes valid structure and parameters, i.e. for 2D case all necessary 
+           information has to be given. This is checked with function 
+           'check_2D_input' called in aiida_kkr.calculations.Kkrcaluation
+    """
+    
+    from aiida.common.constants import elements as PeriodicTableElements
+    from numpy import array
+    from aiida_kkr.tools.kkr_params import kkrparams
+    from aiida_kkr.tools.common_functions import get_Ang2aBohr, get_alat_from_bravais
+    
+    #list of globally used constants
+    a_to_bohr = get_Ang2aBohr()
+
+
+    # Get the connection between coordination number and element symbol
+    # maybe do in a differnt way
+    
+    _atomic_numbers = {data['symbol']: num for num,
+                    data in PeriodicTableElements.iteritems()}
+    
+    # KKR wants units in bohr
+    bravais = array(structure.cell)*a_to_bohr
+    alat = get_alat_from_bravais(bravais, is3D=structure.pbc[2])
+    bravais = bravais/alat
+    
+    sites = structure.sites
+    naez = len(sites)
+    positions = []
+    charges = []
+    weights = [] # for CPA
+    isitelist = [] # counter sites array for CPA
+    isite = 0
+    for site in sites:
+        pos = site.position 
+        #TODO maybe convert to rel pos and make sure that type is right for script (array or tuple)
+        abspos = array(pos)*a_to_bohr/alat # also in units of alat
+        positions.append(abspos)
+        isite += 1
+        sitekind = structure.get_kind(site.kind_name)
+        for ikind in range(len(sitekind.symbols)):
+            site_symbol = sitekind.symbols[ikind]
+            if not sitekind.has_vacancies():
+                charges.append(_atomic_numbers[site_symbol])
+            else:
+                charges.append(0.0)
+            #TODO deal with VCA case
+            if sitekind.is_alloy():
+                weights.append(sitekind.weights[ikind])
+            else:
+                weights.append(1.)
+            
+            isitelist.append(isite)
+    
+    weights = array(weights)
+    isitelist = array(isitelist)
+    charges = array(charges)
+    positions = array(positions)
+        
+
+    ######################################
+    # Prepare keywords for kkr from input structure
+    
+    # get parameter dictionary
+    input_dict = parameters.get_dict()
+    
+    # empty kkrparams instance (contains formatting info etc.)
+    if not isvoronoi:
+        params = kkrparams()
+    else:
+        params = kkrparams(params_type='voronoi')
+    
+    # for KKR calculation set EMIN automatically from parent_calc (ausways in res.emin of voronoi and kkr)
+    if ('EMIN' not in input_dict.keys() or input_dict['EMIN'] is None) and parent_calc is not None:
+        print('Overwriting EMIN with value from parent calculation')
+        emin = parent_calc.res.emin
+        print('Setting emin:',emin, 'is emin None?',emin is None)
+        params.set_value('EMIN', emin)
+        
+    # overwrite keywords with input parameter
+    for key in input_dict.keys():
+        params.set_value(key, input_dict[key], silent=True)
+
+    # Write input to file (the parameters that are set here are not allowed to be modfied externally)
+    params.set_multiple_values(BRAVAIS=bravais, ALATBASIS=alat, NAEZ=naez, 
+                               ZATOM=charges, RBASIS=positions, CARTESIAN=True)
+    # for CPA case:
+    if len(weights)>naez:
+        natyp = len(weights)
+        params.set_value('NATYP', natyp)
+        params.set_value('<CPA-CONC>', weights)
+        params.set_value('<SITE>', isitelist)
+    else:
+        natyp = naez
+        
+    # write shapes (extracted from voronoi parent automatically in kkr calculation plugin)
+    if shapes is not None:
+        params.set_value('<SHAPE>', shapes)
+    
+    # write inputfile
+    params.fill_keywords_to_inputfile(output=input_filename)
+    
+    nspin = params.get_value('NSPIN')
+    
+    newsosol = False
+    if 'NEWSOSOL' in params.get_value('RUNOPT'):
+        newsosol = True
+    
+    return natyp, nspin, newsosol
+    
+    
+def check_2Dinput_consistency(structure, parameters):
+    """
+    Check if structure and parameter data are complete and matching.
+    
+    :param input: structure, needs to be a valid aiida StructureData node
+    :param input: parameters, needs to be valid aiida ParameterData node
+    
+    returns (False, errormessage) if an inconsistency has been found, otherwise return (True, '2D consistency check complete')
+    """
+    # default is bulk, get 2D info from structure.pbc info (periodic boundary contitions)
+    is2D = False
+    if not all(structure.pbc):
+        # check periodicity, assumes finite size in z-direction
+        if structure.pbc != (True, True, False):
+            return (False, "Structure.pbc is neither (True, True, True) for bulk nor (True, True, False) for surface calculation!")
+        is2D = True
+    
+    # check for necessary info in 2D case
+    inp_dict = parameters.get_dict()
+    set_keys = [i for i in inp_dict.keys() if inp_dict[i] is not None]
+    has2Dinfo = True
+    for icheck in ['INTERFACE', '<NRBASIS>', '<RBLEFT>', '<RBRIGHT>', 'ZPERIODL', 'ZPERIODR', '<NLBASIS>']:
+        if icheck not in set_keys:
+            has2Dinfo = False
+    if has2Dinfo and not inp_dict['INTERFACE'] and is2D:
+        return (False, "'INTERFACE' parameter set to False but structure is 2D")
+        
+    if has2Dinfo!=is2D:
+        return (False, "2D info given in parameters but structure is 3D")
+    
+    # if everything is ok:
+    return (True, "2D consistency check complete")
+

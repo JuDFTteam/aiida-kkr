@@ -8,9 +8,8 @@ from aiida_kkr.tools.common_functions import (interpolate_dos, get_alat_from_bra
                                               search_string, angles_to_vec, 
                                               vec_to_angles, get_version_info, 
                                               get_corestates_from_potential, 
-                                              get_highest_core_state, 
-                                              generate_inputcard_from_structure, 
-                                              check_2Dinput_consistency)
+                                              get_highest_core_state,
+                                              get_ef_from_potfile)
 
 
 class Test_common_functions():
@@ -85,48 +84,9 @@ class Test_common_functions():
         lval = array([0, 0, 0, 0, 1, 1, 1, 2])
         out = get_highest_core_state(ncore, ener, lval)
         assert out == (1, -3.832432, '4p')
-
-    @pytest.mark.usefixtures("aiida_env")
-    def test_generate_inputcard_from_structure(self):
-        #from aiida import load_dbenv, is_dbenv_loaded
-        #if not is_dbenv_loaded():
-        #    load_dbenv()
-        from aiida.orm import DataFactory
-        StructureData = DataFactory('structure')
-        ParameterData = DataFactory('parameter')
-        s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
-        s.append_atom(position=[0,0,0], symbols='Fe')
-        p = ParameterData(dict={'LMAX':2, 'NSPIN':2, 'RMAX':10, 'GMAX':100})
-        generate_inputcard_from_structure(p, s, 'inputcard')
-        txt = open('inputcard', 'r').readlines()
-        assert txt == ['ALATBASIS= 1.889726\n',
-                       'BRAVAIS\n',
-                       '0.500000 0.500000 0.000000\n',
-                       '1.000000 0.000000 0.000000\n',
-                       '0.000000 0.000000 1.000000\n',
-                       'NAEZ= 1\n',
-                       '<RBASIS>\n',
-                       '0.000000 0.000000 0.000000\n',
-                       'CARTESIAN= True\n',
-                       '<ZATOM>\n',
-                       '26.000000\n',
-                       'NSPIN= 2\n',
-                       'LMAX= 2\n',
-                       'RMAX= 10.000000\n',
-                       'GMAX= 100.000000\n']
+        
+    def test_get_ef_from_potfile(self):
+        ef = get_ef_from_potfile('files/kkr/kkr_run_dos_output/out_potential')
+        assert ef == 1.05
+        
     
-
-    @pytest.mark.usefixtures("aiida_env")
-    def test_check_2Dinput_consistency(self):
-        #from aiida import load_dbenv, is_dbenv_loaded
-        #if not is_dbenv_loaded():
-        #    load_dbenv()
-        from aiida.orm import DataFactory
-        StructureData = DataFactory('structure')
-        ParameterData = DataFactory('parameter')
-        s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
-        s.append_atom(position=[0,0,0], symbols='Fe')
-        p = ParameterData(dict={'INTERFACE':True})
-        input_check = check_2Dinput_consistency(s, p)
-        assert input_check[0]
-        assert input_check[1] == '2D consistency check complete'
