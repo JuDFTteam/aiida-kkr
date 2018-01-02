@@ -12,7 +12,7 @@ parser file where parse_kkr_outputfile is called
 """
 
 
-from aiida_kkr.tools.common_functions import (search_string, get_version_info, get_Ry2eV,
+from aiida_kkr.tools.common_functions import (search_string, get_version_info, get_Ry2eV, angles_to_vec,
                                               get_corestates_from_potential, get_highest_core_state)
 
 
@@ -359,7 +359,6 @@ def get_spinmom_per_atom(outfile, natom, nonco_out_file=None):
     """
     Extract spin moment information from outfile and nonco_angles_out (if given)
     """
-    from aiida_kkr.tools.common_functions import angles_to_vec
     from numpy import array
     f = open(outfile)
     tmptxt = f.readlines()
@@ -379,7 +378,10 @@ def get_spinmom_per_atom(outfile, natom, nonco_out_file=None):
     # if the file is there, i.e. NEWSOSOL is used, then extract also direction of spins (angles theta and phi)
     if nonco_out_file is not None and result != []:
         from numpy import loadtxt
+        from numpy import shape  
         angles = loadtxt(nonco_out_file)
+        if len(shape(angles))==1:
+            angles = array([angles])
         vec = angles_to_vec(result[-1], angles[:,0], angles[:,1])
     else:
         vec, angles = [],[]

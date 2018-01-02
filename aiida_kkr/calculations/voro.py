@@ -8,7 +8,7 @@ from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.orm import DataFactory
-from aiida_kkr.tools.common_functions import generate_inputcard_from_structure, check_2Dinput
+from aiida_kkr.tools.common_functions import generate_inputcard_from_structure, check_2Dinput_consistency
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
@@ -124,7 +124,7 @@ class VoronoiCalculation(JobCalculation):
 
         ###################################
         # Check for 2D case
-        twoDimcheck, msg = check_2Dinput(structure, parameters)
+        twoDimcheck, msg = check_2Dinput_consistency(structure, parameters)
         if not twoDimcheck:
             raise InputValidationError(msg)
         

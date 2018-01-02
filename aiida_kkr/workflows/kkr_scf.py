@@ -84,12 +84,6 @@ class kkr_scf_wc(WorkChain):
                    'strmix': 0.01,                            # mixing factor of simple mixing
                    'brymix': 0.01,                            # mixing factor of aggressive mixing
                    'nsteps': 30,                              # number of iterations done per KKR calculation
-                   'kkr_default_params': {"rclustz": 2.0,     # fallback defaults: screening cluster radius
-                                          "lmax": 3,          # fallback defaults: lmax-cutoff
-                                          "ins": 1,           # fallback defaults: use shape corrections (full potential)
-                                          "nspin": 2,         # fallback defaults: spin-polarized calculation
-                                          "rmax_ewald": 10.,  # fallback defaults: Madelung sum real-space cutoff
-                                          "gmax_ewald": 100.},# fallback defaults: Madelung sum reciprocal-space cutoff
                    'convergence_setting_coarse': {
                         'npol': 7, 
                         'n1': 3,

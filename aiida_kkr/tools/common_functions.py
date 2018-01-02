@@ -32,6 +32,7 @@ def search_string(searchkey, txt):
         iline+=1
     return -1
 
+
 def angles_to_vec(magnitude, theta, phi):
     """
     convert (magnitude, theta, phi) to (x,y,z)
@@ -42,13 +43,25 @@ def angles_to_vec(magnitude, theta, phi):
     Returns x,y,z vector 
     """
     from numpy import ndarray, array, cos, sin
+    
     # correct data type if necessary
-    if type(magnitude) != ndarray:
+    if type(magnitude) == list:
         magnitude = array(magnitude)
-    if type(theta) != ndarray:
+    if type(theta) == list:
         theta = array(theta)
-    if type(phi) != ndarray:
+    if type(phi) == list:
         phi = array(phi)
+    single_value_input = False
+    if type(magnitude) != ndarray:
+        magnitude = array([magnitude])
+        single_value_input = True
+    if type(theta) != ndarray:
+        theta = array([theta])
+        single_value_input = True
+    if type(phi) != ndarray:
+        phi = array([phi])
+        single_value_input = True
+        
     vec = []
     for ivec in range(len(magnitude)):
         r_inplane = magnitude[ivec]*sin(theta[ivec])
@@ -56,7 +69,13 @@ def angles_to_vec(magnitude, theta, phi):
         y = r_inplane*sin(phi[ivec])
         z = cos(theta[ivec])*magnitude[ivec]
         vec.append([x,y,z])
-    return array(vec)
+    vec = array(vec)   
+    
+    if single_value_input:
+        vec = vec[0]
+        
+    return vec
+
 
 def vec_to_angles(vec):
     """
@@ -64,14 +83,22 @@ def vec_to_angles(vec):
     """
     from numpy import array, arctan2, sqrt, shape
     magnitude, theta, phi = [], [], []
-    if len(vec)<=3 and len(shape(vec))<2:
-        vec = [vec]
+    if len(vec)==3 and len(shape(vec))<2:
+        vec = array([vec])
+        multiple_entries = False
+    else:
+        multiple_entries = True
+        
     for ivec in range(len(vec)):
         phi.append(arctan2(vec[ivec, 1], vec[ivec, 0]))
         r_inplane = sqrt(vec[ivec, 0]**2+vec[ivec, 1]**2)
         theta.append(arctan2(r_inplane, vec[ivec, 2]))
         magnitude.append(sqrt(r_inplane**2+vec[ivec, 2]**2))
-    return array(magnitude), array(theta), array(phi)
+    if multiple_entries:
+        magnitude, theta, phi = array(magnitude), array(theta), array(phi)
+    else:
+        magnitude, theta, phi = magnitude[0], theta[0], phi[0]
+    return magnitude, theta, phi
     
 
 
@@ -90,7 +117,7 @@ def get_version_info(outfile):
 
 def get_corestates_from_potential(potfile='potential'):
     """Read core states from potential file"""
-    from scipy import zeros
+    from numpy import zeros
     txt = open(potfile).readlines()
 
     #get start of each potential part
@@ -251,7 +278,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     return natyp, nspin, newsosol
     
     
-def check_2Dinput(structure, parameters):
+def check_2Dinput_consistency(structure, parameters):
     """
     Check if structure and parameter data are complete and matching.
     
