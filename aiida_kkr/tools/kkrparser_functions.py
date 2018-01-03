@@ -304,16 +304,23 @@ def get_ewald(outfile_0init):
     f = open(outfile_0init)
     tmptxt = f.readlines()
     f.close()
-    itmp = search_string('< LATTICE3D >', tmptxt)
-    tmpval = tmptxt[itmp+7].split()[2:]
-    rsum = float(tmpval[2]), int(tmpval[0]), int(tmpval[1])
-    tmpval = tmptxt[itmp+8].split()[2:]
-    gsum = float(tmpval[2]), int(tmpval[0]), int(tmpval[1])
     itmp = search_string('setting bulk Madelung coefficients', tmptxt)
     if itmp>=0:
         info = '3D'
     else:
         info = '2D'
+    if info == '3D':
+        itmp = search_string('< LATTICE3D >', tmptxt)
+        tmpval = tmptxt[itmp+7].split()[2:]
+        rsum = float(tmpval[2]), int(tmpval[0]), int(tmpval[1])
+        tmpval = tmptxt[itmp+8].split()[2:]
+        gsum = float(tmpval[2]), int(tmpval[0]), int(tmpval[1])
+    else:
+        itmp = search_string('< LATTICE2D >', tmptxt)
+        tmpval = tmptxt[itmp+13].split()[2:]
+        rsum = float(tmpval[2]), int(tmpval[0]), int(tmpval[1])
+        tmpval = tmptxt[itmp+14].split()[2:]
+        gsum = float(tmpval[2]), int(tmpval[0]), int(tmpval[1])
     return rsum, gsum, info
 
 
