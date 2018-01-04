@@ -45,6 +45,7 @@ class kkr_startpot_wc(WorkChain):
         calculation from (needs to contain vacancies, if KKR needs empty spheres)
     :param kkr: (Code)
     :param voronoi: (Code)
+    :param calc_parameters: (ParameterData), KKR parameter set, passed on to voronoi run. 
 
     :return result_kkr_startpot_wc: (ParameterData), Information of workflow results 
         like Success, last result node, dos array data

@@ -559,6 +559,20 @@ class kkrparams(object):
         if bulkmode and sum(bravais[2]**2)==0:
             print("Error: 'BRAVAIS' matches 2D calculation but 'INTERFACE' is not set to True!")
             raise ValueError
+            
+        # check if KSHAPE and INS are consistent and add missing values automatically
+        if 'INS' not in set_values and 'KSHAPE' in set_values:
+            self.set_value('INS', self.get_value('KSHAPE'))
+            print("setting INS automatically with KSHAPE value ({})".format(self.get_value('KSHAPE')))
+        elif 'INS' in set_values and 'KSHAPE' not in set_values:
+            self.set_value('KSHAPE', self.get_value('INS'))
+            print("setting KSHAPE automatically with INS value ({})".format(self.get_value('INS')))
+        elif 'INS' in set_values and 'KSHAPE' in set_values:
+            ins = self.get_value('INS')
+            kshape = self.get_value('KSHAPE')
+            if ins != kshape:
+                print("Error: values of 'INS' and 'KSHAPE' are both found but are inconsistent (should be equal)")
+                raise ValueError
 
 
     def fill_keywords_to_inputfile(self, is_voro_calc=False, output='inputcard'):
@@ -568,6 +582,16 @@ class kkrparams(object):
         if is_voro_calc==True change mandatory list to match voronoi code, default is KKRcode
         """
         from numpy import array
+        
+        # first check input consistency
+        if is_voro_calc:
+            self.__params_type = 'voronoi'
+
+        # check for inconsistencies in input before writing file
+        self._check_input_consistency()
+        
+        
+        
         #rename for easy reference
         keywords = self.values
         keyfmts = self.__format
@@ -607,11 +631,6 @@ class kkrparams(object):
         #for key in keyfmts.keys():
         #    keyfmts[key] = keyfmts[key].replace('%l', '%s')
 
-        if is_voro_calc:
-            self.__params_type = 'voronoi'
-
-        # check for inconsistencies in input before writing file
-        self._check_input_consistency()
 
         # write all set keys to file
         tmpl = ''

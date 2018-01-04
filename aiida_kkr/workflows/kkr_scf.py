@@ -15,7 +15,7 @@ from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.tools.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkr, get_inputs_voronoi
-
+from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -67,13 +67,13 @@ class kkr_scf_wc(WorkChain):
     1. This workflow does not work with local codes!
     """
 
-    _workflowversion = "0.1.2"
+    _workflowversion = "0.1.3"
     _wf_default = {'kkr_runmax': 4,                           # Maximum number of kkr jobs/starts (defauld iterations per start)
                    'convergence_criterion' : 10**-6,          # Stop if charge denisty is converged below this value
                    'queue_name' : '',                         # Queue name to submit jobs too
                    'resources': {"num_machines": 1},          # resources to allowcate for the job
                    'walltime_sec' : 60*60,                    # walltime after which the job gets killed (gets parsed to KKR)
-                   'mpirun' : False,                          # execute KKR with mpi or without
+                   'use_mpi' : False,                         # execute KKR with mpi or without
                    'custom_scheduler_commands' : '',          # some additional scheduler commands 
                    'check_dos' : True,                        # check starting DOS for inconsistencies
                    'dos_params' : {"nepts": 40,               # DOS params: number of points in contour
@@ -84,14 +84,21 @@ class kkr_scf_wc(WorkChain):
                    'strmix': 0.01,                            # mixing factor of simple mixing
                    'brymix': 0.01,                            # mixing factor of aggressive mixing
                    'nsteps': 30,                              # number of iterations done per KKR calculation
-                   'convergence_setting_coarse': {
+                   'convergence_setting_coarse': {            # setting of the coarse preconvergence
                         'npol': 7, 
                         'n1': 3,
                         'n2': 11,
                         'n3': 3,
                         'tempr': 1400.0,
                         'kmesh': [10, 10, 10]},
-                   'convergence_setting_fine': {}
+                   'threshold_switch_high_accuracy': 1*10**-3,# threshold after which final conversion settings are used
+                   'convergence_setting_fine': {              # setting of the final convergence (lower tempr, 48 epts, denser k-mesh)
+                        'npol': 5, 
+                        'n1': 7,
+                        'n2': 29,
+                        'n3': 7,
+                        'tempr': 473.0,
+                        'kmesh': [30, 30, 30]}
                    }
              
     # intended to guide user interactively in setting up a valid wf_params node
@@ -116,7 +123,6 @@ class kkr_scf_wc(WorkChain):
                    default=ParameterData(dict=cls._wf_default))
         spec.input("structure", valid_type=StructureData, required=False)
         spec.input("calc_parameters", valid_type=ParameterData, required=False)
-        #spec.input("settings", valid_type=ParameterData, required=False)
         spec.input("remote_data", valid_type=RemoteData, required=False)
         spec.input("voronoi", valid_type=Code, required=False)
         spec.input("kkr", valid_type=Code, required=True)
@@ -124,18 +130,24 @@ class kkr_scf_wc(WorkChain):
         # Here the structure of the workflow is defined
         spec.outline(
             cls.start,
-            if_(cls.validate_input)(
-                cls.run_voronoi,
-                cls.get_dos),
-            cls.run_kkr,
-            cls.inspect_kkr,
+            # check if voronoi run needed, otherwise skip this step
+            if_(cls.validate_input)(cls.run_voronoi),
+            # while loop for KKR run(s), first simple mixing
+            # then Anderson with corase pre-convergence settings
+            # finally convergence step with higher accuracy
+            # settings are initialized/updated in cls.condition
             while_(cls.condition)(
+                # update parameters for kkr step using previous output(s)
+                cls.update_kkr_params,
+                # run kkr step
                 cls.run_kkr,
+                # check results for convergence
                 cls.inspect_kkr,
+                # collect some intermediate results
                 cls.get_res),
+            # finalize calculation and create output nodes
             cls.return_results
         )
-        #spec.dynamic_output()
 
 
     def start(self):
@@ -162,12 +174,12 @@ class kkr_scf_wc(WorkChain):
             self.report('INFO: using default wf parameter')
 
         # set values, or defaults
-        self.ctx.serial = wf_dict.get('serial', True)
-        self.ctx.max_number_runs = wf_dict.get('KKR_runmax', 4)
-        self.ctx.resources = wf_dict.get('resources', {"num_machines": 1})
-        self.ctx.walltime_sec = wf_dict.get('walltime_sec', 60*60)
-        self.ctx.queue = wf_dict.get('queue_name', '')
-        self.ctx.custom_scheduler_commands = wf_dict.get('custom_scheduler_commands', '')
+        self.ctx.use_mpi = wf_dict.get('use_mpi', self._wf_default['use_mpi'])
+        self.ctx.max_number_runs = wf_dict.get('kkr_runmax', self._wf_default['kkr_runmax'])
+        self.ctx.resources = wf_dict.get('resources', self._wf_default['resources'])
+        self.ctx.walltime_sec = wf_dict.get('walltime_sec', self._wf_default['walltime_sec'])
+        self.ctx.queue = wf_dict.get('queue_name', self._wf_default['queue_name'])
+        self.ctx.custom_scheduler_commands = wf_dict.get('custom_scheduler_commands', self._wf_default['custom_scheduler_commands'])
         self.ctx.description_wf = self.inputs.get('_description', 'Workflow for '
                                                   'a KKR scf calculation starting '
                                                   'either from a structure with '
@@ -175,23 +187,59 @@ class kkr_scf_wc(WorkChain):
                                                   'or a valid RemoteData node of '
                                                   'a previous calculation')
         self.ctx.label_wf = self.inputs.get('_label', 'kkr_scf_wc')
+        self.ctx.strmix = wf_dict.get('strmix', self._wf_default['strmix'])
+        self.ctx.brymix = wf_dict.get('brymix', self._wf_default['brymix'])
+        self.ctx.check_dos = wf_dict.get('check_dos', self._wf_default['check_dos'])
+        self.ctx.dos_params = wf_dict.get('dos_params', self._wf_default['dos_params'])
+        self.ctx.convergence_criterion = wf_dict.get('convergence_criterion', self._wf_default['convergence_criterion'])
+        self.ctx.convergence_setting_coarse = wf_dict.get('convergence_setting_coarse', self._wf_default['convergence_setting_coarse'])
+        self.ctx.convergence_setting_fine = wf_dict.get('convergence_setting_fine', self._wf_default['convergence_setting_fine'])
+        self.ctx.mag_init = wf_dict.get('mag_init', self._wf_default['mag_init'])
+        self.ctx.mixreduce = wf_dict.get('mixreduce', self._wf_default['mixreduce'])
+        self.ctx.nsteps = wf_dict.get('nsteps', self._wf_default['nsteps'])
+        self.ctx.threshold_aggressive_mixing = wf_dict.get('threshold_aggressive_mixing', self._wf_default['threshold_aggressive_mixing'])
+        self.ctx.threshold_switch_high_accuracy = wf_dict.get('threshold_switch_high_accuracy', self._wf_default['threshold_switch_high_accuracy'])
         
         self.report('INFO: use the following parameter:\n'
-                    'serial: {}\n'
-                    'Nmax_runs: {}\n'
+                    '\nGeneral settings\n'
+                    'use mpi: {}\n'
+                    'max number of KKR runs: {}\n'
                     'Resources: {}\n'
                     'Walltime (s): {}\n'
                     'queue name: {}\n'
                     'scheduler command: {}\n'
                     'description: {}\n'
-                    'label: {}\n'.format(self.ctx.serial, self.ctx.max_number_runs, 
+                    'label: {}\n'
+                    '\nMixing parameter\n'
+                    'Straight mixing factor: {}\n'
+                    'Anderson mixing factor: {}\n'
+                    'Nsteps scf cycle: {}\n'
+                    'Convergence criterion: {}\n'
+                    'threshold_aggressive_mixing: {}\n'
+                    'threshold_switch_high_accuracy: {}\n'
+                    'convergence_setting_coarse: {}\n'
+                    'convergence_setting_fine: {}\n'
+                    '\nAdditional parameter\n'
+                    'check DOS between runs: {}\n'
+                    'DOS parameters: {}\n'
+                    'init magnetism in first step: {}\n'
+                    'factor reduced mixing if failing calculation: {}\n'
+                    ''.format(self.ctx.use_mpi, self.ctx.max_number_runs, 
                                 self.ctx.resources, self.ctx.walltime_sec, 
                                 self.ctx.queue, self.ctx.custom_scheduler_commands, 
-                                self.ctx.description_wf, self.ctx.label_wf))
+                                self.ctx.description_wf, self.ctx.label_wf,
+                                self.ctx.strmix, self.ctx.brymix, self.ctx.nsteps, 
+                                self.ctx.convergence_criterion, 
+                                self.ctx.threshold_aggressive_mixing, 
+                                self.ctx.threshold_switch_high_accuracy,
+                                self.ctx.convergence_setting_coarse, 
+                                self.ctx.convergence_setting_fine, self.ctx.check_dos, 
+                                self.ctx.dos_params, self.ctx.mag_init, self.ctx.mixreduce)
+                    )
 
         # return para/vars
         self.ctx.successful = True
-        self.ctx.distance = []
+        self.ctx.rms = []
         self.ctx.warnings = []
         self.ctx.errors = []
         self.ctx.formula = ''
@@ -239,145 +287,45 @@ class kkr_scf_wc(WorkChain):
 
     def run_voronoi(self):
         """
-        run the voronoi
+        run the voronoi step calling voro_start workflow
         """
         structure = self.inputs.structure
         self.ctx.formula = structure.get_formula()
-        label = 'scf: voronoi'
-        description = '{} vornoi on {}'.format(self.ctx.description_wf, self.ctx.formula)
-
         voronoicode = self.inputs.voronoi
+        kkrcode = self.inputs.kkr
+        
         if 'calc_parameters' in self.inputs:
             params = self.inputs.calc_parameters
         else:
             params = None # TODO: use defaults?
             
         self.check_input_params(params, is_voronoi=True)
-
-        options = {"max_wallclock_seconds": self.ctx.walltime_sec,
-                   "resources": self.ctx.resources,
-                   "queue_name" : self.ctx.queue}
-
-        inputs = get_inputs_voronoi(structure, voronoicode, options, label, description, params=params)
+        
+        if 'wf_parameters' in self.inputs:
+            wf_params = self.inputs.wf_parameters
+        else:
+            wf_params = None
+        
+        
         self.report('INFO: run voronoi step')
-        future = submit(VoronoiProcess, **inputs)
+        future = submit(kkr_startpot_wc, kkr=kkrcode, voronoi=voronoicode, 
+                        calc_parameters=params, wf_parameters=wf_params, 
+                        structure=structure)
 
         return ToContext(voronoi=future, last_calc=future)
-
-    def get_kkr_param(self):
-        """
-        Always provides the right parameters for a KKR calc, 
-        if needed extracts things from calculation before and changes the input
-        """
-        # prepare parameter node if needed from last kkr or voronoi output
-        if 'calc_parameters' in self.inputs:
-            params = self.inputs.calc_parameters
-        else:
-            params = None 
-            
-        self.check_input_params(params)
-            
-        # TODO for now, but this should (take the defaults?) overwrite user input and overwrite some keys
-        # which we gain out ouf the voronoi calc
-        
-        # check if user provided something
-        # check if voronoi was run and last calc is a voronoi calculation
-        # overwrite things from voronoi
-        # ggf overwrite things from user input
-        
-        # if calculation before was a KKR run, check if things need to be changed.
-        
-        return params
-        
+    
+    
     def run_kkr(self):
-        """
-        run a KKR calculation
-        """
-
-        if self.ctx['last_calc']:
-            remote = self.ctx['last_calc'].out.remote_folder
-        elif 'remote_data' in self.inputs:
-            remote = self.inputs.remote_data
-        else:
-            # Something went wrong?
-            remote = None
-        
-
-        params = self.get_kkr_param()   
-        
-        label = ' '
-        description = ' '
-        if self.ctx.formula:
-            label = 'scf: kkr run {}'.format(self.ctx.loop_count+1)
-            description = '{} kkr run {} on {}'.format(self.ctx.description_wf, self.ctx.loop_count+1, self.ctx.formula)
-        else:
-            label = 'scf: kkr run {}'.format(self.ctx.loop_count+1)
-            description = '{} kkr run {}, voronoi given'.format(self.ctx.description_wf, self.ctx.loop_count+1)
-
-        code = self.inputs.kkr
-        options = {"max_wallclock_seconds": self.ctx.walltime_sec,
-                   "resources": self.ctx.resources,
-                   "queue_name" : self.ctx.queue}#,
-        if self.ctx.custom_scheduler_commands:
-            options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
-        inputs = get_inputs_kkr(code, remote, options, label, description, parameters=params, serial=self.ctx.serial)
-
-
-        future = submit(KkrProcess, **inputs)
-        self.ctx.loop_count = self.ctx.loop_count + 1
-        self.report('INFO: run KKR number: {}'.format(self.ctx.loop_count))
-        self.ctx.calcs.append(future)
-
-        return ToContext(last_calc=future)
-
+        pass
+    
+    def update_kkr_params(self):
+        pass
 
     def inspect_kkr(self):
-        """
-        Analyse the results of the previous KKR Calculation,
-        checking whether it finished successfully or if not troubleshoot the
-        cause and adapt the input parameters accordingly before
-        restarting, or abort if unrecoverable error was found
-        """
-        #expected_states = [calc_states.FINISHED, calc_states.FAILED, 
-        #                   calc_states.SUBMISSIONFAILED]
-        #print(self.ctx['last_calc'])
-        #self.report('I am in inspect_KKR')
-        try:
-            calculation = self.ctx.last_calc
-        except AttributeError:
-            self.ctx.successful = False
-            error = 'ERROR: Something went wrong I do not have a last calculation'
-            self.control_end_wc(error)
-            return
-        calc_state = calculation.get_state()
-        #self.report('the state of the last calculation is: {}'.format(calc_state))
-
-        if calc_state != calc_states.FINISHED:
-            #TODO kill workflow in a controled way, call return results, or write a end_routine
-            self.ctx.successful = False
-            self.ctx.abort = True
-            error = ('ERROR: Last KKR calculation failed somehow it is '
-                    'in state {}'.format(calc_state))
-            self.control_end_wc(error)
-            return
-        elif calc_state == calc_states.FINISHED:
-            pass
-
-    def inspect_voronoi(self):
-        """
-        Analyse if everything was ok with the voronoi calculation
-        """
         pass
-        
+    
     def get_res(self):
-        """
-        Check how the last KKR calculation went
-        Parse some results.
-        """
-
-        if self.ctx.successful:
-            #self.report('last calc successful = {}'.format(self.ctx.successful))
-            last_calc = self.ctx.last_calc
+        pass
 
 
     def condition(self):
@@ -406,6 +354,9 @@ class kkr_scf_wc(WorkChain):
         try: # if something failed, we still might be able to retrieve something
             last_calc_out = self.ctx.last_calc.out['output_parameters']
             last_calc_out_dict = last_calc_out.get_dict()
+        except KeyError:
+            last_calc_out = self.ctx.last_calc.out['']
+            last_calc_out_dict = last_calc_out.get_dict()
         except AttributeError:
             last_calc_out = None
             last_calc_out_dict = {}
@@ -421,13 +372,6 @@ class kkr_scf_wc(WorkChain):
         outputnode_dict['workflow_version'] = self._workflowversion
         outputnode_dict['material'] = self.ctx.formula
         outputnode_dict['loop_count'] = self.ctx.loop_count
-        #outputnode_dict['iterations_total'] = last_calc_out_dict.get('number_of_iterations_total', None)
-        #outputnode_dict['distance_charge'] = last_calc_out_dict.get('charge_density', None)
-        #outputnode_dict['distance_charge_all'] = self.ctx.distance
-        #outputnode_dict['total_energy'] = last_calc_out_dict.get('energy_hartree', None)
-        #outputnode_dict['total_energy_all'] = self.ctx.total_energy
-        #outputnode_dict['distance_charge_units'] = 'me/bohr^3'
-        #outputnode_dict['total_energy_units'] = 'Htr'
         outputnode_dict['warnings'] = self.ctx.warnings
         outputnode_dict['successful'] = self.ctx.successful
         outputnode_dict['last_calc_uuid'] = last_calc_uuid
@@ -481,19 +425,6 @@ class kkr_scf_wc(WorkChain):
             self.out(link_name, node)
 
 
-    def handle_kkr_failure(self):
-        """
-        handle a failure of a KKR calculation
-        """
-        return
-    
-    def handle_voronoi_failure(self):
-        """
-        Handle a failure of voronoi
-        """
-        return
-
-
     def control_end_wc(self, errormsg):
         """
         Controled way to shutdown the workchain. will initalize the output nodes
@@ -525,7 +456,7 @@ class kkr_scf_wc(WorkChain):
             # step 1 try to fill keywords
             try:
                 for key, val in input_dict.iteritems():
-                    para_check.set_value(key, val)
+                    para_check.set_value(key, val, silent=True)
             except:
                 error = 'ERROR: calc_parameters given are not consistent! Hint: did you give an unknown keyword?'
                 self.ctx.errors.append(error)
@@ -588,3 +519,5 @@ def create_scf_result_node(**kwargs):
     #output_para = args[0]
     #return {'output_eos_wc_para'}
     return outdict
+
+        
