@@ -283,8 +283,14 @@ def get_symmetries(outfile_0init):
     f = open(outfile_0init)
     tmptxt = f.readlines()
     f.close()
-    itmp = search_string('symmetries found for this lattice:', tmptxt)
-    nsym = int(tmptxt[itmp].split(':')[1].split()[0])
+    try:
+        itmp = search_string('symmetries found for this lattice:', tmptxt)
+        nsym = int(tmptxt[itmp].split(':')[1].split()[0])
+    except IndexError:
+        itmp = search_string('< FINDGROUP > : Finding symmetry operations', tmptxt)
+        tmptxt2 = tmptxt[itmp:]
+        itmp = search_string('found for this lattice:', tmptxt2)
+        nsym = int(tmptxt2[itmp].split(':')[1].split()[0])
     itmp = search_string('symmetries will be used', tmptxt)
     nsym_used = int(tmptxt[itmp].split()[3])
     itmp = search_string('<SYMTAUMAT>', tmptxt)

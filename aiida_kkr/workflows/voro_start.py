@@ -168,9 +168,9 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.fac_clsincrease = wf_dict.get('fac_cls_increase', self._wf_default['fac_cls_increase'])
         
         # difference in eV to emin (e_fermi) if emin (emax) are larger (smaller) than emin (e_fermi)
-        self._delta_e = wf_dict.get('delta_e_min', self._wf_default['delta_e_min'])
+        self.ctx.delta_e = wf_dict.get('delta_e_min', self._wf_default['delta_e_min'])
         # threshold for dos comparison (comparison of dos at emin)
-        self._threshold_dos_zero = wf_dict.get('threshold_dos_zero', self._wf_default['threshold_dos_zero'])
+        self.ctx.threshold_dos_zero = wf_dict.get('threshold_dos_zero', self._wf_default['threshold_dos_zero'])
         
         #TODO add missing info
         # print the inputs
@@ -182,10 +182,21 @@ class kkr_startpot_wc(WorkChain):
                     'scheduler command: {}\n'
                     'description: {}\n'
                     'label: {}\n'
-                    'dos_params: {}\n'.format(self.ctx.use_mpi, self.ctx.resources, self.ctx.walltime_sec, 
+                    'dos_params: {}\n'
+                    'Max. number of voronoi reruns: {}\n'
+                    'factor cluster increase: {}\n'
+                    'default cluster radius: {}\n'
+                    'min. number of atoms in screening cls: {}\n'
+                    'min. dist in DOS contour to emin/emax: {}\n'
+                    'threshold where DOS is zero: {}\n'.format(self.ctx.use_mpi, 
+                                              self.ctx.resources, self.ctx.walltime_sec, 
                                               self.ctx.queue, self.ctx.custom_scheduler_commands, 
                                               self.ctx.description_wf, self.ctx.label_wf, 
-                                              self.ctx.dos_params_dict))
+                                              self.ctx.dos_params_dict, self.ctx.Nrerun,
+                                              self.ctx.fac_clsincrease, self.ctx.r_cls,
+                                              self.ctx.nclsmin, self.ctx.delta_e, 
+                                              self.ctx.threshold_dos_zero)
+                    )
 
         # return para/vars
         self.ctx.successful = True
@@ -363,14 +374,14 @@ class kkr_startpot_wc(WorkChain):
         # remember: emin and emax are in internal units (Ry) but delta_e and efermi are in eV!
         eV2Ry = 1./get_Ry2eV()
         emin = self.ctx.dos_params_dict['emin']
-        if self.ctx.voro_calc.res.emin - self._delta_e*eV2Ry < emin:
-            self.ctx.dos_params_dict['emin'] = self.ctx.voro_calc.res.emin - self._delta_e*eV2Ry
-            self.report("INFO: emin ({}Ry) - delta_e ({}Ry) smaller than emin ({}Ry) of voronoi output. Setting automatically to {}Ry".format(self.ctx.voro_calc.res.emin, self._delta_e*eV2Ry,  emin, self.ctx.voro_calc.res.emin-self._delta_e*eV2Ry))
+        if self.ctx.voro_calc.res.emin - self.ctx.delta_e*eV2Ry < emin:
+            self.ctx.dos_params_dict['emin'] = self.ctx.voro_calc.res.emin - self.ctx.delta_e*eV2Ry
+            self.report("INFO: emin ({}Ry) - delta_e ({}Ry) smaller than emin ({}Ry) of voronoi output. Setting automatically to {}Ry".format(self.ctx.voro_calc.res.emin, self.ctx.delta_e*eV2Ry,  emin, self.ctx.voro_calc.res.emin-self.ctx.delta_e*eV2Ry))
         efermi = get_ef_from_potfile(self.ctx.voro_calc.out.retrieved.get_abs_path('output.pot'))
         emax = self.ctx.dos_params_dict['emax']
-        if emax < (efermi + self._delta_e)*eV2Ry:
-            self.ctx.dos_params_dict['emax'] = (efermi + self._delta_e)*eV2Ry
-            self.report("INFO: efermi ({}Ry) + delta_e ({}Ry) larger than emax ({}Ry). Setting automatically to {}Ry".format(efermi*eV2Ry, self._delta_e*eV2Ry, emax, (efermi+self._delta_e)*eV2Ry))
+        if emax < (efermi + self.ctx.delta_e)*eV2Ry:
+            self.ctx.dos_params_dict['emax'] = (efermi + self.ctx.delta_e)*eV2Ry
+            self.report("INFO: efermi ({}Ry) + delta_e ({}Ry) larger than emax ({}Ry). Setting automatically to {}Ry".format(efermi*eV2Ry, self.ctx.delta_e*eV2Ry, emax, (efermi+self.ctx.delta_e)*eV2Ry))
 
         #TODO implement other checks?
         
@@ -488,8 +499,8 @@ class kkr_startpot_wc(WorkChain):
                     xrel = abs(x-self.ctx.dos_params_dict['emin']*Ry2eV)
                     mask_emin = where(xrel==xrel.min())
                     ymin = abs(y[mask_emin])
-                    if ymin > self._threshold_dos_zero:
-                        self.report("INFO: DOS at emin not zero! {}>{}".format(ymin,self. _threshold_dos_zero))
+                    if ymin > self.ctx.threshold_dos_zero:
+                        self.report("INFO: DOS at emin not zero! {}>{}".format(ymin,self.ctx.threshold_dos_zero))
                         dos_ok = False
         except AttributeError:
             dos_ok = False

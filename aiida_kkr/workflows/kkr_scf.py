@@ -20,7 +20,7 @@ from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1"
+__version__ = "0.2"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 
@@ -76,8 +76,11 @@ class kkr_scf_wc(WorkChain):
                    'use_mpi' : False,                         # execute KKR with mpi or without
                    'custom_scheduler_commands' : '',          # some additional scheduler commands 
                    'check_dos' : True,                        # check starting DOS for inconsistencies
-                   'dos_params' : {"nepts": 40,               # DOS params: number of points in contour
-                                   "tempr": 200},             # DOS params: temperature
+                   'dos_params' : {'emax': 1,                 # DOS params: maximum of enery contour
+                                   'emin': -1,                # DOS params: minimum of energy contour
+                                   'kmesh': [50, 50, 50],     # DOS params: kmesh for dos run (typically higher than for scf contour)
+                                   'nepts': 61,               # DOS params: number of energy points in DOS contour
+                                   'tempr': 200},             # DOS params: temperature
                    'mag_init' : False,                        # initialize and converge magnetic calculation
                    'mixreduce': 0.5,                          # reduce mixing factor by this factor if calculaito fails due to too large mixing
                    'threshold_aggressive_mixing': 8*10**-3,   # threshold after which agressive mixing is used
@@ -289,27 +292,45 @@ class kkr_scf_wc(WorkChain):
         """
         run the voronoi step calling voro_start workflow
         """
+        
+        # collects inputs
         structure = self.inputs.structure
         self.ctx.formula = structure.get_formula()
         voronoicode = self.inputs.voronoi
         kkrcode = self.inputs.kkr
         
+        # set KKR parameters if any are given, otherwise use defaults
         if 'calc_parameters' in self.inputs:
             params = self.inputs.calc_parameters
         else:
             params = None # TODO: use defaults?
-            
+        
+        # check consistency of input parameters before running calculation
         self.check_input_params(params, is_voronoi=True)
         
+        # set parameters of voro_start sub workflow
+        sub_wf_params_dict = kkr_startpot_wc.get_wf_defaults()
+        label, description = "voro_start_default_params", "workflow parameters for voro_start"
         if 'wf_parameters' in self.inputs:
-            wf_params = self.inputs.wf_parameters
-        else:
-            wf_params = None
+            wf_params_input = self.inputs.wf_parameters.get_dict()
+            num_updated = 0
+            for key in sub_wf_params_dict.keys():
+                if key in wf_params_input.keys():
+                    val = wf_params_input[key]
+                    sub_wf_params_dict[key] = val
+                    num_updated += 1
+            if num_updated > 0:
+                label = "voro_start_updated_params"
+        sub_wf_params = ParameterData(dict=sub_wf_params_dict)
+        sub_wf_params.label = label
+        sub_wf_params.description = description
         
         
         self.report('INFO: run voronoi step')
+        self.report('INFO: using calc_params ({}): {}'.format(params, params.get_dict()))
+        self.report('INFO: using wf_parameters ({}): {}'.format(sub_wf_params, sub_wf_params.get_dict()))
         future = submit(kkr_startpot_wc, kkr=kkrcode, voronoi=voronoicode, 
-                        calc_parameters=params, wf_parameters=wf_params, 
+                        calc_parameters=params, wf_parameters=sub_wf_params, 
                         structure=structure)
 
         return ToContext(voronoi=future, last_calc=future)
@@ -355,8 +376,8 @@ class kkr_scf_wc(WorkChain):
             last_calc_out = self.ctx.last_calc.out['output_parameters']
             last_calc_out_dict = last_calc_out.get_dict()
         except KeyError:
-            last_calc_out = self.ctx.last_calc.out['']
-            last_calc_out_dict = last_calc_out.get_dict()
+            last_calc_out = None #self.ctx.last_calc.out.CALL.out['output_parameters']
+            last_calc_out_dict = {}#last_calc_out.get_dict()
         except AttributeError:
             last_calc_out = None
             last_calc_out_dict = {}
