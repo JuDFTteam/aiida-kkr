@@ -14,13 +14,14 @@ from aiida.common.datastructures import calc_states
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.tools.kkr_params import kkrparams
-from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkr, get_inputs_voronoi
+from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, get_inputs_kkr, 
+                                                  get_parent_paranode, update_params_wf)
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
+__version__ = "0.4"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 
@@ -67,7 +68,7 @@ class kkr_scf_wc(WorkChain):
     1. This workflow does not work with local codes!
     """
 
-    _workflowversion = "0.1.3"
+    _workflowversion = __version__
     _wf_default = {'kkr_runmax': 4,                           # Maximum number of kkr jobs/starts (defauld iterations per start)
                    'convergence_criterion' : 10**-6,          # Stop if charge denisty is converged below this value
                    'queue_name' : '',                         # Queue name to submit jobs too
@@ -134,20 +135,21 @@ class kkr_scf_wc(WorkChain):
         spec.outline(
             cls.start,
             # check if voronoi run needed, otherwise skip this step
-            if_(cls.validate_input)(cls.run_voronoi),
+            if_(cls.validate_input)(
+                    # run kkr_startpot workflow (sets up voronoi input, runs voro calc, does some consistency checks)
+                    cls.run_voronoi,
+                    # check output of run_voronoi and determine if calculation has to be terminated here
+                    cls.check_voronoi),
             # while loop for KKR run(s), first simple mixing
             # then Anderson with corase pre-convergence settings
             # finally convergence step with higher accuracy
-            # settings are initialized/updated in cls.condition
             while_(cls.condition)(
                 # update parameters for kkr step using previous output(s)
                 cls.update_kkr_params,
                 # run kkr step
                 cls.run_kkr,
-                # check results for convergence
-                cls.inspect_kkr,
-                # collect some intermediate results
-                cls.get_res),
+                # check results for convergence and collect some intermediate results
+                cls.inspect_kkr),
             # finalize calculation and create output nodes
             cls.return_results
         )
@@ -161,13 +163,26 @@ class kkr_scf_wc(WorkChain):
                     'INFO: Workchain node identifiers: {}'
                     ''.format(self._workflowversion, ProcessRegistry().current_calc_node))
 
-        ####### init    #######
+        ####### init #######
 
         # internal para /control para
-        self.ctx.last_calc = None
         self.ctx.loop_count = 0
         self.ctx.calcs = []
         self.ctx.abort = False
+        # flags used internally to check whether the individual steps were successful
+        self.ctx.kkr_converged = False
+        self.ctx.dos_ok = False
+        self.ctx.voro_step_success = False
+        self.ctx.kkr_step_success = False
+        self.ctx.kkr_converged = False
+        self.ctx.kkr_higher_accuracy = False
+        # links to previous calculations
+        self.ctx.last_calc = None
+        self.ctx.last_params = None
+        self.ctx.last_remote = None
+        # convergence info about rms etc. (used to determine convergence behavior)
+        self.ctx.last_rms_all = []
+        self.ctx.rms_all_steps = []
 
         # input para
         wf_dict = self.inputs.wf_parameters.get_dict()
@@ -176,7 +191,7 @@ class kkr_scf_wc(WorkChain):
             wf_dict = self._wf_default
             self.report('INFO: using default wf parameter')
 
-        # set values, or defaults
+        # set values from input, or defaults
         self.ctx.use_mpi = wf_dict.get('use_mpi', self._wf_default['use_mpi'])
         self.ctx.max_number_runs = wf_dict.get('kkr_runmax', self._wf_default['kkr_runmax'])
         self.ctx.resources = wf_dict.get('resources', self._wf_default['resources'])
@@ -273,7 +288,7 @@ class kkr_scf_wc(WorkChain):
             try:
                 test_and_get_codenode(inputs.voronoi, 'kkr.voro', use_exceptions=True)
             except ValueError:
-                error = ("The code you provided for voronoi  does not "
+                error = ("The code you provided for voronoi does not "
                          "use the plugin kkr.voro")
                 self.control_end_wc(error)
 
@@ -284,6 +299,12 @@ class kkr_scf_wc(WorkChain):
                 error = ("The code you provided for kkr does not "
                          "use the plugin kkr.kkr")
                 self.control_end_wc(error)
+                
+        # set params and remote folder to input if voronoi step is skipped
+        if not run_voronoi:
+            self.ctx.last_remote = inputs.remote_data
+            self.ctx.last_params = get_parent_paranode(inputs.remote_data)
+            self.ctx.voro_step_success = True
 
         return run_voronoi
 
@@ -336,30 +357,320 @@ class kkr_scf_wc(WorkChain):
         return ToContext(voronoi=future, last_calc=future)
     
     
-    def run_kkr(self):
-        pass
-    
-    def update_kkr_params(self):
-        pass
-
-    def inspect_kkr(self):
-        pass
-    
-    def get_res(self):
-        pass
+    def check_voronoi(self):
+        """
+        check output of kkr_startpot_wc workflow that creates starting potential, shapefun etc.
+        """
+        
+        self.report("INFO: checking voronoi output")
+        voro_step_ok = False
+        
+        # check some output
+        kkrstartpot_results = self.ctx.voronoi.out.results_vorostart_wc.get_dict()
+        if kkrstartpot_results['successful']:
+            voro_step_ok = True
+        # initialize last_remote and last_params (gets updated in loop of KKR calculations)
+        self.ctx.last_params = self.ctx.voronoi.out.last_params_voronoi
+        self.ctx.last_remote = self.ctx.voronoi.out.last_voronoi_remote
+        
+        # store result in context
+        self.ctx.voro_step_success = voro_step_ok
+        
+        # abort calculation if something failed in voro_start step
+        if not voro_step_ok:
+            error = 'ERROR: kkr_startpot_wc step failed!'
+            self.ctx.errors.append(error)
+            self.control_end_wc(error)
+        
+        self.report("INFO: done checking voronoi output")
 
 
     def condition(self):
         """
         check convergence condition
         """
-
-        #density_converged = False
-        #energy_converged = False
-        # TODO do a test first if last_calculation was successful, otherwise,
-        # 'output_parameters' wont exist.
+        self.report("INFO: checking condition for kkr step")
+        do_kkr_step = True
+        stopreason = ''
         
-        return False #TODO:  So war for testing, i.e. do a single KKR calculation only
+        #increment KKR runs loop counter 
+        self.ctx.loop_count += 1
+        
+        # check if initial step was succesful
+        if not self.ctx.voro_step_success:
+            stopreason = 'voronoi step unsucessful'
+            do_kkr_step = False
+            
+        # check if previous calculation reached convergence criterion
+        if self.ctx.kkr_converged:
+            if not self.ctx.kkr_higher_accuracy:
+                do_kkr_step = do_kkr_step & True 
+            else:
+                stopreason = 'KKR converged'
+                do_kkr_step = False
+        else:
+            do_kkr_step = do_kkr_step & True
+            # following check only if calculaiton not converged:
+            # check if maximal number of iterations has been reached
+            if self.ctx.loop_count <= self.ctx.max_number_runs:
+                do_kkr_step = do_kkr_step & True
+            else:
+                error = 'INFO: maximal number of KKR restarts reached. Exiting now!'
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
+        
+        self.report("INFO: done checking condition for kkr step (result={})".format(do_kkr_step))
+        
+        if not do_kkr_step:
+            self.report("INFO: stopreason={}".format(stopreason))
+        
+        return do_kkr_step
+    
+    
+    def update_kkr_params(self):
+        """
+        update set of KKR parameters (check for reduced mixing, change of mixing strategy, change of accuracy setting) 
+        """
+        self.report("INFO: updating kkr param step")
+        decrease_mixing_fac = False
+        switch_agressive_mixing = False
+        switch_higher_accuracy= False
+        initial_settings = False
+                
+        # only do something other than somple mixing after first kkr run
+        if self.ctx.loop_count != 1:
+            # first determine if previous step was successful (otherwise try to find some rms value and decrease mixing to try again)
+            if not self.ctx.kkr_step_success:
+                decrease_mixing_fac = True
+                self.report("INFO: last KKR calculation failed. trying decreasing mixfac")
+                    
+            convergence_on_track = self.convergence_on_track()
+            
+            # check if calculation was on its way to converge
+            if not convergence_on_track:
+                decrease_mixing_fac = True
+                self.report("INFO: last KKR did not converge. trying decreasing mixfac")
+                
+            # check if mixing strategy should be changed
+            last_mixing_scheme = self.ctx.last_params.get_dict()['IMIX']
+            if last_mixing_scheme is None:
+                last_mixing_scheme = 0
+                
+            if convergence_on_track:
+                last_rms = self.ctx.last_rms_all[-1]
+            
+                if last_rms < self.ctx.threshold_aggressive_mixing and last_mixing_scheme == 0:
+                    switch_agressive_mixing = True
+                    self.report("INFO: rms low enough, switch to agressive mixing")
+            
+                # check if switch to higher accuracy should be done
+                if not self.ctx.kkr_higher_accuracy:
+                    if self.ctx.kkr_converged or last_rms < self.ctx.threshold_switch_high_accuracy:
+                        switch_higher_accuracy = True
+                        self.report("INFO: rms low enough, switch to higher accuracy settings")
+        else:
+            initial_settings = True
+        
+        # if needed update parameters
+        if decrease_mixing_fac or switch_agressive_mixing or switch_higher_accuracy or initial_settings:
+            
+            label = ''
+            description = ''
+            
+            # step 1: extract info from last input parameters and check consistency
+            params = self.ctx.last_params
+            input_dict = params.get_dict()
+            para_check = kkrparams()
+                    
+            # step 1.1: try to fill keywords
+            for key, val in input_dict.iteritems():
+                para_check.set_value(key, val, silent=True)
+                
+            # step 1.2: check if all mandatory keys are there
+            missing_list = para_check.get_missing_keys(use_aiida=True)
+            if missing_list != []:
+                error = 'ERROR: calc_parameters misses keys: {}'.format(missing_list)
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
+                
+            # step 2: change parameter (contained in new_params dictionary)
+            last_mixing_scheme = para_check.get_value('IMIX')
+            if last_mixing_scheme is None:
+                last_mixing_scheme = 0
+                
+            strmixfac = self.ctx.strmix
+            brymixfac = self.ctx.brymix
+            nsteps = self.ctx.nsteps
+            
+            # add number of scf steps
+            new_params = {'NSTEPS':nsteps}
+            
+            # step 2.1 fill new_params dict with values to be updated
+            if decrease_mixing_fac:
+                if last_mixing_scheme == 0:
+                    self.report('(strmixfax, mixreduce)= ({}, {})'.format(strmixfac, self.ctx.mixreduce))
+                    self.report('type(strmixfax, mixreduce)= {} {}'.format(type(strmixfac), type(self.ctx.mixreduce)))
+                    strmixfac = strmixfac * self.ctx.mixreduce
+                    self.ctx.strmix = strmixfac
+                    label += 'decreased_mix_fac_str'
+                    description += 'decreased STRMIX factor by {}'.format(self.ctx.mixreduce)
+                else:
+                    self.report('(brymixfax, mixreduce)= ({}, {})'.format(brymixfac, self.ctx.mixreduce))
+                    self.report('type(brymixfax, mixreduce)= {} {}'.format(type(brymixfac), type(self.ctx.mixreduce)))
+                    brymixfac = brymixfac * self.ctx.mixreduce
+                    self.ctx.brymix = brymixfac
+                    label += 'decreased_mix_fac_bry'
+                    description += 'decreased BRYMIX factor by {}'.format(self.ctx.mixreduce)
+                    
+            #add mixing factor
+            new_params['STRMIX'] = strmixfac
+            new_params['BRYMIX'] = brymixfac
+                
+            if switch_agressive_mixing:
+                last_mixing_scheme = 5
+                label += '_switched_to_agressive_mixing'
+                description += ' switched to agressive mixing scheme (IMIX={})'.format(last_mixing_scheme)
+            
+            # add mixing scheme
+            new_params['IMIX'] = last_mixing_scheme
+                
+            if switch_higher_accuracy:
+                self.ctx.kkr_higher_accuracy = True
+                convergence_settings = self.ctx.convergence_setting_fine
+                label += '_use_higher_accuracy'
+                description += ' using higher accuracy settings goven in convergence_setting_fine'
+            else:
+                convergence_settings = self.ctx.convergence_setting_coarse
+            
+            # add convegence settings
+            new_params['NPOL'] = convergence_settings['npol']
+            new_params['NPT1'] = convergence_settings['n1']
+            new_params['NPT2'] = convergence_settings['n2']
+            new_params['NPT3'] = convergence_settings['n3']
+            new_params['TEMPR'] = convergence_settings['tempr']
+            new_params['BZDIVIDE'] = convergence_settings['kmesh']
+            
+            # step 2.2 update values
+            try:
+                for key, val in new_params.iteritems():
+                    para_check.set_value(key, val, silent=True)
+            except:
+                error = 'ERROR: parameter update unsuccessful: some key, value pair not valid!'
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
+                
+            # step 3: 
+            self.report("INFO: update parameters to: {}".format(para_check.get_set_values()))
+            updatenode = ParameterData(dict=para_check.get_dict())
+            updatenode.label = label
+            updatenode.description = description
+            
+            paranode_new = update_params_wf(self.ctx.last_params, updatenode)
+            self.ctx.last_params = paranode_new
+        else:
+            self.report("INFO: reuse old settings")
+        
+        self.report("INFO: done updating kkr param step")
+
+    
+    def run_kkr(self):
+        """
+        submit a KKR calculation
+        """
+        self.report("INFO: setting up kkr calculation step {}".format(self.ctx.loop_count))
+        
+        
+        label = 'KKR calulation step {}'.format(self.ctx.loop_count)
+        description = 'KKR calculation of step {}'.format(self.ctx.loop_count)         
+        code = self.inputs.kkr
+        remote = self.ctx.last_remote
+        params = self.ctx.last_params
+        options = {"max_wallclock_seconds": self.ctx.walltime_sec,
+                   "resources": self.ctx.resources,
+                   "queue_name" : self.ctx.queue}
+        if self.ctx.custom_scheduler_commands:
+            options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
+        inputs = get_inputs_kkr(code, remote, options, label, description, parameters=params, serial=(not self.ctx.use_mpi))
+
+        # run the KKR calculation
+        self.report('INFO: doing calculation')
+        kkr_run = submit(KkrProcess, **inputs)
+
+        return ToContext(kkr=kkr_run, last_calc=kkr_run)
+    
+
+    def inspect_kkr(self):
+        """
+        check for convergence and store some of the results of the last calculation to context
+        """
+        self.report("INFO: inspecting kkr results step")
+        
+        self.ctx.calcs.append(self.ctx.last_calc)
+        self.ctx.kkr_step_success = True
+        
+        # try yo extract remote folder
+        try:
+            self.ctx.last_remote = self.ctx.kkr.out.remote_folder
+        except:
+            self.ctx.last_remote = None
+            self.ctx.kkr_step_success = False
+        
+        self.report("INFO: last_remote: {}".format(self.ctx.last_remote))
+        
+        # check calculation state
+        calc_state = self.ctx.last_calc.get_state()
+        if calc_state != calc_states.FINISHED:
+            self.ctx.kkr_step_success = False
+            
+        self.report("INFO: kkr_step_success: {}".format(self.ctx.kkr_step_success))
+        
+        # extract convergence info about rms etc. (used to determine convergence behavior)
+        try:
+            self.report("INFO: trying to find output of last_calc: {}".format(self.ctx.last_calc))
+            last_calc_output = self.ctx.last_calc.out.output_parameters.get_dict()
+            found_last_calc_output = True
+        except:
+            found_last_calc_output = False
+        self.report("INFO: found_last_calc_output: {}".format(found_last_calc_output))
+            
+        if self.ctx.kkr_step_success and found_last_calc_output:
+            # 
+            self.ctx.kkr_converged = last_calc_output['convergence_group']['calculation_converged']
+            self.ctx.rms.append(last_calc_output['convergence_group']['rms'])
+            rms_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_all_iterations'])
+            
+            self.ctx.last_rms_all = rms_all_iter_last_calc
+            if self.ctx.kkr_step_success and self.convergence_on_track():
+                self.ctx.rms_all_steps += rms_all_iter_last_calc
+        else:
+            self.ctx.kkr_converged = False
+            
+        self.report("INFO: kkr_converged: {}".format(self.ctx.kkr_converged))
+        self.report("INFO: rms: {}".format(self.ctx.rms))
+        self.report("INFO: last_rms_all: {}".format(self.ctx.last_rms_all))
+        self.report("INFO: rms_all_steps: {}".format(self.ctx.rms_all_steps))
+            
+        # TODO: extract something else (maybe total energy, charge neutrality, magnetisation)?
+            
+        self.report("INFO: done inspecting kkr results step")
+        
+        
+    def convergence_on_track(self):
+        """
+        Check if convergence behavior of the last calculation is on track (i.e. going down)
+        """
+        on_track = True
+        
+        if self.ctx.kkr_step_success:
+            last_rms = self.ctx.last_rms_all[-1]
+            if last_rms >= self.ctx.last_rms_all[0]:
+                on_track = False
+                
+        else:
+            on_track = False
+            
+        return on_track
+        
 
 
     def return_results(self):
@@ -368,26 +679,44 @@ class kkr_scf_wc(WorkChain):
         This shoudl run through and produce output nodes even if everything failed,
         therefore it only uses results from context.
         """
+        
+        self.report("INFO: entering return_results")
+        
         try:
             last_calc_uuid = self.ctx.last_calc.uuid
+            last_calc_pk = self.ctx.last_calc.pk
         except AttributeError:
             last_calc_uuid = None
+            last_calc_pk = None
+        try:
+            last_params_uuid = self.ctx.last_params.uuid
+            last_params_pk = self.ctx.last_params.pk
+        except AttributeError:
+            last_params_uuid = None
+            last_params_pk = None
+        try:
+            last_remote_uuid = self.ctx.last_remote.uuid
+            last_remote_pk = self.ctx.last_remote.pk
+        except AttributeError:
+            last_remote_uuid = None
+            last_remote_pk = None
         try: # if something failed, we still might be able to retrieve something
-            last_calc_out = self.ctx.last_calc.out['output_parameters']
+            last_calc_out = self.ctx.kkr.out['output_parameters']
             last_calc_out_dict = last_calc_out.get_dict()
-        except KeyError:
+        except:# KeyError:
             last_calc_out = None #self.ctx.last_calc.out.CALL.out['output_parameters']
             last_calc_out_dict = {}#last_calc_out.get_dict()
-        except AttributeError:
-            last_calc_out = None
-            last_calc_out_dict = {}
+        #except AttributeError:
+        #    last_calc_out = None
+        #    last_calc_out_dict = {}
+            
+        try:
+            last_rms = self.ctx.rms[-1]
+        except:
+            last_rms = None
 
-        try: # do the same for RemoteData node to be able to create a link
-            last_RemoteData = self.ctx.last_calc.out.remote_folder
-        except AttributeError:
-            last_RemoteData = None
 
-
+        self.report("INFO: collect outputnode_dict")
         outputnode_dict = {}
         outputnode_dict['workflow_name'] = self.__class__.__name__
         outputnode_dict['workflow_version'] = self._workflowversion
@@ -395,7 +724,19 @@ class kkr_scf_wc(WorkChain):
         outputnode_dict['loop_count'] = self.ctx.loop_count
         outputnode_dict['warnings'] = self.ctx.warnings
         outputnode_dict['successful'] = self.ctx.successful
-        outputnode_dict['last_calc_uuid'] = last_calc_uuid
+        outputnode_dict['last_params_nodeinfo'] = {'uuid':last_params_uuid, 'pk':last_params_pk}
+        outputnode_dict['last_remote_nodeinfo'] = {'uuid':last_remote_uuid, 'pk':last_remote_pk}
+        outputnode_dict['last_calc_nodeinfo']   = {'uuid':last_calc_uuid,   'pk':last_calc_pk}
+        outputnode_dict['errors'] = self.ctx.errors
+        outputnode_dict['convergence_value'] = last_rms
+        outputnode_dict['convergence_values_all_steps'] = self.ctx.rms_all_steps
+        outputnode_dict['convergence_values_last_step'] = self.ctx.last_rms_all
+        outputnode_dict['dos_check_ok'] = self.ctx.dos_ok
+        outputnode_dict['convergence_reached'] = self.ctx.kkr_converged
+        outputnode_dict['voronoi_step_success'] = self.ctx.voro_step_success
+        outputnode_dict['kkr_step_success'] = self.ctx.kkr_step_success
+        outputnode_dict['used_higher_accuracy'] = self.ctx.kkr_higher_accuracy
+        
         # maybe also store some information about the formula
         #also lognotes, which then can be parsed from subworkflow too workflow, list of calculations involved (pks, and uuids),
         #This node should contain everything you wish to plot, here iteration versus, total energy and distance.
@@ -420,30 +761,30 @@ class kkr_scf_wc(WorkChain):
                             ''.format(self.ctx.loop_count,
                             last_calc_out_dict.get('number_of_iterations_total', None),
                             last_calc_out_dict.get('charge_density', None)))
+                
 
-        #also lognotes, which then can be parsed from subworkflow too workflow, list of calculations involved (pks, and uuids),
-        #This node should contain everything you wish to plot, here iteration versus, total energy and distance.
-
-
+        self.report("INFO: create results node: {}".format(outputnode_dict))
         outputnode_t = ParameterData(dict=outputnode_dict)
         outputnode_t.label = 'kkr_scf_wc_results'
         outputnode_t.description = 'Contains results of workflow (e.g. workflow version number, info about success of wf, lis tof warnings that occured during execution, ...)'
         
          # this is unsafe so far, because last_calc_out could not exist...
         if last_calc_out:
-            outdict = create_scf_result_node(outpara=outputnode_t, last_calc_out=last_calc_out, last_RemoteData=last_RemoteData)
+            outdict = create_scf_result_node(outpara=outputnode_t, last_calc_out=last_calc_out, last_RemoteData=self.ctx.last_remote)
         else:
             outdict = create_scf_result_node(outpara=outputnode_t)
 
         if last_calc_out:
             outdict['last_kkr_calc_output'] = last_calc_out
-            outdict['last_kkr_calc_RemoteData'] = last_RemoteData
 
         # TODO return other nodes? depending what calculation was run
 
         #outdict['output_scf_wc_para'] = outputnode
         for link_name, node in outdict.iteritems():
+            self.report("INFO: storing node {} {} with linkname {}".format(type(node), node, link_name))
             self.out(link_name, node)
+            
+        self.report("INFO: done with kkr_scf workflow!")
 
 
     def control_end_wc(self, errormsg):
@@ -541,4 +882,3 @@ def create_scf_result_node(**kwargs):
     #return {'output_eos_wc_para'}
     return outdict
 
-        

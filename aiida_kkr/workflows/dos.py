@@ -331,6 +331,8 @@ class kkr_dos_wc(WorkChain):
             self.report("INFO: node type: {}".format(type(node)))
             self.out(link_name, node)
             
+        self.report("INFO: done with DOS workflow!")
+            
         
     def control_end_wc(self, errormsg):
         """

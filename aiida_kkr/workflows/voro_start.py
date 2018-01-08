@@ -647,6 +647,8 @@ class kkr_startpot_wc(WorkChain):
             self.report("INFO: storing node '{}' with link name '{}'".format(node, link_name))
             self.report("INFO: node type: {}".format(type(node)))
             self.out(link_name, node)
+            
+        self.report("INFO: done with kkr_startpot workflow!")
  
        
 @wf

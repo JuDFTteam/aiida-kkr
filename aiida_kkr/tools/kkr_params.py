@@ -16,7 +16,7 @@ if version_info[0] >= 3:
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH,"
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
+__version__ = "0.3"
 __contributors__ = u"Philipp Rüßmann"
 
 # This defines the default parameters for KKR used in the aiida plugin:
@@ -83,7 +83,6 @@ class kkrparams(object):
         # overwrite mandatory list for voronoi case abd update keyset
         if self.__params_type == 'voronoi':
             self._update_mandatory_voronoi()
-            self._update_keyset_voronoi()
          
             
     @classmethod
@@ -321,6 +320,7 @@ class kkrparams(object):
             keyword mandatory is a logical stating if keyword needs to be defined to run a calculation
             description is a string containgin human redable info about the keyword
         """
+
         default_keywords = dict([# complete list of keywords, detault all that are not mandatory to None
                                 # lattice
                                 ('ALATBASIS', [None, '%f', True, 'Description of lattice: Length unit in Bohr radii usually conventional lattice parameter']),
@@ -395,6 +395,7 @@ class kkrparams(object):
                                 ('<LLOYD>', [None, '%i', False, "Accuracy, LLoyd's formula: Set to 1 in order to use Lloyd's formula"]),
                                 ('<DELTAE>', [None, '(%f, %f)', False, "Accuracy, LLoyd's formula: Energy difference for derivative calculation in Lloyd's formula"]),
                                 ('<TOLRDIF>', [None, '%f', False, 'Accuracy, Virtual atoms: For distance between scattering-centers smaller than [<TOLRDIF>], free GF is set to zero. Units are Bohr radii.']),
+                                ('<RMTCORE>', [None, '%f', False, 'Accuracy: Muffin tin radium in Bohr radii for each atom site. This sets the value of RMT used internally in the KKRcode. Needs to be smaller than the touching RMT of the cells. In particular for structure relaxations this should be kept constant.']),
                                 # scf cycle
                                 ('NSTEPS', [None, '%i', False, 'Self-consistency control: Max. number of self-consistency iterations. Is reset to 1 in several cases that require only 1 iteration (DOS, Jij, write out GF).']),
                                 ('IMIX', [None, '%i', False, "Self-consistency control: Mixing scheme for potential. 0 means straignt (linear) mixing, 3 means Broyden's 1st method, 4 means Broyden's 2nd method, 5 means Anderson's method"]),
@@ -760,16 +761,6 @@ class kkrparams(object):
         else:
             return valtxt
     '''
-    
-    def _update_keyset_voronoi(self):
-        """Add keys with description only used in voronoi code"""
-        keyw = {'<RMTCORE>':[None, '%f', False, 'Accuracy: Muffin tin radium in Bohr radii for each atom site. This sets the value of RMT used internally in the KKRcode. Needs to be smaller than the touching RMT of the cells. In particular for structure relaxations this should be kept constant.']}
-
-        for key in keyw:
-            self.values[key] = keyw[key][0]
-            self.__format[key] = keyw[key][1]
-            self._mandatory[key] = keyw[key][2]
-            self.__description[key] = keyw[key][3]
         
         
     # redefine _update_mandatory for voronoi code
@@ -807,7 +798,7 @@ class kkrparams(object):
                 if not use_aiida:
                     missing.append(key)
                 else:
-                    if key not in ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ', '<SHAPE>']:
+                    if key not in ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ', '<SHAPE>', 'EMIN']:
                         missing.append(key)
         return missing
     
@@ -815,8 +806,7 @@ class kkrparams(object):
     def update_to_voronoi(self):
         """
         Update parameter settings to match voronoi specification.
-        Sets self.__params_type and calls _update_mandatory_voronoi() and self._update_keyset_voronoi()
+        Sets self.__params_type and calls _update_mandatory_voronoi()
         """
         self.__params_type == 'voronoi'
         self._update_mandatory_voronoi()
-        self._update_keyset_voronoi()

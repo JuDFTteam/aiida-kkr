@@ -340,6 +340,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     from numpy import array
     from aiida_kkr.tools.kkr_params import kkrparams
     from aiida_kkr.tools.common_functions import get_Ang2aBohr, get_alat_from_bravais
+    from aiida_kkr.calculations.voro import VoronoiCalculation
     
     #list of globally used constants
     a_to_bohr = get_Ang2aBohr()
@@ -405,7 +406,10 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     # for KKR calculation set EMIN automatically from parent_calc (ausways in res.emin of voronoi and kkr)
     if ('EMIN' not in input_dict.keys() or input_dict['EMIN'] is None) and parent_calc is not None:
         print('Overwriting EMIN with value from parent calculation')
-        emin = parent_calc.res.emin
+        if isinstance(parent_calc, VoronoiCalculation):
+            emin = parent_calc.res.emin
+        else:
+            emin = parent_calc.res.energy_contour_group['emin']
         print('Setting emin:',emin, 'is emin None?',emin is None)
         params.set_value('EMIN', emin)
         
