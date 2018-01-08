@@ -702,6 +702,9 @@ class kkr_scf_wc(WorkChain):
                 self.report("INFO convergence check: either rms goes up and neutrality goes down or vice versa")
                 self.report("INFO convergence check: but product goes down foast enough")
                 on_track = True
+            elif len(self.ctx.last_rms_all) ==1:
+                self.report("INFO convergence check: already converged after single iteration")
+                on_track = True
             else:
                 self.report("INFO convergence check: rms or neutrality do not shrink fast enough, convergence is not expected")
                 on_track = False
@@ -851,6 +854,12 @@ class kkr_scf_wc(WorkChain):
                                                  last_RemoteData=last_RemoteData,
                                                  last_InputParameters=last_InputParameters,
                                                  results_vorostart=results_vorostart)
+            elif final_dosdata_interpol is not None:
+                outdict = create_scf_result_node(outpara=outputnode_t,
+                                                 last_calc_out=last_calc_out,
+                                                 last_RemoteData=last_RemoteData,
+                                                 last_InputParameters=last_InputParameters,
+                                                 final_dosdata_interpol=final_dosdata_interpol)
             else:
                 outdict = create_scf_result_node(outpara=outputnode_t,
                                                  last_calc_out=last_calc_out,
@@ -927,7 +936,7 @@ class kkr_scf_wc(WorkChain):
             wfdospara_node = ParameterData(dict=wfdospara_dict)
             
             code = self.inputs.kkr
-            remote = self.ctx.voro_calc.out.remote_folder
+            remote = self.ctx.last_calc.out.remote_folder
             future = submit(kkr_dos_wc, kkr=code, remote_data=remote, wf_parameters=wfdospara_node)
             
             return ToContext(doscal=future)

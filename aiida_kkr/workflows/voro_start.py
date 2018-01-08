@@ -297,7 +297,7 @@ class kkr_startpot_wc(WorkChain):
                 params = update_params_wf(self.ctx.last_params, updatenode)
                 self.ctx.last_params = params
             else:
-                updatenode.label = 'updated params'
+                updatenode.label = 'updated params: {}'.format(update_list)
                 # also keep track of last voronoi output if that has been used
                 voro_out = self.ctx.voro_calc.out.output_parameters
                 params = update_voro_input(self.ctx.last_params, updatenode, voro_out)
