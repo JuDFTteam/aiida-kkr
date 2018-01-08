@@ -164,7 +164,7 @@ class kkrparams(object):
         
     def _get_type_from_string(self, fmtstr):
         """Helper function of get_type"""
-        if 'f' in fmtstr:
+        if 'f' in fmtstr or 'e' in fmtstr:
             keytype = float
         elif 'i' in fmtstr:
             keytype = int
@@ -394,7 +394,7 @@ class kkrparams(object):
                                 ('GMAX', [None, '%f', True, 'Accuracy, Ewald summation for Madelung potential: Max. radius in 2*pi/[ALATBASIS] for reciprocal space Ewald sum']),
                                 ('<LLOYD>', [None, '%i', False, "Accuracy, LLoyd's formula: Set to 1 in order to use Lloyd's formula"]),
                                 ('<DELTAE>', [None, '(%f, %f)', False, "Accuracy, LLoyd's formula: Energy difference for derivative calculation in Lloyd's formula"]),
-                                ('<TOLRDIF>', [None, '%f', False, 'Accuracy, Virtual atoms: For distance between scattering-centers smaller than [<TOLRDIF>], free GF is set to zero. Units are Bohr radii.']),
+                                ('<TOLRDIF>', [None, '%e', False, 'Accuracy, Virtual atoms: For distance between scattering-centers smaller than [<TOLRDIF>], free GF is set to zero. Units are Bohr radii.']),
                                 ('<RMTCORE>', [None, '%f', False, 'Accuracy: Muffin tin radium in Bohr radii for each atom site. This sets the value of RMT used internally in the KKRcode. Needs to be smaller than the touching RMT of the cells. In particular for structure relaxations this should be kept constant.']),
                                 # scf cycle
                                 ('NSTEPS', [None, '%i', False, 'Self-consistency control: Max. number of self-consistency iterations. Is reset to 1 in several cases that require only 1 iteration (DOS, Jij, write out GF).']),
@@ -403,7 +403,7 @@ class kkrparams(object):
                                 ('ITDBRY', [None, '%i', False, 'Self-consistency control: ow many iterations to keep in the Broyden/Anderson mixing scheme.']),
                                 ('FCM', [None, '%f', False, 'Self-consistency control: Factor for increased linear mixing of magnetic part of potential compared to non-magnetic part.']),
                                 ('BRYMIX', [None, '%f', False, 'Self-consistency control: Parameter for Broyden mixing.']),
-                                ('QBOUND', [None, '%f', False, 'Self-consistency control: Lower limit of rms-error in potential to stop iterations.']),
+                                ('QBOUND', [None, '%e', False, 'Self-consistency control: Lower limit of rms-error in potential to stop iterations.']),
                                 #code options
                                 ('RUNOPT', [None, '%s%s%s%s%s%s%s%s', False, 'Running and test options: 8-character keywords in a row without spaces between them']),
                                 ('TESTOPT', [None, '%s%s%s%s%s%s%s%s\n%s%s%s%s%s%s%s%s', False, 'Running and test options: optional 8-character keywords in a row without spaces between them plus a secod row of the same.']),

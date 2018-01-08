@@ -525,7 +525,7 @@ class kkr_startpot_wc(WorkChain):
         """
         Controled way to shutdown the workchain. will initalize the output nodes
         """
-        self.report('ERROR: shutting workchain down in a controlled way.')
+        self.report('ERROR: shutting workchain down in a controlled way.\n')
         self.ctx.successful = False
         self.ctx.abort = True
         self.report(errormsg)
@@ -656,7 +656,7 @@ class kkr_startpot_wc(WorkChain):
             self.report("INFO: node type: {}".format(type(node)))
             self.out(link_name, node)
             
-        self.report("INFO: done with kkr_startpot workflow!")
+        self.report("INFO: done with kkr_startpot workflow!\n")
  
        
 @wf

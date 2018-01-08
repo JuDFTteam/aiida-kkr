@@ -29,6 +29,7 @@ __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
 #TODO: check convergence (RMAX, GMAX etc.)
+#TODO: save timing info of the steps
 
 
 RemoteData = DataFactory('remote')
@@ -691,9 +692,14 @@ class kkr_scf_wc(WorkChain):
         
         if self.ctx.kkr_step_success:
             first_rms = self.ctx.last_rms_all[0]
-            first_neutr = self.ctx.last_neutr_all[0]
+            first_neutr = abs(self.ctx.last_neutr_all[0])
             last_rms = self.ctx.last_rms_all[-1]
-            last_neutr = self.ctx.last_neutr_all[-1]
+            last_neutr = abs(self.ctx.last_neutr_all[-1])
+            # use this trick to avoid division by zero
+            if last_neutr == 0:
+                last_neutr = 10**-16
+            if last_rms == 0:
+                last_rms = 10**-16
             r, n = last_rms/first_rms, last_neutr/first_neutr
             self.report("INFO convergence check: first/last rms {}, {}; first/last neutrality {}, {}".format(first_rms, last_rms, first_neutr, last_neutr))
             if r < 1 and n < 1:
@@ -875,14 +881,14 @@ class kkr_scf_wc(WorkChain):
             self.report("INFO: storing node {} {} with linkname {}".format(type(node), node, link_name))
             self.out(link_name, node)
             
-        self.report("INFO: done with kkr_scf workflow!")
+        self.report("INFO: done with kkr_scf workflow!\n")
 
 
     def control_end_wc(self, errormsg):
         """
         Controled way to shutdown the workchain. will initalize the output nodes
         """
-        self.report('ERROR: shutting workchain down in a controlled way.')
+        self.report('ERROR: shutting workchain down in a controlled way.\n')
         self.ctx.successful = False
         self.ctx.abort = True
         self.report(errormsg) # because return_results still fails somewhen

@@ -329,14 +329,14 @@ class kkr_dos_wc(WorkChain):
             self.report("INFO: node type: {}".format(type(node)))
             self.out(link_name, node)
             
-        self.report("INFO: done with DOS workflow!")
+        self.report("INFO: done with DOS workflow!\n")
             
         
     def control_end_wc(self, errormsg):
         """
         Controled way to shutdown the workchain. will initalize the output nodes
         """
-        self.report('ERROR: shutting workchain down in a controlled way.')
+        self.report('ERROR: shutting workchain down in a controlled way.\n')
         self.ctx.successful = False
         self.ctx.abort = True
         self.report(errormsg)
