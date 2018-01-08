@@ -97,22 +97,28 @@ def extract_timings(outfile):
     f.close()
     itmp = 0
     res = []
-    search_keys = ['main0               ', 'main1a - tbref      ', 
-                   'main1a              ', 'main1b - calctref13 ', 
-                   'main1b              ', 'main1c - serial part', 
-                   'main1c              ', 'main2               ', 
-                   'Time in Iteration   ']
+    search_keys = ['main0', 
+                   'main1a - tbref', 
+                   'main1a  ', # two spaces to differentiate from following key
+                   'main1b - calctref13', 
+                   'main1b  ', # two spaces!
+                   'main1c - serial part', 
+                   'main1c  ',# two spaces!
+                   'main2', 
+                   'Time in Iteration']
     while itmp>=0:
         tmpvals = []
         for isearch in search_keys:
             itmp = search_string(isearch, tmptxt)
             if itmp>=0:
-                tmpval = float(tmptxt.pop(itmp).split()[-1])
+                tmpval = [isearch, float(tmptxt.pop(itmp).split()[-1])]
                 tmpvals.append(tmpval)
         if len(tmpvals)>0:
             res.append(tmpvals)
-    res = array(res)[-1]
-    return [[search_keys[i].strip(), res[i]] for i in range(len(res))]
+    #print(res)
+    res = array(res[0])
+    #print(dict(res))
+    return dict(res)
 
 
 def get_charges_per_atom(outfile_000):

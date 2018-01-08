@@ -166,6 +166,7 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.r_cls = wf_dict.get('r_cls', self._wf_default['r_cls'])
         self.ctx.nclsmin = wf_dict.get('natom_in_cls_min', self._wf_default['natom_in_cls_min'])
         self.ctx.fac_clsincrease = wf_dict.get('fac_cls_increase', self._wf_default['fac_cls_increase'])
+        self.ctx.efermi = None
         
         # difference in eV to emin (e_fermi) if emin (emax) are larger (smaller) than emin (e_fermi)
         self.ctx.delta_e = wf_dict.get('delta_e_min', self._wf_default['delta_e_min'])
@@ -377,11 +378,11 @@ class kkr_startpot_wc(WorkChain):
         if self.ctx.voro_calc.res.emin - self.ctx.delta_e*eV2Ry < emin:
             self.ctx.dos_params_dict['emin'] = self.ctx.voro_calc.res.emin - self.ctx.delta_e*eV2Ry
             self.report("INFO: emin ({}Ry) - delta_e ({}Ry) smaller than emin ({}Ry) of voronoi output. Setting automatically to {}Ry".format(self.ctx.voro_calc.res.emin, self.ctx.delta_e*eV2Ry,  emin, self.ctx.voro_calc.res.emin-self.ctx.delta_e*eV2Ry))
-        efermi = get_ef_from_potfile(self.ctx.voro_calc.out.retrieved.get_abs_path('output.pot'))
+        self.ctx.efermi = get_ef_from_potfile(self.ctx.voro_calc.out.retrieved.get_abs_path('output.pot'))
         emax = self.ctx.dos_params_dict['emax']
-        if emax < (efermi + self.ctx.delta_e)*eV2Ry:
-            self.ctx.dos_params_dict['emax'] = (efermi + self.ctx.delta_e)*eV2Ry
-            self.report("INFO: efermi ({}Ry) + delta_e ({}Ry) larger than emax ({}Ry). Setting automatically to {}Ry".format(efermi*eV2Ry, self.ctx.delta_e*eV2Ry, emax, (efermi+self.ctx.delta_e)*eV2Ry))
+        if emax < (self.ctx.efermi + self.ctx.delta_e)*eV2Ry:
+            self.ctx.dos_params_dict['emax'] = (self.ctx.efermi + self.ctx.delta_e)*eV2Ry
+            self.report("INFO: self.ctx.efermi ({}Ry) + delta_e ({}Ry) larger than emax ({}Ry). Setting automatically to {}Ry".format(self.ctx.efermi*eV2Ry, self.ctx.delta_e*eV2Ry, emax, (self.ctx.efermi+self.ctx.delta_e)*eV2Ry))
 
         #TODO implement other checks?
         
@@ -561,6 +562,7 @@ class kkr_startpot_wc(WorkChain):
         res_node_dict['max_iterations'] = self.ctx.Nrerun
         res_node_dict['last_voro_ok'] = self.ctx.voro_ok
         res_node_dict['last_dos_ok'] = self.ctx.doscheck_ok
+        res_node_dict['starting_fermi_energy'] = self.ctx.efermi
         
         
         res_node = ParameterData(dict=res_node_dict)

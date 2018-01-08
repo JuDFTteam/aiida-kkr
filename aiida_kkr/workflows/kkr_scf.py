@@ -17,6 +17,8 @@ from aiida_kkr.tools.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, get_inputs_kkr, 
                                                   get_parent_paranode, update_params_wf)
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
+from aiida_kkr.workflows.dos import kkr_dos_wc
+from numpy import array
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -150,6 +152,8 @@ class kkr_scf_wc(WorkChain):
                 cls.run_kkr,
                 # check results for convergence and collect some intermediate results
                 cls.inspect_kkr),
+            # compute final dos if check_dos is True
+            cls.get_dos,
             # finalize calculation and create output nodes
             cls.return_results
         )
@@ -167,6 +171,7 @@ class kkr_scf_wc(WorkChain):
 
         # internal para /control para
         self.ctx.loop_count = 0
+        self.ctx.last_mixing_scheme = 0
         self.ctx.calcs = []
         self.ctx.abort = False
         # flags used internally to check whether the individual steps were successful
@@ -183,6 +188,8 @@ class kkr_scf_wc(WorkChain):
         # convergence info about rms etc. (used to determine convergence behavior)
         self.ctx.last_rms_all = []
         self.ctx.rms_all_steps = []
+        self.ctx.last_neutr_all = []
+        self.ctx.neutr_all_steps = []
 
         # input para
         wf_dict = self.inputs.wf_parameters.get_dict()
@@ -258,6 +265,7 @@ class kkr_scf_wc(WorkChain):
         # return para/vars
         self.ctx.successful = True
         self.ctx.rms = []
+        self.ctx.neutr = []
         self.ctx.warnings = []
         self.ctx.errors = []
         self.ctx.formula = ''
@@ -410,14 +418,14 @@ class kkr_scf_wc(WorkChain):
                 do_kkr_step = False
         else:
             do_kkr_step = do_kkr_step & True
-            # following check only if calculaiton not converged:
-            # check if maximal number of iterations has been reached
-            if self.ctx.loop_count <= self.ctx.max_number_runs:
-                do_kkr_step = do_kkr_step & True
-            else:
-                error = 'INFO: maximal number of KKR restarts reached. Exiting now!'
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+            
+        # check if maximal number of iterations has been reached
+        if self.ctx.loop_count <= self.ctx.max_number_runs:
+            do_kkr_step = do_kkr_step & True
+        else:
+            error = 'INFO: maximal number of KKR restarts reached. Exiting now!'
+            self.ctx.errors.append(error)
+            self.control_end_wc(error)
         
         self.report("INFO: done checking condition for kkr step (result={})".format(do_kkr_step))
         
@@ -528,21 +536,26 @@ class kkr_scf_wc(WorkChain):
                 
             if switch_agressive_mixing:
                 last_mixing_scheme = 5
-                label += '_switched_to_agressive_mixing'
+                label += ' switched_to_agressive_mixing'
                 description += ' switched to agressive mixing scheme (IMIX={})'.format(last_mixing_scheme)
             
             # add mixing scheme
             new_params['IMIX'] = last_mixing_scheme
+            self.ctx.last_mixing_scheme = last_mixing_scheme
                 
             if switch_higher_accuracy:
                 self.ctx.kkr_higher_accuracy = True
                 convergence_settings = self.ctx.convergence_setting_fine
-                label += '_use_higher_accuracy'
+                label += ' use_higher_accuracy'
                 description += ' using higher accuracy settings goven in convergence_setting_fine'
             else:
                 convergence_settings = self.ctx.convergence_setting_coarse
             
             # add convegence settings
+            if self.ctx.loop_count == 1 or self.ctx.last_mixing_scheme == 0:
+                new_params['QBOUND'] = self.ctx.threshold_aggressive_mixing
+            else:
+                new_params['QBOUND'] = self.ctx.convergence_criterion
             new_params['NPOL'] = convergence_settings['npol']
             new_params['NPT1'] = convergence_settings['n1']
             new_params['NPT2'] = convergence_settings['n2']
@@ -580,8 +593,8 @@ class kkr_scf_wc(WorkChain):
         self.report("INFO: setting up kkr calculation step {}".format(self.ctx.loop_count))
         
         
-        label = 'KKR calulation step {}'.format(self.ctx.loop_count)
-        description = 'KKR calculation of step {}'.format(self.ctx.loop_count)         
+        label = 'KKR calculation step {} (IMIX={})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
+        description = 'KKR calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)         
         code = self.inputs.kkr
         remote = self.ctx.last_remote
         params = self.ctx.last_params
@@ -634,14 +647,21 @@ class kkr_scf_wc(WorkChain):
         self.report("INFO: found_last_calc_output: {}".format(found_last_calc_output))
             
         if self.ctx.kkr_step_success and found_last_calc_output:
-            # 
+            # check convergence
             self.ctx.kkr_converged = last_calc_output['convergence_group']['calculation_converged']
+            # check rms
             self.ctx.rms.append(last_calc_output['convergence_group']['rms'])
             rms_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_all_iterations'])
+            #check charge neutrality
+            self.ctx.neutr.append(last_calc_output['convergence_group']['charge_neutrality'])
+            neutr_all_iter_last_calc = list(last_calc_output['convergence_group']['charge_neutrality_all_iterations'])
             
+            # add lists of last iterations
             self.ctx.last_rms_all = rms_all_iter_last_calc
+            self.ctx.last_neutr_all = neutr_all_iter_last_calc
             if self.ctx.kkr_step_success and self.convergence_on_track():
                 self.ctx.rms_all_steps += rms_all_iter_last_calc
+                self.ctx.neutr_all_steps += neutr_all_iter_last_calc
         else:
             self.ctx.kkr_converged = False
             
@@ -649,6 +669,9 @@ class kkr_scf_wc(WorkChain):
         self.report("INFO: rms: {}".format(self.ctx.rms))
         self.report("INFO: last_rms_all: {}".format(self.ctx.last_rms_all))
         self.report("INFO: rms_all_steps: {}".format(self.ctx.rms_all_steps))
+        self.report("INFO: charge_neutrality: {}".format(self.ctx.neutr))
+        self.report("INFO: last_neutr_all: {}".format(self.ctx.last_neutr_all))
+        self.report("INFO: neutr_all_steps: {}".format(self.ctx.neutr_all_steps))
             
         # TODO: extract something else (maybe total energy, charge neutrality, magnetisation)?
             
@@ -660,14 +683,33 @@ class kkr_scf_wc(WorkChain):
         Check if convergence behavior of the last calculation is on track (i.e. going down)
         """
         on_track = True
+        threshold = 5. # used to check condition if at least one of charnge_neutrality, rms-error goes down fast enough
         
         if self.ctx.kkr_step_success:
+            first_rms = self.ctx.last_rms_all[0]
+            first_neutr = self.ctx.last_neutr_all[0]
             last_rms = self.ctx.last_rms_all[-1]
-            if last_rms >= self.ctx.last_rms_all[0]:
+            last_neutr = self.ctx.last_neutr_all[-1]
+            r, n = last_rms/first_rms, last_neutr/first_neutr
+            self.report("INFO convergence check: first/last rms {}, {}; first/last neutrality {}, {}".format(first_rms, last_rms, first_neutr, last_neutr))
+            if r < 1 and n < 1:
+                self.report("INFO convergence check: both rms and neutrality go down")
+                on_track = True
+            elif n > threshold or r > threshold:
+                self.report("INFO convergence check: rms or neutrality goes up too fast, convergence is not expected")
                 on_track = False
-                
+            elif n*r < 1:
+                self.report("INFO convergence check: either rms goes up and neutrality goes down or vice versa")
+                self.report("INFO convergence check: but product goes down foast enough")
+                on_track = True
+            else:
+                self.report("INFO convergence check: rms or neutrality do not shrink fast enough, convergence is not expected")
+                on_track = False
         else:
+            self.report("INFO convergence check: calculation unsuccessful")
             on_track = False
+            
+        self.report("INFO convergence check result: {}".format(on_track)) 
             
         return on_track
         
@@ -681,41 +723,59 @@ class kkr_scf_wc(WorkChain):
         """
         
         self.report("INFO: entering return_results")
-        
+    
+        # try/except to capture as mnuch as possible (everything that is there even when workflow exits unsuccessfully)
+        # capture pk and uuids of last calc, params and remote
         try:
             last_calc_uuid = self.ctx.last_calc.uuid
             last_calc_pk = self.ctx.last_calc.pk
-        except AttributeError:
-            last_calc_uuid = None
-            last_calc_pk = None
-        try:
             last_params_uuid = self.ctx.last_params.uuid
             last_params_pk = self.ctx.last_params.pk
-        except AttributeError:
-            last_params_uuid = None
-            last_params_pk = None
-        try:
             last_remote_uuid = self.ctx.last_remote.uuid
             last_remote_pk = self.ctx.last_remote.pk
-        except AttributeError:
+        except:
+            last_calc_uuid = None
+            last_calc_pk = None
+            last_params_uuid = None
+            last_params_pk = None
             last_remote_uuid = None
             last_remote_pk = None
-        try: # if something failed, we still might be able to retrieve something
+            
+        # capture links to last parameter, calcualtion and output
+        try:
             last_calc_out = self.ctx.kkr.out['output_parameters']
             last_calc_out_dict = last_calc_out.get_dict()
-        except:# KeyError:
-            last_calc_out = None #self.ctx.last_calc.out.CALL.out['output_parameters']
-            last_calc_out_dict = {}#last_calc_out.get_dict()
-        #except AttributeError:
-        #    last_calc_out = None
-        #    last_calc_out_dict = {}
+            last_RemoteData = self.ctx.last_remote 
+            last_InputParameters = self.ctx.last_params
+        except:
+            last_InputParameters = None
+            last_RemoteData = None
+            last_calc_out = None
+            last_calc_out_dict = {}
             
+        # capture convergence info
         try:
             last_rms = self.ctx.rms[-1]
+            last_neutr = self.ctx.neutr[-1]
         except:
             last_rms = None
+            last_neutr = None
+            
+        # capture result of vorostart sub-workflow
+        try:
+            results_vorostart = self.ctx.voronoi.out.results_vorostart_wc
+            starting_dosdata_interpol = self.ctx.voronoi.out.last_doscal_dosdata_interpol
+        except:
+            results_vorostart = None
+            starting_dosdata_interpol = None
+            
+        #TODO: run final DOS with some checks and link to output
+        try:
+            final_dosdata_interpol = None
+        except:
+            final_dosdata_interpol = None
 
-
+        # now collect results saved in results node of workflow
         self.report("INFO: collect outputnode_dict")
         outputnode_dict = {}
         outputnode_dict['workflow_name'] = self.__class__.__name__
@@ -729,26 +789,24 @@ class kkr_scf_wc(WorkChain):
         outputnode_dict['last_calc_nodeinfo']   = {'uuid':last_calc_uuid,   'pk':last_calc_pk}
         outputnode_dict['errors'] = self.ctx.errors
         outputnode_dict['convergence_value'] = last_rms
-        outputnode_dict['convergence_values_all_steps'] = self.ctx.rms_all_steps
-        outputnode_dict['convergence_values_last_step'] = self.ctx.last_rms_all
+        outputnode_dict['convergence_values_all_steps'] = array(self.ctx.rms_all_steps)
+        outputnode_dict['convergence_values_last_step'] = array(self.ctx.last_rms_all)
+        outputnode_dict['charge_neutrality'] = last_neutr
+        outputnode_dict['charge_neutrality_all_steps'] = array(self.ctx.neutr_all_steps)
+        outputnode_dict['charge_neutrality_last_step'] = array(self.ctx.last_neutr_all)
         outputnode_dict['dos_check_ok'] = self.ctx.dos_ok
         outputnode_dict['convergence_reached'] = self.ctx.kkr_converged
         outputnode_dict['voronoi_step_success'] = self.ctx.voro_step_success
         outputnode_dict['kkr_step_success'] = self.ctx.kkr_step_success
         outputnode_dict['used_higher_accuracy'] = self.ctx.kkr_higher_accuracy
         
-        # maybe also store some information about the formula
-        #also lognotes, which then can be parsed from subworkflow too workflow, list of calculations involved (pks, and uuids),
-        #This node should contain everything you wish to plot, here iteration versus, total energy and distance.
-
+        # report the status 
         if self.ctx.successful:
             self.report('STATUS: Done, the convergence criteria are reached.\n'
                         'INFO: The charge density of the KKR calculation pk= '
-                        'converged after {} KKR runs and {} iterations to {} '
-                        '"me/bohr^3" \n'.format(self.ctx.loop_count,
+                        'converged after {} KKR runs and {} iterations to {} \n'.format(self.ctx.loop_count,
                                        last_calc_out_dict.get('number_of_iterations_total', None),
                                        last_calc_out_dict.get('charge_density', None)))
-
         else: # Termination ok, but not converged yet...
             if self.ctx.abort: # some error occured, donot use the output.
                 self.report('STATUS/ERROR: I abort, see logs and '
@@ -762,24 +820,45 @@ class kkr_scf_wc(WorkChain):
                             last_calc_out_dict.get('number_of_iterations_total', None),
                             last_calc_out_dict.get('charge_density', None)))
                 
-
+        # create results  node
         self.report("INFO: create results node: {}".format(outputnode_dict))
         outputnode_t = ParameterData(dict=outputnode_dict)
         outputnode_t.label = 'kkr_scf_wc_results'
         outputnode_t.description = 'Contains results of workflow (e.g. workflow version number, info about success of wf, lis tof warnings that occured during execution, ...)'
+                
         
-         # this is unsafe so far, because last_calc_out could not exist...
-        if last_calc_out:
-            outdict = create_scf_result_node(outpara=outputnode_t, last_calc_out=last_calc_out, last_RemoteData=self.ctx.last_remote)
+        # collect nodes in outputs dictionary
+        # call helper function to create output nodes in correct AiiDA graph structure
+        if last_calc_out is not None and last_RemoteData is not None and last_InputParameters is not None:
+            if results_vorostart is not None and starting_dosdata_interpol is not None and final_dosdata_interpol is not None:
+                outdict = create_scf_result_node(outpara=outputnode_t,
+                                                 last_calc_out=last_calc_out,
+                                                 last_RemoteData=last_RemoteData,
+                                                 last_InputParameters=last_InputParameters,
+                                                 final_dosdata_interpol=final_dosdata_interpol,
+                                                 starting_dosdata_interpol=starting_dosdata_interpol,
+                                                 results_vorostart=results_vorostart)
+            elif results_vorostart is not None and starting_dosdata_interpol is not None:
+                outdict = create_scf_result_node(outpara=outputnode_t,
+                                                 last_calc_out=last_calc_out,
+                                                 last_RemoteData=last_RemoteData,
+                                                 last_InputParameters=last_InputParameters,
+                                                 starting_dosdata_interpol=starting_dosdata_interpol,
+                                                 results_vorostart=results_vorostart)
+            elif results_vorostart is not None:
+                outdict = create_scf_result_node(outpara=outputnode_t,
+                                                 last_calc_out=last_calc_out,
+                                                 last_RemoteData=last_RemoteData,
+                                                 last_InputParameters=last_InputParameters,
+                                                 results_vorostart=results_vorostart)
+            else:
+                outdict = create_scf_result_node(outpara=outputnode_t,
+                                                 last_calc_out=last_calc_out,
+                                                 last_RemoteData=last_RemoteData,
+                                                 last_InputParameters=last_InputParameters)
         else:
-            outdict = create_scf_result_node(outpara=outputnode_t)
+            outdict = create_scf_result_node(outpara=outputnode_t)        
 
-        if last_calc_out:
-            outdict['last_kkr_calc_output'] = last_calc_out
-
-        # TODO return other nodes? depending what calculation was run
-
-        #outdict['output_scf_wc_para'] = outputnode
         for link_name, node in outdict.iteritems():
             self.report("INFO: storing node {} {} with linkname {}".format(type(node), node, link_name))
             self.out(link_name, node)
@@ -830,6 +909,103 @@ class kkr_scf_wc(WorkChain):
                 error = 'ERROR: calc_parameters given are not consistent! Hint: are all mandatory keys set?'
                 self.ctx.errors.append(error)
                 self.control_end_wc(error)
+                
+        
+    def get_dos(self):
+        """
+        call to dos sub workflow passing the appropriate input and submitting the calculation
+        """
+        if self.ctx.check_dos:
+            self.report("INFO: Doing final DOS calculation")
+            # take subset of input and prepare parameter node for dos workflow
+            wfdospara_dict = {'queue_name' : self.ctx.queue, 
+                              'resources': self.ctx.resources,
+                              'walltime_sec' : self.ctx.walltime_sec,
+                              'use_mpi' : self.ctx.use_mpi,
+                              'custom_scheduler_commands' : self.ctx.custom_scheduler_commands,
+                              'dos_params' : self.ctx.dos_params}
+            wfdospara_node = ParameterData(dict=wfdospara_dict)
+            
+            code = self.inputs.kkr
+            remote = self.ctx.voro_calc.out.remote_folder
+            future = submit(kkr_dos_wc, kkr=code, remote_data=remote, wf_parameters=wfdospara_node)
+            
+            return ToContext(doscal=future)
+        
+    
+    def check_dos(self):
+        """
+        checks if dos of final potential is ok
+        """
+        self.ctx.dos_ok = True
+        
+        # check parser output
+        doscal = self.ctx.doscal
+        try:
+            dos_outdict = doscal.out.results_wf.get_dict()
+            if not dos_outdict['successful']:
+                self.report("ERROR: DOS workflow unsuccessful")
+                self.ctx.dos_ok = False
+                error = "DOS run unsuccessful. Check inputs."
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
+                
+            if dos_outdict['list_of_errors'] != []:
+                self.report("ERROR: DOS wf output contains errors: {}".format(dos_outdict['list_of_errors']))
+                self.ctx.dos_ok = False
+                error = "DOS run unsuccessful. Check inputs."
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
+        except AttributeError:
+            self.ctx.dos_ok = False
+            error = "DOS run unsuccessful. Check inputs."
+            self.ctx.errors.append(error)
+            self.control_end_wc(error)
+            
+        # check for negative DOS
+        try:
+            dosdata = doscal.out.dos_data
+            natom = self.ctx.last_calc.out.output_parameters.get_dict()['number_of_atoms_in_unit_cell']
+            nspin = dos_outdict['nspin']
+            
+            ener = dosdata.get_x()[1] # shape= natom*nspin, nept
+            totdos = dosdata.get_y()[0][1] # shape= natom*nspin, nept
+            
+            if len(ener) != nspin*natom:
+                self.report("ERROR: DOS output shape does not fit nspin, natom information: len(energies)={}, natom={}, nspin={}".format(len(ener), natom, nspin))
+                self.ctx.doscheck_ok = False
+                error = "DOS run inconsistent. Check inputs."
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
+                
+            # deal with snpin==1 or 2 cases and check negtive DOS
+            for iatom in range(natom/nspin):
+                for ispin in range(nspin):
+                    x, y = ener[iatom*2+ispin], totdos[iatom*2+ispin]
+                    if nspin == 2 and ispin == 0:
+                        y = -y
+                    if y.min() < 0:
+                        self.report("INFO: negative DOS value found in (atom, spin)=({},{}) at iteration {}".format(iatom, ispin, self.ctx.iter))
+                        self.ctx.dos_ok = False
+            
+            # check starting EMIN
+            dosdata_interpol = doscal.out.dos_data_interpol
+            
+            ener = dosdata_interpol.get_x()[1] # shape= natom*nspin, nept
+            totdos = dosdata_interpol.get_y()[0][1] # shape= natom*nspin, nept
+            Ry2eV = get_Ry2eV()
+            
+            for iatom in range(natom/nspin):
+                for ispin in range(nspin):
+                    x, y = ener[iatom*2+ispin], totdos[iatom*2+ispin]
+                    xrel = abs(x-self.ctx.dos_params_dict['emin']*Ry2eV)
+                    mask_emin = where(xrel==xrel.min())
+                    ymin = abs(y[mask_emin])
+                    if ymin > self.ctx.threshold_dos_zero:
+                        self.report("INFO: DOS at emin not zero! {}>{}".format(ymin,self.ctx.threshold_dos_zero))
+                        self.ctx.dos_ok = False
+        except AttributeError:
+            self.ctx.dos_ok = False
    
              
 
@@ -846,6 +1022,10 @@ def create_scf_result_node(**kwargs):
     has_last_outpara = False
     has_last_calc_out_dict = False
     has_last_RemoteData = False
+    has_vorostart_output = False
+    has_starting_dos = False
+    has_final_dos = False
+    
     for key, val in kwargs.iteritems():
         if key == 'outpara': #  should always be there
             outpara = val
@@ -853,32 +1033,72 @@ def create_scf_result_node(**kwargs):
         elif key == 'last_calc_out':
             has_last_calc_out_dict = True
             last_calc_out_dict = val
-        elif key =='last_RemoteData':
+        elif key == 'last_RemoteData':
             last_RemoteData_dict = val
             has_last_RemoteData = True
+        elif key == 'last_InputParameters':
+            last_InputParameters_dict = val
+            has_last_InputParameters = True
+        elif key == 'results_vorostart':
+            has_vorostart_output = True
+            vorostart_output_dict = val
+        elif key == 'starting_dosdata_interpol':
+            has_starting_dos = True
+            start_dosdata_interpol_dict = val
+        elif key == 'final_dosdata_interpol':
+            has_final_dos = True
+            final_dosdata_interpol_dict = val
             
     outdict = {}
+    
     if has_last_outpara:
         outputnode = outpara.copy()
-        outputnode.label = 'output_kkr_scf_wc_para'
+        outputnode.label = 'workflow_Results'
         outputnode.description = ('Contains self-consistency results and '
                                   'information of an kkr_scf_wc run.')
         outdict['output_kkr_scf_wc_ParameterResults'] = outputnode
-    if has_last_calc_out_dict:
-        outputnode2 = last_calc_out_dict.copy()
-        outputnode2.label = 'output_kkr_scf_wc_lastResults'
-        outputnode2.description = ('Contains the Results Parameter node from the output '
-                                   'of the last calculation done in the workflow.')
-        outdict['output_kkr_scf_wc_lastResults'] = outputnode2
-    if has_last_RemoteData:
-        outputnode3 = last_RemoteData_dict.copy()
-        outputnode3.label = 'output_kkr_scf_wc_lastRemoteData'
-        outputnode3.description = ('Contains a link to the latest remote data node '
-                                   'where the output of the calculation can be accessed.')
-        outdict['output_kkr_scf_wc_lastRemoteData'] = outputnode3
     
-    # copy, because we rather produce the same node twice then have a circle in the database for now...
-    #output_para = args[0]
-    #return {'output_eos_wc_para'}
+    if has_last_calc_out_dict:
+        outputnode = last_calc_out_dict.copy()
+        outputnode.label = 'last_calc_out'
+        outputnode.description = ('Contains the Results Parameter node from the output '
+                                   'of the last calculation done in the workflow.')
+        outdict['last_calc_out'] = outputnode
+    
+    if has_last_RemoteData:
+        outputnode = last_RemoteData_dict.copy()
+        outputnode.label = 'last_RemoteData'
+        outputnode.description = ('Contains a link to the latest remote data node '
+                                   'where the output of the calculation can be accessed.')
+        outdict['last_RemoteData'] = outputnode
+    
+    if has_last_InputParameters:
+        outputnode = last_InputParameters_dict.copy()
+        outputnode.label = 'last_InputParameters'
+        outputnode.description = ('Contains the latest parameter data node '
+                                   'where the input of the last calculation can be found.')
+        outdict['last_InputParameters_dict'] = outputnode
+    
+    if has_vorostart_output:
+        outputnode = vorostart_output_dict.copy()
+        outputnode.label = 'results_vorostart'
+        outputnode.description = ('Contains the results parameter data node '
+                                   'of the vorostart sub-workflow (sets up starting portentials).')
+        outdict['results_vorostart'] = outputnode
+    
+    if has_starting_dos:
+        outputnode = start_dosdata_interpol_dict.copy()
+        outputnode.label = 'starting_dosdata_interpol'
+        outputnode.description = ('Contains the interpolated DOS data note, computed '
+                                   'from the starting portential.')
+        outdict['starting_dosdata_interpol'] = outputnode
+    
+    if has_final_dos:
+        outputnode = final_dosdata_interpol_dict.copy()
+        outputnode.label = 'final_dosdata_interpol'
+        outputnode.description = ('Contains the interpolated DOS data note, computed '
+                                   'from the converged potential.')
+        outdict['final_dosdata_interpol'] = outputnode
+        
     return outdict
 
