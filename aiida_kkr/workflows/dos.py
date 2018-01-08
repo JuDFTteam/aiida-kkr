@@ -25,7 +25,7 @@ from aiida.common.datastructures import calc_states
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
+__version__ = "0.3"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -262,8 +262,6 @@ class kkr_dos_wc(WorkChain):
         inputs = get_inputs_kkr(code, remote, options, label, description, parameters=params, serial=(not self.ctx.use_mpi))
 
         # run the DOS calculation
-        #from pprint import pprint
-        #pprint(inputs)
         self.report('INFO: doing calculation')
         dosrun = submit(KkrProcess, **inputs)
 
@@ -341,9 +339,8 @@ class kkr_dos_wc(WorkChain):
         self.report('ERROR: shutting workchain down in a controlled way.')
         self.ctx.successful = False
         self.ctx.abort = True
-        self.report(errormsg) # because return_results still fails somewhen
+        self.report(errormsg)
         self.return_results()
-        #self.abort_nowait(errormsg)
         self.abort(errormsg)
     
     
@@ -430,15 +427,3 @@ def create_dos_result_node_minimal(outputnode):
     outdict = {}
     outdict['results_wf'] = outputnode.copy()
     return outdict
-
-        
-        
-    
-"""   
-if __name__=='__main__':
-    from aiida import is_dbenv_loaded, load_dbenv
-    if not is_dbenv_loaded():
-        load_dbenv()
-    d0 = '/Users/ruess/sourcecodes/aiida/development/'
-    dosnodes = parse_dosfiles(d0)
-"""
