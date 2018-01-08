@@ -18,7 +18,8 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, get_inp
                                                   get_parent_paranode, update_params_wf)
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.dos import kkr_dos_wc
-from numpy import array
+from aiida_kkr.tools.common_functions import get_Ry2eV
+from numpy import array, where
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -774,7 +775,7 @@ class kkr_scf_wc(WorkChain):
             
         #TODO: run final DOS with some checks and link to output
         try:
-            final_dosdata_interpol = None
+            final_dosdata_interpol = self.ctx.doscal.out.dos_data_interpol
         except:
             final_dosdata_interpol = None
 
@@ -947,6 +948,7 @@ class kkr_scf_wc(WorkChain):
         checks if dos of final potential is ok
         """
         self.ctx.dos_ok = True
+        self.report("INFO: checking DOS for consistency (EMIN position, negative DOS, etc.)")
         
         # check parser output
         doscal = self.ctx.doscal
