@@ -24,8 +24,11 @@ from numpy import array, where
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4"
+__version__ = "0.5"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
+
+#TODO: magnetism (init and converge magnetic state)
+#TODO: check convergence (RMAX, GMAX etc.)
 
 
 RemoteData = DataFactory('remote')
@@ -73,7 +76,7 @@ class kkr_scf_wc(WorkChain):
 
     _workflowversion = __version__
     _wf_default = {'kkr_runmax': 4,                           # Maximum number of kkr jobs/starts (defauld iterations per start)
-                   'convergence_criterion' : 10**-6,          # Stop if charge denisty is converged below this value
+                   'convergence_criterion' : 10**-8,          # Stop if charge denisty is converged below this value
                    'queue_name' : '',                         # Queue name to submit jobs too
                    'resources': {"num_machines": 1},          # resources to allowcate for the job
                    'walltime_sec' : 60*60,                    # walltime after which the job gets killed (gets parsed to KKR)
@@ -82,14 +85,14 @@ class kkr_scf_wc(WorkChain):
                    'check_dos' : True,                        # check starting DOS for inconsistencies
                    'dos_params' : {'emax': 1,                 # DOS params: maximum of enery contour
                                    'emin': -1,                # DOS params: minimum of energy contour
-                                   'kmesh': [50, 50, 50],     # DOS params: kmesh for dos run (typically higher than for scf contour)
+                                   'kmesh': [40, 40, 40],     # DOS params: kmesh for dos run (typically higher than for scf contour)
                                    'nepts': 61,               # DOS params: number of energy points in DOS contour
                                    'tempr': 200},             # DOS params: temperature
                    'mag_init' : False,                        # initialize and converge magnetic calculation
                    'mixreduce': 0.5,                          # reduce mixing factor by this factor if calculaito fails due to too large mixing
                    'threshold_aggressive_mixing': 8*10**-3,   # threshold after which agressive mixing is used
-                   'strmix': 0.01,                            # mixing factor of simple mixing
-                   'brymix': 0.01,                            # mixing factor of aggressive mixing
+                   'strmix': 0.03,                            # mixing factor of simple mixing
+                   'brymix': 0.03,                            # mixing factor of aggressive mixing
                    'nsteps': 30,                              # number of iterations done per KKR calculation
                    'convergence_setting_coarse': {            # setting of the coarse preconvergence
                         'npol': 7, 
@@ -773,7 +776,6 @@ class kkr_scf_wc(WorkChain):
             results_vorostart = None
             starting_dosdata_interpol = None
             
-        #TODO: run final DOS with some checks and link to output
         try:
             final_dosdata_interpol = self.ctx.doscal.out.dos_data_interpol
         except:

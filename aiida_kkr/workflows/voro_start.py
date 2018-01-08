@@ -25,7 +25,7 @@ from numpy import where
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.4"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -528,7 +528,7 @@ class kkr_startpot_wc(WorkChain):
         self.report('ERROR: shutting workchain down in a controlled way.')
         self.ctx.successful = False
         self.ctx.abort = True
-        self.report(errormsg) # because return_results still fails somewhen
+        self.report(errormsg)
         self.return_results()
         self.abort(errormsg)
         
@@ -669,9 +669,7 @@ def create_vorostart_result_nodes(**kwargs):
     # always needs to be there
     if 'results' in kwargs.keys():
         outdict['results_vorostart_wc'] = kwargs['results']
-        
-    print kwargs
-        
+                
     # other results only there if calculation is a success
     if 'last_doscal_results' in kwargs.keys():
         outdict['last_doscal_results'] = kwargs['last_doscal_results']
