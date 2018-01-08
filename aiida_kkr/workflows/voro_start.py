@@ -67,7 +67,8 @@ class kkr_startpot_wc(WorkChain):
                    'r_cls' : 1.3,                            # default cluster radius, is increased iteratively
                    'natom_in_cls_min' : 79,                  # minimum number of atoms in screening cluster
                    'delta_e_min' : 1.,                       # minimal distance in DOS contour to emin and emax in eV
-                   'threshold_dos_zero' : 10**-3             # 
+                   'threshold_dos_zero' : 10**-3,            # 
+                   'check_dos': True                         # logical to determine if DOS is computed and checked
                 }
                    
     _wf_label = ''
@@ -161,6 +162,7 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.is_starting_iter = True
         self.ctx.doscheck_ok = False
         self.ctx.voro_ok = False
+        self.ctx.check_dos = wf_dict.get('check_dos', self._wf_default['check_dos'])
         
         # some physical parameters that are reused
         self.ctx.r_cls = wf_dict.get('r_cls', self._wf_default['r_cls'])
@@ -415,21 +417,22 @@ class kkr_startpot_wc(WorkChain):
         """
         call to dos sub workflow passing the appropriate input and submitting the calculation
         """
-        self.report("INFO: Doing DOS calculation in iteration {}".format(self.ctx.iter))
-        # take subset of input and prepare parameter node for dos workflow
-        wfdospara_dict = {'queue_name' : self.ctx.queue, 
-                          'resources': self.ctx.resources,
-                          'walltime_sec' : self.ctx.walltime_sec,
-                          'use_mpi' : self.ctx.use_mpi,
-                          'custom_scheduler_commands' : self.ctx.custom_scheduler_commands,
-                          'dos_params' : self.ctx.dos_params_dict}
-        wfdospara_node = ParameterData(dict=wfdospara_dict)
-        
-        code = self.inputs.kkr
-        remote = self.ctx.voro_calc.out.remote_folder
-        future = submit(kkr_dos_wc, kkr=code, remote_data=remote, wf_parameters=wfdospara_node)
-        
-        return ToContext(doscal=future)
+        if self.ctx.check_dos:
+            self.report("INFO: Doing DOS calculation in iteration {}".format(self.ctx.iter))
+            # take subset of input and prepare parameter node for dos workflow
+            wfdospara_dict = {'queue_name' : self.ctx.queue, 
+                              'resources': self.ctx.resources,
+                              'walltime_sec' : self.ctx.walltime_sec,
+                              'use_mpi' : self.ctx.use_mpi,
+                              'custom_scheduler_commands' : self.ctx.custom_scheduler_commands,
+                              'dos_params' : self.ctx.dos_params_dict}
+            wfdospara_node = ParameterData(dict=wfdospara_dict)
+            
+            code = self.inputs.kkr
+            remote = self.ctx.voro_calc.out.remote_folder
+            future = submit(kkr_dos_wc, kkr=code, remote_data=remote, wf_parameters=wfdospara_node)
+            
+            return ToContext(doscal=future)
         
         
     def check_dos(self):
@@ -438,79 +441,79 @@ class kkr_startpot_wc(WorkChain):
         """
         dos_ok = True
         
-        # check parser output
-        doscal = self.ctx.doscal
-        try:
-            dos_outdict = doscal.out.results_wf.get_dict()
-            if not dos_outdict['successful']:
-                self.report("ERROR: DOS workflow unsuccessful")
+        if self.ctx.check_dos:
+            # check parser output
+            doscal = self.ctx.doscal
+            try:
+                dos_outdict = doscal.out.results_wf.get_dict()
+                if not dos_outdict['successful']:
+                    self.report("ERROR: DOS workflow unsuccessful")
+                    self.ctx.doscheck_ok = False
+                    error = "DOS run unsuccessful. Check inputs."
+                    self.ctx.errors.append(error)
+                    self.control_end_wc(error)
+                    
+                if dos_outdict['list_of_errors'] != []:
+                    self.report("ERROR: DOS wf output contains errors: {}".format(dos_outdict['list_of_errors']))
+                    self.ctx.doscheck_ok = False
+                    error = "DOS run unsuccessful. Check inputs."
+                    self.ctx.errors.append(error)
+                    self.control_end_wc(error)
+            except AttributeError:
                 self.ctx.doscheck_ok = False
                 error = "DOS run unsuccessful. Check inputs."
                 self.ctx.errors.append(error)
                 self.control_end_wc(error)
                 
-            if dos_outdict['list_of_errors'] != []:
-                self.report("ERROR: DOS wf output contains errors: {}".format(dos_outdict['list_of_errors']))
-                self.ctx.doscheck_ok = False
-                error = "DOS run unsuccessful. Check inputs."
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
-        except AttributeError:
-            self.ctx.doscheck_ok = False
-            error = "DOS run unsuccessful. Check inputs."
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
-            
-        # check for negative DOS
-        try:
-            dosdata = doscal.out.dos_data
-            natom = len(self.ctx.voro_calc.res.shapes)
-            nspin = dos_outdict['nspin']
-            
-            ener = dosdata.get_x()[1] # shape= natom*nspin, nept
-            totdos = dosdata.get_y()[0][1] # shape= natom*nspin, nept
-            
-            if len(ener) != nspin*natom:
-                self.report("ERROR: DOS output shape does not fit nspin, natom information: len(energies)={}, natom={}, nspin={}".format(len(ener), natom, nspin))
-                self.ctx.doscheck_ok = False
-                error = "DOS run inconsistent. Check inputs."
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+            # check for negative DOS
+            try:
+                dosdata = doscal.out.dos_data
+                natom = len(self.ctx.voro_calc.res.shapes)
+                nspin = dos_outdict['nspin']
                 
-            # deal with snpin==1 or 2 cases and check negtive DOS
-            for iatom in range(natom/nspin):
-                for ispin in range(nspin):
-                    x, y = ener[iatom*2+ispin], totdos[iatom*2+ispin]
-                    if nspin == 2 and ispin == 0:
-                        y = -y
-                    if y.min() < 0:
-                        self.report("INFO: negative DOS value found in (atom, spin)=({},{}) at iteration {}".format(iatom, ispin, self.ctx.iter))
-                        dos_ok = False
+                ener = dosdata.get_x()[1] # shape= natom*nspin, nept
+                totdos = dosdata.get_y()[0][1] # shape= natom*nspin, nept
+                
+                if len(ener) != nspin*natom:
+                    self.report("ERROR: DOS output shape does not fit nspin, natom information: len(energies)={}, natom={}, nspin={}".format(len(ener), natom, nspin))
+                    self.ctx.doscheck_ok = False
+                    error = "DOS run inconsistent. Check inputs."
+                    self.ctx.errors.append(error)
+                    self.control_end_wc(error)
+                    
+                # deal with snpin==1 or 2 cases and check negtive DOS
+                for iatom in range(natom/nspin):
+                    for ispin in range(nspin):
+                        x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
+                        if nspin == 2 and ispin == 0:
+                            y = -y
+                        if y.min() < 0:
+                            self.report("INFO: negative DOS value found in (atom, spin)=({},{}) at iteration {}".format(iatom, ispin, self.ctx.iter))
+                            dos_ok = False
+                
+                # check starting EMIN
+                dosdata_interpol = doscal.out.dos_data_interpol
+                
+                ener = dosdata_interpol.get_x()[1] # shape= natom*nspin, nept
+                totdos = dosdata_interpol.get_y()[0][1] # shape= natom*nspin, nept
+                Ry2eV = get_Ry2eV()
+                
+                for iatom in range(natom/nspin):
+                    for ispin in range(nspin):
+                        x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
+                        xrel = abs(x-self.ctx.dos_params_dict['emin']*Ry2eV)
+                        mask_emin = where(xrel==xrel.min())
+                        ymin = abs(y[mask_emin])
+                        if ymin > self.ctx.threshold_dos_zero:
+                            self.report("INFO: DOS at emin not zero! {}>{}".format(ymin,self.ctx.threshold_dos_zero))
+                            dos_ok = False
+            except AttributeError:
+                dos_ok = False
             
-            # check starting EMIN
-            dosdata_interpol = doscal.out.dos_data_interpol
+            #TODO check semi-core-states
             
-            ener = dosdata_interpol.get_x()[1] # shape= natom*nspin, nept
-            totdos = dosdata_interpol.get_y()[0][1] # shape= natom*nspin, nept
-            Ry2eV = get_Ry2eV()
+            #TODO check rest of dos_output node if something seems important to check
             
-            for iatom in range(natom/nspin):
-                for ispin in range(nspin):
-                    x, y = ener[iatom*2+ispin], totdos[iatom*2+ispin]
-                    xrel = abs(x-self.ctx.dos_params_dict['emin']*Ry2eV)
-                    mask_emin = where(xrel==xrel.min())
-                    ymin = abs(y[mask_emin])
-                    if ymin > self.ctx.threshold_dos_zero:
-                        self.report("INFO: DOS at emin not zero! {}>{}".format(ymin,self.ctx.threshold_dos_zero))
-                        dos_ok = False
-        except AttributeError:
-            dos_ok = False
-        
-        #TODO check semi-core-states
-        
-        #TODO check rest of dos_output node if something seems important to check
-        
-        
         # finally set the value in context (needed in do_iteration_check)
         if dos_ok:
             self.ctx.doscheck_ok = True
@@ -592,27 +595,30 @@ class kkr_startpot_wc(WorkChain):
         try:
             doscal = self.ctx.doscal.out.results_wf
         except AttributeError:
-            self.report("ERROR: Results ParameterNode of DOS calc (pk={}) not found".format(self.ctx.doscal.pk))
+            self.report("ERROR: Results ParameterNode of DOS calc not found")
             doscal = None
         try:
             dosdata = self.ctx.doscal.out.dos_data
         except AttributeError:
-            self.report("ERROR: DOS data of DOS calc (pk={}) not found".format(self.ctx.doscal.pk))
+            self.report("ERROR: DOS data of DOS calc not found")
             dosdata = None
         try:
             dosdata_interpol = self.ctx.doscal.out.dos_data_interpol
         except AttributeError:
-            self.report("ERROR: interpolated DOS data of DOS calc (pk={}) not found".format(self.ctx.doscal.pk))
+            self.report("ERROR: interpolated DOS data of DOS calc not found")
             dosdata_interpol = None
             
         self.report("INFO: last_voro_calc={}".format(self.ctx.voro_calc))
         self.report("INFO: voro_results={}".format(voro_calc))
         self.report("INFO: voro_remote={}".format(voro_remote))
         self.report("INFO: last_params={}".format(last_params))
-        self.report("INFO: last doscal={}".format(self.ctx.doscal))
-        self.report("INFO: doscal_results={}".format(doscal))
-        self.report("INFO: dosdata={}".format(dosdata))
-        self.report("INFO: dosdata_interpol={}".format(dosdata_interpol))
+        try:
+            self.report("INFO: last doscal={}".format(self.ctx.doscal))
+            self.report("INFO: doscal_results={}".format(doscal))
+            self.report("INFO: dosdata={}".format(dosdata))
+            self.report("INFO: dosdata_interpol={}".format(dosdata_interpol))
+        except:
+            self.report("INFO: no doscal data")
             
             
         voronodes_present = False

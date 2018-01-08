@@ -992,7 +992,7 @@ class kkr_scf_wc(WorkChain):
             # deal with snpin==1 or 2 cases and check negtive DOS
             for iatom in range(natom/nspin):
                 for ispin in range(nspin):
-                    x, y = ener[iatom*2+ispin], totdos[iatom*2+ispin]
+                    x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
                     if nspin == 2 and ispin == 0:
                         y = -y
                     if y.min() < 0:
@@ -1008,7 +1008,7 @@ class kkr_scf_wc(WorkChain):
             
             for iatom in range(natom/nspin):
                 for ispin in range(nspin):
-                    x, y = ener[iatom*2+ispin], totdos[iatom*2+ispin]
+                    x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
                     xrel = abs(x-self.ctx.dos_params_dict['emin']*Ry2eV)
                     mask_emin = where(xrel==xrel.min())
                     ymin = abs(y[mask_emin])
