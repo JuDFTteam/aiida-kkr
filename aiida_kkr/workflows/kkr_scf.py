@@ -30,7 +30,7 @@ __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 #TODO: magnetism (init and converge magnetic state)
 #TODO: check convergence (RMAX, GMAX etc.)
 #TODO: save timing info of the steps
-
+#TODO: switch to LLOYD
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
@@ -424,13 +424,15 @@ class kkr_scf_wc(WorkChain):
         else:
             do_kkr_step = do_kkr_step & True
             
-        # check if maximal number of iterations has been reached
-        if self.ctx.loop_count <= self.ctx.max_number_runs:
-            do_kkr_step = do_kkr_step & True
-        else:
-            error = 'INFO: maximal number of KKR restarts reached. Exiting now!'
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
+        # next check only needed if another iteration should be done after validating convergence etc. (previous checks)
+        if do_kkr_step:
+            # check if maximal number of iterations has been reached
+            if self.ctx.loop_count <= self.ctx.max_number_runs:
+                do_kkr_step = do_kkr_step & True
+            else:
+                error = 'INFO: maximal number of KKR restarts reached. Exiting now!'
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
         
         self.report("INFO: done checking condition for kkr step (result={})".format(do_kkr_step))
         
@@ -777,9 +779,11 @@ class kkr_scf_wc(WorkChain):
         # capture result of vorostart sub-workflow
         try:
             results_vorostart = self.ctx.voronoi.out.results_vorostart_wc
-            starting_dosdata_interpol = self.ctx.voronoi.out.last_doscal_dosdata_interpol
         except:
             results_vorostart = None
+        try:
+            starting_dosdata_interpol = self.ctx.voronoi.out.last_doscal_dosdata_interpol
+        except:
             starting_dosdata_interpol = None
             
         try:
@@ -924,7 +928,7 @@ class kkr_scf_wc(WorkChain):
             # step 2: check if all mandatory keys are there
             missing_list = para_check.get_missing_keys(use_aiida=True)
             if missing_list != []:
-                error = 'ERROR: calc_parameters given are not consistent! Hint: are all mandatory keys set?'
+                error = 'ERROR: calc_parameters given are not consistent! Missing mandatory keys: {}'.format(missing_list)
                 self.ctx.errors.append(error)
                 self.control_end_wc(error)
                 
@@ -1044,6 +1048,7 @@ def create_scf_result_node(**kwargs):
     has_vorostart_output = False
     has_starting_dos = False
     has_final_dos = False
+    has_last_InputParameters = False
     
     for key, val in kwargs.iteritems():
         if key == 'outpara': #  should always be there

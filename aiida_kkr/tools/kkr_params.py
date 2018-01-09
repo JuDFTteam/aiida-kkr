@@ -798,7 +798,7 @@ class kkrparams(object):
                 if not use_aiida:
                     missing.append(key)
                 else:
-                    if key not in ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ', '<SHAPE>', 'EMIN']:
+                    if key not in ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ', '<SHAPE>', 'EMIN', 'RCLUSTZ']:
                         missing.append(key)
         return missing
     
