@@ -3,8 +3,10 @@
 from __future__ import print_function
 import sys
 
-from aiida_kkr.tools.common_functions import get_corestates_from_potential, get_highest_core_state
-from aiida_kkr.tools.common_functions import search_string, get_version_info
+from aiida_kkr.tools.common_functions import (get_corestates_from_potential, 
+                                              get_highest_core_state, search_string, 
+                                              get_version_info, get_Ry2eV, 
+                                              get_ef_from_potfile)
 
 
 # redefine raw_input for python 3/2.7 compatilbility
@@ -76,6 +78,11 @@ def parse_voronoi_output(out_dict, outfile, potfile, atominfo, radii, inputfile)
         emin = check_voronoi_output(potfile, outfile)
         out_dict['emin'] = emin
         out_dict['emin_units'] = 'Ry'
+        diff_emin_ef = emin - get_ef_from_potfile(potfile)
+        out_dict['emin_minus_efermi_Ry'] = diff_emin_ef
+        out_dict['emin_minus_efermi'] = diff_emin_ef * get_Ry2eV()
+        out_dict['emin_minus_efermi_Ry_units'] = 'Ry'
+        out_dict['emin_minus_efermi_units'] = 'eV'
     except:
         msg = "Error parsing output of voronoi: 'EMIN'"
         msg_list.append(msg)
@@ -152,7 +159,7 @@ def parse_voronoi_output(out_dict, outfile, potfile, atominfo, radii, inputfile)
         out_dict['fpradius_atoms'] = results
         out_dict['fpradius_atoms_unit'] = 'alat'
     except:
-        msg = "Error parsing ourput of voronoi: full potential radius"
+        msg = "Error parsing output of voronoi: full potential radius"
         msg_list.append(msg)
         
     try:
@@ -160,7 +167,7 @@ def parse_voronoi_output(out_dict, outfile, potfile, atominfo, radii, inputfile)
         out_dict['alat'] = result
         out_dict['alat_unit'] = 'a_Bohr'
     except:
-        msg = "Error parsing ourput of voronoi: alat"
+        msg = "Error parsing output of voronoi: alat"
         msg_list.append(msg)
         
         
@@ -299,6 +306,7 @@ def get_radii(naez, radii):
         results.append(tmpline)
     return results
 
+    
 def get_fpradius(naez, atominfo):
     f = open(atominfo)
     txt = f.readlines()
@@ -312,6 +320,7 @@ def get_fpradius(naez, atominfo):
         results.append(tmpline)
     return results
 
+    
 def get_alat(inpfile):
     f = open(inpfile)
     txt = f.readlines()
@@ -319,4 +328,5 @@ def get_alat(inpfile):
     itmp = search_string('ALATBASIS', txt)
     result = float(txt[itmp].split('ALATBASIS')[1].split('=')[1].split()[0])
     return result
+    
     
