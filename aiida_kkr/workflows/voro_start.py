@@ -58,17 +58,18 @@ class kkr_startpot_wc(WorkChain):
                    'use_mpi' : False,                        # execute KKR with mpi or without
                    'custom_scheduler_commands' : '',         # some additional scheduler commands 
                    'dos_params' : {"nepts": 61,              # DOS params: number of points in contour
-                                   "tempr": 200,             # DOS params: temperature
-                                   "emin": -1,               # DOS params: start of energy contour
-                                   "emax": 1,                # DOS params: end of energy contour
+                                   "tempr": 200, # K         # DOS params: temperature
+                                   "emin": -1, # Ry          # DOS params: start of energy contour
+                                   "emax": 1,  # Ry          # DOS params: end of energy contour
                                    "kmesh": [50, 50, 50]},   # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
                    'num_rerun' : 3,                          # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
-                   'fac_cls_increase' : 1.3,                 # factor by which the screening cluster is increased each iteration (up to num_rerun times)
-                   'r_cls' : 1.3,                            # default cluster radius, is increased iteratively
+                   'fac_cls_increase' : 1.3, # alat          # factor by which the screening cluster is increased each iteration (up to num_rerun times)
+                   'r_cls' : 1.3,            # alat          # default cluster radius, is increased iteratively
                    'natom_in_cls_min' : 79,                  # minimum number of atoms in screening cluster
-                   'delta_e_min' : 1.,                       # minimal distance in DOS contour to emin and emax in eV
-                   'threshold_dos_zero' : 10**-3,            # 
-                   'check_dos': True                         # logical to determine if DOS is computed and checked
+                   'delta_e_min' : 1., # eV                  # minimal distance in DOS contour to emin and emax in eV
+                   'threshold_dos_zero' : 10**-3, #states/eV # 
+                   'check_dos': True,                        # logical to determine if DOS is computed and checked
+                   'delta_e_min_core_states' : 1.0 # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
                 }
                    
     _wf_label = ''
@@ -163,6 +164,7 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.doscheck_ok = False
         self.ctx.voro_ok = False
         self.ctx.check_dos = wf_dict.get('check_dos', self._wf_default['check_dos'])
+        self.ctx.dos_check_fail_reason = None
         
         # some physical parameters that are reused
         self.ctx.r_cls = wf_dict.get('r_cls', self._wf_default['r_cls'])
@@ -174,6 +176,7 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.delta_e = wf_dict.get('delta_e_min', self._wf_default['delta_e_min'])
         # threshold for dos comparison (comparison of dos at emin)
         self.ctx.threshold_dos_zero = wf_dict.get('threshold_dos_zero', self._wf_default['threshold_dos_zero'])
+        self.ctx.min_dist_core_states = wf_dict.get('delta_e_min_core_states', self._wf_default['delta_e_min_core_states'])
         
         #TODO add missing info
         # print the inputs
@@ -188,17 +191,19 @@ class kkr_startpot_wc(WorkChain):
                     'dos_params: {}\n'
                     'Max. number of voronoi reruns: {}\n'
                     'factor cluster increase: {}\n'
-                    'default cluster radius: {}\n'
+                    'default cluster radius (in alat): {}\n'
                     'min. number of atoms in screening cls: {}\n'
-                    'min. dist in DOS contour to emin/emax: {}\n'
-                    'threshold where DOS is zero: {}\n'.format(self.ctx.use_mpi, 
+                    'min. dist in DOS contour to emin/emax: {} eV\n'
+                    'threshold where DOS is zero: {} states/eV\n'
+                    'minimal distance of highest core state from EMIN: {} Ry\n'.format(self.ctx.use_mpi, 
                                               self.ctx.resources, self.ctx.walltime_sec, 
                                               self.ctx.queue, self.ctx.custom_scheduler_commands, 
                                               self.ctx.description_wf, self.ctx.label_wf, 
                                               self.ctx.dos_params_dict, self.ctx.Nrerun,
                                               self.ctx.fac_clsincrease, self.ctx.r_cls,
                                               self.ctx.nclsmin, self.ctx.delta_e, 
-                                              self.ctx.threshold_dos_zero)
+                                              self.ctx.threshold_dos_zero,
+                                              self.ctx.min_dist_core_states)
                     )
 
         # return para/vars
@@ -233,7 +238,9 @@ class kkr_startpot_wc(WorkChain):
         
         # increase some parameters
         if self.ctx.iter > 1:
-            self.ctx.r_cls = self.ctx.r_cls * self.ctx.fac_clsincrease
+            # check if cluster size is actually the reason for failure
+            if self.ctx.dos_check_fail_reason not in ['EMIN too high', 'core state in contour', 'core state too close']:
+                self.ctx.r_cls = self.ctx.r_cls * self.ctx.fac_clsincrease
     
         structure = self.inputs.structure
         self.ctx.formula = structure.get_formula()
@@ -286,11 +293,24 @@ class kkr_startpot_wc(WorkChain):
         else:
             updated_params = True
             update_list.append('RCLUSTZ')
-        
+            
+        # check if emin should be changed:
+        if self.ctx.iter > 1 and self.ctx.dos_check_fail_reason == 'EMIN too high':
+            # decrease emin  by self.ctx.delta_e
+            emin_old = self.ctx.voro_calc.res.emin
+            eV2Ry = 1./get_Ry2eV()
+            emin_new = emin_old - self.ctx.delta_e/eV2Ry
+            updated_params = True
+            update_list.append('EMIN')
+            
         # store updated nodes
         if updated_params:
+            # set values that are updated
             if 'RCLUSTZ' in update_list:
                 kkr_para.set_value('RCLUSTZ', self.ctx.r_cls)
+            if 'EMIN' in update_list:
+                kkr_para.set_value('EMIN', emin_new)
+                
             updatenode = ParameterData(dict=kkr_para.get_dict())
             updatenode.description = 'changed values: {}'.format(update_list)
             if first_iter:
@@ -427,10 +447,16 @@ class kkr_startpot_wc(WorkChain):
                               'custom_scheduler_commands' : self.ctx.custom_scheduler_commands,
                               'dos_params' : self.ctx.dos_params_dict}
             wfdospara_node = ParameterData(dict=wfdospara_dict)
+            wfdospara_node.label = 'DOS params'
+            wfdospara_node.description = 'DOS parameters passed from kkr_startpot_wc input to DOS sub-workflow'
             
             code = self.inputs.kkr
             remote = self.ctx.voro_calc.out.remote_folder
-            future = submit(kkr_dos_wc, kkr=code, remote_data=remote, wf_parameters=wfdospara_node)
+            wf_label= 'DOS calculation'
+            wf_desc = 'subworkflow of a DOS calculation that perform a singe-shot KKR calc.'
+            future = submit(kkr_dos_wc, kkr=code, remote_data=remote, 
+                            wf_parameters=wfdospara_node, 
+                            _label=wf_label, _description=wf_desc)
             
             return ToContext(doscal=future)
         
@@ -440,6 +466,7 @@ class kkr_startpot_wc(WorkChain):
         checks if dos of starting potential is ok
         """
         dos_ok = True
+        self.ctx.dos_check_fail_reason = None
         
         if self.ctx.check_dos:
             # check parser output
@@ -490,6 +517,7 @@ class kkr_startpot_wc(WorkChain):
                         if y.min() < 0:
                             self.report("INFO: negative DOS value found in (atom, spin)=({},{}) at iteration {}".format(iatom, ispin, self.ctx.iter))
                             dos_ok = False
+                            self.ctx.dos_check_fail_reason = 'DOS negative'
                 
                 # check starting EMIN
                 dosdata_interpol = doscal.out.dos_data_interpol
@@ -507,10 +535,26 @@ class kkr_startpot_wc(WorkChain):
                         if ymin > self.ctx.threshold_dos_zero:
                             self.report("INFO: DOS at emin not zero! {}>{}".format(ymin,self.ctx.threshold_dos_zero))
                             dos_ok = False
+                            self.ctx.dos_check_fail_reason = 'EMIN too high'
             except AttributeError:
                 dos_ok = False
             
-            #TODO check semi-core-states
+            # check for position of core states
+            emin = self.ctx.voro_calc.res.emin
+            ecore_all = self.ctx.voro_calc.res.core_states_group.get('energy_highest_lying_core_state_per_atom')
+            ecore_max = max(ecore_all)
+            self.report("INFO: emin= {} Ry".format(emin))
+            self.report("INFO: highest core state= {} Ry".format(ecore_max))
+            if ecore_max >= emin:
+                self.report("ERROR: contour contains core states!!!")
+                dos_ok = False
+                self.ctx.dos_check_fail_reason = 'core state in contour'
+            elif abs(ecore_max-emin) < self.ctx.min_dist_core_states:
+                self.report("ERROR: core states too close to energy contour start!!!")
+                dos_ok = False
+                self.ctx.dos_check_fail_reason = 'core state too close'
+                
+            #TODO check for semi-core-states
             
             #TODO check rest of dos_output node if something seems important to check
             
@@ -652,8 +696,8 @@ class kkr_startpot_wc(WorkChain):
     
         
         for link_name, node in outdict.iteritems():
-            self.report("INFO: storing node '{}' with link name '{}'".format(node, link_name))
-            self.report("INFO: node type: {}".format(type(node)))
+            #self.report("INFO: storing node '{}' with link name '{}'".format(node, link_name))
+            #self.report("INFO: node type: {}".format(type(node)))
             self.out(link_name, node)
             
         self.report("INFO: done with kkr_startpot workflow!\n")

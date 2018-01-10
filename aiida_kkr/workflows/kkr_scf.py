@@ -114,7 +114,7 @@ class kkr_scf_wc(WorkChain):
                         'tempr': 473.0,
                         'kmesh': [30, 30, 30]},
                    'delta_e_min' : 1.,                        # minimal distance in DOS contour to emin and emax in eV
-                   'threshold_dos_zero' : 10**-3              # 
+                   'threshold_dos_zero' : 10**-3 #states/eV   # 
                    }
 
     # intended to guide user interactively in setting up a valid wf_params node
@@ -384,13 +384,15 @@ class kkr_scf_wc(WorkChain):
         sub_wf_params.label = label
         sub_wf_params.description = description
 
-
         self.report('INFO: run voronoi step')
         self.report('INFO: using calc_params ({}): {}'.format(params, params.get_dict()))
         self.report('INFO: using wf_parameters ({}): {}'.format(sub_wf_params, sub_wf_params.get_dict()))
+        
+        wf_label= 'kkr_startpot (voronoi)'
+        wf_desc = 'subworkflow to set up the input of a KKR calculation'
         future = submit(kkr_startpot_wc, kkr=kkrcode, voronoi=voronoicode,
                         calc_parameters=params, wf_parameters=sub_wf_params,
-                        structure=structure)
+                        structure=structure, _label=wf_label, _description=wf_desc)
 
         return ToContext(voronoi=future, last_calc=future)
 
@@ -514,8 +516,12 @@ class kkr_scf_wc(WorkChain):
         # if needed update parameters
         if decrease_mixing_fac or switch_agressive_mixing or switch_higher_accuracy or initial_settings:
 
-            label = ''
-            description = ''
+            if initial_settings:
+                label = 'initial KKR scf parameters'
+                description = 'initial parameter set for scf calculation'
+            else:
+                label = ''
+                description = ''
 
             # step 1: extract info from last input parameters and check consistency
             params = self.ctx.last_params
@@ -710,7 +716,7 @@ class kkr_scf_wc(WorkChain):
         # store some statistics used to print table in the end of the report
         self.ctx.KKR_steps_stats['success'].append(self.ctx.kkr_step_success)
         try:
-            isteps = last_calc_output['number_of_iterations']
+            isteps = self.ctx.last_calc.out.output_parameters.get_dict().get('number_of_iterations')
         except:
             self.ctx.warnings.append('cound not set isteps in KKR_steps_stats dict')
             isteps = -1
@@ -735,11 +741,16 @@ class kkr_scf_wc(WorkChain):
             mixfac = self.ctx.strmix
         else:
             mixfac = self.ctx.brymix
+        
+        if self.ctx.kkr_higher_accuracy:
+            qbound = self.ctx.convergence_criterion
+        else:
+            qbound = self.ctx.threshold_switch_high_accuracy
 
         self.ctx.KKR_steps_stats['isteps'].append(isteps)
         self.ctx.KKR_steps_stats['imix'].append(self.ctx.last_mixing_scheme)
         self.ctx.KKR_steps_stats['mixfac'].append(mixfac)
-        self.ctx.KKR_steps_stats['qbound'].append(self.ctx.convergence_criterion)
+        self.ctx.KKR_steps_stats['qbound'].append(qbound)
         self.ctx.KKR_steps_stats['high_sett'].append(self.ctx.kkr_higher_accuracy)
         self.ctx.KKR_steps_stats['first_rms'].append(first_rms)
         self.ctx.KKR_steps_stats['last_rms'].append(last_rms)
@@ -819,6 +830,14 @@ class kkr_scf_wc(WorkChain):
             last_params_pk = None
             last_remote_uuid = None
             last_remote_pk = None
+        
+        all_pks = []
+        for calc in self.ctx.calcs:
+            try:
+                all_pks.append(calc.pk)
+            except:
+                self.ctx.warnings.append('cound not get pk of calc {}'.format(calc))
+
 
         # capture links to last parameter, calcualtion and output
         try:
@@ -866,7 +885,8 @@ class kkr_scf_wc(WorkChain):
         outputnode_dict['successful'] = self.ctx.successful
         outputnode_dict['last_params_nodeinfo'] = {'uuid':last_params_uuid, 'pk':last_params_pk}
         outputnode_dict['last_remote_nodeinfo'] = {'uuid':last_remote_uuid, 'pk':last_remote_pk}
-        outputnode_dict['last_calc_nodeinfo']   = {'uuid':last_calc_uuid,   'pk':last_calc_pk}
+        outputnode_dict['last_calc_nodeinfo'] = {'uuid':last_calc_uuid,   'pk':last_calc_pk}
+        outputnode_dict['pks_all_calcs'] = all_pks
         outputnode_dict['errors'] = self.ctx.errors
         outputnode_dict['convergence_value'] = last_rms
         outputnode_dict['convergence_values_all_steps'] = array(self.ctx.rms_all_steps)
@@ -901,7 +921,7 @@ class kkr_scf_wc(WorkChain):
                             last_calc_out_dict.get('charge_density', None)))
 
         # create results  node
-        self.report("INFO: create results node: {}".format(outputnode_dict))
+        self.report("INFO: create results node") #: {}".format(outputnode_dict))
         outputnode_t = ParameterData(dict=outputnode_dict)
         outputnode_t.label = 'kkr_scf_wc_results'
         outputnode_t.description = 'Contains results of workflow (e.g. workflow version number, info about success of wf, lis tof warnings that occured during execution, ...)'
@@ -946,7 +966,7 @@ class kkr_scf_wc(WorkChain):
             outdict = create_scf_result_node(outpara=outputnode_t)
 
         for link_name, node in outdict.iteritems():
-            self.report("INFO: storing node {} {} with linkname {}".format(type(node), node, link_name))
+            #self.report("INFO: storing node {} {} with linkname {}".format(type(node), node, link_name))
             self.out(link_name, node)
 
 
@@ -954,18 +974,18 @@ class kkr_scf_wc(WorkChain):
         # table layout:
         message = "INFO: overview of the result:\n\n"
         message += "|------|---------|--------|------|--------|-------------------|-----------------|-----------------|\n"
-        message += "| irun | success | isteps | imix | mixfac | accuracy settings |       rms       |   neutrality    |\n"
+        message += "| irun | success | isteps | imix | mixfac | accuracy settings |       rms       | abs(neutrality) |\n"
         message += "|      |         |        |      |        | qbound  | higher? | first  |  last  | first  |  last  |\n"
-        message += "|------|---------|--------|------|--------|---------|---------|--------|--------|--------|--------|"
+        message += "|------|---------|--------|------|--------|---------|---------|--------|--------|--------|--------|\n"
         #| %6i  | %9s     | %8i    | %6i  | %.2e   | %.3e    | %9s     | %.2e   |  %.2e  |  %.2e  |  %.2e  |
         KKR_steps_stats = self.ctx.KKR_steps_stats
         for irun in range(len(KKR_steps_stats.get('success'))):
             message += "#|%6i|%9s|%8i|%6i|%.2e|%.3e|%9s|%.2e|%.2e|%.2e|%.2e|\n"%(irun+1,
-                          KKR_steps_stats.get('success')[irun],KKR_steps_stats.get('isteps')[irun],
-                          KKR_steps_stats.get('imix')[irun],KKR_steps_stats.get('mixfac')[irun],
-                          KKR_steps_stats.get('qbound')[irun],KKR_steps_stats.get('high_sett')[irun],
-                          KKR_steps_stats.get('first_rms')[irun],KKR_steps_stats.get('last_rms')[irun],
-                          KKR_steps_stats.get('first_neutr')[irun],KKR_steps_stats.get('last_neutr')[irun])
+                          KKR_steps_stats.get('success')[irun], KKR_steps_stats.get('isteps')[irun],
+                          KKR_steps_stats.get('imix')[irun], KKR_steps_stats.get('mixfac')[irun],
+                          KKR_steps_stats.get('qbound')[irun], KKR_steps_stats.get('high_sett')[irun],
+                          KKR_steps_stats.get('first_rms')[irun], KKR_steps_stats.get('last_rms')[irun],
+                          abs(KKR_steps_stats.get('first_neutr')[irun]), abs(KKR_steps_stats.get('last_neutr')[irun]))
         self.report(message)
 
         self.report("\nINFO: done with kkr_scf workflow!\n")
@@ -1045,10 +1065,14 @@ class kkr_scf_wc(WorkChain):
                               'custom_scheduler_commands' : self.ctx.custom_scheduler_commands,
                               'dos_params' : self.ctx.dos_params}
             wfdospara_node = ParameterData(dict=wfdospara_dict)
+            wfdospara_node.label = 'DOS params'
+            wfdospara_node.description = 'DOS parameter set for final DOS calculation of kkr_scf_wc'
 
             code = self.inputs.kkr
             remote = self.ctx.last_calc.out.remote_folder
-            future = submit(kkr_dos_wc, kkr=code, remote_data=remote, wf_parameters=wfdospara_node)
+            wf_label= ' final DOS calculation'
+            wf_desc = ' subworkflow of a DOS calculation'
+            future = submit(kkr_dos_wc, kkr=code, remote_data=remote, wf_parameters=wfdospara_node, _label=wf_label, _description=wf_desc)
 
             return ToContext(doscal=future)
 

@@ -7,6 +7,7 @@ from aiida_kkr.tools.common_functions import (get_corestates_from_potential,
                                               get_highest_core_state, search_string, 
                                               get_version_info, get_Ry2eV, 
                                               get_ef_from_potfile)
+from aiida_kkr.tools.kkrparser_functions import get_core_states
 
 
 # redefine raw_input for python 3/2.7 compatilbility
@@ -25,7 +26,7 @@ def get_valence_min(outfile='out_voronoi'):
     return valence_minimum
 
 
-def check_voronoi_output(potfile, outfile):
+def check_voronoi_output(potfile, outfile, delta_emin_safety=0.1):
     """Read output from voronoi code and create guess of energy contour"""
     from scipy import zeros
     #analyse core levels, minimum of valence band and their difference
@@ -43,17 +44,12 @@ def check_voronoi_output(potfile, outfile):
         else:
             print('%3i     << no core states >>'%(ipot+1))
             # set to some large negative number for check to not give false positive in case of empty cells
-            e_core_max[ipot] = -100
+            e_core_max[ipot] = -1000
 
     #get hint for energy integration:
-    emin_guess = e_val_min.min()-0.2
+    emin_guess = e_val_min.min() - delta_emin_safety # in Ry
 
-    #make a check
-    ediff_min = 1.5
-    if (emin_guess-e_core_max.max()) < ediff_min:
-        print('Highest core level is too close to valence band: check results carefully!')
-
-    return emin_guess
+    return emin_guess, e_core_max.max()
     
 
 def parse_voronoi_output(out_dict, outfile, potfile, atominfo, radii, inputfile):
@@ -75,7 +71,7 @@ def parse_voronoi_output(out_dict, outfile, potfile, atominfo, radii, inputfile)
         msg_list.append(msg)
     
     try:
-        emin = check_voronoi_output(potfile, outfile)
+        emin, e_core_max = check_voronoi_output(potfile, outfile)
         out_dict['emin'] = emin
         out_dict['emin_units'] = 'Ry'
         diff_emin_ef = emin - get_ef_from_potfile(potfile)
@@ -85,6 +81,19 @@ def parse_voronoi_output(out_dict, outfile, potfile, atominfo, radii, inputfile)
         out_dict['emin_minus_efermi_units'] = 'eV'
     except:
         msg = "Error parsing output of voronoi: 'EMIN'"
+        msg_list.append(msg)
+        
+    # parse 
+    try:
+        ncore, emax, lmax, descr_max = get_core_states(potfile)
+        tmp_dict = {}
+        tmp_dict['number_of_core_states_per_atom'] = ncore
+        tmp_dict['energy_highest_lying_core_state_per_atom'] = emax
+        tmp_dict['energy_highest_lying_core_state_per_atom_unit'] = 'Rydberg'
+        tmp_dict['descr_highest_lying_core_state_per_atom'] = descr_max
+        out_dict['core_states_group'] = tmp_dict
+    except:
+        msg = "Error parsing output of voronoi: core_states"
         msg_list.append(msg)
     
     try:

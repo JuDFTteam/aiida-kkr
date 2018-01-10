@@ -325,8 +325,8 @@ class kkr_dos_wc(WorkChain):
     
         
         for link_name, node in outdict.iteritems():
-            self.report("INFO: storing node '{}' with link name '{}'".format(node, link_name))
-            self.report("INFO: node type: {}".format(type(node)))
+            #self.report("INFO: storing node '{}' with link name '{}'".format(node, link_name))
+            #self.report("INFO: node type: {}".format(type(node)))
             self.out(link_name, node)
             
         self.report("INFO: done with DOS workflow!\n")
