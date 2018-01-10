@@ -379,12 +379,12 @@ class kkr_startpot_wc(WorkChain):
         emin = self.ctx.dos_params_dict['emin']
         if self.ctx.voro_calc.res.emin - self.ctx.delta_e*eV2Ry < emin:
             self.ctx.dos_params_dict['emin'] = self.ctx.voro_calc.res.emin - self.ctx.delta_e*eV2Ry
-            self.report("INFO: emin ({}Ry) - delta_e ({}Ry) smaller than emin ({}Ry) of voronoi output. Setting automatically to {}Ry".format(self.ctx.voro_calc.res.emin, self.ctx.delta_e*eV2Ry,  emin, self.ctx.voro_calc.res.emin-self.ctx.delta_e*eV2Ry))
+            self.report("INFO: emin ({} Ry) - delta_e ({} Ry) smaller than emin ({} Ry) of voronoi output. Setting automatically to {}Ry".format(self.ctx.voro_calc.res.emin, self.ctx.delta_e*eV2Ry,  emin, self.ctx.voro_calc.res.emin-self.ctx.delta_e*eV2Ry))
         self.ctx.efermi = get_ef_from_potfile(self.ctx.voro_calc.out.retrieved.get_abs_path('output.pot'))
         emax = self.ctx.dos_params_dict['emax']
         if emax < (self.ctx.efermi + self.ctx.delta_e)*eV2Ry:
             self.ctx.dos_params_dict['emax'] = (self.ctx.efermi + self.ctx.delta_e)*eV2Ry
-            self.report("INFO: self.ctx.efermi ({}Ry) + delta_e ({}Ry) larger than emax ({}Ry). Setting automatically to {}Ry".format(self.ctx.efermi*eV2Ry, self.ctx.delta_e*eV2Ry, emax, (self.ctx.efermi+self.ctx.delta_e)*eV2Ry))
+            self.report("INFO: self.ctx.efermi ({} Ry) + delta_e ({} Ry) larger than emax ({} Ry). Setting automatically to {}Ry".format(self.ctx.efermi*eV2Ry, self.ctx.delta_e*eV2Ry, emax, (self.ctx.efermi+self.ctx.delta_e)*eV2Ry))
 
         #TODO implement other checks?
         
@@ -495,13 +495,13 @@ class kkr_startpot_wc(WorkChain):
                 dosdata_interpol = doscal.out.dos_data_interpol
                 
                 ener = dosdata_interpol.get_x()[1] # shape= natom*nspin, nept
-                totdos = dosdata_interpol.get_y()[0][1] # shape= natom*nspin, nept
+                totdos = dosdata_interpol.get_y()[0][1] # shape= natom*nspin, nept [0] for total DOS
                 Ry2eV = get_Ry2eV()
                 
                 for iatom in range(natom/nspin):
                     for ispin in range(nspin):
                         x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
-                        xrel = abs(x-self.ctx.dos_params_dict['emin']*Ry2eV)
+                        xrel = abs(x-(self.ctx.dos_params_dict['emin']-self.ctx.efermi)*Ry2eV)
                         mask_emin = where(xrel==xrel.min())
                         ymin = abs(y[mask_emin])
                         if ymin > self.ctx.threshold_dos_zero:

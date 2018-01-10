@@ -240,6 +240,7 @@ class kkr_scf_wc(WorkChain):
         self.ctx.delta_e = wf_dict.get('delta_e_min', self._wf_default['delta_e_min'])
         # threshold for dos comparison (comparison of dos at emin)
         self.ctx.threshold_dos_zero = wf_dict.get('threshold_dos_zero', self._wf_default['threshold_dos_zero'])
+        self.ctx.efermi = None
         
         
         self.report('INFO: use the following parameter:\n'
@@ -952,10 +953,10 @@ class kkr_scf_wc(WorkChain):
         # print results table for overview
         # table layout:
         message = "INFO: overview of the result:\n\n"
-        "|------|---------|--------|------|--------|-------------------|-----------------|-----------------|\n"
-        "| irun | success | isteps | imix | mixfac | accuracy settings |       rms       |   neutrality    |\n"
-        "|      |         |        |      |        | qbound  | higher? | first  |  last  | first  |  last  |\n"
-        "|------|---------|--------|------|--------|---------|---------|--------|--------|--------|--------|"
+        message += "|------|---------|--------|------|--------|-------------------|-----------------|-----------------|\n"
+        message += "| irun | success | isteps | imix | mixfac | accuracy settings |       rms       |   neutrality    |\n"
+        message += "|      |         |        |      |        | qbound  | higher? | first  |  last  | first  |  last  |\n"
+        message += "|------|---------|--------|------|--------|---------|---------|--------|--------|--------|--------|"
         #| %6i  | %9s     | %8i    | %6i  | %.2e   | %.3e    | %9s     | %.2e   |  %.2e  |  %.2e  |  %.2e  |
         KKR_steps_stats = self.ctx.KKR_steps_stats
         for irun in range(len(KKR_steps_stats.get('success'))):
@@ -1029,12 +1030,12 @@ class kkr_scf_wc(WorkChain):
             emin_cont = self.ctx.last_calc.out.output_parameters.get_dict().get('energy_contour_group').get('emin') # from contour (sets limit of dos emin!)
             if emin_cont - self.ctx.delta_e*eV2Ry < emin:
                 self.ctx.dos_params['emin'] = emin_cont - self.ctx.delta_e*eV2Ry
-                self.report("INFO: emin ({}Ry) - delta_e ({}Ry) smaller than emin ({}Ry) of voronoi output. Setting automatically to {}Ry".format(emin_cont, self.ctx.delta_e*eV2Ry,  emin, emin_cont-self.ctx.delta_e*eV2Ry))
-            self.ctx.efermi = get_ef_from_potfile(self.ctx.voro_calc.out.retrieved.get_abs_path('output.pot'))
+                self.report("INFO: emin ({} Ry) - delta_e ({} Ry) smaller than emin ({} Ry) of voronoi output. Setting automatically to {}Ry".format(emin_cont, self.ctx.delta_e*eV2Ry,  emin, emin_cont-self.ctx.delta_e*eV2Ry))
+            self.ctx.efermi = get_ef_from_potfile(self.ctx.last_calc.out.retrieved.get_abs_path('out_potential'))
             emax = self.ctx.dos_params['emax']
             if emax < (self.ctx.efermi + self.ctx.delta_e)*eV2Ry:
                 self.ctx.dos_params['emax'] = (self.ctx.efermi + self.ctx.delta_e)*eV2Ry
-                self.report("INFO: self.ctx.efermi ({}Ry) + delta_e ({}Ry) larger than emax ({}Ry). Setting automatically to {}Ry".format(self.ctx.efermi*eV2Ry, self.ctx.delta_e*eV2Ry, emax, (self.ctx.efermi+self.ctx.delta_e)*eV2Ry))
+                self.report("INFO: self.ctx.efermi ({} Ry) + delta_e ({} Ry) larger than emax ({} Ry). Setting automatically to {}Ry".format(self.ctx.efermi*eV2Ry, self.ctx.delta_e*eV2Ry, emax, (self.ctx.efermi+self.ctx.delta_e)*eV2Ry))
 
             # take subset of input and prepare parameter node for dos workflow
             wfdospara_dict = {'queue_name' : self.ctx.queue,
@@ -1118,7 +1119,7 @@ class kkr_scf_wc(WorkChain):
             for iatom in range(natom/nspin):
                 for ispin in range(nspin):
                     x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
-                    xrel = abs(x-self.ctx.dos_params_dict['emin']*Ry2eV)
+                    xrel = abs(x-(self.ctx.dos_params_dict['emin']-self.ctx.efermi)*Ry2eV)
                     mask_emin = where(xrel==xrel.min())
                     ymin = abs(y[mask_emin])
                     if ymin > self.ctx.threshold_dos_zero:
