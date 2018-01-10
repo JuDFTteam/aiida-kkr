@@ -980,12 +980,16 @@ class kkr_scf_wc(WorkChain):
         #| %6i  | %9s     | %8i    | %6i  | %.2e   | %.3e    | %9s     | %.2e   |  %.2e  |  %.2e  |  %.2e  |
         KKR_steps_stats = self.ctx.KKR_steps_stats
         for irun in range(len(KKR_steps_stats.get('success'))):
+            if KKR_steps_stats.get('first_neutr')[irun] is not None:
+                KKR_steps_stats.get('first_neutr')[irun] = abs(KKR_steps_stats.get('first_neutr')[irun])
+            if KKR_steps_stats.get('last_neutr')[irun] is not None:
+                KKR_steps_stats.get('last_neutr')[irun] = abs(KKR_steps_stats.get('last_neutr')[irun])
             message += "#|%6i|%9s|%8i|%6i|%.2e|%.3e|%9s|%.2e|%.2e|%.2e|%.2e|\n"%(irun+1,
                           KKR_steps_stats.get('success')[irun], KKR_steps_stats.get('isteps')[irun],
                           KKR_steps_stats.get('imix')[irun], KKR_steps_stats.get('mixfac')[irun],
                           KKR_steps_stats.get('qbound')[irun], KKR_steps_stats.get('high_sett')[irun],
                           KKR_steps_stats.get('first_rms')[irun], KKR_steps_stats.get('last_rms')[irun],
-                          abs(KKR_steps_stats.get('first_neutr')[irun]), abs(KKR_steps_stats.get('last_neutr')[irun]))
+                          KKR_steps_stats.get('first_neutr')[irun], KKR_steps_stats.get('last_neutr')[irun])
         self.report(message)
 
         self.report("\nINFO: done with kkr_scf workflow!\n")

@@ -62,7 +62,7 @@ class kkr_startpot_wc(WorkChain):
                                    "emin": -1, # Ry          # DOS params: start of energy contour
                                    "emax": 1,  # Ry          # DOS params: end of energy contour
                                    "kmesh": [50, 50, 50]},   # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
-                   'num_rerun' : 3,                          # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
+                   'num_rerun' : 4,                          # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
                    'fac_cls_increase' : 1.3, # alat          # factor by which the screening cluster is increased each iteration (up to num_rerun times)
                    'r_cls' : 1.3,            # alat          # default cluster radius, is increased iteratively
                    'natom_in_cls_min' : 79,                  # minimum number of atoms in screening cluster
@@ -297,19 +297,25 @@ class kkr_startpot_wc(WorkChain):
         # check if emin should be changed:
         if self.ctx.iter > 1 and self.ctx.dos_check_fail_reason == 'EMIN too high':
             # decrease emin  by self.ctx.delta_e
-            emin_old = self.ctx.voro_calc.res.emin
+            emin_old = self.ctx.dos_params_dict['emin']
             eV2Ry = 1./get_Ry2eV()
-            emin_new = emin_old - self.ctx.delta_e/eV2Ry
+            emin_new = emin_old - self.ctx.delta_e*eV2Ry
+            self.ctx.dos_params_dict['emin'] = emin_new
             updated_params = True
             update_list.append('EMIN')
+            skip_voro = True
+        else:
+            skip_voro = False
             
-        # store updated nodes
+        # store updated nodes (also used via last_params in kkr_scf_wc)
         if updated_params:
             # set values that are updated
             if 'RCLUSTZ' in update_list:
                 kkr_para.set_value('RCLUSTZ', self.ctx.r_cls)
+                self.report("INFO: setting RCLUSTZ to {}".format(self.ctx.r_cls))
             if 'EMIN' in update_list:
                 kkr_para.set_value('EMIN', emin_new)
+                self.report("INFO: setting EMIN to {}".format(emin_new))
                 
             updatenode = ParameterData(dict=kkr_para.get_dict())
             updatenode.description = 'changed values: {}'.format(update_list)
@@ -324,20 +330,22 @@ class kkr_startpot_wc(WorkChain):
                 voro_out = self.ctx.voro_calc.out.output_parameters
                 params = update_voro_input(self.ctx.last_params, updatenode, voro_out)
                 self.ctx.last_params = params
-        
             
-
-        options = {"max_wallclock_seconds": self.ctx.walltime_sec,
-                   "resources": self.ctx.resources,
-                   "queue_name" : self.ctx.queue}
-
-        inputs = get_inputs_voronoi(structure, voronoicode, options, label, description, params=params)
-        self.report('INFO: run voronoi step {}'.format(self.ctx.iter))
-        future = submit(VoronoiProcess, **inputs)
-        
-        
-        # return remote_voro (passed to dos calculation as input)
-        return ToContext(voro_calc=future)
+        # run voronoi step
+        if not skip_voro:
+            options = {"max_wallclock_seconds": self.ctx.walltime_sec,
+                       "resources": self.ctx.resources,
+                       "queue_name" : self.ctx.queue}
+    
+            inputs = get_inputs_voronoi(structure, voronoicode, options, label, description, params=params)
+            self.report('INFO: run voronoi step {}'.format(self.ctx.iter))
+            future = submit(VoronoiProcess, **inputs)
+            
+            
+            # return remote_voro (passed to dos calculation as input)
+            return ToContext(voro_calc=future)
+        else:
+            self.report("INFO: skipping voronoi calculation (do DOS run with different emin only)")
     
        
     def check_voronoi(self):
@@ -396,15 +404,17 @@ class kkr_startpot_wc(WorkChain):
         # fix emin/emax
         # remember: emin and emax are in internal units (Ry) but delta_e and efermi are in eV!
         eV2Ry = 1./get_Ry2eV()
-        emin = self.ctx.dos_params_dict['emin']
-        if self.ctx.voro_calc.res.emin - self.ctx.delta_e*eV2Ry < emin:
-            self.ctx.dos_params_dict['emin'] = self.ctx.voro_calc.res.emin - self.ctx.delta_e*eV2Ry
-            self.report("INFO: emin ({} Ry) - delta_e ({} Ry) smaller than emin ({} Ry) of voronoi output. Setting automatically to {}Ry".format(self.ctx.voro_calc.res.emin, self.ctx.delta_e*eV2Ry,  emin, self.ctx.voro_calc.res.emin-self.ctx.delta_e*eV2Ry))
+        emin_dos = self.ctx.dos_params_dict['emin']
+        emin_out = self.ctx.voro_calc.res.emin
+        if emin_out - self.ctx.delta_e*eV2Ry < emin_dos:
+            self.ctx.dos_params_dict['emin'] = emin_out - self.ctx.delta_e*eV2Ry
+            self.report("INFO: emin ({} Ry) - delta_e ({} Ry) smaller than emin ({} Ry) of dos input. Setting automatically to {} Ry".format(emin_out, self.ctx.delta_e*eV2Ry,  emin_dos, emin_out-self.ctx.delta_e*eV2Ry))
+
         self.ctx.efermi = get_ef_from_potfile(self.ctx.voro_calc.out.retrieved.get_abs_path('output.pot'))
         emax = self.ctx.dos_params_dict['emax']
         if emax < (self.ctx.efermi + self.ctx.delta_e)*eV2Ry:
             self.ctx.dos_params_dict['emax'] = (self.ctx.efermi + self.ctx.delta_e)*eV2Ry
-            self.report("INFO: self.ctx.efermi ({} Ry) + delta_e ({} Ry) larger than emax ({} Ry). Setting automatically to {}Ry".format(self.ctx.efermi*eV2Ry, self.ctx.delta_e*eV2Ry, emax, (self.ctx.efermi+self.ctx.delta_e)*eV2Ry))
+            self.report("INFO: self.ctx.efermi ({} Ry) + delta_e ({} Ry) larger than emax ({} Ry). Setting automatically to {} Ry".format(self.ctx.efermi*eV2Ry, self.ctx.delta_e*eV2Ry, emax, (self.ctx.efermi+self.ctx.delta_e)*eV2Ry))
 
         #TODO implement other checks?
         
@@ -553,6 +563,8 @@ class kkr_startpot_wc(WorkChain):
                 self.report("ERROR: core states too close to energy contour start!!!")
                 dos_ok = False
                 self.ctx.dos_check_fail_reason = 'core state too close'
+            else:
+                self.report('INFO: DOS check successful')
                 
             #TODO check for semi-core-states
             
