@@ -400,7 +400,7 @@ class kkrparams(object):
                                 ('NSTEPS', [None, '%i', False, 'Self-consistency control: Max. number of self-consistency iterations. Is reset to 1 in several cases that require only 1 iteration (DOS, Jij, write out GF).']),
                                 ('IMIX', [None, '%i', False, "Self-consistency control: Mixing scheme for potential. 0 means straignt (linear) mixing, 3 means Broyden's 1st method, 4 means Broyden's 2nd method, 5 means Anderson's method"]),
                                 ('STRMIX', [None, '%f', False, 'Self-consistency control: Linear mixing parameter Set to 0. if [NPOL]=0']),
-                                ('ITDBRY', [None, '%i', False, 'Self-consistency control: ow many iterations to keep in the Broyden/Anderson mixing scheme.']),
+                                ('ITDBRY', [None, '%i', False, 'Self-consistency control: how many iterations to keep in the Broyden/Anderson mixing scheme.']),
                                 ('FCM', [None, '%f', False, 'Self-consistency control: Factor for increased linear mixing of magnetic part of potential compared to non-magnetic part.']),
                                 ('BRYMIX', [None, '%f', False, 'Self-consistency control: Parameter for Broyden mixing.']),
                                 ('QBOUND', [None, '%e', False, 'Self-consistency control: Lower limit of rms-error in potential to stop iterations.']),

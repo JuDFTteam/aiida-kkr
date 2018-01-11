@@ -5,7 +5,7 @@ In this module you find the base workflow for converging a kkr calculation and
 some helper methods to do so with AiiDA
 """
 
-from aiida.orm import Code, DataFactory
+from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, while_, if_, ToContext
 from aiida.work.run import submit
 from aiida.work import workfunction as wf
@@ -341,7 +341,32 @@ class kkr_scf_wc(WorkChain):
         # set params and remote folder to input if voronoi step is skipped
         if not run_voronoi:
             self.ctx.last_remote = inputs.remote_data
-            self.ctx.last_params = get_parent_paranode(inputs.remote_data)
+            from aiida.orm.calculation.job import JobCalculation
+            num_parents = len(self.ctx.last_remote.get_inputs(node_type=JobCalculation))
+            if num_parents == 0:
+                pk_last_remote = self.ctx.last_remote.inp.last_RemoteData.out.output_kkr_scf_wc_ParameterResults.get_dict().get('last_calc_nodeinfo').get('pk')
+                last_calc = load_node(pk_last_remote)
+                self.ctx.last_remote = last_calc.out.remote_folder
+            try: # first try parent of remote data output of a previous calc.
+                parent_params = get_parent_paranode(inputs.remote_data)
+            except AttributeError:
+                try: # next try to extract parameter from previous kkr_scf_wc output
+                    parent_params = inputs.remote_data.inp.last_RemoteData.inp.calc_parameters
+                except AttributeError:
+                    error = ("Unable to extract parent paremeter node of input remote folder")
+                    self.control_end_wc(error)
+            if  'calc_parameters' in inputs:
+                self.ctx.last_params = inputs.calc_parameters
+                # TODO: check last_params consistency against parent_params
+                #parent_params_dict = parent_params.get_dict()
+                #for key, val in self.ctx.last_params.get_dict().iteritems():
+                #    if key in parent_params_dict.keys():
+                #        if val != parent_params_dict[key]:
+                #            
+                #    else:
+                #        
+            else:
+                self.ctx.last_params = parent_params
             self.ctx.voro_step_success = True
 
         return run_voronoi
@@ -716,7 +741,7 @@ class kkr_scf_wc(WorkChain):
         # store some statistics used to print table in the end of the report
         self.ctx.KKR_steps_stats['success'].append(self.ctx.kkr_step_success)
         try:
-            isteps = self.ctx.last_calc.out.output_parameters.get_dict().get('number_of_iterations')
+            isteps = self.ctx.last_calc.out.output_parameters.get_dict()['convergence_group']['number_of_iterations']
         except:
             self.ctx.warnings.append('cound not set isteps in KKR_steps_stats dict')
             isteps = -1
@@ -980,16 +1005,23 @@ class kkr_scf_wc(WorkChain):
         #| %6i  | %9s     | %8i    | %6i  | %.2e   | %.3e    | %9s     | %.2e   |  %.2e  |  %.2e  |  %.2e  |
         KKR_steps_stats = self.ctx.KKR_steps_stats
         for irun in range(len(KKR_steps_stats.get('success'))):
-            if KKR_steps_stats.get('first_neutr')[irun] is not None:
-                KKR_steps_stats.get('first_neutr')[irun] = abs(KKR_steps_stats.get('first_neutr')[irun])
-            if KKR_steps_stats.get('last_neutr')[irun] is not None:
-                KKR_steps_stats.get('last_neutr')[irun] = abs(KKR_steps_stats.get('last_neutr')[irun])
-            message += "#|%6i|%9s|%8i|%6i|%.2e|%.3e|%9s|%.2e|%.2e|%.2e|%.2e|\n"%(irun+1,
+            
+            KKR_steps_stats.get('first_neutr')[irun] = abs(KKR_steps_stats.get('first_neutr')[irun])
+            KKR_steps_stats.get('last_neutr')[irun] = abs(KKR_steps_stats.get('last_neutr')[irun])
+            message += "|%6i|%9s|%8i|%6i|%.2e|%.3e|%9s|%.2e|%.2e|%.2e|%.2e|\n"%(irun+1,
                           KKR_steps_stats.get('success')[irun], KKR_steps_stats.get('isteps')[irun],
                           KKR_steps_stats.get('imix')[irun], KKR_steps_stats.get('mixfac')[irun],
                           KKR_steps_stats.get('qbound')[irun], KKR_steps_stats.get('high_sett')[irun],
                           KKR_steps_stats.get('first_rms')[irun], KKR_steps_stats.get('last_rms')[irun],
                           KKR_steps_stats.get('first_neutr')[irun], KKR_steps_stats.get('last_neutr')[irun])
+            """
+            message += "#|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|\n".format(irun+1,
+                          KKR_steps_stats.get('success')[irun], KKR_steps_stats.get('isteps')[irun],
+                          KKR_steps_stats.get('imix')[irun], KKR_steps_stats.get('mixfac')[irun],
+                          KKR_steps_stats.get('qbound')[irun], KKR_steps_stats.get('high_sett')[irun],
+                          KKR_steps_stats.get('first_rms')[irun], KKR_steps_stats.get('last_rms')[irun],
+                          KKR_steps_stats.get('first_neutr')[irun], KKR_steps_stats.get('last_neutr')[irun])
+            """
         self.report(message)
 
         self.report("\nINFO: done with kkr_scf workflow!\n")
@@ -1227,7 +1259,7 @@ def create_scf_result_node(**kwargs):
         outputnode.label = 'last_InputParameters'
         outputnode.description = ('Contains the latest parameter data node '
                                    'where the input of the last calculation can be found.')
-        outdict['last_InputParameters_dict'] = outputnode
+        outdict['last_InputParameters'] = outputnode
 
     if has_vorostart_output:
         outputnode = vorostart_output_dict.copy()
