@@ -36,6 +36,7 @@ __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 #TODO: add warnings
 #TODO: maybe define the energy point density instead of a fixed number as in input?
 #TODO: overwrite defaults from parent if parent is previous kkr_scf run
+#TODO: retrieve DOS within scf run
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
@@ -119,6 +120,7 @@ class kkr_scf_wc(WorkChain):
                    'mag_init' : False,                        # initialize and converge magnetic calculation
                    'hfield' : 0.02, # Ry                      # external magnetic field used in initialization step
                    'init_pos' : None,                         # position in unit cell where magnetic field is applied [default (None) means apply to all]
+                   'retreive_dos_data_scf_run' : False        # add DOS to testopts and retrieve dos.atom files in each scf run
                    }
 
     # intended to guide user interactively in setting up a valid wf_params node
@@ -243,6 +245,7 @@ class kkr_scf_wc(WorkChain):
         self.ctx.mag_init = wf_dict.get('mag_init', self._wf_default['mag_init'])
         self.ctx.hfield = wf_dict.get('hfield', self._wf_default['hfield'])
         self.ctx.xinit = wf_dict.get('init_pos', self._wf_default['init_pos'])
+        self.ctx.mag_init_step_success = False
         
         # difference in eV to emin (e_fermi) if emin (emax) are larger (smaller) than emin (e_fermi)
         self.ctx.delta_e = wf_dict.get('delta_e_min', self._wf_default['delta_e_min'])
@@ -250,6 +253,8 @@ class kkr_scf_wc(WorkChain):
         self.ctx.threshold_dos_zero = wf_dict.get('threshold_dos_zero', self._wf_default['threshold_dos_zero'])
         self.ctx.efermi = None
         
+        # retreive dos data in each scf run
+        self.ctx.scf_dosdata = wf_dict.get('retreive_dos_data_scf_run', self._wf_default['retreive_dos_data_scf_run'])
         
         self.report('INFO: use the following parameter:\n'
                     '\nGeneral settings\n'
@@ -270,11 +275,13 @@ class kkr_scf_wc(WorkChain):
                     'threshold_switch_high_accuracy: {}\n'
                     'convergence_setting_coarse: {}\n'
                     'convergence_setting_fine: {}\n'
+                    'factor reduced mixing if failing calculation: {}\n'
                     '\nAdditional parameter\n'
                     'check DOS between runs: {}\n'
                     'DOS parameters: {}\n'
                     'init magnetism in first step: {}\n'
-                    'factor reduced mixing if failing calculation: {}\n'
+                    'init magnetism, hfield: {}\n'
+                    'init magnetism, init_pos: {}\n'
                     ''.format(self.ctx.use_mpi, self.ctx.max_number_runs,
                                 self.ctx.resources, self.ctx.walltime_sec,
                                 self.ctx.queue, self.ctx.custom_scheduler_commands,
@@ -284,8 +291,10 @@ class kkr_scf_wc(WorkChain):
                                 self.ctx.threshold_aggressive_mixing,
                                 self.ctx.threshold_switch_high_accuracy,
                                 self.ctx.convergence_setting_coarse,
-                                self.ctx.convergence_setting_fine, self.ctx.check_dos,
-                                self.ctx.dos_params, self.ctx.mag_init, self.ctx.mixreduce)
+                                self.ctx.convergence_setting_fine, 
+                                self.ctx.mixreduce, self.ctx.check_dos,
+                                self.ctx.dos_params, self.ctx.mag_init, 
+                                self.ctx.hfield, self.ctx.xinit)
                     )
 
         # return para/vars
@@ -306,7 +315,9 @@ class kkr_scf_wc(WorkChain):
                                     'first_rms':[],
                                     'last_rms':[],
                                     'first_neutr':[],
-                                    'last_neutr':[]}
+                                    'last_neutr':[],
+                                    'pk':[],
+                                    'uuid':[]}
 
     def validate_input(self):
         """
@@ -396,6 +407,24 @@ class kkr_scf_wc(WorkChain):
             params = self.inputs.calc_parameters
         else:
             params = None # TODO: use defaults?
+            
+        # set nspin to 2 if mag_init is used
+        if self.ctx.mag_init:
+            input_dict = params.get_dict()
+            para_check = kkrparams()
+            for key, val in input_dict.iteritems():
+                para_check.set_value(key, val, silent=True)
+            nspin_in = para_check.get_value('NSPIN')
+            if nspin_in is None:
+                nspin_in = 1
+            if nspin_in < 2:
+                self.report('WARNING: found NSPIN=1 but for maginit needs NPIN=2. Overwrite this automatically')
+                para_check.set_value('NSPIN', 2, silent=True)
+                self.report("INFO: update parameters to: {}".format(para_check.get_set_values()))
+                updatenode = ParameterData(dict=para_check.get_dict())
+                updatenode.label = 'overwritten KKR input parameters'
+                updatenode.description = 'Overwritten KKR input parameter to correct NSPIN to 2'
+                params = update_params_wf(params, updatenode)
 
         # check consistency of input parameters before running calculation
         self.check_input_params(params, is_voronoi=True)
@@ -526,18 +555,22 @@ class kkr_scf_wc(WorkChain):
                 decrease_mixing_fac = True
                 self.report("INFO: last KKR did not converge. trying decreasing mixfac")
                 # reset last_remote to last successful calculation
-                for icalc in range(len(self.ctx.calcs[::-1])):
+                for icalc in range(len(self.ctx.calcs))[::-1]:
+                    self.report("INFO: last calc success? {} {}".format(icalc, self.ctx.KKR_steps_stats['success'][icalc]))
                     if self.ctx.KKR_steps_stats['success'][icalc]:
                         self.ctx.last_remote = self.ctx.calcs[icalc].out.remote_folder
+                        break # exit loop if last_remote was found successfully
                     else:
                         self.ctx.last_remote = None
                 # if no previous calculation was succesful take voronoi output or remote data from input (depending on the inputs)
+                self.report("INFO: last_remote is None? {} {}".format(self.ctx.last_remote is None, 'structure' in self.inputs))
                 if self.ctx.last_remote is None:
                     if 'structure' in self.inputs:
                         self.ctx.voronoi.out.last_voronoi_remote
                     else:
                         self.ctx.last_remote = self.inputs.remote_data
                 # check if last_remote has finally been set and abort if this is not the case
+                self.report("INFO: last_remote is still None? {}".format(self.ctx.last_remote is None))
                 if self.ctx.last_remote is None:
                     error = 'ERROR: last_remote could not be set to a previous succesful calculation'
                     self.ctx.errors.append(error)
@@ -565,7 +598,7 @@ class kkr_scf_wc(WorkChain):
             initial_settings = True
 
         # if needed update parameters
-        if decrease_mixing_fac or switch_agressive_mixing or switch_higher_accuracy or initial_settings:
+        if decrease_mixing_fac or switch_agressive_mixing or switch_higher_accuracy or initial_settings or self.ctx.mag_init:
 
             if initial_settings:
                 label = 'initial KKR scf parameters'
@@ -609,7 +642,7 @@ class kkr_scf_wc(WorkChain):
                     self.report('type(strmixfax, mixreduce)= {} {}'.format(type(strmixfac), type(self.ctx.mixreduce)))
                     strmixfac = strmixfac * self.ctx.mixreduce
                     self.ctx.strmix = strmixfac
-                    label += 'decreased_mix_fac_str'
+                    label += 'decreased_mix_fac_str (step {})'.format(self.ctx.loop_count)
                     description += 'decreased STRMIX factor by {}'.format(self.ctx.mixreduce)
                 else:
                     self.report('(brymixfax, mixreduce)= ({}, {})'.format(brymixfac, self.ctx.mixreduce))
@@ -668,9 +701,23 @@ class kkr_scf_wc(WorkChain):
                 new_params['LINIPOL'] = True
                 new_params['HFIELD'] = self.ctx.hfield
                 new_params['XINIPOL'] = xinipol
-            elif self.ctx.mag_init: # turn initialoization off after first iteration
+            elif self.ctx.mag_init and self.ctx.mag_init_step_success: # turn off initialization after first (successful) iteration
                 new_params['LINIPOL'] = False
                 new_params['HFIELD'] = 0.0
+            elif not self.ctx.mag_init:
+                self.report("INFO: mag_init is False. Overwrite 'HFIELD' to '0.0' and 'LINIPOL' to 'False'.")
+                # reset mag init to avoid resinitializing
+                new_params['HFIELD'] = 0.0
+                new_params['LINIPOL'] = False
+                
+            # set nspin to 2 if mag_init is used
+            if self.ctx.mag_init:
+                nspin_in = para_check.get_value('NSPIN')
+                if nspin_in is None:
+                    nspin_in = 1
+                if nspin_in < 2:
+                    self.report('WARNING: found NSPIN=1 but for maginit needs NPIN=2. Overwrite this automatically')
+                    new_params['NSPIN'] = 2
 
             # step 2.2 update values
             try:
@@ -781,6 +828,10 @@ class kkr_scf_wc(WorkChain):
         self.report("INFO: charge_neutrality: {}".format(self.ctx.neutr))
         self.report("INFO: last_neutr_all: {}".format(self.ctx.last_neutr_all))
         self.report("INFO: neutr_all_steps: {}".format(self.ctx.neutr_all_steps))
+        
+        # turn off initial magnetization once one step was successful (update_kkr_params) used in
+        if self.ctx.mag_init and self.ctx.kkr_step_success:
+            self.ctx.mag_init_step_success = True
 
         # TODO: extract something else (maybe total energy, charge neutrality, magnetisation)?
 
@@ -827,6 +878,8 @@ class kkr_scf_wc(WorkChain):
         self.ctx.KKR_steps_stats['last_rms'].append(last_rms)
         self.ctx.KKR_steps_stats['first_neutr'].append(first_neutr)
         self.ctx.KKR_steps_stats['last_neutr'].append(last_neutr)
+        self.ctx.KKR_steps_stats['pk'].append(self.ctx.last_calc.pk)
+        self.ctx.KKR_steps_stats['uuid'].append(self.ctx.last_calc.uuid)
 
         self.report("INFO: done inspecting kkr results step")
 
@@ -858,7 +911,7 @@ class kkr_scf_wc(WorkChain):
                 on_track = False
             elif n*r < 1:
                 self.report("INFO convergence check: either rms goes up and neutrality goes down or vice versa")
-                self.report("INFO convergence check: but product goes down foast enough")
+                self.report("INFO convergence check: but product goes down fast enough")
                 on_track = True
             elif len(self.ctx.last_rms_all) ==1:
                 self.report("INFO convergence check: already converged after single iteration")
@@ -1044,22 +1097,22 @@ class kkr_scf_wc(WorkChain):
         # print results table for overview
         # table layout:
         message = "INFO: overview of the result:\n\n"
-        message += "|------|---------|--------|------|--------|-------------------|-----------------|-----------------|\n"
-        message += "| irun | success | isteps | imix | mixfac | accuracy settings |       rms       | abs(neutrality) |\n"
-        message += "|      |         |        |      |        | qbound  | higher? | first  |  last  | first  |  last  |\n"
-        message += "|------|---------|--------|------|--------|---------|---------|--------|--------|--------|--------|\n"
+        message += "|------|---------|--------|------|--------|-------------------|-----------------|-----------------|-------------\n"
+        message += "| irun | success | isteps | imix | mixfac | accuracy settings |       rms       | abs(neutrality) | pk and uuid \n"
+        message += "|      |         |        |      |        | qbound  | higher? | first  |  last  | first  |  last  |             \n"
+        message += "|------|---------|--------|------|--------|---------|---------|--------|--------|--------|--------|-------------\n"
         #| %6i  | %9s     | %8i    | %6i  | %.2e   | %.3e    | %9s     | %.2e   |  %.2e  |  %.2e  |  %.2e  |
         KKR_steps_stats = self.ctx.KKR_steps_stats
         for irun in range(len(KKR_steps_stats.get('success'))):
-            
             KKR_steps_stats.get('first_neutr')[irun] = abs(KKR_steps_stats.get('first_neutr')[irun])
             KKR_steps_stats.get('last_neutr')[irun] = abs(KKR_steps_stats.get('last_neutr')[irun])
-            message += "|%6i|%9s|%8i|%6i|%.2e|%.3e|%9s|%.2e|%.2e|%.2e|%.2e|\n"%(irun+1,
+            message += "|%6i|%9s|%8i|%6i|%.2e|%.3e|%9s|%.2e|%.2e|%.2e|%.2e|"%(irun+1,
                           KKR_steps_stats.get('success')[irun], KKR_steps_stats.get('isteps')[irun],
                           KKR_steps_stats.get('imix')[irun], KKR_steps_stats.get('mixfac')[irun],
                           KKR_steps_stats.get('qbound')[irun], KKR_steps_stats.get('high_sett')[irun],
                           KKR_steps_stats.get('first_rms')[irun], KKR_steps_stats.get('last_rms')[irun],
                           KKR_steps_stats.get('first_neutr')[irun], KKR_steps_stats.get('last_neutr')[irun])
+            message += " {} | {}\n".format(KKR_steps_stats.get('pk')[irun], KKR_steps_stats.get('uuid')[irun])
             """
             message += "#|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|\n".format(irun+1,
                           KKR_steps_stats.get('success')[irun], KKR_steps_stats.get('isteps')[irun],
@@ -1212,7 +1265,7 @@ class kkr_scf_wc(WorkChain):
                     if nspin == 2 and ispin == 0:
                         y = -y
                     if y.min() < 0:
-                        self.report("INFO: negative DOS value found in (atom, spin)=({},{}) at iteration {}".format(iatom, ispin, self.ctx.iter))
+                        self.report("INFO: negative DOS value found in (atom, spin)=({},{}) at iteration {}".format(iatom, ispin, self.ctx.loop_count))
                         self.ctx.dos_ok = False
 
             # check starting EMIN

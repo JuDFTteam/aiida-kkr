@@ -218,7 +218,7 @@ class KkrCalculation(JobCalculation):
                 structure, voro_parent = self._find_parent_struc(parent_calc) 
             except:
                 self.logger.error('Could not get structure from parent.')
-                raise ValidationError('Cound not find structure node')
+                raise ValidationError('Cound not find structure node starting from parent {}'.format(parent_calc))
         else:
             self.logger.error("KkrCalculation: Parent is neither Voronoi nor KKR calculation!")
             raise ValidationError('Cound not find structure node')
@@ -291,17 +291,26 @@ class KkrCalculation(JobCalculation):
         
         # for special cases add files to retireve list:
         # 1. dos calculation, add *dos* files if NPOL==0
-        print 'NPOL in parameter input:', parameters.get_dict()['NPOL']
+        retrieve_dos_files = False
+        print('NPOL in parameter input:', parameters.get_dict()['NPOL'])
         if 'NPOL' in  parameters.get_dict().keys():
             if parameters.get_dict()['NPOL'] == 0:
-                print 'adding files for dos output', self._COMPLEXDOS, self._DOS_ATOM, self._LMDOS
-                add_files = [self._COMPLEXDOS]
-                for iatom in range(natom):
-                    add_files.append(self._DOS_ATOM%(iatom+1))
-                    for ispin in range(nspin):
-                        add_files.append((self._LMDOS%(iatom+1, ispin+1)).replace(' ','0'))
-                print add_files
-                calcinfo.retrieve_list += add_files
+                retrieve_dos_files = True
+        if 'TESTOPT' in  parameters.get_dict().keys():
+            testopts = parameters.get_dict()['TESTOPT']
+            if testopts is not None :
+                stripped_test_opts = [i.strip() for i in testopts]
+                if 'DOS' in stripped_test_opts:
+                    retrieve_dos_files = True
+        if retrieve_dos_files:
+            print('adding files for dos output', self._COMPLEXDOS, self._DOS_ATOM, self._LMDOS)
+            add_files = [self._COMPLEXDOS]
+            for iatom in range(natom):
+                add_files.append(self._DOS_ATOM%(iatom+1))
+                for ispin in range(nspin):
+                    add_files.append((self._LMDOS%(iatom+1, ispin+1)).replace(' ','0'))
+            print(add_files)
+            calcinfo.retrieve_list += add_files
                 
 
         codeinfo = CodeInfo()
@@ -346,6 +355,7 @@ class KkrCalculation(JobCalculation):
         self.use_parent_folder(remotedata)
 
         
+    @classmethod
     def _get_struc(self, parent_calc):
         """
         Get structure from a parent_folder (result of a calculation, typically a remote folder)
@@ -353,6 +363,7 @@ class KkrCalculation(JobCalculation):
         return parent_calc.inp.structure
         
         
+    @classmethod
     def _has_struc(self, parent_folder):
         """
         Check if parent_folder has structure information in its input
@@ -369,6 +380,7 @@ class KkrCalculation(JobCalculation):
         return success
         
         
+    @classmethod
     def _get_remote(self, parent_folder):
         """
         get remote_folder from input if parent_folder is not already a remote folder
@@ -384,6 +396,7 @@ class KkrCalculation(JobCalculation):
         return parent_folder_tmp
         
         
+    @classmethod
     def _get_parent(self, input_folder):
         """
         get the  parent folder of the calculation. If not parent was found return input folder
