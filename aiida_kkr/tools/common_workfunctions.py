@@ -432,6 +432,16 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     # write shapes (extracted from voronoi parent automatically in kkr calculation plugin)
     if shapes is not None:
         params.set_value('<SHAPE>', shapes)
+        
+    # change input values of 2D input to new alat:
+    rbl = params.get_value('<RBLEFT>')
+    rbr = params.get_value('<RBRIGHT>')
+    zper_l = params.get_value('ZPERIODL')
+    zper_r = params.get_value('ZPERIODR')
+    if rbl is not None: params.set_value('<RBLEFT>', array(rbl)*a_to_bohr/alat)
+    if rbr is not None: params.set_value('<RBRIGHT>', array(rbr)*a_to_bohr/alat)
+    if zper_l is not None: params.set_value('ZPERIODL', array(zper_l)*a_to_bohr/alat)
+    if zper_r is not None: params.set_value('ZPERIODR', array(zper_r)*a_to_bohr/alat)
     
     # write inputfile
     params.fill_keywords_to_inputfile(output=input_filename)
@@ -473,7 +483,7 @@ def check_2Dinput_consistency(structure, parameters):
         return (False, "'INTERFACE' parameter set to False but structure is 2D")
         
     if has2Dinfo!=is2D:
-        return (False, "2D info given in parameters but structure is 3D")
+        return (False, "2D info given in parameters but structure is 3D\nstructure is 2D? {}\ninput has 2D info? {}\nset keys are: {}".format(is2D, has2Dinfo, set_keys))
     
     # if everything is ok:
     return (True, "2D consistency check complete")

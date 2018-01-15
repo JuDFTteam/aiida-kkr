@@ -19,7 +19,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, get_inp
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.dos import kkr_dos_wc
 from aiida_kkr.tools.common_functions import get_Ry2eV, get_ef_from_potfile
-from numpy import array, where
+from numpy import array, where, ones
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -34,6 +34,8 @@ __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 #TODO: emin-emax setting
 #TODO: restart from workflow output instead of calculation output
 #TODO: add warnings
+#TODO: maybe define the energy point density instead of a fixed number as in input?
+#TODO: overwrite defaults from parent if parent is previous kkr_scf run
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
@@ -79,7 +81,7 @@ class kkr_scf_wc(WorkChain):
     """
 
     _workflowversion = __version__
-    _wf_default = {'kkr_runmax': 4,                           # Maximum number of kkr jobs/starts (defauld iterations per start)
+    _wf_default = {'kkr_runmax': 5,                           # Maximum number of kkr jobs/starts (defauld iterations per start)
                    'convergence_criterion' : 10**-8,          # Stop if charge denisty is converged below this value
                    'queue_name' : '',                         # Queue name to submit jobs too
                    'resources': {"num_machines": 1},          # resources to allowcate for the job
@@ -87,17 +89,16 @@ class kkr_scf_wc(WorkChain):
                    'use_mpi' : False,                         # execute KKR with mpi or without
                    'custom_scheduler_commands' : '',          # some additional scheduler commands
                    'check_dos' : True,                        # check starting DOS for inconsistencies
-                   'dos_params' : {'emax': 1,                 # DOS params: maximum of enery contour
+                   'dos_params' : {'emax': 0.6,               # DOS params: maximum of enery contour
                                    'emin': -1,                # DOS params: minimum of energy contour
                                    'kmesh': [40, 40, 40],     # DOS params: kmesh for dos run (typically higher than for scf contour)
-                                   'nepts': 61,               # DOS params: number of energy points in DOS contour
+                                   'nepts': 81,               # DOS params: number of energy points in DOS contour
                                    'tempr': 200},             # DOS params: temperature
-                   'mag_init' : False,                        # initialize and converge magnetic calculation
                    'mixreduce': 0.5,                          # reduce mixing factor by this factor if calculaito fails due to too large mixing
                    'threshold_aggressive_mixing': 8*10**-3,   # threshold after which agressive mixing is used
                    'strmix': 0.03,                            # mixing factor of simple mixing
-                   'brymix': 0.03,                            # mixing factor of aggressive mixing
-                   'nsteps': 30,                              # number of iterations done per KKR calculation
+                   'brymix': 0.05,                            # mixing factor of aggressive mixing
+                   'nsteps': 50,                              # number of iterations done per KKR calculation
                    'convergence_setting_coarse': {            # setting of the coarse preconvergence
                         'npol': 7,
                         'n1': 3,
@@ -105,7 +106,7 @@ class kkr_scf_wc(WorkChain):
                         'n3': 3,
                         'tempr': 1400.0,
                         'kmesh': [10, 10, 10]},
-                   'threshold_switch_high_accuracy': 1*10**-3,# threshold after which final conversion settings are used
+                   'threshold_switch_high_accuracy': 10**-3,  # threshold after which final conversion settings are used
                    'convergence_setting_fine': {              # setting of the final convergence (lower tempr, 48 epts, denser k-mesh)
                         'npol': 5,
                         'n1': 7,
@@ -114,7 +115,10 @@ class kkr_scf_wc(WorkChain):
                         'tempr': 473.0,
                         'kmesh': [30, 30, 30]},
                    'delta_e_min' : 1.,                        # minimal distance in DOS contour to emin and emax in eV
-                   'threshold_dos_zero' : 10**-3 #states/eV   # 
+                   'threshold_dos_zero' : 10**-3, # states/eV # threshold after which DOS is considered to vanish (needed in DOS check)
+                   'mag_init' : False,                        # initialize and converge magnetic calculation
+                   'hfield' : 0.02, # Ry                      # external magnetic field used in initialization step
+                   'init_pos' : None,                         # position in unit cell where magnetic field is applied [default (None) means apply to all]
                    }
 
     # intended to guide user interactively in setting up a valid wf_params node
@@ -230,12 +234,16 @@ class kkr_scf_wc(WorkChain):
         self.ctx.convergence_criterion = wf_dict.get('convergence_criterion', self._wf_default['convergence_criterion'])
         self.ctx.convergence_setting_coarse = wf_dict.get('convergence_setting_coarse', self._wf_default['convergence_setting_coarse'])
         self.ctx.convergence_setting_fine = wf_dict.get('convergence_setting_fine', self._wf_default['convergence_setting_fine'])
-        self.ctx.mag_init = wf_dict.get('mag_init', self._wf_default['mag_init'])
         self.ctx.mixreduce = wf_dict.get('mixreduce', self._wf_default['mixreduce'])
         self.ctx.nsteps = wf_dict.get('nsteps', self._wf_default['nsteps'])
         self.ctx.threshold_aggressive_mixing = wf_dict.get('threshold_aggressive_mixing', self._wf_default['threshold_aggressive_mixing'])
         self.ctx.threshold_switch_high_accuracy = wf_dict.get('threshold_switch_high_accuracy', self._wf_default['threshold_switch_high_accuracy'])
 
+        # initial magnetization
+        self.ctx.mag_init = wf_dict.get('mag_init', self._wf_default['mag_init'])
+        self.ctx.hfield = wf_dict.get('hfield', self._wf_default['hfield'])
+        self.ctx.xinit = wf_dict.get('init_pos', self._wf_default['init_pos'])
+        
         # difference in eV to emin (e_fermi) if emin (emax) are larger (smaller) than emin (e_fermi)
         self.ctx.delta_e = wf_dict.get('delta_e_min', self._wf_default['delta_e_min'])
         # threshold for dos comparison (comparison of dos at emin)
@@ -517,6 +525,24 @@ class kkr_scf_wc(WorkChain):
             if not convergence_on_track:
                 decrease_mixing_fac = True
                 self.report("INFO: last KKR did not converge. trying decreasing mixfac")
+                # reset last_remote to last successful calculation
+                for icalc in range(len(self.ctx.calcs[::-1])):
+                    if self.ctx.KKR_steps_stats['success'][icalc]:
+                        self.ctx.last_remote = self.ctx.calcs[icalc].out.remote_folder
+                    else:
+                        self.ctx.last_remote = None
+                # if no previous calculation was succesful take voronoi output or remote data from input (depending on the inputs)
+                if self.ctx.last_remote is None:
+                    if 'structure' in self.inputs:
+                        self.ctx.voronoi.out.last_voronoi_remote
+                    else:
+                        self.ctx.last_remote = self.inputs.remote_data
+                # check if last_remote has finally been set and abort if this is not the case
+                if self.ctx.last_remote is None:
+                    error = 'ERROR: last_remote could not be set to a previous succesful calculation'
+                    self.ctx.errors.append(error)
+                    self.control_end_wc(error)
+
 
             # check if mixing strategy should be changed
             last_mixing_scheme = self.ctx.last_params.get_dict()['IMIX']
@@ -625,6 +651,26 @@ class kkr_scf_wc(WorkChain):
             new_params['NPT3'] = convergence_settings['n3']
             new_params['TEMPR'] = convergence_settings['tempr']
             new_params['BZDIVIDE'] = convergence_settings['kmesh']
+            
+            # initial magnetization
+            if initial_settings and self.ctx.mag_init:
+                if self.ctx.hfield <= 0:
+                    self.report('\nWARNING: magnetization initialization chosen but hfield is zero. Automatically change back to default value (hfield={})\n'.format(self._wf_default['hfield']))
+                    self.ctx.hfield = self._wf_default['hfield']
+                xinipol = self.ctx.xinit
+                if xinipol is None:
+                    if 'structure' in self.inputs:
+                        struc = self.inputs.structure
+                    else:
+                        struc, voro_parent = KkrCalculation._find_parent_struc(self.ctx.last_remote)
+                    natom = len(struc.sites)
+                    xinipol = ones(natom)
+                new_params['LINIPOL'] = True
+                new_params['HFIELD'] = self.ctx.hfield
+                new_params['XINIPOL'] = xinipol
+            elif self.ctx.mag_init: # turn initialoization off after first iteration
+                new_params['LINIPOL'] = False
+                new_params['HFIELD'] = 0.0
 
             # step 2.2 update values
             try:
@@ -684,15 +730,6 @@ class kkr_scf_wc(WorkChain):
         self.ctx.calcs.append(self.ctx.last_calc)
         self.ctx.kkr_step_success = True
 
-        # try yo extract remote folder
-        try:
-            self.ctx.last_remote = self.ctx.kkr.out.remote_folder
-        except:
-            self.ctx.last_remote = None
-            self.ctx.kkr_step_success = False
-
-        self.report("INFO: last_remote: {}".format(self.ctx.last_remote))
-
         # check calculation state
         calc_state = self.ctx.last_calc.get_state()
         if calc_state != calc_states.FINISHED:
@@ -708,6 +745,15 @@ class kkr_scf_wc(WorkChain):
         except:
             found_last_calc_output = False
         self.report("INFO: found_last_calc_output: {}".format(found_last_calc_output))
+        
+        # try yo extract remote folder
+        try:
+            self.ctx.last_remote = self.ctx.kkr.out.remote_folder
+        except:
+            self.ctx.last_remote = None
+            self.ctx.kkr_step_success = False
+
+        self.report("INFO: last_remote: {}".format(self.ctx.last_remote))
 
         if self.ctx.kkr_step_success and found_last_calc_output:
             # check convergence
@@ -1080,7 +1126,7 @@ class kkr_scf_wc(WorkChain):
             self.report("INFO: Doing final DOS calculation")
             
             # fix emin/emax to include emin, ef of scf contour
-            # remember: emin and emax are in internal units (Ry) but delta_e and efermi are in eV!
+            # remember: efermi, emin and emax are in internal units (Ry) but delta_e is in eV!
             eV2Ry = 1./get_Ry2eV()
             emin = self.ctx.dos_params['emin'] # from dos params
             emin_cont = self.ctx.last_calc.out.output_parameters.get_dict().get('energy_contour_group').get('emin') # from contour (sets limit of dos emin!)
@@ -1089,9 +1135,9 @@ class kkr_scf_wc(WorkChain):
                 self.report("INFO: emin ({} Ry) - delta_e ({} Ry) smaller than emin ({} Ry) of voronoi output. Setting automatically to {}Ry".format(emin_cont, self.ctx.delta_e*eV2Ry,  emin, emin_cont-self.ctx.delta_e*eV2Ry))
             self.ctx.efermi = get_ef_from_potfile(self.ctx.last_calc.out.retrieved.get_abs_path('out_potential'))
             emax = self.ctx.dos_params['emax']
-            if emax < (self.ctx.efermi + self.ctx.delta_e)*eV2Ry:
-                self.ctx.dos_params['emax'] = (self.ctx.efermi + self.ctx.delta_e)*eV2Ry
-                self.report("INFO: self.ctx.efermi ({} Ry) + delta_e ({} Ry) larger than emax ({} Ry). Setting automatically to {}Ry".format(self.ctx.efermi*eV2Ry, self.ctx.delta_e*eV2Ry, emax, (self.ctx.efermi+self.ctx.delta_e)*eV2Ry))
+            if emax < self.ctx.efermi + self.ctx.delta_e*eV2Ry:
+                self.ctx.dos_params['emax'] = self.ctx.efermi + self.ctx.delta_e*eV2Ry
+                self.report("INFO: self.ctx.efermi ({} Ry) + delta_e ({} Ry) larger than emax ({} Ry). Setting automatically to {}Ry".format(self.ctx.efermi, self.ctx.delta_e*eV2Ry, emax, self.ctx.efermi+self.ctx.delta_e*eV2Ry))
 
             # take subset of input and prepare parameter node for dos workflow
             wfdospara_dict = {'queue_name' : self.ctx.queue,

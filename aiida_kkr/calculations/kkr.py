@@ -398,6 +398,7 @@ class KkrCalculation(JobCalculation):
         return parent_folder_tmp
         
         
+    @classmethod
     def _find_parent_struc(self, parent_folder):
         """
         Find the Structure node recuresively in chain of parent calculations (structure node is input to voronoi calculation)

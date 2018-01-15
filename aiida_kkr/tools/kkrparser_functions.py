@@ -431,7 +431,7 @@ def get_orbmom(outfile, natom):
     return array(result)#, vec, angles
 
 
-def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file):
+def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file, outfile_2='output.2.txt'):
     """
     Parser method for the kkr outfile. It returns a dictionary with results
     """
@@ -546,7 +546,9 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
     try:
         result = get_EF(outfile)
         out_dict['fermi_energy'] = result[-1]
+        out_dict['fermi_energy_units'] = 'Ry'
         out_dict['convergence_group']['fermi_energy_all_iterations'] = result
+        out_dict['convergence_group']['fermi_energy_all_iterations_units'] = 'Ry'
     except:
         msg = "Error parsing output of KKR: EF"
         msg_list.append(msg)
@@ -654,7 +656,10 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg_list.append(msg)
         
     try:
-        niter, nitermax, converged, nmax_reached, mixinfo = get_scfinfo(outfile_0init, outfile_000, outfile)
+        try:
+            niter, nitermax, converged, nmax_reached, mixinfo = get_scfinfo(outfile_0init, outfile_000, outfile)
+        except IndexError:
+            niter, nitermax, converged, nmax_reached, mixinfo = get_scfinfo(outfile_0init, outfile_2, outfile)
         out_dict['convergence_group']['number_of_iterations'] = niter
         out_dict['convergence_group']['number_of_iterations_max'] = nitermax
         out_dict['convergence_group']['calculation_converged'] = converged
@@ -754,16 +759,19 @@ def check_error_category(err_cat, err_msg, out_dict):
         
   
 """
-path0 = '../tests/files/kkr/kkr_run_dos_output/' #'../tests/files/kkr/kkr_run_slab_soc_mag/'
+print('run test')
+path0 = '../tests/files/kkr/parse_Nan_result/' #'../tests/files/kkr/kkr_run_slab_soc_mag/'
 outfile = path0+'out_kkr'
 outfile_0init = path0+'output.0.txt'
 outfile_000 = path0+'output.000.txt'
+outfile_2 = path0+'output.2.txt'
 timing_file = path0+'out_timing.000.txt'
 potfile_out = path0+'out_potential'
 nonco_out_file = path0+'nonco_angle_out.dat'
+print('test_path: {}'.format(path0))
 out_dict = {}
-success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file)
+success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file, outfile_2)
 out_dict['parser_warnings'] = msg_list
-print success
-print msg_list
+print(success)
+print(msg_list)
 #"""

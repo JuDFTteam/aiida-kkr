@@ -244,7 +244,7 @@ class kkr_startpot_wc(WorkChain):
     
         structure = self.inputs.structure
         self.ctx.formula = structure.get_formula()
-        label = 'voronoi calculation'
+        label = 'voronoi calculation step {}'.format(self.ctx.iter)
         description = '{} vornoi on {}'.format(self.ctx.description_wf, self.ctx.formula)
 
         voronoicode = self.inputs.voronoi
@@ -402,19 +402,21 @@ class kkr_startpot_wc(WorkChain):
             self.control_end_wc(error)
 
         # fix emin/emax
-        # remember: emin and emax are in internal units (Ry) but delta_e and efermi are in eV!
+        # remember: efermi, emin and emax are in internal units (Ry) but delta_e is in eV!
         eV2Ry = 1./get_Ry2eV()
         emin_dos = self.ctx.dos_params_dict['emin']
         emin_out = self.ctx.voro_calc.res.emin
+        self.report("INFO: emin dos input: {}, emin voronoi output: {}".format(emin_dos, emin_out))
         if emin_out - self.ctx.delta_e*eV2Ry < emin_dos:
             self.ctx.dos_params_dict['emin'] = emin_out - self.ctx.delta_e*eV2Ry
             self.report("INFO: emin ({} Ry) - delta_e ({} Ry) smaller than emin ({} Ry) of dos input. Setting automatically to {} Ry".format(emin_out, self.ctx.delta_e*eV2Ry,  emin_dos, emin_out-self.ctx.delta_e*eV2Ry))
 
         self.ctx.efermi = get_ef_from_potfile(self.ctx.voro_calc.out.retrieved.get_abs_path('output.pot'))
         emax = self.ctx.dos_params_dict['emax']
-        if emax < (self.ctx.efermi + self.ctx.delta_e)*eV2Ry:
-            self.ctx.dos_params_dict['emax'] = (self.ctx.efermi + self.ctx.delta_e)*eV2Ry
-            self.report("INFO: self.ctx.efermi ({} Ry) + delta_e ({} Ry) larger than emax ({} Ry). Setting automatically to {} Ry".format(self.ctx.efermi*eV2Ry, self.ctx.delta_e*eV2Ry, emax, (self.ctx.efermi+self.ctx.delta_e)*eV2Ry))
+        self.report("INFO: emax dos input: {}, efermi voronoi output: {}".format(emax, self.ctx.efermi))
+        if emax < self.ctx.efermi + self.ctx.delta_e*eV2Ry:
+            self.ctx.dos_params_dict['emax'] = self.ctx.efermi + self.ctx.delta_e*eV2Ry
+            self.report("INFO: self.ctx.efermi ({} Ry) + delta_e ({} Ry) larger than emax ({} Ry). Setting automatically to {} Ry".format(self.ctx.efermi, self.ctx.delta_e*eV2Ry, emax, self.ctx.efermi+self.ctx.delta_e*eV2Ry))
 
         #TODO implement other checks?
         
@@ -632,19 +634,23 @@ class kkr_startpot_wc(WorkChain):
         
         # voronoi outputs
         try:
+            voro_pk = self.ctx.voro_calc.out.pk
+        except AttributeError:
+            voro_pk = None
+        try:
             voro_calc = self.ctx.voro_calc.out.output_parameters
         except AttributeError:
-            self.report("ERROR: Results ParameterNode of voronoi (pk={}) not found".format(self.ctx.voro_calc.out.pk))
+            self.report("ERROR: Results ParameterNode of voronoi (pk={}) not found".format(voro_pk))
             voro_calc = None
         try:
             voro_remote = self.ctx.voro_calc.out.remote_folder
         except AttributeError:
-            self.report("ERROR: RemoteFolderNode of voronoi (pk={}) not found".format(self.ctx.voro_calc.out.pk))
+            self.report("ERROR: RemoteFolderNode of voronoi (pk={}) not found".format(voro_pk))
             voro_remote = None
         try:
             last_params = self.ctx.last_params
         except AttributeError:
-            self.report("ERROR: Input ParameterNode of voronoi (pk={}) not found".format(self.ctx.voro_calc.out.pk))
+            self.report("ERROR: Input ParameterNode of voronoi (pk={}) not found".format(voro_pk))
             last_params = None
             
         # dos calculation outputs

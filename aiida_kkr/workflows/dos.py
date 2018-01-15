@@ -248,7 +248,7 @@ class kkr_dos_wc(WorkChain):
         submit a dos calculation and interpolate result if returns complete
         """
         
-        label = 'dos calulation input'
+        label = 'KKR DOS calc.'
         dosdict = self.ctx.dos_params_dict
         description = 'dos calculation using the following parameter set. emin= {}, emax= {}, nepts= {}, tempr={}, kmesh={}'.format(dosdict['emin'], dosdict['emax'], dosdict['nepts'], dosdict['tempr'], dosdict['kmesh'])           
         code = self.inputs.kkr

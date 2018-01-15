@@ -97,7 +97,6 @@ class VoronoiCalculation(JobCalculation):
         # Check inputdict
         try:
             parameters = inputdict.pop(self.get_linkname('parameters'))
-            print parameters
         except KeyError:
             raise InputValidationError("No parameters specified for this "
                                        "calculation")
