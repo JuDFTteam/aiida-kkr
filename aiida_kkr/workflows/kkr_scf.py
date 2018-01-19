@@ -105,7 +105,7 @@ class kkr_scf_wc(WorkChain):
                         'n1': 3,
                         'n2': 11,
                         'n3': 3,
-                        'tempr': 1400.0,
+                        'tempr': 1000.0,
                         'kmesh': [10, 10, 10]},
                    'threshold_switch_high_accuracy': 10**-3,  # threshold after which final conversion settings are used
                    'convergence_setting_fine': {              # setting of the final convergence (lower tempr, 48 epts, denser k-mesh)
@@ -113,7 +113,7 @@ class kkr_scf_wc(WorkChain):
                         'n1': 7,
                         'n2': 29,
                         'n3': 7,
-                        'tempr': 473.0,
+                        'tempr': 600.0,
                         'kmesh': [30, 30, 30]},
                    'delta_e_min' : 1.,                        # minimal distance in DOS contour to emin and emax in eV
                    'threshold_dos_zero' : 10**-3, # states/eV # threshold after which DOS is considered to vanish (needed in DOS check)
@@ -672,6 +672,13 @@ class kkr_scf_wc(WorkChain):
                 description += ' using higher accuracy settings goven in convergence_setting_fine'
             else:
                 convergence_settings = self.ctx.convergence_setting_coarse
+                
+            # slightly increase temperature if previous calculation was unsuccessful for the second time
+            if decrease_mixing_fac and not self.convergence_on_track():
+                self.report('INFO: last calculation did not converge and convergence not on track. Try to increase temperature by 50K.')
+                convergence_settings['tempr'] += 50.
+                label += ' TEMPR+50K'
+                description += ' with increased temperature of 50K'
 
             # add convegence settings
             if self.ctx.loop_count == 1 or self.ctx.last_mixing_scheme == 0:
@@ -891,7 +898,10 @@ class kkr_scf_wc(WorkChain):
         on_track = True
         threshold = 5. # used to check condition if at least one of charnge_neutrality, rms-error goes down fast enough
 
-        if self.ctx.kkr_step_success:
+        # first check if previous calculation was stopped due to reaching the QBOUND limit
+        calc_reached_qbound = self.ctx.last_calc.out.output_parameters.get_dict()['convergence_group']['calculation_converged']
+        
+        if self.ctx.kkr_step_success and not calc_reached_qbound:
             first_rms = self.ctx.last_rms_all[0]
             first_neutr = abs(self.ctx.last_neutr_all[0])
             last_rms = self.ctx.last_rms_all[-1]
@@ -919,6 +929,9 @@ class kkr_scf_wc(WorkChain):
             else:
                 self.report("INFO convergence check: rms or neutrality do not shrink fast enough, convergence is not expected")
                 on_track = False
+        elif calc_reached_qbound:
+            self.report("INFO convergence check: calculation reached QBOUND")
+            on_track = True
         else:
             self.report("INFO convergence check: calculation unsuccessful")
             on_track = False
@@ -1265,7 +1278,7 @@ class kkr_scf_wc(WorkChain):
                     if nspin == 2 and ispin == 0:
                         y = -y
                     if y.min() < 0:
-                        self.report("INFO: negative DOS value found in (atom, spin)=({},{}) at iteration {}".format(iatom, ispin, self.ctx.loop_count))
+                        self.report("INFO: negative DOS value found in (atom, spin)=({},{}) at iteration {}: {}".format(iatom, ispin, self.ctx.loop_count, y.min()))
                         self.ctx.dos_ok = False
 
             # check starting EMIN

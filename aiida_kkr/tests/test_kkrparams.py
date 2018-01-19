@@ -244,6 +244,42 @@ class Test_fill_inputfile():
         p.set_value('FILES', ['output.pot', ''])
         p.fill_keywords_to_inputfile(is_voro_calc=True)
         
+    def test_set_rmtcore(self):
+        #test rmtcore
+        from numpy import array
+        from aiida_kkr.tools.common_functions import search_string
+        
+        para_dict = dict([(u'INS', 0),
+            (u'RCLUSTZ', 1.69),
+            (u'LMAX', 2),
+            (u'GMAX', 65.0),
+            (u'<RMTCORE>', [0.3535533906, 0.3535533906, 0.3535533906, 0.3535533906]),
+            (u'RMAX', 7.0),
+            (u'NSPIN', 1)])
+        zatom = array([ 47.,  47.,  47.,  47.])
+        alat = 7.8692316414074615
+        natom = 4
+        positions = array([[ 0. ,  0. ,  0. ],
+                           [ 0. ,  0.5,  0.5],
+                           [ 0.5,  0. ,  0.5],
+                           [ 0.5,  0.5,  0. ]])
+        bravais = array([[ 1.,  0.,  0.],
+                         [ 0.,  1.,  0.],
+                         [ 0.,  0.,  1.]])
+        k =kkrparams(**para_dict)
+        k.set_multiple_values(ZATOM=zatom, NAEZ=natom, ALATBASIS=alat, RBASIS=positions, BRAVAIS=bravais)
+        k.fill_keywords_to_inputfile()
+        
+        txt = open('inputcard').readlines()
+        naez = int(txt[search_string('NAEZ', txt)].split()[-1])
+        rmtcore = []
+        l_offset = search_string('RMTCORE', txt)
+        for iatom in range(naez):
+            rmtcore_at = float(txt[l_offset+1+iatom].split()[-1])
+            rmtcore.append(rmtcore_at)
+        maxdiff = (max(abs(array(para_dict['<RMTCORE>']) - array(rmtcore))))
+        assert maxdiff < 10**-6
+        
         
 class Test_other():
     def test_get_missing_keys(self): 
