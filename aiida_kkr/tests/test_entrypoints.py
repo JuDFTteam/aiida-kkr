@@ -93,11 +93,11 @@ class TestAiida_fleur_entrypoints:
 
 
     def test_maginit_workchain_entry_point(aiida_env):
-        from aiida_kkr.workflows.mag_init import kkr_maginit_wc
+        from aiida_kkr.workflows.check_magnetic_state import kkr_check_mag_wc
         from aiida.orm import WorkflowFactory
         
-        wf = WorkflowFactory('kkr.mag_init')
-        assert wf == kkr_maginit_wc
+        wf = WorkflowFactory('kkr.check_mag')
+        assert wf == kkr_check_mag_wc
 
 
     def test_conv_workchain_entry_point(aiida_env):

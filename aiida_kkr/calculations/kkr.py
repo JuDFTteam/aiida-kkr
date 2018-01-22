@@ -66,7 +66,7 @@ class KkrCalculation(JobCalculation):
         self._OUT_POTENTIAL = 'out_potential'
         self._OUTPUT_0_INIT = 'output.0.txt'
         self._OUTPUT_000 = 'output.000.txt'
-        self._OUTPUT_2 = 'output.0.txt'
+        self._OUTPUT_2 = 'output.2.txt'
         self._OUT_TIMING_000 = 'out_timing.000.txt'
         self._NONCO_ANGLES_OUT = 'nonco_angles_out.dat'
         
@@ -288,6 +288,7 @@ class KkrCalculation(JobCalculation):
                                   self._OUT_POTENTIAL,
                                   self._OUTPUT_0_INIT,
                                   self._OUTPUT_000,
+                                  self._OUTPUT_2,
                                   self._OUT_TIMING_000]
         
         # for special cases add files to retireve list:

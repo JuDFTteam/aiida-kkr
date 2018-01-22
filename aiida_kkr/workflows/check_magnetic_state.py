@@ -28,7 +28,7 @@ StructureData = DataFactory('structure')
 ParameterData = DataFactory('parameter')
 KkrProcess = KkrCalculation.process()
 
-class kkr_maginit_wc(WorkChain):
+class kkr_check_mag_wc(WorkChain):
     """
     Workchain used to initialize a magnetic KKR calculation starting from the 
     remoteData node of a previous calculation (either Voronoi or KKR).
