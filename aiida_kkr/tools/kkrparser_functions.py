@@ -758,9 +758,9 @@ def check_error_category(err_cat, err_msg, out_dict):
             return True
         
   
-"""
+#"""
 print('run test')
-path0 = '../tests/files/kkr/parse_Nan_result/' #'../tests/files/kkr/kkr_run_slab_soc_mag/'
+path0 = '../tests/files/kkr/lmax4_LLY_wallclock_exceeded/'
 outfile = path0+'out_kkr'
 outfile_0init = path0+'output.0.txt'
 outfile_000 = path0+'output.000.txt'

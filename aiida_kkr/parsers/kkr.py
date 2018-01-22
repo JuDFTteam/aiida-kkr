@@ -95,6 +95,12 @@ class KkrParser(Parser):
             file_errors.append((1, "Critical error! OUTPUT_000 not found {}".format(fname)))
             outfile_000 = None
         try:
+            fname = self._calc._OUTPUT_2
+            outfile_2 = out_folder.get_abs_path(fname)
+        except OSError:
+            file_errors.append((1, "Critical error! OUTPUT_2 not found {}".format(fname)))
+            outfile_2 = None
+        try:
             fname = self._calc._OUT_POTENTIAL
             potfile_out = out_folder.get_abs_path(fname)
         except OSError:
@@ -126,7 +132,8 @@ class KkrParser(Parser):
                                                            outfile_000, 
                                                            timing_file, 
                                                            potfile_out,
-                                                           nonco_out_file)
+                                                           nonco_out_file,
+                                                           outfile_2)
         out_dict['parser_errors'] = msg_list
          # add file open errors to parser output of error messages
         for (err_cat, f_err) in file_errors: 

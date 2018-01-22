@@ -702,7 +702,7 @@ class kkr_scf_wc(WorkChain):
                     if 'structure' in self.inputs:
                         struc = self.inputs.structure
                     else:
-                        struc, voro_parent = KkrCalculation._find_parent_struc(self.ctx.last_remote)
+                        struc, voro_parent = KkrCalculation.find_parent_structure(self.ctx.last_remote)
                     natom = len(struc.sites)
                     xinipol = ones(natom)
                 new_params['LINIPOL'] = True
@@ -899,8 +899,13 @@ class kkr_scf_wc(WorkChain):
         threshold = 5. # used to check condition if at least one of charnge_neutrality, rms-error goes down fast enough
 
         # first check if previous calculation was stopped due to reaching the QBOUND limit
-        calc_reached_qbound = self.ctx.last_calc.out.output_parameters.get_dict()['convergence_group']['calculation_converged']
-        
+        try:
+            calc_reached_qbound = self.ctx.last_calc.out.output_parameters.get_dict()['convergence_group']['calculation_converged']
+        except AttributeError: # captures error when last_calc dies not have an output node
+            calc_reached_qbound = False
+        except KeyError: # captures
+            calc_reached_qbound = False
+           
         if self.ctx.kkr_step_success and not calc_reached_qbound:
             first_rms = self.ctx.last_rms_all[0]
             first_neutr = abs(self.ctx.last_neutr_all[0])

@@ -66,6 +66,7 @@ class KkrCalculation(JobCalculation):
         self._OUT_POTENTIAL = 'out_potential'
         self._OUTPUT_0_INIT = 'output.0.txt'
         self._OUTPUT_000 = 'output.000.txt'
+        self._OUTPUT_2 = 'output.0.txt'
         self._OUT_TIMING_000 = 'out_timing.000.txt'
         self._NONCO_ANGLES_OUT = 'nonco_angles_out.dat'
         
@@ -215,7 +216,7 @@ class KkrCalculation(JobCalculation):
             self.logger.info("KkrCalculation: Parent is KKR calculation")
             try:            
                 self.logger.info('KkrCalculation: extract structure from KKR parent')
-                structure, voro_parent = self._find_parent_struc(parent_calc) 
+                structure, voro_parent = self.find_parent_structure(parent_calc) 
             except:
                 self.logger.error('Could not get structure from parent.')
                 raise ValidationError('Cound not find structure node starting from parent {}'.format(parent_calc))
@@ -412,7 +413,7 @@ class KkrCalculation(JobCalculation):
         
         
     @classmethod
-    def _find_parent_struc(self, parent_folder):
+    def find_parent_structure(self, parent_folder):
         """
         Find the Structure node recuresively in chain of parent calculations (structure node is input to voronoi calculation)
         """
