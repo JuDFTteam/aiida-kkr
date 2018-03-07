@@ -78,8 +78,14 @@ class VoronoiParser(Parser):
         try:
             potfile = out_folder.get_abs_path(self._calc._OUT_POTENTIAL_voronoi)
         except OSError:
-            file_errors.append("Critical error! potfile not found {}".format(self._calc._OUT_POTENTIAL_voronoi))
-            potfile = 'file_not_found'
+            # cover case where potfile is overwritten from input to voronoi calculation
+            try:
+                potfile = out_folder.get_abs_path(self._calc._POTENTIAL_IN_OVERWRITE)
+            except OSError:
+                file_errors.append("Critical error! Neither potfile {}  not {} "
+                                   "was found".format(self._calc._OUT_POTENTIAL_voronoi, 
+                                                      self._calc._POTENTIAL_IN_OVERWRITE))
+                potfile = 'file_not_found'
         try:
             outfile = out_folder.get_abs_path(self._calc._OUTPUT_FILE_NAME)
         except OSError:

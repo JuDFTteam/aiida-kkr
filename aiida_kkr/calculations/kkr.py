@@ -24,7 +24,7 @@ StructureData = DataFactory('structure')
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
+__version__ = "0.3"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -206,17 +206,16 @@ class KkrCalculation(JobCalculation):
         self.logger.info("KkrCalculation: Get structure node from voronoi parent")
         if isinstance(parent_calc, VoronoiCalculation):
             self.logger.info("KkrCalculation: Parent is Voronoi calculation")
-            try:            
-                structure = parent_calc.get_inputs_dict()['structure'] 
-                voro_parent = parent_calc
-            except:
+            if 1:#try:            
+                structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc) 
+            if 0:#except:
                 self.logger.error('KkrCalculation: Could not get structure from Voronoi parent.')
                 raise ValidationError("Cound not find structure node")
         elif isinstance(parent_calc, KkrCalculation):
             self.logger.info("KkrCalculation: Parent is KKR calculation")
             try:            
                 self.logger.info('KkrCalculation: extract structure from KKR parent')
-                structure, voro_parent = self.find_parent_structure(parent_calc) 
+                structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc) 
             except:
                 self.logger.error('Could not get structure from parent.')
                 raise ValidationError('Cound not find structure node starting from parent {}'.format(parent_calc))
@@ -251,6 +250,7 @@ class KkrCalculation(JobCalculation):
             # copy the right files #TODO check first if file, exists and throw
             # warning, now this will throw an error
             outfolderpath = parent_calc.out.retrieved.folder.abspath
+            outfolderpath = os.path.join(outfolderpath, 'path')
             self.logger.info("out folder path {}".format(outfolderpath))
             
             copylist = []
@@ -258,15 +258,21 @@ class KkrCalculation(JobCalculation):
                 copylist = self._copy_filelist_kkr
                 # TODO ggf copy remotely...
             if isinstance(parent_calc, VoronoiCalculation):
-                copylist = [parent_calc._SHAPEFUN, 
-                            parent_calc._OUT_POTENTIAL_voronoi]              
+                copylist = [parent_calc._SHAPEFUN]
+                # copy either overwrite potential or voronoi output potential 
+                # (voronoi caclualtion retreives only one of the two)
+                if parent_calc._POTENTIAL_IN_OVERWRITE in os.listdir(outfolderpath):
+                    copylist.append(parent_calc._POTENTIAL_IN_OVERWRITE)
+                else:
+                    copylist.append(parent_calc._OUT_POTENTIAL_voronoi)           
             
             for file1 in copylist:
                 filename = file1
-                if file1 == 'output.pot' or file1 == self._OUT_POTENTIAL:
+                if (file1 == 'output.pot' or file1 == self._OUT_POTENTIAL or 
+                   (isinstance(parent_calc, VoronoiCalculation) and file1 == parent_calc._POTENTIAL_IN_OVERWRITE)):
                     filename = self._POTENTIAL
                 local_copy_list.append((
-                        os.path.join(outfolderpath, 'path', file1),
+                        os.path.join(outfolderpath, file1),
                         os.path.join(filename)))
             # TODO different copy lists, depending on the keywors input
 
@@ -355,81 +361,5 @@ class KkrCalculation(JobCalculation):
                                   "KKR calculation")
 
         self.use_parent_folder(remotedata)
-
-        
-    @classmethod
-    def _get_struc(self, parent_calc):
-        """
-        Get structure from a parent_folder (result of a calculation, typically a remote folder)
-        """
-        return parent_calc.inp.structure
-        
-        
-    @classmethod
-    def _has_struc(self, parent_folder):
-        """
-        Check if parent_folder has structure information in its input
-        """
-        success = True
-        try:
-            parent_folder.inp.structure
-        except:
-            success = False
-        if success:
-            print('struc found')
-        else:
-            print('no struc found')
-        return success
-        
-        
-    @classmethod
-    def _get_remote(self, parent_folder):
-        """
-        get remote_folder from input if parent_folder is not already a remote folder
-        """
-        parent_folder_tmp0 = parent_folder
-        try:
-            parent_folder_tmp = parent_folder_tmp0.inp.remote_folder
-            print('input has remote folder')
-        except:
-            #TODO check if this is a remote folder
-            parent_folder_tmp = parent_folder_tmp0
-            print('input is remote folder')
-        return parent_folder_tmp
-        
-        
-    @classmethod
-    def _get_parent(self, input_folder):
-        """
-        get the  parent folder of the calculation. If not parent was found return input folder
-        """
-        input_folder_tmp0 = input_folder
-        try:
-            parent_folder_tmp = input_folder_tmp0.inp.parent_calc_folder
-            print('input has parent folder')
-        except:
-            parent_folder_tmp = input_folder_tmp0
-            print('input is parent folder')
-        return parent_folder_tmp
-        
-        
-    @classmethod
-    def find_parent_structure(self, parent_folder):
-        """
-        Find the Structure node recuresively in chain of parent calculations (structure node is input to voronoi calculation)
-        """
-        iiter = 0
-        Nmaxiter = 100
-        parent_folder_tmp = self._get_remote(parent_folder)
-        while not self._has_struc(parent_folder_tmp) and iiter<Nmaxiter:
-            parent_folder_tmp = self._get_remote(self._get_parent(parent_folder_tmp))
-            iiter += 1
-        print(iiter)
-        if self._has_struc(parent_folder_tmp):
-            struc = self._get_struc(parent_folder_tmp)
-            return struc, parent_folder_tmp
-        else:
-            print('struc not found')
-    
 
         

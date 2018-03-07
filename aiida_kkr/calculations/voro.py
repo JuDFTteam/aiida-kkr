@@ -9,17 +9,19 @@ from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.orm import DataFactory
 from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency
-
+from aiida.common.exceptions import UniquenessError
+import os
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.4"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
 ParameterData = DataFactory('parameter')
 StructureData = DataFactory('structure')
+RemoteData = DataFactory('remote')
 
 class VoronoiCalculation(JobCalculation):
     """
@@ -57,6 +59,7 @@ class VoronoiCalculation(JobCalculation):
         self._SHAPEFUN = 'shapefun'
         self._VERTICES = 'vertices.dat'
         self._OUT_POTENTIAL_voronoi = 'output.pot'
+        self._POTENTIAL_IN_OVERWRITE = 'overwrite_potential'
 
     @classproperty
     def _use_methods(cls):
@@ -82,6 +85,13 @@ class VoronoiCalculation(JobCalculation):
                 'docstring':
                 ("Use a node that specifies the input crystal structure ")
                 },
+            "parent_KKR": {
+                'valid_types': RemoteData,
+                'additional_parameter': None,
+                'linkname': 'parent_calc',
+                'docstring':
+                ("Use a node that specifies a parent KKR calculation ")
+                },
             })
         return use_dict
 
@@ -103,22 +113,53 @@ class VoronoiCalculation(JobCalculation):
         if not isinstance(parameters, ParameterData):
             raise InputValidationError("parameters not of type "
                                        "ParameterData")
+            
         try:
             structure = inputdict.pop(self.get_linkname('structure'))
+            found_structure = True
         except KeyError:
-            raise InputValidationError("No structure specified for this "
-                                       "calculation")
-        if not isinstance(structure, StructureData):
-            raise InputValidationError("structure not of type "
-                                        "StructureData")
+            found_structure = False
+        
+        if found_structure:
+            if not isinstance(structure, StructureData):
+                raise InputValidationError("structure not of type "
+                                            "StructureData")
         
         try:
             code = inputdict.pop(self.get_linkname('code'))
         except KeyError:
             raise InputValidationError("No code specified for this "
                                        "calculation")
+            
+        # check if a parent folder containing a potential file (out_potential) is given
+        try:
+            parent_calc_folder = inputdict.pop(self.get_linkname('parent_KKR'))
+            found_parent = True
+        except KeyError:
+            found_parent = False
+        
+        if found_parent:
+            if not isinstance(parent_calc_folder, RemoteData):
+                raise InputValidationError("parent_KKR must be of type RemoteData")       
+            
+            # check if parent is either Voronoi or previous KKR calculation
+            overwrite_potential, parent_calc = self._check_valid_parent(parent_calc_folder)
+            
+            #cross check if no structure was given and extract structure from parent
+            if found_structure:
+                raise InputValidationError("parent_KKR and structure found in input. "
+                                           "Can only use either parent_KKR or structure in input.")   
+            else:
+                structure, voro_parent = self.find_parent_structure(parent_calc)
+        else:
+            overwrite_potential = False
+            if not found_structure:
+                raise InputValidationError("Neither structure not parent_KKR specified for this "
+                                           "calculation")
+            
+        # finally check if something else was given as input (should not be the case)
         if inputdict:
-                raise ValidationError("Unknown inputs: {}".format(inputdict))
+            raise ValidationError("Unknown inputs: {}".format(inputdict))
 
 
         ###################################
@@ -133,16 +174,45 @@ class VoronoiCalculation(JobCalculation):
             natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename, isvoronoi=True)
         except ValueError as e:
             raise InputValidationError("Input ParameterData not consistent: {}".format(e))
+            
+           
+        local_copy_list = []
+        
+        # Decide what files to copy
+        if overwrite_potential:
+            # copy the right files #TODO check first if file, exists and throw
+            # warning, now this will throw an error
+            outfolderpath = parent_calc.out.retrieved.folder.abspath
+            self.logger.info("out folder path {}".format(outfolderpath))
+            
+            copylist = []
+            if self._is_KkrCalc(parent_calc):
+                copylist = [parent_calc._OUT_POTENTIAL]              
+            
+            for file1 in copylist:
+                filename = file1
+                if file1 == parent_calc._OUT_POTENTIAL:
+                    filename = self._POTENTIAL_IN_OVERWRITE
+                local_copy_list.append((
+                        os.path.join(outfolderpath, 'path', file1),
+                        os.path.join(filename)))
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()
         calcinfo.uuid = self.uuid
-        calcinfo.local_copy_list = []
+        calcinfo.local_copy_list = local_copy_list
         calcinfo.remote_copy_list = []
         calcinfo.retrieve_list = [self._OUTPUT_FILE_NAME, self._ATOMINFO, 
                                   self._RADII, self._SHAPEFUN, self._VERTICES, 
-                                  self._OUT_POTENTIAL_voronoi, 
                                   self._INPUT_FILE_NAME]
+        
+        # pass on overwrite potential if this was given in input 
+        # (KkrCalculation checks if this file is there and takes this file instead of _OUT_POTENTIAL_voronoi
+        #  if given)
+        if overwrite_potential:
+            calcinfo.retrieve_list += [self._POTENTIAL_IN_OVERWRITE]
+        else:
+            calcinfo.retrieve_list += [self._OUT_POTENTIAL_voronoi]
 
         codeinfo = CodeInfo()
         codeinfo.cmdline_params = []
@@ -151,3 +221,124 @@ class VoronoiCalculation(JobCalculation):
         calcinfo.codes_info = [codeinfo]
 
         return calcinfo
+        
+        
+    def _check_valid_parent(self, parent_calc_folder):
+        """
+        Check that calc is a valid parent for a FleurCalculation.
+        It can be a VoronoiCalculation, KKRCalculation
+        """
+        overwrite_pot = False
+        
+        # extract parent calculation
+        parent_calcs = parent_calc_folder.get_inputs(node_type=JobCalculation)
+        n_parents = len(parent_calcs)
+        if n_parents != 1:
+            raise UniquenessError("Input RemoteData is child of {} "
+                                  "calculation{}, while it should have a single parent"
+                                  "".format(n_parents, "" if n_parents == 0 else "s"))
+        else:
+            parent_calc = parent_calcs[0]
+            overwrite_pot = True  
+
+        if ((not self._is_KkrCalc(parent_calc)) ):
+            raise ValueError("Parent calculation must be a KkrCalculation")
+
+        return overwrite_pot, parent_calc
+        
+        
+    def _is_KkrCalc(self, calc):
+        """
+        check if calc contains the file out_potential
+        """
+        is_KKR = False
+        ret = calc.get_retrieved_node()
+        ret_path = ret.get_abs_path()
+        ret_path = os.path.join(ret_path, 'path')
+        if 'out_potential' in os.listdir(ret_path):
+            is_KKR = True
+        
+        return is_KKR
+        
+    
+    @classmethod
+    def _get_struc(self, parent_calc):
+        """
+        Get structure from a parent_folder (result of a calculation, typically a remote folder)
+        """
+        return parent_calc.inp.structure
+        
+        
+    @classmethod
+    def _has_struc(self, parent_folder):
+        """
+        Check if parent_folder has structure information in its input
+        """
+        success = True
+        try:
+            parent_folder.inp.structure
+        except:
+            success = False
+        if success:
+            print('struc found')
+        else:
+            print('no struc found')
+        return success
+        
+        
+    @classmethod
+    def _get_remote(self, parent_folder):
+        """
+        get remote_folder from input if parent_folder is not already a remote folder
+        """
+        parent_folder_tmp0 = parent_folder
+        try:
+            parent_folder_tmp = parent_folder_tmp0.inp.remote_folder
+            print('input has remote folder')
+        except:
+            #TODO check if this is a remote folder
+            parent_folder_tmp = parent_folder_tmp0
+            print('input is remote folder')
+        return parent_folder_tmp
+        
+        
+    @classmethod
+    def _get_parent(self, input_folder):
+        """
+        get the  parent folder of the calculation. If not parent was found return input folder
+        """
+        input_folder_tmp0 = input_folder
+        try:
+            parent_folder_tmp = input_folder_tmp0.inp.parent_calc_folder
+            print('input has parent folder')
+        except:
+            try:
+                parent_folder_tmp = input_folder_tmp0.inp.parent_calc
+                print('input has parent folder')
+            except:
+                parent_folder_tmp = input_folder_tmp0
+                print('input is parent folder')
+        return parent_folder_tmp
+        
+        
+    @classmethod
+    def find_parent_structure(self, parent_folder):
+        """
+        Find the Structure node recuresively in chain of parent calculations (structure node is input to voronoi calculation)
+        """
+        iiter = 0
+        Nmaxiter = 100
+        parent_folder_tmp = self._get_remote(parent_folder)
+        while not self._has_struc(parent_folder_tmp) and iiter<Nmaxiter:
+            parent_folder_tmp = self._get_remote(self._get_parent(parent_folder_tmp))
+            iiter += 1
+        print(iiter)
+        if self._has_struc(parent_folder_tmp):
+            struc = self._get_struc(parent_folder_tmp)
+            return struc, parent_folder_tmp
+        else:
+            print('struc not found')
+    
+
+        
+        

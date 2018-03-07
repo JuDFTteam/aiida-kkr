@@ -655,7 +655,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         msg = "Error parsing output of KKR: alat, 2*pi/alat"
         msg_list.append(msg)
         
-    if 1: #try:
+    try:
         try:
             niter, nitermax, converged, nmax_reached, mixinfo = get_scfinfo(outfile_0init, outfile_000, outfile)
         except IndexError:
@@ -670,7 +670,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         out_dict['convergence_group']['fcm'] = mixinfo[3]
         out_dict['convergence_group']['idtbry'] = mixinfo[4]
         out_dict['convergence_group']['brymix'] = mixinfo[5]
-    if 0:#except:
+    except:
         msg = "Error parsing output of KKR: scfinfo"
         msg_list.append(msg)
     
