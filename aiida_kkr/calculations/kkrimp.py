@@ -6,7 +6,7 @@ from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.orm import DataFactory
 
-ParameterData = DataFactory('parameters')
+ParameterData = DataFactory('parameter')
 StructureData = DataFactory('structure')
 
 class KkrimpCalculation(JobCalculation):
@@ -22,10 +22,25 @@ class KkrimpCalculation(JobCalculation):
         # reuse base class function
         super(KkrimpCalculation, self)._init_internal_params()
 
-        self._INPUT_FILE_NAME = 'inputfilename'
-        self._OUTPUT_FILE_NAME = 'outputfilename'
+        # List of mandatory input files
+        self._INPUTCARD = 'inputcard'
+        self._POTENTIAL = 'potential'
+
+        # List of optional input files (may be mandatory for some setting in inputputcard)
+        self._SHAPEFUN = 'shapefun'
+        self._SCOEF = 'scoef'
+        self._NONCO_ANGLES = 'nonco_angles.dat'
+
+	
+	# List of output files that should always be present
+        self._OUT_POTENTIAL = 'out_potential'
+        self._OUTPUT_0_INIT = 'output.0.txt'
+        self._OUTPUT_000 = 'output.000.txt'
+        self._OUT_TIMING_000 = 'out_timing.000.txt'
+
+
         # template.product entry point defined in setup.json
-        self._default_parser = 'kkr.kkrimpparser'
+        self._default_parser = 'kkr.kkrimpParser'
 
     @classproperty
     def _use_methods(cls):

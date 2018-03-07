@@ -6,7 +6,7 @@ from aiida.orm.data.parameter import ParameterData
 
 class KkrimpParser(Parser):
     """
-    Parser class for parsing output of KKRimp code..
+    Parser class for parsing output of KKR impurity code..
     """
 
     # pylint: disable=protected-access

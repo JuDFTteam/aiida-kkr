@@ -1,0 +1,15 @@
+computers:
+  localhost:
+    hostname: localhost
+    description: localhost
+    transport: local
+    scheduler: direct
+    work_directory: /tmp/test_aiida_pytest_run
+    queue_name: test_queue_name
+
+codes:
+  tinpgen:
+    description: test inpgen code object
+    default_plugin: fleur.inpgen
+    remote_computer: localhost
+    remote_abspath: /Users/broeder/codes/fleur_git_v27/fleur/build/inpgen

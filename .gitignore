@@ -45,6 +45,9 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
+aiida_kkr/tests/coverage
+aiida_kkr/tests/inputcard
+
 
 # Translations
 *.mo

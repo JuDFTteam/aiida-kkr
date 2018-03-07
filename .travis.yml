@@ -1,0 +1,37 @@
+dist: trusty
+#sudo: required
+language: python
+
+python: 2.7
+
+notifications:
+  slack:
+    on_success: never
+
+services:
+    - postgresql
+
+addons:
+    postgresql: "9.5"
+
+cache: pip
+
+before_install:  # copied from pgtest's travis.yml
+    - sudo apt-get install locate
+    - sudo service postgresql stop
+    - sudo apt-get remove postgresql
+    - sudo apt-get install postgresql
+    - sudo updatedb
+
+install:
+    - pip install -U pip wheel setuptools
+    - pip install -e git+https://github.com/aiidateam/aiida_core@develop#egg=aiida-core[testing]
+    - pip install -e .
+
+env:
+    - TEST_TYPE="unittests"
+
+script: cd ./aiida_kkr/tests/ && ./run_all.sh
+
+git:
+  depth: 3
