@@ -1235,6 +1235,11 @@ class kkr_scf_wc(WorkChain):
         checks if dos of final potential is ok
         """
         self.ctx.dos_ok = True
+        
+        if not self.ctx.check_dos:
+            self.report("INFO: skipping DOS check")
+            return
+        
         self.report("INFO: checking DOS for consistency (EMIN position, negative DOS, etc.)")
 
         # check parser output

@@ -19,7 +19,7 @@ import time
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-import aiida_plugin_template
+import aiida_kkr
 
 # -- General configuration ------------------------------------------------
 
@@ -70,7 +70,7 @@ copyright = u'{}, {}. All rights reserved'.format(copyright_year_string, copyrig
 # built documents.
 #
 # The full version, including alpha/beta/rc tags.
-release = aiida_plugin_template.__version__
+release = aiida_kkr.__version__
 # The short X.Y version.
 version = '.'.join(release.split('.')[:2])
 
