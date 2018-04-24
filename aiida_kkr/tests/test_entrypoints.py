@@ -18,6 +18,20 @@ class TestAiida_fleur_entrypoints:
         kkr_calculation = CalculationFactory('kkr.kkr')
         assert kkr_calculation == KkrCalculation
 
+    def test_kkrimportercalculation_entry_point(aiida_env):
+        from aiida.orm import CalculationFactory
+        from aiida_kkr.calculations.kkrimporter import KkrImporterCalculation
+
+        kkr_calculation = CalculationFactory('kkr.kkrimporter')
+        assert kkr_calculation == KkrCalculation
+
+    def test_kkrimpcalculation_entry_point(aiida_env):
+        from aiida.orm import CalculationFactory
+        from aiida_kkr.calculations.kkrimp import KkrimpCalculation
+
+        kkr_calculation = CalculationFactory('kkr.kkrimp')
+        assert kkr_calculation == KkrCalculation
+
 
     def test_voronoicalculation_entry_point(aiida_env):
         from aiida.orm import CalculationFactory
@@ -45,6 +59,13 @@ class TestAiida_fleur_entrypoints:
     def test_kkr_parser_entry_point(aiida_env):
         from aiida.parsers import ParserFactory
         from aiida_kkr.parsers.kkr import KkrParser
+
+        parser = ParserFactory('kkr.kkrparser')
+        assert parser == KkrParser
+
+    def test_kkrimporter_parser_entry_point(aiida_env):
+        from aiida.parsers import ParserFactory
+        from aiida_kkr.parsers.kkrimporter import KkrImporterParser
 
         parser = ParserFactory('kkr.kkrparser')
         assert parser == KkrParser

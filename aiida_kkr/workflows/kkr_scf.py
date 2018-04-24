@@ -1234,8 +1234,10 @@ class kkr_scf_wc(WorkChain):
         """
         checks if dos of final potential is ok
         """
+        # initialize dos_ok variable
         self.ctx.dos_ok = True
         
+        # first check if dos should be checked or if the test is skipped
         if not self.ctx.check_dos:
             self.report("INFO: skipping DOS check")
             return

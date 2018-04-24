@@ -47,7 +47,8 @@ class kkrparams(object):
     - print a list of mandatory keywords: params.get_all_mandatory()
     - print a list of keywords that are set including their value: params.get_set_values()
 
-    Note: KKR-units (e.g. atomic units with energy in Ry, length in a_Bohr) are assumed!
+    Note: KKR-units (e.g. atomic units with energy in Ry, length in a_Bohr) are assumed 
+          except for the keys'<RBLEFT>', '<RBRIGHT>', 'ZPERIODL', and 'ZPERIODR' which should be given in Ang. units!
     """
 
 
@@ -311,14 +312,17 @@ class kkrparams(object):
 
 
     def _create_keyword_default_values(self, **kwargs):
-        """ Creates KKR inputcard keywords dictionary and fills entry if value is given in **kwargs
+        """
+        Creates KKR inputcard keywords dictionary and fills entry if value is given in **kwargs
 
-            entries of keyword dictionary are: 'keyword', [value, format, keyword mandatory, description]
-            where
-            value can be a single entry or a list of entries
-            format contains formatting info
-            keyword mandatory is a logical stating if keyword needs to be defined to run a calculation
-            description is a string containgin human redable info about the keyword
+        entries of keyword dictionary are: 'keyword', [value, format, keyword_mandatory, description]
+        
+        where
+        
+        - 'value' can be a single entry or a list of entries
+        - 'format' contains formatting info
+        - 'keyword_mandatory' is a logical stating if keyword needs to be defined to run a calculation
+        - 'description' is a string containgin human redable info about the keyword
         """
 
         default_keywords = dict([# complete list of keywords, detault all that are not mandatory to None
@@ -507,12 +511,13 @@ class kkrparams(object):
                     raise TypeError
 
 
-    def _check_input_consistency(self):
+    def _check_input_consistency(self, set_lists_only=False):
         """Check consistency of input, to be done before wrinting to inputcard"""
         from numpy import array
 
         # first check if all mandatory values are there
-        self._check_mandatory()
+        if not set_lists_only:
+            self._check_mandatory()
 
         # lists of array arguments
         keywords = self.values
@@ -542,10 +547,12 @@ class kkrparams(object):
             self.update_to_voronoi()
         
         
-        special_formatting = ['BRAVAIS', 'RUNOPT', 'TESTOPT', 'FILES']
-
+        self.__special_formatting = ['BRAVAIS', 'RUNOPT', 'TESTOPT', 'FILES']
         self.__listargs = listargs
-        self.__special_formatting = special_formatting
+        
+        # ruturn after setting __special_formatting and __listargs lists
+        if set_lists_only:
+            return
 
         # check for consistency of array arguments
         self._check_array_consistency()
@@ -571,9 +578,9 @@ class kkrparams(object):
         elif 'INS' in set_values and 'KSHAPE' in set_values:
             ins = self.get_value('INS')
             kshape = self.get_value('KSHAPE')
-            if ins != kshape:
+            if (ins!=0 and kshape==0) or (ins==0 and kshape!=0):
                 print("Error: values of 'INS' and 'KSHAPE' are both found but are inconsistent (should be equal)")
-                raise ValueError
+                raise ValueError('INS,KSHAPE mismatch')
 
 
     def fill_keywords_to_inputfile(self, is_voro_calc=False, output='inputcard'):
@@ -600,13 +607,13 @@ class kkrparams(object):
         sorted_keylist = [#run/testopts
                           'RUNOPT', 'TESTOPT',
                           #lattice:
-                          'ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'CARTESIAN',
+                          'ALATBASIS', 'BRAVAIS', 'NAEZ', 'CARTESIAN', '<RBASIS>',
                           'INTERFACE', '<NLBASIS>', '<RBLEFT>', 'ZPERIODL', '<NRBASIS>', '<RBRIGHT>', 'ZPERIODR',
                           'KSHAPE', '<SHAPE>',
                           # chemistry
-                          '<ZATOM>', 'NSPIN', 'KVREL', '<SOCSCL>',
-                          'KEXCOR', 'LAMBDA_XC',
+                          'NSPIN', 'KVREL', 'KEXCOR', 'LAMBDA_XC',
                           'NAT_LDAU', 'LDAU_PARA', 'KREADLDAU',
+                          '<ZATOM>', '<SOCSCL>',
                           'NATYP', '<SITE>', '<CPA-CONC>',
                           '<KAOEZL>', '<KAOEZR>',
                           # external fields
@@ -629,8 +636,9 @@ class kkrparams(object):
             if key not in sorted_keylist:
                 sorted_keylist += [key]
 
-        #for key in keyfmts.keys():
-        #    keyfmts[key] = keyfmts[key].replace('%l', '%s')
+        # ensure high enough precision in inputcard writeout
+        for key in keyfmts.keys():
+            keyfmts[key] = keyfmts[key].replace('%f', '%21.14f')
 
 
         # write all set keys to file
@@ -643,7 +651,7 @@ class kkrparams(object):
                     try:
                         repltxt = tmpfmt%(keywords[key])
                     except:
-                        print(key, tmpfmt, keywords[key])
+                        #print(key, tmpfmt, keywords[key])
                         repltxt = ''
                         for i in range(len(tmpfmt)):
                             repltxt += ' ' + tmpfmt[i]%(keywords[key][i])
@@ -727,40 +735,263 @@ class kkrparams(object):
                     print('Error trying to write keyword %s but writing failed!'%key)
                     raise ValueError
 
+                # to make inputcard more readable insert some blank lines after certain keys
+                if key in ['TESTOPT', 'CARTESIAN', '<RBASIS>', 'ZPERIODL', 'ZPERIODR', '<SHAPE>', 
+                           'KREADLDAU', '<ZATOM>', '<SOCSCL>', '<CPA-CONC>', '<KAOEZR>', 'VCONST',
+                           'BZDIVIDE', 'FSEMICORE', 'CPAINFO', 'RCLUSTXY', '<RMTREF>', '<RMTREFR>',
+                           'ICST', '<FPRADIUS>', 'GMAX', '<TOLRDIF>', 'QBOUND']:
+                    tmpl += "\n"                        
+
+        # finally write to file
         open(output, 'w').write(tmpl)
 
 
     def read_keywords_from_inputcard(self, inputcard='inputcard'):
-        """Read list of keywords from inputcard and extract values to keywords dict"""
         """
+        Read list of keywords from inputcard and extract values to keywords dict
+        
+        :example usage: p = kkrparams(); p.read_keywords_from_inputcard('inputcard')
+        :note: converts '<RBLEFT>', '<RBRIGHT>', 'ZPERIODL', and 'ZPERIODR' automatically to Ang. units!
+        """
+        from numpy import shape, array
+        from aiida_kkr.tools.common_functions import get_aBohr2Ang
+        
         txt = open(inputcard, 'r').readlines()
         keywords = self.values
         keyfmts = self.__format
 
-        using _get_value (from below)
-        """
         #TODO loop over known keywords and fill with values found in inputcard
-        #TODO take different known formatting into account, not only the default that is written here
-        print('Not implemented yet!')
-        pass
+        # first read array dimensions
+        read_first = ['NAEZ', 'NATYP', '<NLBASIS>', '<NRBASIS>']
+        read_already = []
+        for key in read_first:
+            valtxt = self._find_value(key, txt)
+            if valtxt is None: # try to read key without '<', '>'
+                valtxt = self._find_value(key.replace('<','').replace('>',''), txt)
+            # now set value in kkrparams
+            if valtxt is not None:
+                value = self.get_type(key)(valtxt)
+                self.set_value(key, value)
+                read_already.append(key)
+                
+        # then set self.__special_formatting and self.__listargs in _check_input_consistency
+        # needs NAEZ, NATYP, NLBASIS, NRBASIS to be set to get array dimensions correct
+        self._check_input_consistency(set_lists_only=True)
+        
+        # try to read keywords from inputcard and fill self.values
+        for key in keywords:
+            if key not in read_already:
+                item, num = 1, 1 # starting column and number of columns that are read in
+                
+                if keyfmts[key].count('%')>1:
+                    num = keyfmts[key].count('%')
+                                
+                if key not in self.__special_formatting:
+                    # determine if more than one line is read in
+                    if key in self.__listargs and key not in ['ZPERIODL', 'ZPERIODR', 'BZDIVIDE']:
+                        lines = range(1,self.__listargs[key]+1)
+                    else:
+                        lines = [1]
+                else: # special formatting keys
+                    if key=='RUNOPT':
+                        lines = [1]
+                        num = 8
+                        keyfmts[key] = '%s%s%s%s%s%s%s%s'
+                    elif key=='TESTOPT':
+                        lines = [1, 2]
+                        num = 8
+                        keyfmts[key] = '%s%s%s%s%s%s%s%s'
+                    elif key=='BRAVAIS':
+                        lines = [1, 2, 3]
+                        num = 3
+                        keyfmts[key] = '%f %f %f'
+                    elif key=='BZDIVIDE':
+                        lines = [1]
+                        num = 3
+                        keyfmts[key] = '%f'
+                    elif key=='FILES':
+                        lines = [2, 4]
+                        num = 1
+                        keyfmts[key] = '%s'
+                # read in all lines for this key
+                values = []
+                for iline in lines:
+                    valtxt = self._find_value(key, txt, iline, item, num)
+                    if valtxt is not None:
+                        # first deal with run and testopts (needs to spearate keys)
+                        if key=='RUNOPT' or key=='TESTOPT':
+                            if type(valtxt) != list:
+                                valtxt = [valtxt]
+                            valtxt_tmp = []
+                            for itmp in valtxt:
+                                if len(itmp)>8:
+                                    Nsplitoff = int(len(itmp)/8)
+                                    for ii in range(Nsplitoff):
+                                        itmp_splitoff = itmp[ii*8:(ii+1)*8]
+                                        valtxt_tmp.append(itmp_splitoff)
+                                    itmp_splitoff = itmp[Nsplitoff*8:]
+                                    valtxt_tmp.append(itmp_splitoff)
+                                else:
+                                    valtxt_tmp.append(itmp)
+                            valtxt =valtxt_tmp
+                        # then continue with valtxt
+                        if type(valtxt)==list:
+                            tmp = []
+                            for itmp in range(len(valtxt)):
+                                tmptype = self.get_type(key)[itmp]
+                                if tmptype==float and ('d' in valtxt[itmp] or 'D' in valtxt[itmp]):
+                                    valtxt[itmp] = valtxt[itmp].replace('d', 'e').replace('D','e')
+                                tmp.append(tmptype(valtxt[itmp]))
+                        else:
+                            tmptype = self.get_type(key)
+                            if tmptype==float and ('d' in valtxt or 'D' in valtxt):
+                                valtxt = valtxt.replace('d', 'e').replace('D','e')
+                            if tmptype==bool:
+                                if valtxt.upper() in ['F', 'FALSE', '.FALSE.', 'NO', '0']:
+                                    valtxt = "" # only empty string evaluates to False!!!
+                                else:
+                                    valtxt = "True"
+                            tmp = tmptype(valtxt)
+                        values.append(tmp)
+                if len(values)==1:
+                    values = values[0]
+                
+                if key=='TESTOPT': # flatten list
+                    if shape(values)[0]==2 and type(values[0])==list:
+                        tmp = []
+                        for itmp in values:
+                            for ii in itmp:
+                                tmp.append(ii)
+                        values = tmp
+                        
+                # finally set values in kkrparams object
+                if values != []:
+                    self.set_value(key, values)
+        
+        # finally check if some input of the old style was given and read it in
+        natyp = self.get_value('NATYP')
+        if natyp is None:
+            natyp = self.get_value('NAEZ')
+            
+        # look for old RBASIS input style
+        if self.get_value('<RBASIS>') is None:
+            rbasis = []
+            for iatom in range(natyp):
+                rbasis.append([float(i) for i in self._find_value('RBASIS', txt, 1+iatom, 1, 3)])
+            self.set_value('<RBASIS>', rbasis)
+        
+        # look for old atominfo input style
+        atominfo_c = self._find_value('ATOMINFOC', txt, 2)
+        if atominfo_c is None:
+            atominfo_c = False
+        else:
+            atominfo_c = True
+        atominfo = self._find_value('ATOMINFO', txt, 2)
+        if atominfo is None:
+            atominfo = False
+        else:
+            atominfo = True
+        tmp = []
+        if atominfo_c:
+            for iatom in range(natyp):    
+                tmp.append(self._find_value('ATOMINFOC', txt, 2+iatom, 1, 14))
+        elif atominfo:
+            for iatom in range(natyp): 
+                tmp.append(self._find_value('ATOMINFO', txt, 2+iatom, 1, 12))
+        if atominfo_c or atominfo:
+            tmp = array(tmp)
+            cls_list = [int(i) for i in tmp[:,6]]
+            self.set_multiple_values(ZATOM=[float(i) for i in tmp[:,0]], SHAPE=[int(i) for i in tmp[:,8]], RMTREF=[float(i) for i in tmp[:,11]])
+            if atominfo_c:
+                self.set_value('SITE', [int(i) for i in tmp[:,12]])
+                self.set_value('<CPA-CONC>', [float(i) for i in tmp[:,13]])
+        else:
+            cls_list = range(1, natyp+1)
+                
+        # look for old left/right basis input style
+        if self.get_value('INTERFACE'):
+            leftbasis = self._find_value('LEFTBASIS', txt)
+            if leftbasis is None:
+                leftbasis = False
+            else:
+                leftbasis = True
+                nlbasis = self.get_value('<NLBASIS>')
+            rightbasis = self._find_value('RIGHBASIS', txt) # RIGHBASIS is no typo!!
+            if rightbasis is None:
+                rightbasis = False
+            else:
+                rightbasis = True
+                nrbasis = self.get_value('<NRBASIS>')
+            if leftbasis:
+                tmp = []
+                for iatom in range(nlbasis):
+                    tmp.append(self._find_value('LEFTBASIS', txt, 1+iatom, 1, 5))
+                tmp = array(tmp)
+                self.set_multiple_values(RBLEFT=[[float(i[j]) for j in range(3)] for i in tmp[:,0:3]], KAOEZL=[int(i) for i in tmp[:,3]])
+                tmp2 = [] 
+                for icls in tmp[:,3]:
+                    rmtref = self.get_value('<RMTREF>')[cls_list.index(int(icls))]
+                    tmp2.append(rmtref)
+                self.set_value('<RMTREFL>', tmp2)
+            if rightbasis:
+                tmp = []
+                for iatom in range(nrbasis):
+                    tmp.append(self._find_value('RIGHBASIS', txt, 1+iatom, 1, 5))
+                tmp = array(tmp)
+                self.set_multiple_values(RBRIGHT=[[float(i[j]) for j in range(3)] for i in tmp[:,0:3]], KAOEZR=[int(i) for i in tmp[:,3]])
+                tmp2 = [] 
+                for icls in tmp[:,3]:
+                    rmtref = self.get_value('<RMTREF>')[cls_list.index(int(icls))]
+                    tmp2.append(rmtref)
+                self.set_value('<RMTREFR>', tmp2)
+                
+        # convert RBLEFT etc. from alat units to Ang. units (this is assumed in generate_inputcard)
+        rbl = self.get_value('<RBLEFT>')
+        rbr = self.get_value('<RBRIGHT>')
+        zper_l = self.get_value('ZPERIODL')
+        zper_r = self.get_value('ZPERIODR')
+        alat2ang = self.get_value('ALATBASIS') * get_aBohr2Ang()
+        if rbl is not None: self.set_value('<RBLEFT>', array(rbl)*alat2ang)
+        if rbr is not None: self.set_value('<RBRIGHT>', array(rbr)*alat2ang)
+        if zper_l is not None: self.set_value('ZPERIODL', array(zper_l)*alat2ang)
+        if zper_r is not None: self.set_value('ZPERIODR', array(zper_r)*alat2ang)
+                
+        # done with read in
+        return
+                
 
-    '''
-    def _get_value(self, charkey, txt, line=1, item=1, num=1):
-        """Search charkey in txt and return value string """
-        iline = [ii for ii in range(len(txt)) if charkey in txt[ii]][0]
-        txtline = txt[iline]
-        chkeq = charkey+'='
-        if chkeq in txtline:
-            valtxt = txtline.split(chkeq)[1].split()[item-1:item-1+num]
+    
+    def _find_value(self, charkey, txt, line=1, item=1, num=1):
+        """
+        Search charkey in txt and return value string
+        
+        parameter, input :: charkey         string that is search in txt
+        parameter, input :: txt             text that is searched (output of readlines)
+        parameter, input, optional :: line  index in which line to start reading after key was found
+        parameter, input, optional :: item  index which column is read
+        parameter, input, optional :: num   number of column that are read
+        
+        returns :: valtxt                   string or list of strings depending on num setting
+        """
+        try:
+            iline = [ii for ii in range(len(txt)) if charkey in txt[ii]][0]
+        except IndexError:
+            iline = None
+        if iline is not None:
+            txtline = txt[iline]
+            chkeq = charkey+'='
+            if chkeq in txtline:
+                valtxt = txtline.split(chkeq)[1].split()[item-1:item-1+num]
+            else:
+                nextline = txt[iline+line]
+                startpos = txtline.index(charkey)
+                valtxt = nextline[startpos:].split()[item-1:item-1+num]
+            if num == 1:
+                return valtxt[0]
+            else:
+                return valtxt
         else:
-            nextline = txt[iline+line]
-            startpos = txtline.index(charkey)
-            valtxt = nextline[startpos:].split()[item-1:item-1+num]
-        if num == 1:
-            return valtxt[0]
-        else:
-            return valtxt
-    '''
+            return None
         
         
     # redefine _update_mandatory for voronoi code
@@ -810,3 +1041,52 @@ class kkrparams(object):
         """
         self.__params_type == 'voronoi'
         self._update_mandatory_voronoi()
+        
+"""
+# tests
+if __name__=='__main__':
+    from numpy import ndarray, array
+    from aiida_kkr.tools.common_functions import get_Ang2aBohr
+    p = kkrparams(params_type='kkr')
+    
+    # automatically read keywords from inpucard
+    p.read_keywords_from_inputcard(inputcard='/Users/ruess/sourcecodes/aiida/development/calc_import_test/inputcard')
+    # convert some read-in stuff back from Ang. units to alat units
+    rbl = p.get_value('<RBLEFT>')
+    rbr = p.get_value('<RBRIGHT>')
+    zper_l = p.get_value('ZPERIODL')
+    zper_r = p.get_value('ZPERIODR')
+    ang2alat = get_Ang2aBohr()/p.get_value('ALATBASIS')
+    if rbl is not None: p.set_value('<RBLEFT>', array(rbl)*ang2alat)
+    if rbr is not None: p.set_value('<RBRIGHT>', array(rbr)*ang2alat)
+    if zper_l is not None: p.set_value('ZPERIODL', array(zper_l)*ang2alat)
+    if zper_r is not None: p.set_value('ZPERIODR', array(zper_r)*ang2alat)
+    
+    # set parameters of expected values manually
+    p0 = kkrparams(RUNOPT=['xigid-ef','LLOYD', 'ewald2d', 'NEWSOSOL', 'DOS'], TESTOPT=['ie','RMESH','clusters','MPIenerg','fullBZ','DOS'], LMAX=3, NSPIN=2, NATYP=80, NAEZ=80, CARTESIAN=True, ALATBASIS=20.156973053, BRAVAIS=[[0.38437499, 0., 0.], [0.19218749, -0.33287851, 0.], [0.19218749, -0.11095950, 1.]], INTERFACE=True, NRIGHTHO=10, NLEFTHOS=10, NLBASIS=10, NRBASIS=10, ZPERIODL=[-1.92187500000000e-01, 1.10959504859881e-01, -1.00000000000000e+00], ZPERIODR=[1.92187500000000e-01, -1.10959504859881e-01, 1.00000000000000e+00], RCLUSTZ=0.65, RCLUSTXY=0.65, EMIN=-1.2, EMAX=1.2, TEMPR=473., NPOL=7, NPT1=7, NPT2=40, NPT3=6, KSHAPE=2, INS=1, ICST=2, KEXCOR=2, HFIELD=0, VCONST=0, NPAN_LOG=17, NPAN_EQ=7, NCHEB=12, R_LOG=0.8, BZDIVIDE=[40, 40, 1], NSTEPS=500, IMIX=5, STRMIX=0.02, FCM=20., QBOUND=10**-7, BRYMIX=0.02, ITDBRY=30, LINIPOL=False, FILES=['potential', 'shapefun'], RMAX=15., GMAX=900.)
+    p0.set_value('<ZATOM>', [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 52.0, 0.0, 51.0, 0.0, 52.0, 0.0, 51.0, 0.0, 52.0, 0.0, 52.0, 0.0, 51.0, 0.0, 52.0, 0.0, 51.0, 0.0, 52.0, 0.0, 52.0, 0.0, 51.0, 0.0, 52.0, 0.0, 51.0, 0.0, 52.0, 0.0, 52.0, 0.0, 51.0, 0.0, 52.0, 0.0, 51.0, 0.0, 52.0, 0.0, 52.0, 0.0, 51.0, 0.0, 52.0, 0.0, 51.0, 0.0, 52.0, 0.0, 52.0, 0.0, 51.0, 0.0, 52.0, 0.0, 51.0, 0.0, 52.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    p0.set_value('<SHAPE>', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    p0.set_multiple_values(KAOEZR=[i for i in range(1,11)], KAOEZL=[i for i in range(1,11)], KVREL=1, RMTREFL=[2.2671000, 2.2671000, 2.4948000, 2.3562000, 2.3562000, 2.3562000, 2.4948000, 2.2671000, 2.2671000, 2.5740000], RMTREFR=[2.2671000, 2.2671000, 2.4948000, 2.3562000, 2.3562000, 2.3562000, 2.4948000, 2.2671000, 2.2671000, 2.5740000])
+    p0.set_multiple_values(RMTREF=[2.2671000, 2.2671000, 2.4948000, 2.3562000, 2.3562000, 2.3562000, 2.4948000, 2.2671000, 2.2671000, 2.5740000, 2.2671000, 2.2671000, 2.4948000, 2.3562000, 2.3562000, 2.3562000, 2.4948000, 2.2671000, 2.2671000, 2.5740000, 2.2671000, 2.2671000, 2.4948000, 2.3562000, 2.3562000, 2.3562000, 2.4948000, 2.2671000, 2.2671000, 2.5740000, 2.2671000, 2.2671000, 2.4948000, 2.3562000, 2.3562000, 2.3562000, 2.4948000, 2.2671000, 2.2671000, 2.5740000, 2.2671000, 2.2671000, 2.4948000, 2.3562000, 2.3562000, 2.3562000, 2.4948000, 2.2671000, 2.2671000, 2.5740000, 2.2671000, 2.2671000, 2.4948000, 2.3562000, 2.3562000, 2.3562000, 2.4948000, 2.2671000, 2.2671000, 2.5740000, 2.2671000, 2.2671000, 2.4948000, 2.3562000, 2.3562000, 2.3562000, 2.4948000, 2.2671000, 2.2671000, 2.5740000, 2.2671000, 2.2671000, 2.4948000, 2.3562000, 2.3562000, 2.3562000, 2.4948000, 2.2671000, 2.2671000, 2.5740000])
+    p0.set_multiple_values(RBLEFT=[[-1.92187500000000e-01,  1.10959504859881e-01, -1.00000000000000e+00], [ 8.32667268468867e-17,  2.77555756156289e-17, -9.49500000000000e-01], [ 1.92187500000000e-01, -1.10959504859881e-01, -8.33000000000000e-01], [ 3.84375000000000e-01, -2.21919009719762e-01, -7.16500000000000e-01], [ 8.32667268468867e-17,  0.00000000000000e+00, -6.33000000000000e-01], [ 1.92187500000000e-01, -1.10959504859881e-01, -5.49500000000000e-01],  [ 3.84375000000000e-01, -2.21919009719762e-01, -4.33000000000000e-01], [ 2.77555756156289e-17,  1.38777878078145e-17, -3.16500000000000e-01], [ 1.92187500000000e-01, -1.10959504859881e-01, -2.66000000000000e-01], [ 3.84375000000000e-01, -2.21919009719762e-01, -1.33000000000000e-01]],
+                           RBRIGHT=[[1.53750000000000e+00, -8.87676038879049e-01,  8.00000000000000e+00], [1.72968750000000e+00, -9.98635543738930e-01,  8.05050000000000e+00], [1.92187500000000e+00, -1.10959504859881e+00,  8.16700000000000e+00], [2.11406250000000e+00, -1.22055455345869e+00,  8.28350000000000e+00], [1.72968750000000e+00, -9.98635543738930e-01,  8.36700000000000e+00], [1.92187500000000e+00, -1.10959504859881e+00,  8.45050000000000e+00], [2.11406250000000e+00, -1.22055455345869e+00,  8.56700000000000e+00], [1.72968750000000e+00, -9.98635543738930e-01,  8.68350000000000e+00], [1.92187500000000e+00, -1.10959504859881e+00,  8.73400000000000e+00], [2.11406250000000e+00, -1.22055455345869e+00,  8.86700000000000e+00]],
+                           RBASIS=[[0.0, 0.0, 0.0], [0.1921875, -0.110959504859881, 0.0505000000000001], [0.384375, -0.221919009719762, 0.167], [0.5765625, -0.332878514579644, 0.2835], [0.1921875, -0.110959504859881, 0.367], [0.384375, -0.221919009719762, 0.4505], [0.5765625, -0.332878514579644, 0.567], [0.1921875, -0.110959504859881, 0.6835], [0.384375, -0.221919009719762, 0.734], [0.5765625, -0.332878514579644, 0.867], [0.1921875, -0.110959504859881, 1.0], [0.384375, -0.221919009719762, 1.0505], [0.5765625, -0.332878514579643, 1.167], [0.76875, -0.443838019439525, 1.2835], [0.384375, -0.221919009719762, 1.367], [0.5765625, -0.332878514579643, 1.4505], [0.76875, -0.443838019439525, 1.567], [0.384375, -0.221919009719762, 1.6835], [0.5765625, -0.332878514579643, 1.734], [0.76875, -0.443838019439525, 1.867], [0.384375, -0.221919009719762, 2.0], [0.5765625, -0.332878514579643, 2.0505], [0.76875, -0.443838019439525, 2.167], [0.9609375, -0.554797524299406, 2.2835], [0.5765625, -0.332878514579643, 2.367], [0.76875, -0.443838019439525, 2.4505], [0.9609375, -0.554797524299406, 2.567], [0.5765625, -0.332878514579643, 2.6835], [0.76875, -0.443838019439525, 2.734], [0.9609375, -0.554797524299406, 2.867], [0.5765625, -0.332878514579643, 3.0], [0.76875, -0.443838019439525, 3.0505], [0.9609375, -0.554797524299406, 3.167], [1.153125, -0.665757029159287, 3.2835], [0.76875, -0.443838019439525, 3.367], [0.9609375, -0.554797524299406, 3.4505], [1.153125, -0.665757029159287, 3.567], [0.76875, -0.443838019439525, 3.6835], [0.9609375, -0.554797524299406, 3.734], [1.153125, -0.665757029159287, 3.867], [0.76875, -0.443838019439525, 4.0], [0.9609375, -0.554797524299406, 4.0505], [1.153125, -0.665757029159287, 4.167], [1.3453125, -0.776716534019168, 4.2835], [0.9609375, -0.554797524299406, 4.367], [1.153125, -0.665757029159287, 4.4505], [1.3453125, -0.776716534019168, 4.567], [0.9609375, -0.554797524299406, 4.6835], [1.153125, -0.665757029159287, 4.734], [1.3453125, -0.776716534019168, 4.867], [0.9609375, -0.554797524299406, 5.0], [1.153125, -0.665757029159287, 5.0505], [1.3453125, -0.776716534019168, 5.167], [1.5375, -0.887676038879049, 5.2835], [1.153125, -0.665757029159287, 5.367], [1.3453125, -0.776716534019168, 5.4505], [1.5375, -0.887676038879049, 5.567], [1.153125, -0.665757029159287, 5.6835], [1.3453125, -0.776716534019168, 5.734], [1.5375, -0.887676038879049, 5.867], [1.153125, -0.665757029159287, 6.0], [1.3453125, -0.776716534019168, 6.0505], [1.5375, -0.887676038879049, 6.167], [1.7296875, -0.99863554373893, 6.2835], [1.3453125, -0.776716534019168, 6.367], [1.5375, -0.887676038879049, 6.4505], [1.7296875, -0.99863554373893, 6.567], [1.3453125, -0.776716534019168, 6.6835], [1.5375, -0.887676038879049, 6.734], [1.7296875, -0.99863554373893, 6.867], [1.3453125, -0.776716534019168, 7.0], [1.5375, -0.887676038879049, 7.0505], [1.7296875, -0.99863554373893, 7.167], [1.921875, -1.10959504859881, 7.2835], [1.5375, -0.887676038879049, 7.367], [1.7296875, -0.99863554373893, 7.4505], [1.921875, -1.10959504859881, 7.567], [1.5375, -0.887676038879049, 7.6835], [1.7296875, -0.99863554373893, 7.734], [1.921875, -1.10959504859881, 7.867]])
+
+    # check all values
+    for key in [i[0] for i in p.get_set_values()]:
+        v = p.get_value(key)
+        v0 = p0.get_value(key)
+        if type(v) != list and type(v) != ndarray:
+            if v!=v0:
+                print(key, v, v0)
+            assert v==v0
+        elif type(v[0]) != str:
+            if abs(array(v)-array(v0)).max()>=10**-14:
+                print(key, abs(array(v)-array(v0)).max())
+            assert abs(array(v)-array(v0)).max()<10**-14
+        else:
+            if set(v)-set(v0)!=set():
+                print(key, set(v)-set(v0))
+            assert set(v)-set(v0)==set()
+            
+"""        

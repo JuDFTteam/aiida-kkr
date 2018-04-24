@@ -44,7 +44,7 @@ def get_rms(outfile, outfile2):
     res = parse_array_float(outfile, 'average rms-error', [2, '=', 1, 0], ['D', 'E'])
     res2 = parse_array_float(outfile2, 'rms-error for atom', [2, '=', 1, 0], ['D', 'E'])
     niter = len(res) # number of iterations
-    natoms = len(res2)/niter # number of atoms in system, needed to take only atom resolved rms of last iteration
+    natoms = int(len(res2)/niter) # number of atoms in system, needed to take only atom resolved rms of last iteration
     return res, res2[-natoms:]
 
 
@@ -601,7 +601,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
     try:
         result_WS, result_tot, result_C = get_charges_per_atom(outfile_000)
         niter = len(out_dict['convergence_group']['rms_all_iterations'])
-        natyp = len(result_tot)/niter
+        natyp = int(len(result_tot)/niter)
         out_dict['total_charge_per_atom'] = result_tot[-natyp:]
         out_dict['charge_core_states_per_atom'] = result_C[-natyp:]
         # this check deals with the DOS case where output is slightly different
@@ -748,7 +748,7 @@ def check_error_category(err_cat, err_msg, out_dict):
     
     # check special cases:
     # 1. nonco_angle_file not present, but newsosol==False anyways
-    if 'NONCO_ANGELS_OUT' in err_msg:
+    if 'NONCO_ANGLES_OUT' in err_msg:
         if "use_newsosol" in out_dict.keys():
             if out_dict["use_newsosol"]:
                 return True
@@ -758,20 +758,21 @@ def check_error_category(err_cat, err_msg, out_dict):
             return True
         
   
-"""
-print('run test')
-path0 = '../tests/files/kkr/lmax4_LLY_wallclock_exceeded/'
-outfile = path0+'out_kkr'
-outfile_0init = path0+'output.0.txt'
-outfile_000 = path0+'output.000.txt'
-outfile_2 = path0+'output.2.txt'
-timing_file = path0+'out_timing.000.txt'
-potfile_out = path0+'out_potential'
-nonco_out_file = path0+'nonco_angle_out.dat'
-print('test_path: {}'.format(path0))
-out_dict = {}
-success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file, outfile_2)
-out_dict['parser_warnings'] = msg_list
-print(success)
-print(msg_list)
+#"""
+if __name__=='__main__':
+    print('run test')
+    path0 = '../../../development/calc_import_test/'
+    outfile = path0+'output.2.txt'
+    outfile_0init = path0+'output.0.txt'
+    outfile_000 = path0+'output.000.txt'
+    outfile_2 = path0+'output.2.txt'
+    timing_file = path0+'out_timing.000.txt'
+    potfile_out = path0+'potential'
+    nonco_out_file = path0+'nonco_angle_out.dat'
+    print('test_path: {}'.format(path0))
+    out_dict = {}
+    success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file, outfile_2)
+    out_dict['parser_warnings'] = msg_list
+    print(success)
+    print(msg_list)
 #"""

@@ -4,6 +4,10 @@
 Here workfunctions and normal functions using aiida-stuff (typically used 
 within workfunctions) are collected.
 """
+if __name__=='__main__':
+    from aiida import is_dbenv_loaded, load_dbenv
+    if not is_dbenv_loaded():
+        load_dbenv()
 
 from aiida.common.exceptions import InputValidationError
 from aiida.work import workfunction as wf
@@ -314,7 +318,7 @@ def get_parent_paranode(remote_data):
     return inp_para
 
 
-def generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc=None, shapes=None, isvoronoi=False):
+def generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc=None, shapes=None, isvoronoi=False, use_input_alat=False):
     """
     Takes information from parameter and structure data and writes input file 'input_filename'
     
@@ -322,13 +326,14 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     :param structure: input structure node containing lattice information
     :param input_filename: input filename, typically called 'inputcard'
     
-    
     optional arguments
     :param parent_calc: input parent calculation node used to determine if EMIN 
                         parameter is automatically overwritten (from voronoi output)
                         or not
     :param shapes: input shapes array (set automatically by 
                    aiida_kkr.calculations.Kkrcaluation and shall not be overwritten)
+    :param isvoronoi: tell whether or not the parameter set is for a voronoi calculation or kkr calculation (have different lists of mandatory keys)
+    :param use_input_alat: True/False, determines whether the input alat value is taken or the new alat is computed from the Bravais vectors
     
     
     :note: assumes valid structure and parameters, i.e. for 2D case all necessary 
@@ -354,7 +359,11 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     
     # KKR wants units in bohr
     bravais = array(structure.cell)*a_to_bohr
-    alat = get_alat_from_bravais(bravais, is3D=structure.pbc[2])
+    alat_input = parameters.get_dict().get('ALATBASIS')
+    if use_input_alat and alat_input is not None:
+        alat = alat_input
+    else:
+        alat = get_alat_from_bravais(bravais, is3D=structure.pbc[2])
     bravais = bravais/alat
     
     sites = structure.sites
@@ -396,6 +405,27 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     
     # get parameter dictionary
     input_dict = parameters.get_dict()
+    
+    # get rid of structure related inputs that are overwritten from structure input
+    for key in ['BRAVAIS', 'ALATBASIS', 'NAEZ', '<ZATOM>', '<RBASIS>', 'CARTESIAN']:
+        if input_dict.get(key) is not None:
+            print('WARNING: automatically removing value of key', key)
+            input_dict.pop(key)
+                
+    # automatically rescale RMAX, GMAX, RCLUSTZ, RCLUSTXY which are scaled with the lattice constant
+    if alat_input is not None:
+        if input_dict.get('RMAX') is not None:
+            print('rescale RMAX', alat_input/alat)
+            input_dict['RMAX'] = input_dict['RMAX']*alat_input/alat
+        if input_dict.get('GMAX') is not None:
+            print('rescale GMAX', 1/(alat_input/alat))
+            input_dict['GMAX'] = input_dict['GMAX']*1/(alat_input/alat)
+        if input_dict.get('RCLUSTZ') is not None:
+            print('rescale RCLUSTZ', alat_input/alat)
+            input_dict['RCLUSTZ'] = input_dict['RCLUSTZ']*alat_input/alat
+        if input_dict.get('RCLUSTXY') is not None:
+            print('rescale RCLUSTXY', alat_input/alat)
+            input_dict['RCLUSTXY'] = input_dict['RCLUSTXY']*alat_input/alat
     
     # empty kkrparams instance (contains formatting info etc.)
     if not isvoronoi:
@@ -488,3 +518,150 @@ def check_2Dinput_consistency(structure, parameters):
     # if everything is ok:
     return (True, "2D consistency check complete")
 
+    
+def structure_from_params(parameters):
+    """
+    Construct aiida structure out of kkr parameter set (if ALATBASIS, RBASIS, ZATOM etc. are given)
+    
+    :param input: parameters, kkrparams object with structure information set (e.g. extracted from read_inputcard function)
+    
+    :returns: success, boolean to determine if structure creatoin was successful
+    :returns: structure, an aiida StructureData object
+    """
+    from aiida_kkr.tools.common_functions import get_aBohr2Ang
+    from aiida.common.constants import elements as PeriodicTableElements
+    from numpy import array, shape
+    StructureData = DataFactory('structure')
+    
+    is_complete = True 
+    
+    for icheck in ['<ZATOM>', '<RBASIS>', 'BRAVAIS', 'ALATBASIS']:
+        if parameters.get_value(icheck) is None:
+            is_complete = False
+            
+    # set natyp
+    natyp = parameters.get_value('NATYP')
+    naez = parameters.get_value('NAEZ')
+    if natyp is None:
+        if naez is None:
+            is_complete = False
+        else:
+            natyp = naez
+            
+    # check if all necessary info for 2D calculation is there
+    if parameters.get_value('INTERFACE'):
+        for icheck in ['<NRBASIS>', '<RBLEFT>', '<RBRIGHT>', 'ZPERIODL', 'ZPERIODR', '<NLBASIS>']:
+            if parameters.get_value(icheck) is None:
+                is_complete = False
+                
+    # check CPA case
+    if natyp != naez:
+        for icheck in ['<SITE>', '<CPA-CONC>']:
+            if parameters.get_value(icheck) is None:
+                is_complete = False
+                
+    if not is_complete:
+        return is_complete, StructureData()
+        
+    # extract cell using BRAVAIS and ALATBASIS and create empty structure
+    alat = parameters.get_value('ALATBASIS')
+    cell = array(parameters.get_value('BRAVAIS')) * alat * get_aBohr2Ang()
+    struc = StructureData(cell=cell)
+    
+    # extract sites with positions, charges/Atom labels, weights
+    pos_all = array(parameters.get_value('<RBASIS>')) # positions in units of alat
+    if not parameters.get_value('CARTESIAN'):
+        # convert from internal to cartesian coordinates
+        for isite in range(len(pos_all)):
+            tmp_pos = pos_all[isite]
+            pos_all[isite] = tmp_pos[0]*cell[0]+tmp_pos[1]*cell[1]+tmp_pos[2]*cell[2] # cell already contains alat factor to convert to Ang. units
+    else:
+        pos_all = pos_all * alat * get_aBohr2Ang() # now positions are in Ang. units
+    
+    zatom_all = parameters.get_value('<ZATOM>')
+    if natyp==naez:
+        weights = [1. for i in range(natyp)]
+        sites = range(1,natyp+1)
+    else:
+        weights = parameters.get_value('<CPA-CONC>')
+        sites = parameters.get_value('<SITE>')
+    for isite in sites:
+        pos = pos_all[sites.index(isite)]
+        weight = weights[sites.index(isite)]
+        if abs(zatom_all[isite-1]-int(zatom_all[isite-1]))>10**-4:
+            # TODO deal with VCA (non-integer zatom)
+            print('VCA not implemented yet, stopping here!')
+            raise NotImplementedError('VCA functionality not implemented')
+        
+        if zatom_all[isite-1]<1:
+            symbol = 'H'
+            weight = 0.0
+            struc.append_atom(position=pos, symbols='H', weights=0.0, mass=1.0)
+        else:
+            symbol = PeriodicTableElements.get(zatom_all[isite-1]).get('symbol')
+            struc.append_atom(position=pos, symbols=symbol, weights=weight)
+            
+    # set correct pbc for 2D case
+    if parameters.get_value('INTERFACE'):
+        struc.set_pbc((True, True, False))
+        
+    # finally return structure
+    return is_complete, struc
+ 
+'''
+if __name__=='__main__':
+    from aiida import is_dbenv_loaded, load_dbenv
+    if not is_dbenv_loaded():
+        load_dbenv()
+    
+    p = kkrparams(params_type='kkr')
+    
+    # automatically read keywords from inpucard
+    p.read_keywords_from_inputcard(inputcard='/Users/ruess/sourcecodes/aiida/development/calc_import_test/inputcard')
+    
+    # extract structure
+    success, struc = structure_from_params(p)
+    
+    print(success, struc)
+    print(struc.kinds)
+    for site in struc.sites:
+        print(site)
+        
+    p1 = kkrparams()
+    p2 = kkrparams()
+    
+    for key in p.get_dict().keys():
+        p1.set_value(key, p.get_value(key), silent=True)
+        p2.set_value(key, p.get_value(key), silent=True)
+        
+    print('create new inputcard')
+    generate_inputcard_from_structure(p1, struc, '/Users/ruess/sourcecodes/aiida/development/calc_import_test/inputcard_test', use_input_alat=True)
+    print('create new inputcard2')
+    generate_inputcard_from_structure(p2, struc, '/Users/ruess/sourcecodes/aiida/development/calc_import_test/inputcard_test2', use_input_alat=False)
+    
+    #"""
+    from aiida_kkr.calculations.voro import VoronoiCalculation
+    from aiida.orm import Code#, load_node
+    
+    ParameterData = DataFactory('parameter')
+    ParaNode = ParameterData(dict=p.values)
+    
+    VoroCalc = VoronoiCalculation()
+    VoroCalc.label = 'Voronoi start potential'
+    VoroCalc.set_withmpi(False)
+    VoroCalc.set_resources({"num_machines" : 1})
+    VoroCalc.set_max_wallclock_seconds(300)
+    VoroCalc.set_computer('my_mac')
+    VoroCalc.use_structure(struc)
+    # use voronoi code for this calculation
+    code = Code.get_from_string('voronoi@my_mac')
+    VoroCalc.use_code(code)
+    VoroCalc.use_parameters(ParaNode)
+    
+    calc = VoroCalc
+    calc.store_all()
+    print("created calculation; calc=Calculation(uuid='{}') # ID={}".format(calc.uuid, calc.dbnode.pk))
+    calc.submit()
+    print("submitted calculation; calc=Calculation(uuid='{}') # ID={}".format(calc.uuid, calc.dbnode.pk))
+    #"""
+'''

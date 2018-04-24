@@ -1,0 +1,9 @@
+KKRcode
+
+False
+kkr.kkr
+my_mac
+/Users/ruess/sourcecodes/KKRcode/kkr.x
+export OMP_STACKSIZE=1g
+ulimit -s unlimited
+
