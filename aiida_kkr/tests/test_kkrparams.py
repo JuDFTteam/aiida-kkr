@@ -156,20 +156,42 @@ class Test_fill_inputfile():
         p = kkrparams(ZATOM=29., LMAX=2, NAEZ=1, BRAVAIS=[[1,0,0],[0,1,0],[0,0,1]], RCLUSTZ=1.5, NSPIN=2, RBASIS=[0,0,0], ALATBASIS=1)
         p.fill_keywords_to_inputfile(is_voro_calc=True)
         txt = open('inputcard').readlines()
-        ref = ['ALATBASIS= 1.000000\n', 'BRAVAIS\n', '1.000000 0.000000 0.000000\n',
-               '0.000000 1.000000 0.000000\n', '0.000000 0.000000 1.000000\n', 'NAEZ= 1\n', '<RBASIS>\n',
-               '0.000000 0.000000 0.000000\n', '<ZATOM>\n', '29.000000\n', 'NSPIN= 2\n', 'LMAX= 2\n', 'RCLUSTZ= 1.500000\n']
-        assert set(txt)==set(ref)
-        
+        ref = ['ALATBASIS= 1.00000000000000\n', 'BRAVAIS\n', '1.00000000000000 0.00000000000000 0.00000000000000\n',
+               '0.00000000000000 1.00000000000000 0.00000000000000\n', '0.00000000000000 0.00000000000000 1.00000000000000\n', 'NAEZ= 1\n', '<RBASIS>\n',
+               '0.00000000000000 0.00000000000000 0.00000000000000\n', '<ZATOM>\n', '29.00000000000000\n', 'NSPIN= 2\n', 'LMAX= 2\n', 'RCLUSTZ= 1.50000000000000\n']
+        done=False
+        while not done:
+            try:
+                txt.remove('\n')
+            except ValueError:
+                done = True
+        assert len(txt)==len(ref)
+        txt.sort()
+        ref.sort()
+        print(txt, ref)
+        for i in range(len(txt)):
+            print(i, txt[i], ref[i])
+            assert set(txt[i].split())==set(ref[i].split()) 
+            
     def test_fill_inputfile_KKR(self):
-        reffile = ['ALATBASIS= 1.000000\n', 'BRAVAIS\n', '1.000000 0.000000 0.000000\n', '<ZATOM>\n', '29.000000\n',
-                   '0.000000 1.000000 0.000000\n', '0.000000 0.000000 1.000000\n', 'NAEZ= 1\n',
-                   '<RBASIS>\n', '0.000000 0.000000 0.000000\n', 'NSPIN= 2\n', 'LMAX= 2\n', 
-                   'RCLUSTZ= 1.500000\n', 'RMAX= 7.000000\n', 'GMAX= 65.000000\n']
+        reffile = ['ALATBASIS= 1.00000000000000\n', 'BRAVAIS\n', '1.00000000000000 0.00000000000000 0.00000000000000\n', '<ZATOM>\n', '29.00000000000000\n',
+                   '0.00000000000000 1.00000000000000 0.00000000000000\n', '0.00000000000000 0.00000000000000 1.00000000000000\n', 'NAEZ= 1\n',
+                   '<RBASIS>\n', '0.00000000000000 0.00000000000000 0.00000000000000\n', 'NSPIN= 2\n', 'LMAX= 2\n', 
+                   'RCLUSTZ= 1.50000000000000\n', 'RMAX=      7.00000000000000\n', 'GMAX=      65.00000000000000\n']
         p = kkrparams(ZATOM=29., LMAX=2, NAEZ=1, BRAVAIS=[[1,0,0],[0,1,0],[0,0,1]], RMAX=7, GMAX=65, RCLUSTZ=1.5, NSPIN=2, RBASIS=[0,0,0], ALATBASIS=1)
         p.fill_keywords_to_inputfile()
         txt = open('inputcard').readlines()
-        assert set(txt)==set(reffile)
+        done=False
+        while not done:
+            try:
+                txt.remove('\n')
+            except ValueError:
+                done = True
+        assert len(txt)==len(reffile)
+        txt.sort()
+        reffile.sort()
+        for i in range(len(txt)):
+            assert set(txt[i].split())==set(reffile[i].split())
         
     def test_fill_inputfile_empty_check(self):
         p = kkrparams(LMAX=2, NAEZ=1)
