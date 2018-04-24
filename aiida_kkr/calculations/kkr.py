@@ -14,7 +14,6 @@ from aiida.orm import DataFactory
 from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency
 
-
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
 ParameterData = DataFactory('parameter')
@@ -234,10 +233,6 @@ class KkrCalculation(JobCalculation):
         if inputdict:
             self.logger.error('KkrCalculation: Unknown inputs for structure lookup')
             raise ValidationError("Unknown inputs")
-            
-        # get shapes array from voronoi parent
-        shapes = voro_parent.res.shapes
-        
 
 
         ###################################
@@ -246,6 +241,13 @@ class KkrCalculation(JobCalculation):
         twoDimcheck, msg = check_2Dinput_consistency(structure, parameters)
         if not twoDimcheck:
             raise InputValidationError(msg)
+            
+        # set shapes array            
+        if parent_calc.get_parser_name() != 'kkr.kkrimporterparser':
+            # get shapes array from voronoi parent
+            shapes = voro_parent.res.shapes
+        else:
+            shapes = voro_parent.inp.parameters.get_dict().get('<SHAPE>')
         
         # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
@@ -265,6 +267,7 @@ class KkrCalculation(JobCalculation):
             if isinstance(parent_calc, KkrCalculation):
                 copylist = self._copy_filelist_kkr
                 # TODO ggf copy remotely...
+                
             if isinstance(parent_calc, VoronoiCalculation):
                 copylist = [parent_calc._SHAPEFUN]
                 # copy either overwrite potential or voronoi output potential 
@@ -273,6 +276,17 @@ class KkrCalculation(JobCalculation):
                     copylist.append(parent_calc._POTENTIAL_IN_OVERWRITE)
                 else:
                     copylist.append(parent_calc._OUT_POTENTIAL_voronoi)
+                    
+            #change copylist in case the calculation starts from an imported calculation
+            if parent_calc.get_parser_name() == 'kkr.kkrimporterparser':
+                copylist = []
+                if not os.path.exists(os.path.join(outfolderpath, self._OUT_POTENTIAL)):
+                    copylist.append(self._POTENTIAL)
+                else:
+                    copylist.append(self._OUT_POTENTIAL)
+                if os.path.exists(os.path.join(outfolderpath, self._SHAPEFUN)):
+                    copylist.append(self._SHAPEFUN)
+                    
                     
             # append some files to copylist for special cases (KKRFLEX option etc.)
             #self._SCOEF = 'scoef' # mandatory for KKRFLEX calculation and some functionalities
@@ -288,6 +302,7 @@ class KkrCalculation(JobCalculation):
                         os.path.join(outfolderpath, file1),
                         os.path.join(filename)))
             # TODO different copy lists, depending on the keywors input
+            self.logger.info('local copy list: {}'.format(local_copy_list))
 
 
         # Prepare CalcInfo to be returned to aiida
@@ -347,7 +362,6 @@ class KkrCalculation(JobCalculation):
             print('adding files for KKRFLEX output', add_files)
             calcinfo.retrieve_list += add_files
             
-                
 
         codeinfo = CodeInfo()
         codeinfo.cmdline_params = []
