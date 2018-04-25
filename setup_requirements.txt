@@ -1,0 +1,13 @@
+
+
+
+# for support of the xml files and parsers
+aiida>=0.9.0
+
+# for utilities
+#ase
+#pymatgen
+
+# for auto tests
+pgtest
+pytest-cov >= 2.5.0
