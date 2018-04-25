@@ -337,7 +337,7 @@ class kkr_startpot_wc(WorkChain):
                        "resources": self.ctx.resources,
                        "queue_name" : self.ctx.queue}
     
-            inputs = get_inputs_voronoi(structure, voronoicode, options, label, description, params=params)
+            VoronoiProcess, inputs = get_inputs_voronoi(voronoicode, structure, options, label, description, params=params)
             self.report('INFO: run voronoi step {}'.format(self.ctx.iter))
             future = submit(VoronoiProcess, **inputs)
             

@@ -107,11 +107,17 @@ def get_version_info(outfile):
     tmptxt = f.readlines()
     f.close()
     itmp = search_string('Code version:', tmptxt)
-    code_version = tmptxt.pop(itmp).split(':')[1].strip()
-    itmp = search_string('Compile options:', tmptxt)
-    compile_options = tmptxt.pop(itmp).split(':')[1].strip()
-    itmp = search_string('serial number for files:', tmptxt)
-    serial_number = tmptxt.pop(itmp).split(':')[1].strip()
+    if itmp==-1: # try to find serial number from header of file
+        itmp = search_string('# serial:', tmptxt)
+        code_version = tmptxt[itmp].split(':')[1].split('_')[1].strip()
+        compile_options = tmptxt[itmp].split(':')[1].split('_')[2].strip()
+        serial_number = tmptxt[itmp].split(':')[1].split('_')[3].strip()
+    else:
+        code_version = tmptxt.pop(itmp).split(':')[1].strip()
+        itmp = search_string('Compile options:', tmptxt)
+        compile_options = tmptxt.pop(itmp).split(':')[1].strip()
+        itmp = search_string('serial number for files:', tmptxt)
+        serial_number = tmptxt.pop(itmp).split(':')[1].strip()
     return code_version, compile_options, serial_number
 
 
@@ -159,16 +165,15 @@ def interpolate_dos(dospath, return_original=False, ):
     Principle of DOS here: Two-point contour integration
     for DOS in the middle of the two points. The input DOS
     and energy must be complex. Parameter deltae should be
-    of the order of magnitude of eim. 
-    
+    of the order of magnitude of eim::
         
-          <-2*deltae->   _
-               /\        |     DOS=(n(1)+n(2))/2 + (n(1)-n(2))*eim/deltae
-              /  \       |
-            (1)  (2)   2*i*eim=2*i*pi*Kb*Tk
-            /      \     |
-           /        \    |
-    ------------------------ (Real E axis)
+              <-2*deltae->   _
+                   /\        |     DOS=(n(1)+n(2))/2 + (n(1)-n(2))*eim/deltae
+                  /  \       |
+                (1)  (2)   2*i*eim=2*i*pi*Kb*Tk
+                /      \     |
+               /        \    |
+        ------------------------ (Real E axis)
     
     :param input: dospath, path where 'complex.dos' file can be found
     

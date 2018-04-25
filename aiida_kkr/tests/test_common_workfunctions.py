@@ -22,21 +22,34 @@ class Test_common_workfunctions():
         p = ParameterData(dict={'LMAX':2, 'NSPIN':2, 'RMAX':10, 'GMAX':100})
         generate_inputcard_from_structure(p, s, 'inputcard')
         txt = open('inputcard', 'r').readlines()
-        assert txt == ['ALATBASIS= 1.889726\n',
-                       'BRAVAIS\n',
-                       '0.500000 0.500000 0.000000\n',
-                       '1.000000 0.000000 0.000000\n',
-                       '0.000000 0.000000 1.000000\n',
-                       'NAEZ= 1\n',
-                       '<RBASIS>\n',
-                       '0.000000 0.000000 0.000000\n',
-                       'CARTESIAN= True\n',
-                       '<ZATOM>\n',
-                       '26.000000\n',
-                       'NSPIN= 2\n',
-                       'LMAX= 2\n',
-                       'RMAX= 10.000000\n',
-                       'GMAX= 100.000000\n']
+        ref = ['ALATBASIS= 1.88972612545783\n',
+               'BRAVAIS\n',
+               '0.50000000000000 0.50000000000000 0.00000000000000\n',
+               '1.00000000000000 0.00000000000000 0.00000000000000\n',
+               '0.00000000000000 0.00000000000000 1.00000000000000\n',
+               'NAEZ= 1\n',
+               '<RBASIS>\n',
+               '0.00000000000000 0.00000000000000 0.00000000000000\n',
+               'CARTESIAN= True\n',
+               '<ZATOM>\n',
+               '26.00000000000000\n',
+               'NSPIN= 2\n',
+               'LMAX= 2\n',
+               'RMAX=     10.00000000000000\n',
+               'GMAX= 100.00000000000000\n']
+        done=False
+        while not done:
+            try:
+                txt.remove('\n')
+            except ValueError:
+                done = True
+        assert len(txt)==len(ref)
+        txt.sort()
+        ref.sort()
+        print(txt, ref)
+        for i in range(len(txt)):
+            print(i, txt[i], ref[i])
+            assert set(txt[i].split())==set(ref[i].split()) 
     
     
     def test_check_2Dinput_consistency(self):

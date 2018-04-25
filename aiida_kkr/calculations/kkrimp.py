@@ -23,7 +23,7 @@ class KkrimpCalculation(JobCalculation):
         super(KkrimpCalculation, self)._init_internal_params()
 
         # List of mandatory input files
-        self._INPUTCARD = 'inputcard'
+        self._CONFIG = 'config.cfg'
         self._POTENTIAL = 'potential'
 
         # List of optional input files (may be mandatory for some setting in inputputcard)

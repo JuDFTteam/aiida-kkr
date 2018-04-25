@@ -1,0 +1,13 @@
+my_mac
+localhost
+
+True
+local
+direct
+#!/bin/bash
+/Users/ruess/sourcecodes/aiida/repositories/scratch_local_machine/
+mpirun -np {tot_num_mpiprocs}
+4
+source /usr/local/bin/compilervars-12.sh intel64; source /usr/local/intel/mkl/bin/mklvars.sh intel64;
+
+

@@ -14,7 +14,6 @@ from aiida.orm import DataFactory
 from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency
 
-
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
 ParameterData = DataFactory('parameter')
@@ -50,17 +49,19 @@ class KkrCalculation(JobCalculation):
         self._DEFAULT_OUTPUT_FILE = 'out_kkr'  # verdi shell output will be shown with outputcat
         
         # same as _DEFAULT_OUTPUT_FILE: piped output of kkr execution to this file
-        self._OUTPUT_FILE_NAME = 'out_kkr'
+        self._OUTPUT_FILE_NAME = self._DEFAULT_OUTPUT_FILE
 
         # List of mandatory input files
-        self._INPUT_FILE_NAME = 'inputcard'
+        self._INPUT_FILE_NAME = self._DEFAULT_INPUT_FILE
         self._POTENTIAL = 'potential'
 
         # List of optional input files (may be mandatory for some settings in inputcard)
         self._SHAPEFUN = 'shapefun' # mandatory if nonspherical calculation
-        self._SCOEF = 'scoef' # mandatory for KKRFLEX calculation
+        self._SCOEF = 'scoef' # mandatory for KKRFLEX calculation and some functionalities
         self._NONCO_ANGLES = 'nonco_angles.dat' # mandatory if noncollinear directions are used that are not (theta, phi)= (0,0) for all atoms
-
+        self._NONCO_ANGLES_IMP = 'nonco_angles_imp.dat' # mandatory for GREENIMP option (scattering code)
+        self._SHAPEFUN_IMP = 'shapefun_imp' # mandatory for GREENIMP option (scattering code)
+        self._POTENTIAL_IMP = 'potential_imp' # mandatory for GREENIMP option (scattering code)
 	
 	   # List of output files that should always be present
         self._OUT_POTENTIAL = 'out_potential'
@@ -71,11 +72,17 @@ class KkrCalculation(JobCalculation):
         self._NONCO_ANGLES_OUT = 'nonco_angles_out.dat'
         
         # special files (some runs)
-        #DOS files
+        # DOS files
         self._COMPLEXDOS = 'complex.dos'
         self._DOS_ATOM = 'dos.atom%i'
         self._LMDOS = 'lmdos.%2i.%i.dat'
-
+        # kkrflex files for impurity calculation
+        self._KKRFLEX_GREEN = 'kkrflex_green'
+        self._KKRFLEX_TMAT = 'kkrflex_tmat'
+        self._KKRFLEX_ATOMINFO = 'kkrflex_atominfo'
+        self._KKRFLEX_INTERCELL_REF = 'kkrflex_intercell_ref'
+        self._KKRFLEX_INTERCELL_CMOMS = 'kkrflex_intercell_cmoms'
+        self._ALL_KKRFLEX_FILES = [self._KKRFLEX_GREEN, self._KKRFLEX_TMAT, self._KKRFLEX_ATOMINFO, self._KKRFLEX_INTERCELL_REF, self._KKRFLEX_INTERCELL_CMOMS]
         
         # template.product entry point defined in setup.json
         self._default_parser = 'kkr.kkrparser'
@@ -206,9 +213,9 @@ class KkrCalculation(JobCalculation):
         self.logger.info("KkrCalculation: Get structure node from voronoi parent")
         if isinstance(parent_calc, VoronoiCalculation):
             self.logger.info("KkrCalculation: Parent is Voronoi calculation")
-            if 1:#try:            
+            try:            
                 structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc) 
-            if 0:#except:
+            except:
                 self.logger.error('KkrCalculation: Could not get structure from Voronoi parent.')
                 raise ValidationError("Cound not find structure node")
         elif isinstance(parent_calc, KkrCalculation):
@@ -226,10 +233,6 @@ class KkrCalculation(JobCalculation):
         if inputdict:
             self.logger.error('KkrCalculation: Unknown inputs for structure lookup')
             raise ValidationError("Unknown inputs")
-            
-        # get shapes array from voronoi parent
-        shapes = voro_parent.res.shapes
-        
 
 
         ###################################
@@ -238,6 +241,13 @@ class KkrCalculation(JobCalculation):
         twoDimcheck, msg = check_2Dinput_consistency(structure, parameters)
         if not twoDimcheck:
             raise InputValidationError(msg)
+            
+        # set shapes array            
+        if parent_calc.get_parser_name() != 'kkr.kkrimporterparser':
+            # get shapes array from voronoi parent
+            shapes = voro_parent.res.shapes
+        else:
+            shapes = voro_parent.inp.parameters.get_dict().get('<SHAPE>')
         
         # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
@@ -245,7 +255,7 @@ class KkrCalculation(JobCalculation):
 
 
         #################
-        # Decide what files to copy
+        # Decide what files to copy based on settings to the code (e.g. KKRFLEX option needs scoef)
         if has_parent:
             # copy the right files #TODO check first if file, exists and throw
             # warning, now this will throw an error
@@ -257,6 +267,7 @@ class KkrCalculation(JobCalculation):
             if isinstance(parent_calc, KkrCalculation):
                 copylist = self._copy_filelist_kkr
                 # TODO ggf copy remotely...
+                
             if isinstance(parent_calc, VoronoiCalculation):
                 copylist = [parent_calc._SHAPEFUN]
                 # copy either overwrite potential or voronoi output potential 
@@ -264,8 +275,24 @@ class KkrCalculation(JobCalculation):
                 if parent_calc._POTENTIAL_IN_OVERWRITE in os.listdir(outfolderpath):
                     copylist.append(parent_calc._POTENTIAL_IN_OVERWRITE)
                 else:
-                    copylist.append(parent_calc._OUT_POTENTIAL_voronoi)           
+                    copylist.append(parent_calc._OUT_POTENTIAL_voronoi)
+                    
+            #change copylist in case the calculation starts from an imported calculation
+            if parent_calc.get_parser_name() == 'kkr.kkrimporterparser':
+                copylist = []
+                if not os.path.exists(os.path.join(outfolderpath, self._OUT_POTENTIAL)):
+                    copylist.append(self._POTENTIAL)
+                else:
+                    copylist.append(self._OUT_POTENTIAL)
+                if os.path.exists(os.path.join(outfolderpath, self._SHAPEFUN)):
+                    copylist.append(self._SHAPEFUN)
+                    
+                    
+            # append some files to copylist for special cases (KKRFLEX option etc.)
+            #self._SCOEF = 'scoef' # mandatory for KKRFLEX calculation and some functionalities
+
             
+            # create local_copy_list from copylist and change some names automatically
             for file1 in copylist:
                 filename = file1
                 if (file1 == 'output.pot' or file1 == self._OUT_POTENTIAL or 
@@ -275,6 +302,7 @@ class KkrCalculation(JobCalculation):
                         os.path.join(outfolderpath, file1),
                         os.path.join(filename)))
             # TODO different copy lists, depending on the keywors input
+            self.logger.info('local copy list: {}'.format(local_copy_list))
 
 
         # Prepare CalcInfo to be returned to aiida
@@ -298,6 +326,7 @@ class KkrCalculation(JobCalculation):
                                   self._OUT_TIMING_000]
         
         # for special cases add files to retireve list:
+            
         # 1. dos calculation, add *dos* files if NPOL==0
         retrieve_dos_files = False
         print('NPOL in parameter input:', parameters.get_dict()['NPOL'])
@@ -319,7 +348,20 @@ class KkrCalculation(JobCalculation):
                     add_files.append((self._LMDOS%(iatom+1, ispin+1)).replace(' ','0'))
             print(add_files)
             calcinfo.retrieve_list += add_files
-                
+            
+        # 2. KKRFLEX calculation
+        retrieve_kkrflex_files = False
+        if 'RUNOPT' in  parameters.get_dict().keys():
+            runopts = parameters.get_dict()['RUNOPT']
+            if runopts is not None :
+                stripped_run_opts = [i.strip() for i in runopts]
+                if 'KKRFLEX' in stripped_run_opts:
+                    retrieve_kkrflex_files = True
+        if retrieve_kkrflex_files:
+            add_files = self._ALL_KKRFLEX_FILES
+            print('adding files for KKRFLEX output', add_files)
+            calcinfo.retrieve_list += add_files
+            
 
         codeinfo = CodeInfo()
         codeinfo.cmdline_params = []
