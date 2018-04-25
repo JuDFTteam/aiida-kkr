@@ -131,3 +131,10 @@ class Test_scf_workflow():
        
         print '\ndone with checks\n'
  
+#run test manually
+if __name__=='__main__':
+   from aiida import is_dbenv_loaded, load_dbenv
+   if not is_dbenv_loaded():
+      load_dbenv()
+   Test = Test_scf_workflow()
+   Test.test_scf_wc_Cu_simple()

@@ -165,16 +165,15 @@ def interpolate_dos(dospath, return_original=False, ):
     Principle of DOS here: Two-point contour integration
     for DOS in the middle of the two points. The input DOS
     and energy must be complex. Parameter deltae should be
-    of the order of magnitude of eim. 
-    
+    of the order of magnitude of eim::
         
-          <-2*deltae->   _
-               /\        |     DOS=(n(1)+n(2))/2 + (n(1)-n(2))*eim/deltae
-              /  \       |
-            (1)  (2)   2*i*eim=2*i*pi*Kb*Tk
-            /      \     |
-           /        \    |
-    ------------------------ (Real E axis)
+              <-2*deltae->   _
+                   /\        |     DOS=(n(1)+n(2))/2 + (n(1)-n(2))*eim/deltae
+                  /  \       |
+                (1)  (2)   2*i*eim=2*i*pi*Kb*Tk
+                /      \     |
+               /        \    |
+        ------------------------ (Real E axis)
     
     :param input: dospath, path where 'complex.dos' file can be found
     

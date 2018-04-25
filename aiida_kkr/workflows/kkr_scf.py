@@ -48,7 +48,7 @@ class kkr_scf_wc(WorkChain):
     """
     Workchain for converging a KKR calculation (SCF).
 
-    It converges the charge density, potential?.
+    It converges the charge potential.
     Two paths are possible:
 
     (1) Start from a structure and run a voronoi calculation first,
@@ -512,6 +512,12 @@ class kkr_scf_wc(WorkChain):
                 do_kkr_step = False
         else:
             do_kkr_step = do_kkr_step & True
+            
+        # check if previous calculation is in SUBMISSIONFAILED state
+        if self.ctx.loop_count>1 and self.ctx.last_calc.get_state() == calc_states.SUBMISSIONFAILED:
+            error = 'ERROR: last KKRcalc (pk={}) in SUBMISSIONFAILED state!\nstopping now'.format(self.ctx.last_calc.pk)
+            self.ctx.errors.append(error)
+            self.control_end_wc(error)
 
         # next check only needed if another iteration should be done after validating convergence etc. (previous checks)
         if do_kkr_step:
@@ -519,7 +525,7 @@ class kkr_scf_wc(WorkChain):
             if self.ctx.loop_count <= self.ctx.max_number_runs:
                 do_kkr_step = do_kkr_step & True
             else:
-                error = 'INFO: maximal number of KKR restarts reached. Exiting now!'
+                error = 'ERROR: maximal number of KKR restarts reached. Exiting now!'
                 self.ctx.errors.append(error)
                 self.control_end_wc(error)
 
@@ -788,6 +794,7 @@ class kkr_scf_wc(WorkChain):
         calc_state = self.ctx.last_calc.get_state()
         if calc_state != calc_states.FINISHED:
             self.ctx.kkr_step_success = False
+            self.report("ERROR: last calculation in state: {}".format(calc_state))
 
         self.report("INFO: kkr_step_success: {}".format(self.ctx.kkr_step_success))
 
@@ -1027,7 +1034,7 @@ class kkr_scf_wc(WorkChain):
         outputnode_dict['successful'] = self.ctx.successful
         outputnode_dict['last_params_nodeinfo'] = {'uuid':last_params_uuid, 'pk':last_params_pk}
         outputnode_dict['last_remote_nodeinfo'] = {'uuid':last_remote_uuid, 'pk':last_remote_pk}
-        outputnode_dict['last_calc_nodeinfo'] = {'uuid':last_calc_uuid,   'pk':last_calc_pk}
+        outputnode_dict['last_calc_nodeinfo'] = {'uuid':last_calc_uuid, 'pk':last_calc_pk}
         outputnode_dict['pks_all_calcs'] = all_pks
         outputnode_dict['errors'] = self.ctx.errors
         outputnode_dict['convergence_value'] = last_rms
@@ -1045,10 +1052,9 @@ class kkr_scf_wc(WorkChain):
         # report the status
         if self.ctx.successful:
             self.report('STATUS: Done, the convergence criteria are reached.\n'
-                        'INFO: The charge density of the KKR calculation pk= '
-                        'converged after {} KKR runs and {} iterations to {} \n'.format(self.ctx.loop_count,
-                                       last_calc_out_dict.get('number_of_iterations_total', None),
-                                       last_calc_out_dict.get('charge_density', None)))
+                        'INFO: The charge density of the KKR calculation pk= {}'
+                        'converged after {} KKR runs and {} iterations to {} \n'
+                        ''.format(last_calc_pk, self.ctx.loop_count, self.ctx.loop_count, last_rms))
         else: # Termination ok, but not converged yet...
             if self.ctx.abort: # some error occured, donot use the output.
                 self.report('STATUS/ERROR: I abort, see logs and '
@@ -1058,9 +1064,7 @@ class kkr_scf_wc(WorkChain):
                             'was reached or something failed.\n INFO: The '
                             'charge density of the KKR calculation pk= '
                             'after {} KKR runs and {} iterations is {} "me/bohr^3"\n'
-                            ''.format(self.ctx.loop_count,
-                            last_calc_out_dict.get('number_of_iterations_total', None),
-                            last_calc_out_dict.get('charge_density', None)))
+                            ''.format(self.ctx.loop_count, sum(self.ctx.KKR_steps_stats.get('isteps')), last_rms))
 
         # create results  node
         self.report("INFO: create results node") #: {}".format(outputnode_dict))

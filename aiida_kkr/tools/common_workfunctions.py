@@ -163,7 +163,8 @@ def test_and_get_codenode(codenode, expected_code_type, use_exceptions=False):
       calling sys.exit(1)
     :return: a Code object
     
-    Example usage (from kkr_scf workchain):
+    :example usage: from kkr_scf workflow::
+        
         if 'voronoi' in inputs:
             try:
                 test_and_get_codenode(inputs.voronoi, 'kkr.voro', use_exceptions=True)
@@ -222,71 +223,67 @@ def test_and_get_codenode(codenode, expected_code_type, use_exceptions=False):
 def get_inputs_kkr(code, remote, options, label='', description='', parameters=None, serial=False):
     """
     Get the input for a voronoi calc.
-    Wrapper for VoronoiProcess setting structure, code, options, label, description etc.
+    Wrapper for KkrProcess setting structure, code, options, label, description etc.
+    :param code: a valid KKRcode installation (e.g. input from Code.get_from_string('codename@computername'))
+    :param remote: remote directory of parent calculation (Voronoi or previous KKR calculation)
+    
     """
     from aiida_kkr.calculations.kkr import KkrCalculation
     KkrProcess = KkrCalculation.process()
-    inputs = KkrProcess.get_inputs_template()
-    if remote:
-        inputs.parent_folder = remote
-    if code:
-        inputs.code = code
-    if parameters:
-        inputs.parameters = parameters
-    for key, val in options.iteritems():
-        if val==None:
-            continue
-        else:
-            inputs._options[key] = val
+        
+    # then reuse common inputs setter 
+    inputs = get_inputs_common(KkrProcess, code, remote, None, options, label, description, parameters, serial)
 
-    if description:
-        inputs['_description'] = description
-    else:
-        inputs['_description'] = ''
-    if label:
-        inputs['_label'] = label
-    else:
-        inputs['_label'] = ''
+    return inputs
 
-    if serial:
-        inputs._options.withmpi = False # for now
-        inputs._options.resources = {"num_machines": 1}
+    
+def get_inputs_kkrimporter(code, remote, options, label='', description='', parameters=None, serial=False):
+    """
+    Get the input for a voronoi calc.
+    Wrapper for KkrProcess setting structure, code, options, label, description etc.
+    """
+    from aiida_kkr.calculations.kkr import KkrCalculation
+    KkrProcess = KkrCalculation.process()
+        
+    # then reuse common inputs setter 
+    inputs = get_inputs_common(KkrProcess, code, remote, None, options, label, description, parameters, serial)
 
-
-    '''
-    options = {
-    "max_wallclock_seconds": int,
-    "resources": dict,
-    "custom_scheduler_commands": unicode,
-    "queue_name": basestring,
-    "computer": Computer,
-    "withmpi": bool,
-    "mpirun_extra_params": Any(list, tuple),
-    "import_sys_environment": bool,
-    "environment_variables": dict,
-    "priority": unicode,
-    "max_memory_kb": int,
-    "prepend_text": unicode,
-    "append_text": unicode}
-    '''
     return inputs
 
 
-def get_inputs_voronoi(structure, voronoicode, options, label='', description='', params=None, serial=True):
+def get_inputs_voronoi(code, structure, options, label='', description='', params=None, serial=True):
     """
     Get the input for a voronoi calc.
     Wrapper for VoronoiProcess setting structure, code, options, label, description etc.
     """
+    # get process for VoronoiCalculation
     from aiida_kkr.calculations.voro import VoronoiCalculation
     VoronoiProcess = VoronoiCalculation.process()
-    inputs = VoronoiProcess.get_inputs_template()
-
+    
+    # then reuse common inputs setter all options
+    inputs = get_inputs_common(VoronoiProcess, code, None, structure, options, label, description, params, serial)
+    
+    return VoronoiProcess, inputs
+    
+    
+def get_inputs_common(process, code, remote, structure, options, label, description, params, serial):
+    """
+    Base function common in get_inputs_* functions for different codes
+    """
+    inputs = process.get_inputs_template()
+    
     if structure:
         inputs.structure = structure
-    if voronoicode:
-        inputs.code = voronoicode
+        
+    if remote:
+        inputs.parent_folder = remote
+        
+    if code:
+        inputs.code = code
+        
     if params:
         inputs.parameters = params
+        
     for key, val in options.iteritems():
         if val==None:
             #leave them out, otherwise the dict schema won't validate
@@ -307,9 +304,26 @@ def get_inputs_voronoi(structure, voronoicode, options, label='', description=''
     if serial:
         inputs._options.withmpi = False # for now
         inputs._options.resources = {"num_machines": 1}
+    '''
+    options = {
+    "max_wallclock_seconds": int,
+    "resources": dict,
+    "custom_scheduler_commands": unicode,
+    "queue_name": basestring,
+    "computer": Computer,
+    "withmpi": bool,
+    "mpirun_extra_params": Any(list, tuple),
+    "import_sys_environment": bool,
+    "environment_variables": dict,
+    "priority": unicode,
+    "max_memory_kb": int,
+    "prepend_text": unicode,
+    "append_text": unicode}
+    '''
 
     return inputs
 
+    
 def get_parent_paranode(remote_data):
     """
     Return the input parameter of the parent calulation giving the remote_data node

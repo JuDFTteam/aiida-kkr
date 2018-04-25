@@ -1,12 +1,22 @@
-============
 Calculations
-============
+++++++++++++
 
-Multiply plugin
-+++++++++++++++
+Voronoi
+-------
+.. automodule:: aiida_kkr.calculations.voro
+   :members:
 
-.. Add here any other module you might have
-
+KKRcode
+-------
 .. automodule:: aiida_kkr.calculations.kkr
    :members:
 
+KKRcode - calculation importer
+------------------------------
+.. automodule:: aiida_kkr.calculations.kkrimporter
+   :members:
+
+KKRimp
+------
+.. automodule:: aiida_kkr.calculations.kkrimp
+   :members:

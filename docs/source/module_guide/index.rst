@@ -1,11 +1,11 @@
-============================================
-Modules provided with plugin (API reference)
-============================================
+Modules provided with aiida-kkr (API reference)
+===============================================
 
 .. toctree::
     :maxdepth: 3
 
     calculations
-    data
+    workflows
     parsers
+    tools
 

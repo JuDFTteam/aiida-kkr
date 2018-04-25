@@ -32,9 +32,15 @@ needs_sphinx = '1.5'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.mathjax',
+    'sphinx.ext.doctest', 
+    'sphinx.ext.ifconfig', 
+    'sphinx.ext.todo', 
+    'sphinx.ext.coverage',  
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
 ]
+
+todo_include_todos = True
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/2.7', None),
@@ -57,9 +63,9 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'aiida-plugin-template'
+project = u'aiida-kkr'
 copyright_first_year = 2017
-copyright_owners = "My Institution, Country"
+copyright_owners = "FZ Juelich GmbH, Germany"
 
 current_year = time.localtime().tm_year
 copyright_year_string = current_year if current_year == copyright_first_year else "{}-{}".format(copyright_first_year, current_year)
@@ -89,7 +95,7 @@ language = None
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-# exclude_patterns = ['doc.rst']
+exclude_patterns = ['_build']
 #~ exclude_patterns = ['index.rst']
 
 # The reST default role (used for this markup: `text`) to use for all
@@ -121,7 +127,7 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-#~ html_theme = 'basicstrap'
+html_theme = 'sphinx_rtd_theme'
 ## SET BELOW
 
 # Theme options are theme-specific and customize the look and feel of a theme
@@ -155,7 +161,7 @@ pygments_style = 'sphinx'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-#html_static_path = ['_static']
+html_static_path = ['_static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
@@ -198,7 +204,7 @@ html_show_sourcelink = False
 # If true, an OpenSearch description file will be output, and all pages will
 # contain a <link> tag referring to it.  The value of this option must be the
 # base URL from which the finished HTML is served.
-html_use_opensearch = 'http://aiida-plugin-template.readthedocs.io'
+html_use_opensearch = 'http://aiida-kkr.readthedocs.io'
 
 # This is the file name suffix for HTML files (e.g. ".xhtml").
 #html_file_suffix = None
@@ -218,7 +224,7 @@ html_search_language = 'en'
 #html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'aiida-plugin-template-doc'
+htmlhelp_basename = 'aiida-kkrdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 

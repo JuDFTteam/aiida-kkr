@@ -9,10 +9,10 @@
 
 .. _AiiDA: http://www.aiida.net
 
-Welcome to the example documentation of the AiiDA plugin ``aiida-plugin-template``
+Welcome to the example documentation of the AiiDA-KKR plugin ``aiida-kkr``
 ==================================================================================
 
-The plugin is available at http://github.com/aiidateam/aiida-plugin-template
+The plugin is available at https://github.com/broeder-j/aiida-kkr
 
 .. If you use this plugin for your research, please cite the following work:
 
@@ -33,8 +33,8 @@ User's guide
 
    user_guide/index
 
-Modules provided with aiida-quantumespresso (API reference)
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Modules provided with aiida-kkr (API reference)
++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. toctree::
    :maxdepth: 4
