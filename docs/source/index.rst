@@ -1,16 +1,18 @@
-#####################################
-`AiiDA`_ plugin aiida-plugin-template
-#####################################
 
-.. figure:: images/AiiDA_transparent_logo.png
-    :width: 250px
-    :align: center
-    :height: 100px
+.. image:: images/juKKR_logo_square_new.jpg
+    :width: 30%
+.. image:: images/AiiDA_transparent_logo.png
+    :width: 60%
 
 .. _AiiDA: http://www.aiida.net
 
+|
+
+#####################################
+The `AiiDA`_ plugin ``aiida-kkr``
+#####################################
+
 Welcome to the example documentation of the AiiDA-KKR plugin ``aiida-kkr``
-==================================================================================
 
 The plugin is available at https://github.com/broeder-j/aiida-kkr
 
