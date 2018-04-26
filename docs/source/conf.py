@@ -306,7 +306,7 @@ else:
     settings.BACKEND = "django"
     settings.AIIDADB_PROFILE = "default"
 
-
+'''
 def run_apidoc(_):
     """Runs sphinx-apidoc when building the documentation.
 
@@ -344,9 +344,10 @@ def run_apidoc(_):
     env = os.environ.copy()
     env["SPHINX_APIDOC_OPTIONS"] = 'members,special-members,private-members,undoc-members,show-inheritance'
     subprocess.check_call([cmd_path] + options, env=env)
+'''
 
-def setup(app):
-    app.connect('builder-inited', run_apidoc)
+#def setup(app):
+#    app.connect('builder-inited', run_apidoc)
 
 
 # -- Options for manual page output --------------------------------------------
