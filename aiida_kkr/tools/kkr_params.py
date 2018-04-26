@@ -1021,15 +1021,19 @@ class kkrparams(object):
        
             
     def get_missing_keys(self, use_aiida=False):
+        """Find list of mandatory keys that are not yet set"""
         setlist = dict(self.get_set_values()).keys()
         manlist = self.get_all_mandatory()
         missing = []
+        autoset_list = ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ', '<SHAPE>', 'EMIN', 'RCLUSTZ']
+        if self.__params_type == 'voronoi':
+            autoset_list = ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ']
         for key in manlist:
             if key not in setlist:
                 if not use_aiida:
                     missing.append(key)
                 else:
-                    if key not in ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ', '<SHAPE>', 'EMIN', 'RCLUSTZ']:
+                    if key not in autoset_list:
                         missing.append(key)
         return missing
     
@@ -1039,7 +1043,7 @@ class kkrparams(object):
         Update parameter settings to match voronoi specification.
         Sets self.__params_type and calls _update_mandatory_voronoi()
         """
-        self.__params_type == 'voronoi'
+        self.__params_type = 'voronoi'
         self._update_mandatory_voronoi()
         
 """
