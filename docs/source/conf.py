@@ -13,6 +13,7 @@
 
 import sys, os
 import time
+"""
 # Following 3 lines avoid the need of importing load_dbenv() for compiling the
 # documentation -> works also without verdi install
 sys.path.append( os.path.join( os.path.split(__file__)[0],
@@ -20,6 +21,7 @@ sys.path.append( os.path.join( os.path.split(__file__)[0],
 sys.path.append( os.path.join( os.path.split(__file__)[0],
                                    os.pardir))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'rtd_settings'
+"""
 
 import aiida
 from aiida.backends import settings
@@ -305,6 +307,9 @@ else:
     settings.IN_RT_DOC_MODE = True
     settings.BACKEND = "django"
     settings.AIIDADB_PROFILE = "default"
+    from aiida.backends.utils import load_dbenv, is_dbenv_loaded
+    if not is_dbenv_loaded():
+        load_dbenv()
 
 '''
 def run_apidoc(_):

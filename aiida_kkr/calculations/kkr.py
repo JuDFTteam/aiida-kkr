@@ -12,7 +12,8 @@ from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.orm import DataFactory
 from aiida.common.exceptions import UniquenessError
-from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency
+from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_structure,
+                                                  check_2Dinput_consistency, update_params_wf)
 
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
@@ -23,7 +24,7 @@ StructureData = DataFactory('structure')
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.4"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -274,8 +275,15 @@ class KkrCalculation(JobCalculation):
         write_scoef = False
         if 'KKRFLEX' in parameters.get_dict().get('RUNOPT', []):
             write_scoef = True
+        elif found_imp_info:
+            self.logger.info('Found impurity_info in inputs of the calculation, automatically add runopt KKRFLEX')
+            write_scoef = True
+            runopt = parameters.get_dict().get('RUNOPT', [])
+            runopt.append('KKRFLEX')
+            parameters = update_params_wf(parameters, ParameterData(dict={'RUNOPT':runopt, 'nodename': '', 'nodedesc':''}))
         if found_imp_info and write_scoef:
-            #TODO implement this!
+            # TODO check completeness of impurity info!
+            # TODO implement this!
             # placeholder: take Fabian's functions later on
             scoef = ['      13\n',
                      '  0.0000000000000000000E+00  0.0000000000000000000E+00  0.0000000000000000000E+00    1 29.0  0.000000000E+00\n',
