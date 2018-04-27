@@ -307,9 +307,13 @@ else:
     settings.IN_RT_DOC_MODE = True
     settings.BACKEND = "django"
     settings.AIIDADB_PROFILE = "default"
-    from aiida.backends.utils import load_dbenv, is_dbenv_loaded
-    if not is_dbenv_loaded():
-        load_dbenv()
+    try:
+        from aiida.backends.utils import load_dbenv, is_dbenv_loaded
+        if not is_dbenv_loaded():
+            load_dbenv()
+    except ImportError:
+        autodoc_mock_imports = ['aiida.orm']
+    
 
 '''
 def run_apidoc(_):
