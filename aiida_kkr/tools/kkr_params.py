@@ -1193,7 +1193,7 @@ class kkrparams(object):
         
         
 """
-# tests
+# tests read inputcard
 if __name__=='__main__':
     from numpy import ndarray, array
     from aiida_kkr.tools.common_functions import get_Ang2aBohr
@@ -1240,7 +1240,7 @@ if __name__=='__main__':
             assert set(v)-set(v0)==set()
             
 """        
-# tests
+# tests write config.cfg
 if __name__=='__main__':
     p = kkrparams(params_type='kkrimp')
     

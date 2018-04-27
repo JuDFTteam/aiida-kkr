@@ -45,9 +45,22 @@ class KkrimpCalculation(JobCalculation):
 
         # List of output files that should always be present
         self._OUT_POTENTIAL = 'out_potential'
-        self._OUTPUT_000 = 'output.000.txt'
+        self._OUTPUT_000 = 'out_log.000.txt'
         self._OUT_TIMING_000 = 'out_timing.000.txt'
-
+        self._OUT_ENERGYSP = 'out_energysp_eV'
+        self._OUT_ENERGYSP_PER_ATOM = 'out_energysp_per_atom_eV'
+        self._OUT_ENERGYTOT = 'out_energytotal_eV'
+        self._OUT_ENERGYTOT_PER_ATOM =  'out_energytotal_per_atom_eV'
+        
+        # Lift of output files that are retrieved if special conditions are fulfilled
+        self._OUT_JIJDIJ = 'out_JijDij'
+        self._OUT_JIJDIJ_LOCAL = 'out_JijDij_local'
+        self._OUT_JIJMAT = 'out_Jijmatrix'
+        self._OUT_JIJMAT_LOCAL = 'out_Jijmatrix_local'
+        self._OUT_LDOS_BASE = 'out_ldos.atom=%2i_spin%i.dat'
+        self._OUT_LDOS_INTERPOL_BASE = 'out_ldos.interpol.atom=%2i_spin%i.dat'
+        self._OUT_LMDOS_BASE = 'out_lmdos.atom=%2i_spin%i.dat'
+        self._OUT_LMDOS_INTERPOL_BASE = 'out_lmdos.interpol.atom=%2i_spin%i.dat'
 
         # template.product entry point defined in setup.json
         self._default_parser = 'kkr.kkrimpparser'
