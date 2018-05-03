@@ -136,21 +136,21 @@ class KkrimpParser(Parser):
             filepath = out_folder.get_abs_path(fname)
             files['kkrflex_angles'] = filepath
         except OSError:
-            file_errors.append((2, "Critical error! file '{}' not found ".format(fname)))
+            file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
             files['kkrflex_angles'] = None
         try:
             fname = self._calc._OUT_MAGNETICMOMENTS
             filepath = out_folder.get_abs_path(fname)
             files['out_spinmoms'] = filepath
         except OSError:
-            file_errors.append((2, "Critical error! file '{}' not found ".format(fname)))
+            file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
             files['out_spinmoms'] = None
         try:
             fname = self._calc._OUT_ORBITALMOMENTS
             filepath = out_folder.get_abs_path(fname)
             files['out_orbmoms'] = filepath
         except OSError:
-            file_errors.append((2, "Critical error! file '{}' not found ".format(fname)))
+            file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
             files['out_orbmoms'] = None
         
         # now parse file output

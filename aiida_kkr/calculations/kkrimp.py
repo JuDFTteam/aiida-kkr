@@ -140,8 +140,18 @@ class KkrimpCalculation(JobCalculation):
             :param inputdict: dictionary of the input nodes as they would
                 be returned by get_inputs_dict
         """
-        # Check inputdict
-        parameters, code, imp_info, kkrflex_file_paths, shapefun_path, shapes, host_parent_calc, params_host, impurity_potential, parent_calc_folder = self._check_and_extract_input_nodes(inputdict)
+        # Check inputdict and extrace nodes
+        tmp = self._check_and_extract_input_nodes(inputdict)
+        parameters = tmp[0]
+        code = tmp[1]
+        imp_info = tmp[2]
+        kkrflex_file_paths = tmp[3]
+        shapefun_path = tmp[4]
+        shapes = tmp[5]
+        host_parent_calc = tmp[6]
+        params_host = tmp[7]
+        impurity_potential = tmp[8]
+        parent_calc_folder = tmp[9]
         
         # Prepare input files for KKRimp calculation
         # 1. fill kkr params for KKRimp, write config file
@@ -279,7 +289,7 @@ class KkrimpCalculation(JobCalculation):
         Extract input nodes from inputdict and check consitency of input nodes
         :param inputdict: dict of inputnodes
         :returns: 
-            * parameters (ParameterDataNode), optional: parameters of KKRimp that end up in config.cfg
+            * parameters (aiida_kkr.tools.kkr_params.kkrparams), optional: parameters of KKRimp that end up in config.cfg
             * code (KKRimpCodeNode): code of KKRimp on some machine
             * imp_info (ParameterDataNode): parameter node of the impurity information, extracted from host_parent_calc
             * kkrflex_file_paths (dict): dictionary of {filenames: absolute_path_to_file} for the kkrflex-files
@@ -296,6 +306,8 @@ class KkrimpCalculation(JobCalculation):
         except KeyError:
             self.logger.info("No parameters specified for this calculation, use defaults")
             parameters = None
+        if parameters is not None: # convert to kkrparams instance
+            parameters = kkrparams(params_type='kkrimp', **parameters.get_dict())
         # 2. extract code
         try:
             code = inputdict.pop(self.get_linkname('code'))
@@ -329,7 +341,7 @@ class KkrimpCalculation(JobCalculation):
                                        "Please provide one one, i.e. either impurity_potential or parent_calc_folder.")
         # 5. anything left that is unknown?
         if inputdict:
-            raise ValidationError("Unknown inputs")
+            raise ValidationError("Unknown inputs: {}".format(inputdict))
         # Done checking inputdict, returning ...
         return parameters, code, imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, impurity_potential, parent_calc_folder
 
@@ -379,6 +391,7 @@ class KkrimpCalculation(JobCalculation):
         else:
             params_parent = None
         if params_parent is not None:
+            params_parent = kkrparams(params_type='kkr', **params_parent.get_dict())
             for (key, val) in params_parent.get_set_values():
                 self._check_key_setting_consistency(params_kkrimp, key, val)
                 params_kkrimp.set_value(key, val)
@@ -452,8 +465,10 @@ class KkrimpCalculation(JobCalculation):
         if impurity_potential is not None:
             potfile = impurity_potential.get_file_abs_path()
         elif parent_calc_folder is not None:
-            path = parent_calc_folder.get_inputs_dict().get('retrieved', None)
-            potfile = os.path.join(path, self._OUT_POTENTIAL)
+            self.logger.info('parent_calc_folder {} {}'.format(parent_calc_folder, parent_calc_folder.get_inputs_dict()))
+            retrieved = parent_calc_folder.get_inputs(node_type=JobCalculation)[0].get_outputs_dict().get('retrieved', None)
+            self.logger.info('potfile {} {}'.format(retrieved, self._OUT_POTENTIAL))
+            potfile = retrieved.get_abs_path(self._OUT_POTENTIAL)
         else:
             raise InputValidationError('ERROR in _get_pot_and_shape: neither impurity potential nor parent_calc_folder given!')
             

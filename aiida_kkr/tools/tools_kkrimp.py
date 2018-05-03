@@ -15,7 +15,7 @@ if version_info[0] >= 3:
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH,"
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1"
+__version__ = "0.2"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -336,8 +336,8 @@ class kkrimp_parser_functions():
         from numpy import loadtxt
         esp = loadtxt(file1)
         etot = loadtxt(file2)
-        esp_at = esp[-natom:]
-        etot_at = etot[-natom:]
+        esp_at = esp[-natom:,1]
+        etot_at = etot[-natom:,1]
         return esp_at, etot_at
 
     
