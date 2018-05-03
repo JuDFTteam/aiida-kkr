@@ -273,7 +273,12 @@ class KkrCalculation(JobCalculation):
 
         # prepare scoef file if impurity_info was given
         write_scoef = False
-        if 'KKRFLEX' in parameters.get_dict().get('RUNOPT', []):
+        runopt = parameters.get_dict().get('RUNOPT', None)
+        kkrflex_opt = False
+        if runopt is not None:
+            if 'KKRFLEX' in runopt:
+                kkrflex_opt = True
+        if kkrflex_opt:
             write_scoef = True
         elif found_imp_info:
             self.logger.info('Found impurity_info in inputs of the calculation, automatically add runopt KKRFLEX')
