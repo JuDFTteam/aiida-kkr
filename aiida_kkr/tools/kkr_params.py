@@ -25,7 +25,7 @@ __kkr_default_params__ = {"LMAX": 3,          # lmax-cutoff
                           "NSPIN": 2,         # spin-polarized calculation (but by default not automatically initialized with external field)
                           "RMAX": 10.,        # Madelung sum real-space cutoff
                           "GMAX": 100.,       # Madelung sum reciprocal-space cutoff
-                          "RCLUSTZ": 2.3,     # size of screening cluster (in alat units)
+                          "RCLUSTZ": 2.3      # size of screening cluster (in alat units)
                           }
 
 
@@ -424,7 +424,7 @@ class kkrparams(object):
             key2 = key
             if key not in default_keywords.keys():
                 key2 = '<'+key+'>'
-            if self.params_type=='kkrimp':
+            if self.__params_type=='kkrimp':
                 if key=='KEXCORE':
                     key2 = 'XC'
                 if key=='R_LOG':
