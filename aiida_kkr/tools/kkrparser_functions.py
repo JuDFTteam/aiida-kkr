@@ -602,7 +602,7 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
         result_WS, result_tot, result_C = get_charges_per_atom(outfile_000)
         niter = len(out_dict['convergence_group']['rms_all_iterations'])
         natyp = int(len(result_tot)/niter)
-        out_dict['total_charge_per_atom'] = result_tot[-natyp:]
+        out_dict['total_charge_per_atom'] = result_WS[-natyp:]
         out_dict['charge_core_states_per_atom'] = result_C[-natyp:]
         # this check deals with the DOS case where output is slightly different
         if len(result_WS) == len(result_C):
@@ -758,7 +758,7 @@ def check_error_category(err_cat, err_msg, out_dict):
             return True
         
   
-#"""
+"""
 if __name__=='__main__':
     print('run test')
     path0 = '../../../development/calc_import_test/'

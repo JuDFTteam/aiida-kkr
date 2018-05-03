@@ -25,7 +25,7 @@ __kkr_default_params__ = {"LMAX": 3,          # lmax-cutoff
                           "NSPIN": 2,         # spin-polarized calculation (but by default not automatically initialized with external field)
                           "RMAX": 10.,        # Madelung sum real-space cutoff
                           "GMAX": 100.,       # Madelung sum reciprocal-space cutoff
-                          "RCLUSTZ": 2.3      # size of screening cluster (in alat units)
+                          "RCLUSTZ": 2.3,     # size of screening cluster (in alat units)
                           }
 
 
@@ -67,10 +67,10 @@ class kkrparams(object):
             raise ValueError("params_type can only be one of {} but got {}".format(valid_types, self.__params_type))
 
         # initialize keywords dict
-        keyw = self._create_keywords_dict(**kwargs)
-        
         if self.__params_type  == 'kkrimp':
             keyw = self._create_keywords_dict_kkrimp(**kwargs)
+        else:
+            keyw = self._create_keywords_dict(**kwargs)
 
         #values of keywords:
         self.values = {}
@@ -245,9 +245,9 @@ class kkrparams(object):
 
 
     def get_value(self, key):
-        """Sets value of keyword 'key'"""
+        """Gets value of keyword 'key'"""
         if key not in self.values.keys():
-            print('Error key not found in values dict!')
+            print('Error key ({}) not found in values dict! {}'.format(key, self.values))
             raise KeyError
         else:
             # deal with special cases of runopt and testopt (lists of codewords)
@@ -424,6 +424,17 @@ class kkrparams(object):
             key2 = key
             if key not in default_keywords.keys():
                 key2 = '<'+key+'>'
+            if self.params_type=='kkrimp':
+                if key=='KEXCORE':
+                    key2 = 'XC'
+                if key=='R_LOG':
+                    key2 = 'RADIUS_LOGPANELS'
+                if key=='STRMIX':
+                    key2 = 'MIXFAC'
+                if key=='RUNOPT':
+                    key2 = 'RUNFLAG'
+                if key=='TESTOPT':
+                    key2 = 'TESTFLAG'
             default_keywords[key2][0] = kwargs[key]
 
         return default_keywords
@@ -790,6 +801,11 @@ class kkrparams(object):
         from numpy import shape, array
         from aiida_kkr.tools.common_functions import get_aBohr2Ang
         
+        # some print statements with debug info
+        debug = False
+        
+        if debug: print('start reading {}'.format(inputcard))
+        
         txt = open(inputcard, 'r').readlines()
         keywords = self.values
         keyfmts = self.__format
@@ -799,9 +815,9 @@ class kkrparams(object):
         read_first = ['NAEZ', 'NATYP', '<NLBASIS>', '<NRBASIS>']
         read_already = []
         for key in read_first:
-            valtxt = self._find_value(key, txt)
+            valtxt = self._find_value(key, txt, debug=debug)
             if valtxt is None: # try to read key without '<', '>'
-                valtxt = self._find_value(key.replace('<','').replace('>',''), txt)
+                valtxt = self._find_value(key.replace('<','').replace('>',''), txt, debug=debug)
             # now set value in kkrparams
             if valtxt is not None:
                 value = self.get_type(key)(valtxt)
@@ -850,7 +866,7 @@ class kkrparams(object):
                 # read in all lines for this key
                 values = []
                 for iline in lines:
-                    valtxt = self._find_value(key, txt, iline, item, num)
+                    valtxt = self._find_value(key, txt, iline, item, num, debug=debug)
                     if valtxt is not None:
                         # first deal with run and testopts (needs to spearate keys)
                         if key=='RUNOPT' or key=='TESTOPT':
@@ -911,16 +927,16 @@ class kkrparams(object):
         if self.get_value('<RBASIS>') is None:
             rbasis = []
             for iatom in range(natyp):
-                rbasis.append([float(i) for i in self._find_value('RBASIS', txt, 1+iatom, 1, 3)])
+                rbasis.append([float(i) for i in self._find_value('RBASIS', txt, 1+iatom, 1, 3, debug=debug)])
             self.set_value('<RBASIS>', rbasis)
         
         # look for old atominfo input style
-        atominfo_c = self._find_value('ATOMINFOC', txt, 2)
+        atominfo_c = self._find_value('ATOMINFOC', txt, 2, debug=debug)
         if atominfo_c is None:
             atominfo_c = False
         else:
             atominfo_c = True
-        atominfo = self._find_value('ATOMINFO', txt, 2)
+        atominfo = self._find_value('ATOMINFO', txt, 2, debug=debug)
         if atominfo is None:
             atominfo = False
         else:
@@ -928,10 +944,10 @@ class kkrparams(object):
         tmp = []
         if atominfo_c:
             for iatom in range(natyp):    
-                tmp.append(self._find_value('ATOMINFOC', txt, 2+iatom, 1, 14))
+                tmp.append(self._find_value('ATOMINFOC', txt, 2+iatom, 1, 14, debug=debug))
         elif atominfo:
             for iatom in range(natyp): 
-                tmp.append(self._find_value('ATOMINFO', txt, 2+iatom, 1, 12))
+                tmp.append(self._find_value('ATOMINFO', txt, 2+iatom, 1, 12, debug=debug))
         if atominfo_c or atominfo:
             tmp = array(tmp)
             cls_list = [int(i) for i in tmp[:,6]]
@@ -944,13 +960,13 @@ class kkrparams(object):
                 
         # look for old left/right basis input style
         if self.get_value('INTERFACE'):
-            leftbasis = self._find_value('LEFTBASIS', txt)
+            leftbasis = self._find_value('LEFTBASIS', txt, debug=debug)
             if leftbasis is None:
                 leftbasis = False
             else:
                 leftbasis = True
                 nlbasis = self.get_value('<NLBASIS>')
-            rightbasis = self._find_value('RIGHBASIS', txt) # RIGHBASIS is no typo!!
+            rightbasis = self._find_value('RIGHBASIS', txt, debug=debug) # RIGHBASIS is no typo!!
             if rightbasis is None:
                 rightbasis = False
             else:
@@ -959,7 +975,7 @@ class kkrparams(object):
             if leftbasis:
                 tmp = []
                 for iatom in range(nlbasis):
-                    tmp.append(self._find_value('LEFTBASIS', txt, 1+iatom, 1, 5))
+                    tmp.append(self._find_value('LEFTBASIS', txt, 1+iatom, 1, 5, debug=debug))
                 tmp = array(tmp)
                 self.set_multiple_values(RBLEFT=[[float(i[j]) for j in range(3)] for i in tmp[:,0:3]], KAOEZL=[int(i) for i in tmp[:,3]])
                 tmp2 = [] 
@@ -970,7 +986,7 @@ class kkrparams(object):
             if rightbasis:
                 tmp = []
                 for iatom in range(nrbasis):
-                    tmp.append(self._find_value('RIGHBASIS', txt, 1+iatom, 1, 5))
+                    tmp.append(self._find_value('RIGHBASIS', txt, 1+iatom, 1, 5, debug=debug))
                 tmp = array(tmp)
                 self.set_multiple_values(RBRIGHT=[[float(i[j]) for j in range(3)] for i in tmp[:,0:3]], KAOEZR=[int(i) for i in tmp[:,3]])
                 tmp2 = [] 
@@ -989,13 +1005,11 @@ class kkrparams(object):
         if rbr is not None: self.set_value('<RBRIGHT>', array(rbr)*alat2ang)
         if zper_l is not None: self.set_value('ZPERIODL', array(zper_l)*alat2ang)
         if zper_r is not None: self.set_value('ZPERIODR', array(zper_r)*alat2ang)
+        
+        if debug: print('extracted parameters: {}'.format(self.get_set_values()))
                 
-        # done with read in
-        return
-                
-
     
-    def _find_value(self, charkey, txt, line=1, item=1, num=1):
+    def _find_value(self, charkey, txt, line=1, item=1, num=1, debug=False):
         """
         Search charkey in txt and return value string
         
@@ -1007,6 +1021,7 @@ class kkrparams(object):
         
         returns :: valtxt                   string or list of strings depending on num setting
         """
+        if debug: print('find_value: {}'.format(charkey))
         try:
             iline = [ii for ii in range(len(txt)) if charkey in txt[ii]][0]
         except IndexError:
@@ -1020,6 +1035,7 @@ class kkrparams(object):
                 nextline = txt[iline+line]
                 startpos = txtline.index(charkey)
                 valtxt = nextline[startpos:].split()[item-1:item-1+num]
+            if debug: print('find_value found {}'.format(valtxt))
             if num == 1:
                 return valtxt[0]
             else:
@@ -1239,6 +1255,7 @@ if __name__=='__main__':
                 print(key, set(v)-set(v0))
             assert set(v)-set(v0)==set()
             
+#"""        
 """        
 # tests write config.cfg
 if __name__=='__main__':
@@ -1252,3 +1269,8 @@ if __name__=='__main__':
                           KVREL=1, IMIX=0, RADIUS_MIN=-1, NCOLL=0, RADIUS_LOGPANELS=0.6, 
                           MIXFAC=0.05, SCFSTEPS=1, XC='LDA-VWN')
     p.fill_keywords_to_inputfile(output='config.cfg')
+        
+#"""
+    
+    
+    

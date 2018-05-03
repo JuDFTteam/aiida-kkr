@@ -303,7 +303,6 @@ class KkrCalculation(JobCalculation):
             self.logger.info('Writing scoef file {}'.format(scoef_filename))
             with open(scoef_filename, 'w') as file:
                 file.writelines(scoef)
-            #os.listdir('.')
         elif write_scoef:
             self.logger.info('Need to write scoef file but no impurity_info given!')
             raise ValidationError('Found RUNOPT KKRFLEX but no impurity_info in inputs')
