@@ -1,0 +1,45 @@
+-----------  ------------------------------------
+type         VoronoiCalculation
+pk           22508
+uuid         5ec4a0f7-015a-44fb-a913-ae43594366f9
+label
+description
+ctime        2018-05-04 07:56:33.761519+00:00
+mtime        2018-05-04 07:57:03.181296+00:00
+computer     [1] my_mac
+code         voronoi
+-----------  ------------------------------------
+
+                                                                     /-RemoteData [22514]
+                                                                    |
+                                               /KkrCalculation [22513]-FolderData [22515]
+                                              |                     |
+                                              |                      \-ParameterData [22516]
+                                              |
+                                              |                                                                                                                                                    /-RemoteData [22535]
+                                              |                                                                                                                                                   |
+                                              |                                                                                                         /RemoteData [22530]KkrimpCalculation [22534]-FolderData [22536]
+                                              |                                                                                                        |                                          |
+                                              |                                                                                                        |                                           \-ParameterData [22537]
+                                              |                                                                                /KkrimpCalculation [22529]
+                             /RemoteData [22509]                                                                              |                        |--FolderData [22531]
+                            |                 |                                                                               |                        |
+                            |                 |                                                              /RemoteData [22525]                        \-ParameterData [22532]
+                            |                 |                                                             |                 |
+                            |                 |                                                             |                 |                         /-RemoteData [22535]
+                            |                 |                                                             |                 |                        |
+                            |                 |                                                             |                  \KkrimpCalculation [22534]-FolderData [22536]
+                            |                 |                      /RemoteData [22519]KkrCalculation [22524]                                         |
+                            |                 |                     |                                       |                                           \-ParameterData [22537]
+                            |                 |                     |                                       |
+-- /VoronoiCalculation [22508]                |                     |                                       |--FolderData [22526]
+                            |                  \KkrCalculation [22518]                                      |
+                            |                                       |                                        \-ParameterData [22527]
+                            |                                       |
+                            |                                       |--FolderData [22520]
+                            |                                       |
+                            |                                        \-ParameterData [22521]
+                            |
+                            |--FolderData [22510]
+                            |
+                             \-ParameterData [22511]
