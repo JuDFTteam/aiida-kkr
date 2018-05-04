@@ -13,7 +13,6 @@
 
 import sys, os
 import time
-"""
 # Following 3 lines avoid the need of importing load_dbenv() for compiling the
 # documentation -> works also without verdi install
 sys.path.append( os.path.join( os.path.split(__file__)[0],
@@ -21,7 +20,6 @@ sys.path.append( os.path.join( os.path.split(__file__)[0],
 sys.path.append( os.path.join( os.path.split(__file__)[0],
                                    os.pardir))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'rtd_settings'
-"""
 
 import aiida
 from aiida.backends import settings
@@ -29,8 +27,8 @@ from aiida.backends import settings
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.append(os.path.abspath('../'))
-sys.path.append(os.path.abspath('../../'))
+#sys.path.append(os.path.abspath('../'))
+#sys.path.append(os.path.abspath('../../'))
 import aiida_kkr
 
 # -- General configuration ------------------------------------------------
@@ -307,13 +305,6 @@ else:
     settings.IN_RT_DOC_MODE = True
     settings.BACKEND = "django"
     settings.AIIDADB_PROFILE = "default"
-    try:
-        from aiida.backends.utils import load_dbenv, is_dbenv_loaded
-        if not is_dbenv_loaded():
-            load_dbenv()
-    except ImportError:
-        autodoc_mock_imports = ['aiida.orm']
-    
 
 '''
 def run_apidoc(_):
