@@ -4,20 +4,42 @@ Workflows
 
 This page can contain a simple tutorial for your code.
 
-What we want to achieve
-+++++++++++++++++++++++
 
-Step 1
-------
+Density of states
++++++++++++++++++
 
-Some text
+aiida_kkr.workflows.dos
 
-Step 2
-------
 
-Some other text
+Generate KKR start potential
+++++++++++++++++++++++++++++
 
-The final result
-+++++++++++++++++++++++
+aiida_kkr.workflows.voro_start
 
-Some text
+
+KKR scf cycle
++++++++++++++
+
+aiida_kkr.workflows.kkr_scf
+
+
+Equation of states
+++++++++++++++++++
+
+aiida_kkr.workflows.eos
+
+
+Check KKR parameter convergence
++++++++++++++++++++++++++++++++
+
+aiida_kkr.workflows.check_para_convergence
+
+.. warning:: Not implemented yet!
+   
+
+Find magnetic ground state
+++++++++++++++++++++++++++
+
+aiida_kkr.workflows.check_magnetic_state
+
+.. warning:: Not implemented yet!
