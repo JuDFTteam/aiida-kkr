@@ -43,7 +43,7 @@ class KkrImporterCalculation(KkrCalculation):
     :param input_file_names: The file names of the job's input file.
     :type input_file_name: dict with str entries
     :param output_file_name: The file names of the job's output file (i.e. the
-        file containing the stdout of QE).
+        file containing the stdout of kkr.x).
     :type output_file_name: dict with str entries
     """
 

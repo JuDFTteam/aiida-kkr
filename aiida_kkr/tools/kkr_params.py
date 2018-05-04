@@ -16,7 +16,7 @@ if version_info[0] >= 3:
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH,"
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.4"
 __contributors__ = u"Philipp Rüßmann"
 
 # This defines the default parameters for KKR used in the aiida plugin:
@@ -24,7 +24,8 @@ __kkr_default_params__ = {"LMAX": 3,          # lmax-cutoff
                           "INS": 1,           # use shape corrections (full potential)
                           "NSPIN": 2,         # spin-polarized calculation (but by default not automatically initialized with external field)
                           "RMAX": 10.,        # Madelung sum real-space cutoff
-                          "GMAX": 100.        # Madelung sum reciprocal-space cutoff
+                          "GMAX": 100.,       # Madelung sum reciprocal-space cutoff
+                          "RCLUSTZ": 2.3      # size of screening cluster (in alat units)
                           }
 
 
@@ -51,7 +52,6 @@ class kkrparams(object):
           except for the keys'<RBLEFT>', '<RBRIGHT>', 'ZPERIODL', and 'ZPERIODR' which should be given in Ang. units!
     """
 
-
     def __init__(self, **kwargs):
         """
         Initialize class instance with containing the attribute values that also have
@@ -62,9 +62,15 @@ class kkrparams(object):
         else:
             #parameter are set for kkr or voronoi code? (changes mandatory flags)
             self.__params_type = 'kkr' #default value, also possible: 'voronoi', 'kkrimp'
-            #TODO: implement update_mandatory for self.__params_type=='kkrimp'
+        valid_types = ['kkr', 'voronoi', 'kkrimp']
+        if self.__params_type not in valid_types:
+            raise ValueError("params_type can only be one of {} but got {}".format(valid_types, self.__params_type))
 
-        keyw = self._create_keyword_default_values(**kwargs)
+        # initialize keywords dict
+        if self.__params_type  == 'kkrimp':
+            keyw = self._create_keywords_dict_kkrimp(**kwargs)
+        else:
+            keyw = self._create_keywords_dict(**kwargs)
 
         #values of keywords:
         self.values = {}
@@ -81,9 +87,8 @@ class kkrparams(object):
             self._mandatory[key] = keyw[key][2]
             self.__description[key] = keyw[key][3]
             
-        # overwrite mandatory list for voronoi case abd update keyset
-        if self.__params_type == 'voronoi':
-            self._update_mandatory_voronoi()
+        # update mandatory set for voronoi, kkrimp cases
+        self._update_mandatory()
          
             
     @classmethod
@@ -240,9 +245,9 @@ class kkrparams(object):
 
 
     def get_value(self, key):
-        """Sets value of keyword 'key'"""
+        """Gets value of keyword 'key'"""
         if key not in self.values.keys():
-            print('Error key not found in values dict!')
+            print('Error key ({}) not found in values dict! {}'.format(key, self.values))
             raise KeyError
         else:
             # deal with special cases of runopt and testopt (lists of codewords)
@@ -311,7 +316,7 @@ class kkrparams(object):
         return self.__description[key]
 
 
-    def _create_keyword_default_values(self, **kwargs):
+    def _create_keywords_dict(self, **kwargs):
         """
         Creates KKR inputcard keywords dictionary and fills entry if value is given in **kwargs
 
@@ -322,7 +327,7 @@ class kkrparams(object):
         - 'value' can be a single entry or a list of entries
         - 'format' contains formatting info
         - 'keyword_mandatory' is a logical stating if keyword needs to be defined to run a calculation
-        - 'description' is a string containgin human redable info about the keyword
+        - 'description' is a string containing human redable info about the keyword
         """
 
         default_keywords = dict([# complete list of keywords, detault all that are not mandatory to None
@@ -419,6 +424,17 @@ class kkrparams(object):
             key2 = key
             if key not in default_keywords.keys():
                 key2 = '<'+key+'>'
+            if self.__params_type=='kkrimp':
+                if key=='KEXCORE':
+                    key2 = 'XC'
+                if key=='R_LOG':
+                    key2 = 'RADIUS_LOGPANELS'
+                if key=='STRMIX':
+                    key2 = 'MIXFAC'
+                if key=='RUNOPT':
+                    key2 = 'RUNFLAG'
+                if key=='TESTOPT':
+                    key2 = 'TESTFLAG'
             default_keywords[key2][0] = kwargs[key]
 
         return default_keywords
@@ -431,23 +447,23 @@ class kkrparams(object):
             self._mandatory[key] = False
 
         runopts = []
-        if self.values['RUNOPT'] is not None:
+        if self.values.get('RUNOPT', None) is not None:
             for runopt in self.values['RUNOPT']:
                 runopts.append(runopt.strip())
 
         #For a KKR calculation these keywords are always mandatory:
         mandatory_list = ['ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'NSPIN', 'LMAX', 'RMAX', 'GMAX', '<ZATOM>']
 
-        if self.values['NPOL'] is not None and self.values['NPOL'] != 0:
+        if self.values.get('NPOL', None) is not None and self.values['NPOL'] != 0:
                 mandatory_list += ['EMIN']
         #Mandatory in 2D
-        if self.values['INTERFACE']:
+        if self.values.get('INTERFACE', None):
             mandatory_list += ['<NLBASIS>', '<RBLEFT>', 'ZPERIODL', '<NRBASIS>', '<RBRIGHT>', 'ZPERIODR']
         #Mandatory in LDA+U
         if 'NAT_LDAU' in self.values.keys() and 'LDAU' in runopts:
             mandatory_list += ['NAT_LDAU', 'LDAU_PARA']
         #Mandatory in CPA
-        if self.values['NATYP'] is not None and self.values['NATYP'] > self.values['NAEZ']:
+        if self.values.get('NATYP', None) is not None and self.values['NATYP'] > self.values['NAEZ']:
             mandatory_list += ['NATYP', '<SITE>', '<CPA-CONC>']
         #Mandatory in SEMICORE
         if 'EBOTSEMI' in self.values.keys() and 'SEMICORE' in runopts:
@@ -461,13 +477,13 @@ class kkrparams(object):
         # overwrite if mandatory list needs to be changed (determinded from value of self.__params_type):
         if self.__params_type == 'voronoi':
             self._update_mandatory_voronoi()
+        if self.__params_type == 'kkrimp':
+            self._update_mandatory_kkrimp()
 
 
     def _check_mandatory(self):
         """Check if all mandatory keywords are set"""
         self._update_mandatory()
-        if self.__params_type == 'voronoi':
-            self._update_mandatory_voronoi()
         for key in self.values.keys():
             if self._mandatory[key] and self.values[key] is None:
                 print('Error not all mandatory keys are set!')
@@ -520,34 +536,38 @@ class kkrparams(object):
             self._check_mandatory()
 
         # lists of array arguments
-        keywords = self.values
-        naez = keywords['NAEZ']
-        if keywords['NATYP'] is not None:
-            natyp = keywords['NATYP']
+        if self.__params_type != 'kkrimp':
+            keywords = self.values
+            naez = keywords['NAEZ']
+            if keywords['NATYP'] is not None:
+                natyp = keywords['NATYP']
+            else:
+                natyp = keywords['NAEZ']
+            if keywords['<NLBASIS>'] is not None:
+                nlbasis = keywords['<NLBASIS>']
+            else:
+                nlbasis = 1
+            if keywords['<NRBASIS>'] is not None:
+                nrbasis = keywords['<NRBASIS>']
+            else:
+                nrbasis = 1
+    
+            listargs = dict([['<RBASIS>', naez], ['<RBLEFT>', nlbasis], ['<RBRIGHT>', nrbasis], ['<SHAPE>', natyp],
+                             ['<ZATOM>', natyp], ['<SOCSCL>', natyp], ['<SITE>', natyp], ['<CPA-CONC>', natyp],
+                             ['<KAOEZL>', nlbasis], ['<KAOEZR>', nrbasis], ['XINIPOL', natyp], ['<RMTREF>', natyp],
+                             ['<RMTREFL>', nlbasis], ['<RMTREFR>', nrbasis], ['<FPRADIUS>', natyp], ['BZDIVIDE', 3],
+                             ['<RBLEFT>', nrbasis], ['ZPERIODL', 3], ['<RBRIGHT>', nrbasis], ['ZPERIODR', 3],
+                             ['LDAU_PARA', 5], ['CPAINFO', 2], ['<DELTAE>', 2], ['FILES', 2], ['<RMTCORE>', natyp]])
+            # deal with special stuff for voronoi:
+            if self.__params_type == 'voronoi':
+                listargs['<RMTCORE>'] = natyp
+                self.update_to_voronoi()
+            special_formatting = ['BRAVAIS', 'RUNOPT', 'TESTOPT', 'FILES']
         else:
-            natyp = keywords['NAEZ']
-        if keywords['<NLBASIS>'] is not None:
-            nlbasis = keywords['<NLBASIS>']
-        else:
-            nlbasis = 1
-        if keywords['<NRBASIS>'] is not None:
-            nrbasis = keywords['<NRBASIS>']
-        else:
-            nrbasis = 1
-
-        listargs = dict([['<RBASIS>', naez], ['<RBLEFT>', nlbasis], ['<RBRIGHT>', nrbasis], ['<SHAPE>', natyp],
-                         ['<ZATOM>', natyp], ['<SOCSCL>', natyp], ['<SITE>', natyp], ['<CPA-CONC>', natyp],
-                         ['<KAOEZL>', nlbasis], ['<KAOEZR>', nrbasis], ['XINIPOL', natyp], ['<RMTREF>', natyp],
-                         ['<RMTREFL>', nlbasis], ['<RMTREFR>', nrbasis], ['<FPRADIUS>', natyp], ['BZDIVIDE', 3],
-                         ['<RBLEFT>', nrbasis], ['ZPERIODL', 3], ['<RBRIGHT>', nrbasis], ['ZPERIODR', 3],
-                         ['LDAU_PARA', 5], ['CPAINFO', 2], ['<DELTAE>', 2], ['FILES', 2], ['<RMTCORE>', natyp]])
-        # deal with special stuff for voronoi:
-        if self.__params_type == 'voronoi':
-            listargs['<RMTCORE>'] = natyp
-            self.update_to_voronoi()
-        
-        
-        self.__special_formatting = ['BRAVAIS', 'RUNOPT', 'TESTOPT', 'FILES']
+            special_formatting = ['RUNFLAG', 'TESTFLAG']
+            listargs = dict([['HFIELD', 2]])
+            
+        self.__special_formatting = special_formatting
         self.__listargs = listargs
         
         # ruturn after setting __special_formatting and __listargs lists
@@ -557,30 +577,32 @@ class kkrparams(object):
         # check for consistency of array arguments
         self._check_array_consistency()
 
-        # some special checks
-        bulkmode = False
-        set_values = [key[0] for key in self.get_set_values()]
-        if 'INTERFACE' not in set_values or self.values['INTERFACE']:
-            bulkmode = True
-            
-        bravais = array(self.values['BRAVAIS'])
-        if bulkmode and sum(bravais[2]**2)==0:
-            print("Error: 'BRAVAIS' matches 2D calculation but 'INTERFACE' is not set to True!")
-            raise ValueError
-            
-        # check if KSHAPE and INS are consistent and add missing values automatically
-        if 'INS' not in set_values and 'KSHAPE' in set_values:
-            self.set_value('INS', self.get_value('KSHAPE'))
-            print("setting INS automatically with KSHAPE value ({})".format(self.get_value('KSHAPE')))
-        elif 'INS' in set_values and 'KSHAPE' not in set_values:
-            self.set_value('KSHAPE', self.get_value('INS'))
-            print("setting KSHAPE automatically with INS value ({})".format(self.get_value('INS')))
-        elif 'INS' in set_values and 'KSHAPE' in set_values:
-            ins = self.get_value('INS')
-            kshape = self.get_value('KSHAPE')
-            if (ins!=0 and kshape==0) or (ins==0 and kshape!=0):
-                print("Error: values of 'INS' and 'KSHAPE' are both found but are inconsistent (should be equal)")
-                raise ValueError('INS,KSHAPE mismatch')
+        if self.__params_type != 'kkrimp':
+            # some special checks
+            bulkmode = False
+            set_values = [key[0] for key in self.get_set_values()]
+            if 'INTERFACE' not in set_values or self.values['INTERFACE']:
+                bulkmode = True
+                
+            bravais = array(self.values['BRAVAIS'])
+            if bulkmode and sum(bravais[2]**2)==0:
+                print("Error: 'BRAVAIS' matches 2D calculation but 'INTERFACE' is not set to True!")
+                raise ValueError
+                
+            # check if KSHAPE and INS are consistent and add missing values automatically
+            if 'INS' not in set_values and 'KSHAPE' in set_values:
+                self.set_value('INS', self.get_value('KSHAPE'))
+                print("setting INS automatically with KSHAPE value ({})".format(self.get_value('KSHAPE')))
+            elif 'INS' in set_values and 'KSHAPE' not in set_values:
+                self.set_value('KSHAPE', self.get_value('INS'))
+                print("setting KSHAPE automatically with INS value ({})".format(self.get_value('INS')))
+            elif 'INS' in set_values and 'KSHAPE' in set_values:
+                ins = self.get_value('INS')
+                kshape = self.get_value('KSHAPE')
+                if (ins!=0 and kshape==0) or (ins==0 and kshape!=0):
+                    print("Error: values of 'INS' and 'KSHAPE' are both found but are inconsistent (should be equal)")
+                    raise ValueError('INS,KSHAPE mismatch')
+
 
 
     def fill_keywords_to_inputfile(self, is_voro_calc=False, output='inputcard'):
@@ -604,33 +626,41 @@ class kkrparams(object):
         keywords = self.values
         keyfmts = self.__format
 
-        sorted_keylist = [#run/testopts
-                          'RUNOPT', 'TESTOPT',
-                          #lattice:
-                          'ALATBASIS', 'BRAVAIS', 'NAEZ', 'CARTESIAN', '<RBASIS>',
-                          'INTERFACE', '<NLBASIS>', '<RBLEFT>', 'ZPERIODL', '<NRBASIS>', '<RBRIGHT>', 'ZPERIODR',
-                          'KSHAPE', '<SHAPE>',
-                          # chemistry
-                          'NSPIN', 'KVREL', 'KEXCOR', 'LAMBDA_XC',
-                          'NAT_LDAU', 'LDAU_PARA', 'KREADLDAU',
-                          '<ZATOM>', '<SOCSCL>',
-                          'NATYP', '<SITE>', '<CPA-CONC>',
-                          '<KAOEZL>', '<KAOEZR>',
-                          # external fields
-                          'LINIPOL', 'HFIELD', 'XINIPOL', 'VCONST',
-                          # accuracy
-                          'LMAX', 'BZDIVIDE', 'EMIN', 'EMAX', 'TEMPR', 'NPT1', 'NPT2', 'NPT3', 'NPOL',
-                          'EBOTSEMI', 'EMUSEMI', 'TKSEMI', 'NPOLSEMI', 'N1SEMI', 'N2SEMI', 'N3SEMI', 'FSEMICORE',
-                          'CPAINFO',
-                          'RCLUSTZ', 'RCLUSTXY',
-                          '<RMTREF>', 'NLEFTHOS', '<RMTREFL>', 'NRIGHTHO', '<RMTREFR>',
-                          'INS', 'ICST',
-                          'R_LOG', 'NPAN_LOG', 'NPAN_EQ', 'NCHEB', '<FPRADIUS>',
-                          'RMAX', 'GMAX', '<LLOYD>', '<DELTAE>', '<TOLRDIF>',
-                          # scf cycle
-                          'NSTEPS', 'IMIX', 'STRMIX', 'ITDBRY', 'FCM', 'BRYMIX', 'QBOUND',
-                          #file names
-                          'FILES']
+        if self.__params_type != 'kkrimp':
+            sorted_keylist = [#run/testopts
+                              'RUNOPT', 'TESTOPT',
+                              #lattice:
+                              'ALATBASIS', 'BRAVAIS', 'NAEZ', 'CARTESIAN', '<RBASIS>',
+                              'INTERFACE', '<NLBASIS>', '<RBLEFT>', 'ZPERIODL', '<NRBASIS>', '<RBRIGHT>', 'ZPERIODR',
+                              'KSHAPE', '<SHAPE>',
+                              # chemistry
+                              'NSPIN', 'KVREL', 'KEXCOR', 'LAMBDA_XC',
+                              'NAT_LDAU', 'LDAU_PARA', 'KREADLDAU',
+                              '<ZATOM>', '<SOCSCL>',
+                              'NATYP', '<SITE>', '<CPA-CONC>',
+                              '<KAOEZL>', '<KAOEZR>',
+                              # external fields
+                              'LINIPOL', 'HFIELD', 'XINIPOL', 'VCONST',
+                              # accuracy
+                              'LMAX', 'BZDIVIDE', 'EMIN', 'EMAX', 'TEMPR', 'NPT1', 'NPT2', 'NPT3', 'NPOL',
+                              'EBOTSEMI', 'EMUSEMI', 'TKSEMI', 'NPOLSEMI', 'N1SEMI', 'N2SEMI', 'N3SEMI', 'FSEMICORE',
+                              'CPAINFO',
+                              'RCLUSTZ', 'RCLUSTXY',
+                              '<RMTREF>', 'NLEFTHOS', '<RMTREFL>', 'NRIGHTHO', '<RMTREFR>',
+                              'INS', 'ICST',
+                              'R_LOG', 'NPAN_LOG', 'NPAN_EQ', 'NCHEB', '<FPRADIUS>',
+                              'RMAX', 'GMAX', '<LLOYD>', '<DELTAE>', '<TOLRDIF>',
+                              # scf cycle
+                              'NSTEPS', 'IMIX', 'STRMIX', 'ITDBRY', 'FCM', 'BRYMIX', 'QBOUND',
+                              #file names
+                              'FILES']
+        else:
+            sorted_keylist = ['RUNFLAG', 'TESTFLAG', 'INS', 'KVREL', 'NSPIN', 'SCFSTEPS', 
+                              'IMIX', 'ITDBRY', 'MIXFAC', 'BRYMIX', 'QBOUND', 'XC', 'ICST', 
+                              'SPINORBIT', 'NCOLL', 'NPAN_LOGPANELFAC', 'RADIUS_LOGPANELS', 
+                              'RADIUS_MIN', 'NPAN_LOG', 'NPAN_EQ', 'NCHEB', 'HFIELD', 
+                              'CALCORBITALMOMENT', 'CALCFORCE', 'CALCJIJMAT']
+            
         #add everything that was forgotten in sorted_keylist above
         for key in keywords.keys():
             if key not in sorted_keylist:
@@ -712,6 +742,13 @@ class kkrparams(object):
                         tmpl += '\n'
                         tmpl += '%s\n'%self.values[key][1]
                         tmpl += '\n'
+                elif self.__params_type == 'kkrimp' and key == 'RUNFLAG' or key == 'TESTFLAG': # for kkrimp
+                    ops = keywords[key]
+                    tmpl += key+'='
+                    for iop in range(len(ops)):
+                        repltxt = ops[iop]
+                        tmpl += ' ' + repltxt
+                    tmpl += '\n'
                 elif key in self.__listargs.keys():
                     if key in ['<RBASIS>', '<RBLEFT>', '<RBRIGHT>']: # RBASIS needs special formatting since three numbers are filled per line
                         tmpl += '%s\n'%key
@@ -726,6 +763,9 @@ class kkrparams(object):
                     elif key in ['LDAU_PARA']:
                         tmpl += '%s= '%key
                         tmpl += (self.__format[key]+'\n')%(self.values[key][0], self.values[key][1], self.values[key][2], self.values[key][3], self.values[key][4])
+                    elif self.__params_type == 'kkrimp' and key in ['HFIELD']: # for kkrimp
+                        tmpl += '%s= '%key
+                        tmpl += (self.__format[key]+'\n')%(self.values[key][0], self.values[key][1])
                     else:
                         #print(key, self.__listargs[key], len(self.values[key]))
                         tmpl += '%s\n'%key
@@ -736,11 +776,16 @@ class kkrparams(object):
                     raise ValueError
 
                 # to make inputcard more readable insert some blank lines after certain keys
-                if key in ['TESTOPT', 'CARTESIAN', '<RBASIS>', 'ZPERIODL', 'ZPERIODR', '<SHAPE>', 
-                           'KREADLDAU', '<ZATOM>', '<SOCSCL>', '<CPA-CONC>', '<KAOEZR>', 'VCONST',
-                           'BZDIVIDE', 'FSEMICORE', 'CPAINFO', 'RCLUSTXY', '<RMTREF>', '<RMTREFR>',
-                           'ICST', '<FPRADIUS>', 'GMAX', '<TOLRDIF>', 'QBOUND']:
-                    tmpl += "\n"                        
+                if self.__params_type != 'kkrimp':
+                    breaklines = ['TESTFLAG', 'NSPIN', 'QBOUND', 'NCHEB', 'HFIELD']
+                else:
+                    breaklines = ['TESTOPT', 'CARTESIAN', '<RBASIS>', 'ZPERIODL', 'ZPERIODR', '<SHAPE>', 
+                                  'KREADLDAU', '<ZATOM>', '<SOCSCL>', '<CPA-CONC>', '<KAOEZR>', 'VCONST',
+                                  'BZDIVIDE', 'FSEMICORE', 'CPAINFO', 'RCLUSTXY', '<RMTREF>', '<RMTREFR>',
+                                  'ICST', '<FPRADIUS>', 'GMAX', '<TOLRDIF>', 'QBOUND']
+                if key in breaklines:
+                    tmpl += "\n"
+                    
 
         # finally write to file
         open(output, 'w').write(tmpl)
@@ -756,6 +801,11 @@ class kkrparams(object):
         from numpy import shape, array
         from aiida_kkr.tools.common_functions import get_aBohr2Ang
         
+        # some print statements with debug info
+        debug = False
+        
+        if debug: print('start reading {}'.format(inputcard))
+        
         txt = open(inputcard, 'r').readlines()
         keywords = self.values
         keyfmts = self.__format
@@ -765,9 +815,9 @@ class kkrparams(object):
         read_first = ['NAEZ', 'NATYP', '<NLBASIS>', '<NRBASIS>']
         read_already = []
         for key in read_first:
-            valtxt = self._find_value(key, txt)
+            valtxt = self._find_value(key, txt, debug=debug)
             if valtxt is None: # try to read key without '<', '>'
-                valtxt = self._find_value(key.replace('<','').replace('>',''), txt)
+                valtxt = self._find_value(key.replace('<','').replace('>',''), txt, debug=debug)
             # now set value in kkrparams
             if valtxt is not None:
                 value = self.get_type(key)(valtxt)
@@ -816,7 +866,7 @@ class kkrparams(object):
                 # read in all lines for this key
                 values = []
                 for iline in lines:
-                    valtxt = self._find_value(key, txt, iline, item, num)
+                    valtxt = self._find_value(key, txt, iline, item, num, debug=debug)
                     if valtxt is not None:
                         # first deal with run and testopts (needs to spearate keys)
                         if key=='RUNOPT' or key=='TESTOPT':
@@ -877,16 +927,16 @@ class kkrparams(object):
         if self.get_value('<RBASIS>') is None:
             rbasis = []
             for iatom in range(natyp):
-                rbasis.append([float(i) for i in self._find_value('RBASIS', txt, 1+iatom, 1, 3)])
+                rbasis.append([float(i) for i in self._find_value('RBASIS', txt, 1+iatom, 1, 3, debug=debug)])
             self.set_value('<RBASIS>', rbasis)
         
         # look for old atominfo input style
-        atominfo_c = self._find_value('ATOMINFOC', txt, 2)
+        atominfo_c = self._find_value('ATOMINFOC', txt, 2, debug=debug)
         if atominfo_c is None:
             atominfo_c = False
         else:
             atominfo_c = True
-        atominfo = self._find_value('ATOMINFO', txt, 2)
+        atominfo = self._find_value('ATOMINFO', txt, 2, debug=debug)
         if atominfo is None:
             atominfo = False
         else:
@@ -894,10 +944,10 @@ class kkrparams(object):
         tmp = []
         if atominfo_c:
             for iatom in range(natyp):    
-                tmp.append(self._find_value('ATOMINFOC', txt, 2+iatom, 1, 14))
+                tmp.append(self._find_value('ATOMINFOC', txt, 2+iatom, 1, 14, debug=debug))
         elif atominfo:
             for iatom in range(natyp): 
-                tmp.append(self._find_value('ATOMINFO', txt, 2+iatom, 1, 12))
+                tmp.append(self._find_value('ATOMINFO', txt, 2+iatom, 1, 12, debug=debug))
         if atominfo_c or atominfo:
             tmp = array(tmp)
             cls_list = [int(i) for i in tmp[:,6]]
@@ -910,13 +960,13 @@ class kkrparams(object):
                 
         # look for old left/right basis input style
         if self.get_value('INTERFACE'):
-            leftbasis = self._find_value('LEFTBASIS', txt)
+            leftbasis = self._find_value('LEFTBASIS', txt, debug=debug)
             if leftbasis is None:
                 leftbasis = False
             else:
                 leftbasis = True
                 nlbasis = self.get_value('<NLBASIS>')
-            rightbasis = self._find_value('RIGHBASIS', txt) # RIGHBASIS is no typo!!
+            rightbasis = self._find_value('RIGHBASIS', txt, debug=debug) # RIGHBASIS is no typo!!
             if rightbasis is None:
                 rightbasis = False
             else:
@@ -925,7 +975,7 @@ class kkrparams(object):
             if leftbasis:
                 tmp = []
                 for iatom in range(nlbasis):
-                    tmp.append(self._find_value('LEFTBASIS', txt, 1+iatom, 1, 5))
+                    tmp.append(self._find_value('LEFTBASIS', txt, 1+iatom, 1, 5, debug=debug))
                 tmp = array(tmp)
                 self.set_multiple_values(RBLEFT=[[float(i[j]) for j in range(3)] for i in tmp[:,0:3]], KAOEZL=[int(i) for i in tmp[:,3]])
                 tmp2 = [] 
@@ -936,7 +986,7 @@ class kkrparams(object):
             if rightbasis:
                 tmp = []
                 for iatom in range(nrbasis):
-                    tmp.append(self._find_value('RIGHBASIS', txt, 1+iatom, 1, 5))
+                    tmp.append(self._find_value('RIGHBASIS', txt, 1+iatom, 1, 5, debug=debug))
                 tmp = array(tmp)
                 self.set_multiple_values(RBRIGHT=[[float(i[j]) for j in range(3)] for i in tmp[:,0:3]], KAOEZR=[int(i) for i in tmp[:,3]])
                 tmp2 = [] 
@@ -955,13 +1005,11 @@ class kkrparams(object):
         if rbr is not None: self.set_value('<RBRIGHT>', array(rbr)*alat2ang)
         if zper_l is not None: self.set_value('ZPERIODL', array(zper_l)*alat2ang)
         if zper_r is not None: self.set_value('ZPERIODR', array(zper_r)*alat2ang)
+        
+        if debug: print('extracted parameters: {}'.format(self.get_set_values()))
                 
-        # done with read in
-        return
-                
-
     
-    def _find_value(self, charkey, txt, line=1, item=1, num=1):
+    def _find_value(self, charkey, txt, line=1, item=1, num=1, debug=False):
         """
         Search charkey in txt and return value string
         
@@ -973,6 +1021,7 @@ class kkrparams(object):
         
         returns :: valtxt                   string or list of strings depending on num setting
         """
+        if debug: print('find_value: {}'.format(charkey))
         try:
             iline = [ii for ii in range(len(txt)) if charkey in txt[ii]][0]
         except IndexError:
@@ -986,6 +1035,7 @@ class kkrparams(object):
                 nextline = txt[iline+line]
                 startpos = txtline.index(charkey)
                 valtxt = nextline[startpos:].split()[item-1:item-1+num]
+            if debug: print('find_value found {}'.format(valtxt))
             if num == 1:
                 return valtxt[0]
             else:
@@ -1018,18 +1068,41 @@ class kkrparams(object):
 
         for key in mandatory_list:
             self._mandatory[key] = True
+            
+        
+    # redefine _update_mandatory for kkrim code
+    def _update_mandatory_kkrimp(self):
+        """Change mandatory flags to match requirements of kkrimp code"""
+        # initialize all mandatory flags to False and update list afterwards
+        for key in self.values.keys():
+            self._mandatory[key] = False
+
+        runopts = []
+        if self.values.get('RUNOPT', None) is not None:
+            for runopt in self.values['RUNOPT']:
+                runopts.append(runopt.strip())
+
+        #For a KKR calculation these keywords are always mandatory:
+        mandatory_list = []
+
+        for key in mandatory_list:
+            self._mandatory[key] = True
        
             
     def get_missing_keys(self, use_aiida=False):
+        """Find list of mandatory keys that are not yet set"""
         setlist = dict(self.get_set_values()).keys()
         manlist = self.get_all_mandatory()
         missing = []
+        autoset_list = ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ', '<SHAPE>', 'EMIN', 'RCLUSTZ']
+        if self.__params_type == 'voronoi':
+            autoset_list = ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ']
         for key in manlist:
             if key not in setlist:
                 if not use_aiida:
                     missing.append(key)
                 else:
-                    if key not in ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ', '<SHAPE>', 'EMIN', 'RCLUSTZ']:
+                    if key not in autoset_list:
                         missing.append(key)
         return missing
     
@@ -1039,11 +1112,104 @@ class kkrparams(object):
         Update parameter settings to match voronoi specification.
         Sets self.__params_type and calls _update_mandatory_voronoi()
         """
-        self.__params_type == 'voronoi'
+        self.__params_type = 'voronoi'
         self._update_mandatory_voronoi()
+    
+        
+    def update_to_kkrimp(self):
+        """
+        Update parameter settings to match kkrimp specification.
+        Sets self.__params_type and calls _update_mandatory_kkrimp()
+        """
+        self.__params_type = 'kkrimp'
+        self._update_mandatory_kkrimp()
+        
+    
+    def _create_keywords_dict_kkrimp(self, **kwargs):
+        """
+        Like create_keywords_dict but for changed keys of impurity code
+        """
+
+        default_keywords = dict([# complete list of keywords, detault all that are not mandatory to None
+                                # chemistry
+                                ('NSPIN', [None, '%i', False, 'Chemistry, Atom types: Number of spin directions in potential. Values 1 or 2']),
+                                ('KVREL', [None, '%i', False, 'Chemistry, Atom types: Relativistic treatment of valence electrons. Takes values 0 (Schroedinger), 1 (Scalar relativistic), 2 (Dirac ; works only in ASA mode)']),
+                                ('XC', [None, '%s', False, 'Chemistry, Exchange-correlation: Type of exchange correlation potential. Takes values 0 (LDA, Moruzzi-Janak-Williams), 1 (LDA, von Barth-Hedin), 2 (LDA, Vosko-Wilk-Nussair), 3 (GGA, Perdew-Wang 91), 4 (GGA, PBE), 5 (GGA, PBEsol)']),
+                                # external fields
+                                ('HFIELD', [None, '%f %i', False, 'External fields: Value of an external magnetic field in the first iteration. Works only with LINIPOL, XINIPOL']),
+                                # accuracy
+                                ('INS', [None, '%i', False, 'Accuracy, Radial solver: Takes values 0 for ASA and 1 for full potential Must be 0 for Munich Dirac solver ([KREL]=2)']),
+                                ('ICST', [None, '%i', False, 'Accuracy, Radial solver: Number of iterations in the radial solver']),
+                                ('RADIUS_LOGPANELS', [None, '%f', False, 'Accuracy, Radial solver: Radius up to which log-rule is used for interval width. Used in conjunction with runopt NEWSOSOL']),
+                                ('NPAN_LOG', [None, '%i', False, 'Accuracy, Radial solver: Number of intervals from nucleus to [R_LOG] Used in conjunction with runopt NEWSOSOL']),
+                                ('NPAN_EQ', [None, '%i', False, 'Accuracy, Radial solver: Number of intervals from [R_LOG] to muffin-tin radius Used in conjunction with runopt NEWSOSOL']),
+                                ('NCHEB', [None, '%i', False, 'Accuracy, Radial solver: Number of Chebyshev polynomials per interval Used in conjunction with runopt NEWSOSOL']),
+                                ('NPAN_LOGPANELFAC', [None, '%i', False, 'Accuracy, Radial solver: division factor logpanel']),
+                                ('RADIUS_MIN', [None, '%i', False, 'Accuracy, Radial solver: ']),
+                                ('NCOLL', [None, '%i', False, 'Accuracy, Radial solver: use nonco_angles solver (1/0)']),
+                                ('SPINORBIT', [None, '%i', False, 'Accuracy, Radial solver: use SOC solver (1/0)']),
+                                # scf cycle
+                                ('SCFSTEPS', [None, '%i', False, 'Self-consistency control: Max. number of self-consistency iterations. Is reset to 1 in several cases that require only 1 iteration (DOS, Jij, write out GF).']),
+                                ('IMIX', [None, '%i', False, "Self-consistency control: Mixing scheme for potential. 0 means straignt (linear) mixing, 3 means Broyden's 1st method, 4 means Broyden's 2nd method, 5 means Anderson's method"]),
+                                ('MIXFAC', [None, '%f', False, 'Self-consistency control: Linear mixing parameter Set to 0. if [NPOL]=0']),
+                                ('ITDBRY', [None, '%i', False, 'Self-consistency control: how many iterations to keep in the Broyden/Anderson mixing scheme.']),
+                                ('BRYMIX', [None, '%f', False, 'Self-consistency control: Parameter for Broyden mixing.']),
+                                ('QBOUND', [None, '%e', False, 'Self-consistency control: Lower limit of rms-error in potential to stop iterations.']),
+                                #code options
+                                ('RUNFLAG', [None, '%s', False, 'Running and test options: lmdos	, GBULKtomemory, LDA+U	, SIMULASA']),
+                                ('TESTFLAG', [None, '%s', False, 'Running and test options: tmatnew, noscatteringmoment']),
+                                ('CALCFORCE', [None, '%i', False, 'Calculate forces']),
+                                ('CALCJIJMAT', [None, '%i', False, 'Calculate Jijmatrix']),
+                                ('CALCORBITALMOMENT', [None, '%i', False, 'Calculate orbital moment (SOC solver only, 0/1)']),
+                                ])
+        """
+        
+        default_keywords = dict([# complete list of keywords, detault all that are not mandatory to None
+                                # lattice
+                                # chemistry
+       host <                   ('NSPIN', [None, '%i', False, 'Chemistry, Atom types: Number of spin directions in potential. Values 1 or 2']),
+       host <                   ('KVREL', [None, '%i', False, 'Chemistry, Atom types: Relativistic treatment of valence electrons. Takes values 0 (Schroedinger), 1 (Scalar relativistic), 2 (Dirac ; works only in ASA mode)']),
+       host <            KEXCOR ('XC', [None, '%i', False, 'Chemistry, Exchange-correlation: Type of exchange correlation potential. Takes values 0 (LDA, Moruzzi-Janak-Williams), 1 (LDA, von Barth-Hedin), 2 (LDA, Vosko-Wilk-Nussair), 3 (GGA, Perdew-Wang 91), 4 (GGA, PBE), 5 (GGA, PBEsol)']),
+                                # external fields
+            <  different format ('HFIELD', [None, '%f %i', False, 'External fields: Value of an external magnetic field in the first iteration. Works only with LINIPOL, XINIPOL']),
+                                # accuracy
+       host <                   ('INS', [None, '%i', False, 'Accuracy, Radial solver: Takes values 0 for ASA and 1 for full potential Must be 0 for Munich Dirac solver ([KREL]=2)']),
+                                ('ICST', [None, '%i', False, 'Accuracy, Radial solver: Number of iterations in the radial solver']),
+       host <             R_LOG ('RADIUS_LOGPANELS', [None, '%f', False, 'Accuracy, Radial solver: Radius up to which log-rule is used for interval width. Used in conjunction with runopt NEWSOSOL']),
+       host <                   ('NPAN_LOG', [None, '%i', False, 'Accuracy, Radial solver: Number of intervals from nucleus to [R_LOG] Used in conjunction with runopt NEWSOSOL']),
+       host <                   ('NPAN_EQ', [None, '%i', False, 'Accuracy, Radial solver: Number of intervals from [R_LOG] to muffin-tin radius Used in conjunction with runopt NEWSOSOL']),
+       host <                   ('NCHEB', [None, '%i', False, 'Accuracy, Radial solver: Number of Chebyshev polynomials per interval Used in conjunction with runopt NEWSOSOL']),
+                     2 <        ('NPAN_LOGPANELFAC', [None, '%i', False, 'Accuracy, Radial solver: division factor logpanel']),
+                    -1 <        ('RADIUS_MIN', [None, '%i', False, 'Accuracy, Radial solver: ']),
+       host <        0 <        ('NCOLL', [None, '%i', False, 'Accuracy, Radial solver: use nonco_angles solver (1/0)']),
+       host <        0 <        ('SPINORBIT', [None, '%i', False, 'Accuracy, Radial solver: use SOC solver (1/0)']),
+                                # scf cycle
+                     1 < NSTEPS ('SCFSTEPS', [None, '%i', False, 'Self-consistency control: Max. number of self-consistency iterations. Is reset to 1 in several cases that require only 1 iteration (DOS, Jij, write out GF).']),
+                     0 <        ('IMIX', [None, '%i', False, "Self-consistency control: Mixing scheme for potential. 0 means straignt (linear) mixing, 3 means Broyden's 1st method, 4 means Broyden's 2nd method, 5 means Anderson's method"]),
+                  0.05 < STRMIX ('MIXFAC', [None, '%f', False, 'Self-consistency control: Linear mixing parameter Set to 0. if [NPOL]=0']),
+                    20 <        ('ITDBRY', [None, '%i', False, 'Self-consistency control: how many iterations to keep in the Broyden/Anderson mixing scheme.']),
+                  0.05 <        ('BRYMIX', [None, '%f', False, 'Self-consistency control: Parameter for Broyden mixing.']),
+       host <   10**-7 <        ('QBOUND', [None, '%e', False, 'Self-consistency control: Lower limit of rms-error in potential to stop iterations.']),
+                                #code options
+       host < SIMULASA < RUNOPT ('RUNFLAG', [None, '%s', False, 'Running and test options: lmdos	, GBULKtomemory, LDA+U	, SIMULASA']),
+       host < tmatnew < TESTOPT ('TESTFLAG', [None, '%s', False, 'Running and test options: tmatnew, noscatteringmoment']),
+                     0 <        ('CALCFORCE', [None, '%i', False, 'Calculate forces']),
+                     0 <        ('CALCJIJMAT', [None, '%i', False, 'Calculate Jijmatrix']),
+       host <        0 <        ('CALCORBITALMOMENT', [None, '%i', False, 'Calculate orbital moment (SOC solver only, 0/1)']),
+                                ])
+        """
+
+        for key in kwargs:
+            key2 = key
+            if key not in default_keywords.keys():
+                key2 = '<'+key+'>'
+            default_keywords[key2][0] = kwargs[key]
+
+        return default_keywords
+        
         
 """
-# tests
+# tests read inputcard
 if __name__=='__main__':
     from numpy import ndarray, array
     from aiida_kkr.tools.common_functions import get_Ang2aBohr
@@ -1089,4 +1255,22 @@ if __name__=='__main__':
                 print(key, set(v)-set(v0))
             assert set(v)-set(v0)==set()
             
+#"""        
 """        
+# tests write config.cfg
+if __name__=='__main__':
+    p = kkrparams(params_type='kkrimp')
+    
+    
+    p.set_multiple_values(CALCORBITALMOMENT=0, RUNFLAG='', QBOUND=10**-7, NSPIN=1, 
+                          TESTFLAG='', NPAN_EQ=7, CALCFORCE=0, NPAN_LOGPANELFAC=2, 
+                          SPINORBIT=0, ITDBRY=20, NPAN_LOG=5, INS=1, ICST=2, 
+                          CALCJIJMAT=0, NCHEB=10, HFIELD=[0.00, 0], BRYMIX=0.05, 
+                          KVREL=1, IMIX=0, RADIUS_MIN=-1, NCOLL=0, RADIUS_LOGPANELS=0.6, 
+                          MIXFAC=0.05, SCFSTEPS=1, XC='LDA-VWN')
+    p.fill_keywords_to_inputfile(output='config.cfg')
+        
+#"""
+    
+    
+    

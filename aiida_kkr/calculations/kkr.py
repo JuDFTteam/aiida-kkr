@@ -12,7 +12,8 @@ from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.orm import DataFactory
 from aiida.common.exceptions import UniquenessError
-from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency
+from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_structure,
+                                                  check_2Dinput_consistency, update_params_wf)
 
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
@@ -23,7 +24,7 @@ StructureData = DataFactory('structure')
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.4"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -126,6 +127,15 @@ class KkrCalculation(JobCalculation):
                     "needed files for a KKR calc, only edited files should be "
                     "uploaded from the repository.")
             },
+            "impurity_info": {
+                'valid_types': ParameterData,
+                'additional_parameter': None,
+                'linkname': 'impurity_info',
+                'docstring': ("Use a ParameterNode that specifies properties "
+                              "for a follwoing impurity calculation (e.g. setting "
+                              "of impurity cluster in scoef file that is "
+                              "automatically created).")
+            },
             })
         return use_dict
 
@@ -145,26 +155,33 @@ class KkrCalculation(JobCalculation):
         try:
             parameters = inputdict.pop(self.get_linkname('parameters'))
         except KeyError:
-            raise InputValidationError("No parameters specified for this "
-                                       "calculation")
+            raise InputValidationError("No parameters specified for this calculation")
         if not isinstance(parameters, ParameterData):
-            raise InputValidationError("parameters not of type "
-                                       "ParameterData")
+            raise InputValidationError("parameters not of type ParameterData")
+            
+        try:
+            imp_info = inputdict.pop(self.get_linkname('impurity_info'))
+            found_imp_info = True
+        except KeyError:
+            imp_info = None
+            found_imp_info = False
+        if found_imp_info and not isinstance(imp_info, ParameterData):
+            raise InputValidationError("impurity_info not of type ParameterData")
+            
         try:
             code = inputdict.pop(self.get_linkname('code'))
         except KeyError:
-            raise InputValidationError("No code specified for this "
-                                       "calculation")
+            raise InputValidationError("No code specified for this calculation")
+            
         try:
             parent_calc_folder = inputdict.pop(self.get_linkname('parent_folder'))
         except KeyError:
-            raise InputValidationError("Voronoi files needed for KKR calculation, "
+            raise InputValidationError("Voronoi or previous KKR files needed for KKR calculation, "
                                        "you need to provide a Parent Folder/RemoteData node.")
                                   
         #TODO deal with data from folder data if calculation is continued on a different machine
         if not isinstance(parent_calc_folder, RemoteData):
-            raise InputValidationError("parent_calc_folder, if specified,"
-                                           "must be of type RemoteData")
+            raise InputValidationError("parent_calc_folder must be of type RemoteData")
 
         # extract parent calculation
         parent_calcs = parent_calc_folder.get_inputs(node_type=JobCalculation)
@@ -193,7 +210,7 @@ class KkrCalculation(JobCalculation):
         # check if no keys are illegally overwritten (i.e. compare with keys in self._do_never_modify)
         for key in parameters.get_dict().keys():
             value = parameters.get_dict()[key]
-            self.logger.info("Checking {} {}".format(key, value))
+            #self.logger.info("Checking {} {}".format(key, value))
             if not value is None:
                 if key in self._do_never_modify:
                     oldvalue = parent_inp_dict[key]
@@ -242,17 +259,60 @@ class KkrCalculation(JobCalculation):
         if not twoDimcheck:
             raise InputValidationError(msg)
             
-        # set shapes array            
+        # set shapes array either from parent voronoi run or read from inputcard in kkrimporter calculation
         if parent_calc.get_parser_name() != 'kkr.kkrimporterparser':
             # get shapes array from voronoi parent
             shapes = voro_parent.res.shapes
         else:
+            # extract shapes from input parameters node constructed by kkrimporter calculation
             shapes = voro_parent.inp.parameters.get_dict().get('<SHAPE>')
         
         # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
         natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes)
 
+        # prepare scoef file if impurity_info was given
+        write_scoef = False
+        runopt = parameters.get_dict().get('RUNOPT', None)
+        kkrflex_opt = False
+        if runopt is not None:
+            if 'KKRFLEX' in runopt:
+                kkrflex_opt = True
+        if kkrflex_opt:
+            write_scoef = True
+        elif found_imp_info:
+            self.logger.info('Found impurity_info in inputs of the calculation, automatically add runopt KKRFLEX')
+            write_scoef = True
+            runopt = parameters.get_dict().get('RUNOPT', [])
+            runopt.append('KKRFLEX')
+            parameters = update_params_wf(parameters, ParameterData(dict={'RUNOPT':runopt, 'nodename': '', 'nodedesc':''}))
+        if found_imp_info and write_scoef:
+            # TODO check completeness of impurity info!
+            # TODO implement this!
+            # placeholder: take Fabian's functions later on
+            scoef = ['      13\n',
+                     '  0.0000000000000000000E+00  0.0000000000000000000E+00  0.0000000000000000000E+00    1 29.0  0.000000000E+00\n',
+                     '  0.2220446049250313081E-14 -0.7071067811865453523E+00 -0.7071067811865453523E+00    1 29.0  0.100000000E+01\n',
+                     ' -0.7071067811865453523E+00  0.2220446049250313081E-14 -0.7071067811865453523E+00    1 29.0  0.100000000E+01\n',
+                     '  0.7071067811865497932E+00  0.2220446049250313081E-14 -0.7071067811865453523E+00    1 29.0  0.100000000E+01\n',
+                     '  0.2220446049250313081E-14  0.7071067811865497932E+00 -0.7071067811865453523E+00    1 29.0  0.100000000E+01\n',
+                     ' -0.7071067811865453523E+00 -0.7071067811865453523E+00  0.2220446049250313081E-14    1 29.0  0.100000000E+01\n',
+                     '  0.7071067811865497932E+00 -0.7071067811865453523E+00  0.2220446049250313081E-14    1 29.0  0.100000000E+01\n',
+                     ' -0.7071067811865453523E+00  0.7071067811865497932E+00  0.2220446049250313081E-14    1 29.0  0.100000000E+01\n',
+                     '  0.7071067811865497932E+00  0.7071067811865497932E+00  0.2220446049250313081E-14    1 29.0  0.100000000E+01\n',
+                     '  0.2220446049250313081E-14 -0.7071067811865453523E+00  0.7071067811865497932E+00    1 29.0  0.100000000E+01\n',
+                     ' -0.7071067811865453523E+00  0.2220446049250313081E-14  0.7071067811865497932E+00    1 29.0  0.100000000E+01\n',
+                     '  0.7071067811865497932E+00  0.2220446049250313081E-14  0.7071067811865497932E+00    1 29.0  0.100000000E+01\n',
+                     '  0.2220446049250313081E-14  0.7071067811865497932E+00  0.7071067811865497932E+00    1 29.0  0.100000000E+01\n']
+            scoef_filename = os.path.join(tempfolder.get_abs_path(''), self._SCOEF)
+            self.logger.info('Writing scoef file {}'.format(scoef_filename))
+            with open(scoef_filename, 'w') as file:
+                file.writelines(scoef)
+        elif write_scoef:
+            self.logger.info('Need to write scoef file but no impurity_info given!')
+            raise ValidationError('Found RUNOPT KKRFLEX but no impurity_info in inputs')
+
+            
 
         #################
         # Decide what files to copy based on settings to the code (e.g. KKRFLEX option needs scoef)
@@ -286,12 +346,7 @@ class KkrCalculation(JobCalculation):
                     copylist.append(self._OUT_POTENTIAL)
                 if os.path.exists(os.path.join(outfolderpath, self._SHAPEFUN)):
                     copylist.append(self._SHAPEFUN)
-                    
-                    
-            # append some files to copylist for special cases (KKRFLEX option etc.)
-            #self._SCOEF = 'scoef' # mandatory for KKRFLEX calculation and some functionalities
-
-            
+        
             # create local_copy_list from copylist and change some names automatically
             for file1 in copylist:
                 filename = file1
@@ -381,12 +436,10 @@ class KkrCalculation(JobCalculation):
         try:
             if (((not isinstance(calc, VoronoiCalculation)))
                             and (not isinstance(calc, KkrCalculation))):
-                raise ValueError("Parent calculation must be a VoronoiCalculation, a "
-                                 "KkrCalculation or a CopyonlyCalculation")
+                raise ValueError("Parent calculation must be a VoronoiCalculation or a KkrCalculation")
         except ImportError:
             if ((not isinstance(calc, KkrCalculation)) ):
-                raise ValueError("Parent calculation must be a VoronoiCalculation or "
-                                 "a KkrCalculation")
+                raise ValueError("Parent calculation must be a VoronoiCalculation or a KkrCalculation")
 
 
     def _set_parent_remotedata(self, remotedata):
@@ -399,8 +452,7 @@ class KkrCalculation(JobCalculation):
         # complain if another remotedata is already found
         input_remote = self.get_inputs(node_type=RemoteData)
         if input_remote:
-            raise ValidationError("Cannot set several parent calculation to a "
-                                  "KKR calculation")
+            raise ValidationError("Cannot set several parent calculation to a KKR calculation")
 
         self.use_parent_folder(remotedata)
 
