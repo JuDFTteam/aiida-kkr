@@ -25,7 +25,7 @@ from numpy import where
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4"
+__version__ = "0.5"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -293,6 +293,21 @@ class kkr_startpot_wc(WorkChain):
         else:
             updated_params = True
             update_list.append('RCLUSTZ')
+        # in case of dos check verify that RMAX, GMAX are set and use setting from wf_parameters otherwise
+        if 'RMAX' in set_vals:
+            update_list.append('RMAX')
+            rmax_input = params.get_dict()['RMAX']
+        elif self.ctx.check_dos: # add only if doscheck is done
+            updated_params = True
+            update_list.append('RMAX')
+            rmax_input = kkrparams.get_KKRcalc_parameter_defaults()[0].get('RMAX')
+        if 'GMAX' in set_vals:
+            update_list.append('GMAX')
+            gmax_input = params.get_dict()['GMAX']
+        elif self.ctx.check_dos: # add only if doscheck is done
+            updated_params = True
+            update_list.append('GMAX')
+            gmax_input = kkrparams.get_KKRcalc_parameter_defaults()[0].get('GMAX')
             
         # check if emin should be changed:
         if self.ctx.iter > 1 and self.ctx.dos_check_fail_reason == 'EMIN too high':
@@ -306,7 +321,7 @@ class kkr_startpot_wc(WorkChain):
             skip_voro = True
         else:
             skip_voro = False
-            
+              
         # store updated nodes (also used via last_params in kkr_scf_wc)
         if updated_params:
             # set values that are updated
@@ -316,6 +331,12 @@ class kkr_startpot_wc(WorkChain):
             if 'EMIN' in update_list:
                 kkr_para.set_value('EMIN', emin_new)
                 self.report("INFO: setting EMIN to {}".format(emin_new))
+            if 'RMAX' in update_list:
+                kkr_para.set_value('RMAX', rmax_input)
+                self.report("INFO: setting RMAX to {} (needed for DOS check with KKRcode)".format(rmax_input))
+            if 'GMAX' in update_list:
+                kkr_para.set_value('GMAX', gmax_input)
+                self.report("INFO: setting GMAX to {} (needed for DOS check with KKRcode)".format(gmax_input))
                 
             updatenode = ParameterData(dict=kkr_para.get_dict())
             updatenode.description = 'changed values: {}'.format(update_list)

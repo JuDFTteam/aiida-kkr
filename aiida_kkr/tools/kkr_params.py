@@ -97,7 +97,7 @@ class kkrparams(object):
         set defaults (defined in header of this file) and returns dict, kkrparams_version
         """
         p = kkrparams()
-        for key, val in __kkr_default_params__.iteritems():
+        for key, val in __kkr_default_params__.items():
             p.set_value(key,val,silent=silent)
         return dict(p.get_set_values()), __version__
 

@@ -15,7 +15,7 @@ if version_info[0] >= 3:
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH,"
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
+__version__ = "0.3"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -24,12 +24,42 @@ class modify_potential():
     Class for old modify potential script, ported from modify_potential script, initially by D. Bauer
     """
     
-    def _check_potstart(self, str1, shape_ver='new'):
-        if shape_ver=='new':
-            check1='Shape number' in str1
+    def _check_potstart(self, str1, mode='pot', shape_ver='new'):
+        if mode=='shape':
+            if shape_ver=='new':
+                check1='Shape number' in str1
+            else:
+                check1= (len(str1)==11)
         else:
-            check1= (len(str1)==11)
+            check1='exc:' in str1
         return check1
+        
+    def _read_input(self, filepath):
+        data = open(filepath).readlines()
+        
+        if 'shapefun' in filepath:
+            mode = 'shape'
+        else:
+            mode = 'pot'
+            
+        # read file
+        index1=[];index2=[]
+        for i in range(len(data)):
+          if self._check_potstart(data[i], mode=mode):
+            index1.append(i)
+            if len(index1)>1: index2.append(i-1)
+        index2.append(i)
+        
+        # read shapefun if old style is used
+        if len(index1)<1:
+            index1=[];index2=[]
+            for i in range(len(data)):
+                if self._check_potstart(data[i], mode=mode, shape_ver='old'):
+                    index1.append(i)
+                if len(index1)>1: index2.append(i-1)
+                index2.append(i)
+        
+        return index1, index2, data
 
     def shapefun_from_scoef(self, scoefpath, shapefun_path, atom2shapes, shapefun_new):
         """
@@ -40,24 +70,7 @@ class modify_potential():
         :param shapes: shapes array for mapping between atom index and shapefunction index
         :param shapefun_new: absolute path to output shapefun file to which the new shapefunction will be written
         """
-        data = open(shapefun_path).readlines()
-        
-        # read shapefun
-        index1=[];index2=[]
-        for i in range(len(data)):
-          if self._check_potstart(data[i]):
-            index1.append(i)
-            if len(index1)>1: index2.append(i-1)
-        index2.append(i)
-        
-        # read shapefun if old style is used
-        if len(index1)<1:
-            index1=[];index2=[]
-            for i in range(len(data)):
-                if self._check_potstart(data[i],shape_ver='old'):
-                    index1.append(i)
-                if len(index1)>1: index2.append(i-1)
-                index2.append(i)
+        index1, index2, data = self._read_input(shapefun_path)
         
         order=range(len(index1))
                
@@ -81,6 +94,67 @@ class modify_potential():
         datanew.append('  1.000000000000E+00\n')
         datanew += tmp
         open(shapefun_new,'w').writelines(datanew)
+        
+    def neworder_potential(self, potfile_in, potfile_out, neworder, potfile_2=None, replace_from_pot2=None):
+        """
+        Read potential file and new potential using a list describing the order of the new potential.
+        If a second potential is given as input together with an index list, then the corresponding of 
+        the output potential are overwritten with positions from the second input potential.
+        
+        ::param potfile_in:: absolute path to input potential
+        ::type potfile_in:: str
+        ::param potfile_out:: absolute path to output potential
+        ::type potfile_out:: str
+        ::param neworder:: list after which output potential is constructed from input potential
+        ::type neworder:: list
+        ::param potfile_2:: optional, absolute path to second potential file if 
+            positions in new list of potentials shall be replaced by positions of 
+            second potential, requires *replace_from_pot* to be given as well
+        ::type potfile_2:: str
+        ::param replace_from_pot:: optional, list containing tuples of (position 
+            in newlist that is to be replaced, position in pot2 with which position 
+            is replaced)
+        ::type replace_from_pot:: list
+        
+        ::usage::
+            1. modify_potential().neworder_potential(<path_to_input_pot>, <path_to_output_pot>, [])
+        """
+        from numpy import array, shape
+        
+        index1, index2, data = self._read_input(potfile_in)
+        
+        if potfile_2 is not None:
+            index12, index22, data2 = self._read_input(potfile_2)
+            # check if also replace_from_pot2 is given correctly
+            if replace_from_pot2 is None:
+                raise ValueError('replace_from_pot2 not given')
+            else:
+                replace_from_pot2 = array(replace_from_pot2)
+                if shape(replace_from_pot2)[1]!=2:
+                    raise ValueError('replace_from_pot2 needs to be a 2D array!')
+        else:
+            if replace_from_pot2 is not None:
+                raise ValueError('replace_from_pot2 given but potfile_2 not given')
+        
+        # set order in which potential file is written
+        order=neworder
+                
+        datanew=[]
+        for i in range(len(order)):
+            # check if new position is replaced with position from old pot
+            if replace_from_pot2 is not None and i in replace_from_pot2[:,0]:
+                    replace_index = replace_from_pot2[replace_from_pot2[:,0]==i][0][1]
+                    for ii in range(index12[replace_index], index22[replace_index]+1 ):
+                        datanew.append(data2[ii])
+            else: # otherwise take new potntial according to input list
+                for ii in range(index1[order[i]], index2[order[i]]+1 ):
+                    datanew.append(data[ii])
+        
+        # write out new potential
+        open(potfile_out,'w').writelines(datanew)
+        
+        
+        
         
         
         
@@ -589,4 +663,17 @@ if __name__=='__main__':
     print('\nsuccess?\n{}\n'.format(s))
     print('\nmessages?\n{}\n'.format(m))
     print('\nout_dict?\n{}\n'.format(o))
+#"""
+#"""
+if __name__=='__main__':
+    path = '/Users/ruess/sourcecodes/aiida/repositories/repository-ruess_test/repository/node/5e/cb/721a-bd7c-4abf-b41f-ab0f701f1408/path/'
+    pot1 = path+'out_potential'
+    pot2 = path+'voro/pot'
+    out_pot = path+'voro/pot_new'
+    out_pot2 = path+'voro/pot_new2'
+    neworder = [0,1,2]
+    replace_newpos = [[0, 0], [2, 0]]
+    modify_potential().neworder_potential(pot1, out_pot, neworder, potfile_2=pot2, 
+                                          replace_from_pot2=replace_newpos)
+    modify_potential().neworder_potential(pot2, out_pot2, neworder)
 #"""

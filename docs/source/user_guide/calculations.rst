@@ -282,6 +282,7 @@ Now we create a new KKR calculation and set input nodes::
         * ``Zimp`` (list of *Nimp* float entries) A
         * ``Rcut`` (float) cluster radius of impurity cluster
         * ``hcut`` (float, *optional*) height of a cylindrical cluster with radius ``Rcut``, if not given spherical cluster is taken
+        * ``cylinder_orient`` (list of 3 float values, *optional*) 
         * ``imp_cls`` (float, *optional*) full list of impurity cluster positions, overwrites auto generation using ``Rcut`` and ``hcut``
     
 The calculation can then be submitted::
