@@ -101,22 +101,22 @@ class modify_potential():
         If a second potential is given as input together with an index list, then the corresponding of 
         the output potential are overwritten with positions from the second input potential.
         
-        ::param potfile_in:: absolute path to input potential
-        ::type potfile_in:: str
-        ::param potfile_out:: absolute path to output potential
-        ::type potfile_out:: str
-        ::param neworder:: list after which output potential is constructed from input potential
-        ::type neworder:: list
-        ::param potfile_2:: optional, absolute path to second potential file if 
+        :param potfile_in: absolute path to input potential
+        :type potfile_in: str
+        :param potfile_out: absolute path to output potential
+        :type potfile_out: str
+        :param neworder: list after which output potential is constructed from input potential
+        :type neworder: list
+        :param potfile_2: optional, absolute path to second potential file if 
             positions in new list of potentials shall be replaced by positions of 
             second potential, requires *replace_from_pot* to be given as well
-        ::type potfile_2:: str
-        ::param replace_from_pot:: optional, list containing tuples of (position 
+        :type potfile_2: str
+        :param replace_from_pot: optional, list containing tuples of (position 
             in newlist that is to be replaced, position in pot2 with which position 
             is replaced)
-        ::type replace_from_pot:: list
+        :type replace_from_pot: list
         
-        ::usage::
+        :usage:
             1. modify_potential().neworder_potential(<path_to_input_pot>, <path_to_output_pot>, [])
         """
         from numpy import array, shape
@@ -152,9 +152,6 @@ class modify_potential():
         
         # write out new potential
         open(potfile_out,'w').writelines(datanew)
-        
-        
-        
         
         
         

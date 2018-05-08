@@ -188,6 +188,8 @@ We can then run the KKR calculation by again storing the input nodes and submit 
     kkr_calc.submit()
         
 
+.. _KKR_KKR_scf:
+
 Continue KKR calculation from KKR parent calculation
 ----------------------------------------------------
 

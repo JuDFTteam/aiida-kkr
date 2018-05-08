@@ -621,6 +621,146 @@ def structure_from_params(parameters):
         
     # finally return structure
     return is_complete, struc
+    
+@wf
+def neworder_potential_wc(settings_node, parent_calc_folder, **kwargs) : #, parent_calc_folder2=None):
+    """
+    Workfunction to create database structure for aiida_kkr.tools.modify_potential.neworder_potential function
+    A temporary file is written in a Sandbox folder on the computer specified via 
+    the input computer node before the output potential is stored as SingleFileData 
+    in the Database.
+    
+    :param settings_node: settings for the neworder_potentail function (ParameterData)
+    :param parent_calc_folder: parent calculation remote folder node where the input 
+        potential is retreived from (RemoteData)
+    :param parent_calc_folder2: *optional*, parent calculation remote folder node where 
+        the second input potential is retreived from in case 'pot2' and 'replace_newpos' 
+        are also set in settings_node (RemoteData)
+    
+    :returns: output_potential node (SingleFileData) 
+        
+    .. note::
+        
+        The settings_node dictionary needs to be of the following form::
+            
+            settings_dict = {'pot1': '<filename_input_potential>',  'out_pot': '<filename_output_potential>', 'neworder': [list of intended order in output potential]} 
+        
+        Optional entries are::
+            
+            'pot2': '<filename_second_input_file>'
+            'replace_newpos': [[position in neworder list which is replace with potential from pot2, position in pot2 that is chosen for replacement]]
+            'label': 'label_for_output_node'
+            'description': 'longer_description_for_output_node'
+    """
+    import os
+    from aiida_kkr.tools.tools_kkrimp import modify_potential
+    from aiida.common.folders import SandboxFolder
+    from aiida.common.exceptions import UniquenessError
+    from aiida.orm.calculation.job import JobCalculation
+    from aiida.orm import DataFactory
+    
+    if 'parent_calc_folder2' in kwargs.keys():
+        parent_calc_folder2=kwargs.get('parent_calc_folder2', None)
+    else:
+        parent_calc_folder2=None
+    
+    # get aiida data types used here
+    ParameterData = DataFactory('parameter')
+    RemoteData = DataFactory('remote')
+    SingleFileData = DataFactory('singlefile')
+    
+    # check input consistency
+    if not isinstance(settings_node, ParameterData):
+        raise InputValidationError('settings_node needs to be a valid aiida ParameterData node')
+    if not isinstance(parent_calc_folder, RemoteData):
+        raise InputValidationError('parent_calc_folder needs to be a valid aiida RemoteData node')
+    if parent_calc_folder2 is not None and not isinstance(parent_calc_folder2, RemoteData):
+        raise InputValidationError('parent_calc_folder2 needs to be a valid aiida RemoteData node')
+    
+    settings_dict = settings_node.get_dict()
+    pot1 = settings_dict.get('pot1', None)
+    if pot1 is None:
+        raise InputValidationError('settings_node_dict needs to have key "pot1" containing the filename of the input potential')
+    out_pot = settings_dict.get('out_pot', None)
+    if out_pot is None:
+        raise InputValidationError('settings_node_dict needs to have key "out_pot" containing the filename of the input potential')
+    neworder = settings_dict.get('neworder', None)
+    if neworder is None:
+        raise InputValidationError('settings_node_dict needs to have key "neworder" containing the list of new positions')
+    pot2 = settings_dict.get('pot2', None)
+    replace_newpos = settings_dict.get('replace_newpos', None)
+    
+    # Create Sandbox folder for generation of output potential file
+    # and construct output potential
+    with SandboxFolder() as tempfolder:
+        # Get abolute paths of input files from parent calc and filename
+        parent_calcs = parent_calc_folder.get_inputs(node_type=JobCalculation)
+        n_parents = len(parent_calcs)
+        if n_parents != 1:
+            raise UniquenessError(
+                    "Input RemoteData is child of {} "
+                    "calculation{}, while it should have a single parent"
+                    "".format(n_parents, "" if n_parents == 0 else "s"))
+        else:
+            parent_calc = parent_calcs[0]
+        remote_path = parent_calc.out.retrieved.get_abs_path('')
+        pot1_path = os.path.join(remote_path, pot1)
+            
+        # Copy optional files?
+        if pot2 is not None and parent_calc_folder2 is not None:
+            parent_calcs = parent_calc_folder2.get_inputs(node_type=JobCalculation)
+            n_parents = len(parent_calcs)
+            if n_parents != 1:
+                raise UniquenessError(
+                        "Input RemoteData of parent_calc_folder2 is child of {} "
+                        "calculation{}, while it should have a single parent"
+                        "".format(n_parents, "" if n_parents == 0 else "s"))
+            else:
+                parent_calc = parent_calcs[0]
+            remote_path = parent_calc.out.retrieved.get_abs_path('')
+            pot2_path = os.path.join(remote_path, pot2)
+        else:
+            pot2_path = None
+            
+        # change file path to Sandbox folder accordingly
+        out_pot_path = tempfolder.get_abs_path(out_pot)
+        
+        # run neworder_potential function
+        modify_potential().neworder_potential(pot1_path, out_pot_path, neworder, potfile_2=pot2_path, 
+                                              replace_from_pot2=replace_newpos)
+        
+        # store output potential to SingleFileData
+        output_potential_sfd_node = SingleFileData(file=out_pot_path)
+        
+        lbl = settings_dict.get('label', None)
+        if lbl is not None:
+            output_potential_sfd_node.label = lbl
+        desc = settings_dict.get('description', None)
+        if desc is not None:
+            output_potential_sfd_node.description = desc
+            
+        #TODO create shapefun sfd node accordingly
+        """
+        out_shape_path = 
+        
+        output_shapefun_sfd_node = SingleFileData(file=out_shape_path)
+        
+        lbl2 = settings_dict.get('label_shape', None)
+        if lbl2 is None and lbl is not None:
+            lbl2 = lbl
+        if lbl2 is not None:
+            output_shapefun_sfd_node.label = lbl2
+        desc2 = settings_dict.get('description_shape', None)
+        if desc2 is None and desc is not None:
+            desc2 = desc
+        if desc2 is not None:
+            output_shapefun_sfd_node.description = desc2
+        
+        return output_potential_sfd_node, output_shapefun_sfd_node
+        """
+        return output_potential_sfd_node
+    
+    
  
 '''
 if __name__=='__main__':
