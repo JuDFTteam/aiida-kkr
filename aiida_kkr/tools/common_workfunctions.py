@@ -630,7 +630,7 @@ def structure_from_params(parameters):
     return is_complete, struc
     
 @wf
-def neworder_potential_wc(settings_node, parent_calc_folder, **kwargs) : #, parent_calc_folder2=None):
+def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, parent_calc_folder2=None):
     """
     Workfunction to create database structure for aiida_kkr.tools.modify_potential.neworder_potential function
     A temporary file is written in a Sandbox folder on the computer specified via 

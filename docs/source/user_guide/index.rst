@@ -7,5 +7,6 @@ User's guide
 
     calculations
     workflows
+    workfunctions
 
 
