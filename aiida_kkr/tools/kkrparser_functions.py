@@ -302,7 +302,7 @@ def get_symmetries(outfile_0init):
     itmp = search_string('<SYMTAUMAT>', tmptxt)
     tmpdict = {}
     for isym in range(nsym_used):
-        tmpval = tmptxt[itmp+5+isym].split()
+        tmpval = tmptxt[itmp+5+isym].replace('0-', '0 -').replace('1-', '1 -').split() # bugfix for -120 degree euler angle
         desc = tmpval[1]
         inversion = int(tmpval[2])
         euler = [float(tmpval[3]), float(tmpval[4]), float(tmpval[5])]
@@ -743,9 +743,6 @@ def check_error_category(err_cat, err_msg, out_dict):
     
     :returns: True/False if message is an error or warning
     """
-    if err_cat == 1:
-        return True
-    
     # check special cases:
     # 1. nonco_angle_file not present, but newsosol==False anyways
     if 'NONCO_ANGLES_OUT' in err_msg:
@@ -756,6 +753,13 @@ def check_error_category(err_cat, err_msg, out_dict):
                 return False
         else:
             return True
+            
+    # default behavior
+    if err_cat == 1:
+        return True
+    else:
+        return False
+    
         
   
 """

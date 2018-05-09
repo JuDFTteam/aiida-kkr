@@ -35,12 +35,16 @@ class modify_potential():
         return check1
         
     def _read_input(self, filepath):
-        data = open(filepath).readlines()
+        #print(filepath)
+        with open(filepath) as file:
+            data = file.readlines()
         
         if 'shapefun' in filepath:
             mode = 'shape'
         else:
             mode = 'pot'
+        
+        #print(mode, len(data))
             
         # read file
         index1=[];index2=[]
@@ -51,13 +55,22 @@ class modify_potential():
         index2.append(i)
         
         # read shapefun if old style is used
-        if len(index1)<1:
+        if mode=='shape' and len(index1)<1:
             index1=[];index2=[]
             for i in range(len(data)):
                 if self._check_potstart(data[i], mode=mode, shape_ver='old'):
                     index1.append(i)
                 if len(index1)>1: index2.append(i-1)
                 index2.append(i)
+           
+        """
+        print(index1)
+        print(index2)
+        
+        print('Potential file read')
+        print('found %i potentials in file'%len(index1))
+        print('')
+        """
         
         return index1, index2, data
 
@@ -147,8 +160,8 @@ class modify_potential():
                     for ii in range(index12[replace_index], index22[replace_index]+1 ):
                         datanew.append(data2[ii])
             else: # otherwise take new potntial according to input list
-                for ii in range(index1[order[i]], index2[order[i]]+1 ):
-                    datanew.append(data[ii])
+                    for ii in range(index1[order[i]], index2[order[i]]+1 ):
+                        datanew.append(data[ii])
         
         # write out new potential
         open(potfile_out,'w').writelines(datanew)
@@ -661,7 +674,7 @@ if __name__=='__main__':
     print('\nmessages?\n{}\n'.format(m))
     print('\nout_dict?\n{}\n'.format(o))
 #"""
-#"""
+"""
 if __name__=='__main__':
     path = '/Users/ruess/sourcecodes/aiida/repositories/repository-ruess_test/repository/node/5e/cb/721a-bd7c-4abf-b41f-ab0f701f1408/path/'
     pot1 = path+'out_potential'
@@ -670,7 +683,19 @@ if __name__=='__main__':
     out_pot2 = path+'voro/pot_new2'
     neworder = [0,1,2]
     replace_newpos = [[0, 0], [2, 0]]
-    modify_potential().neworder_potential(pot1, out_pot, neworder, potfile_2=pot2, 
-                                          replace_from_pot2=replace_newpos)
-    modify_potential().neworder_potential(pot2, out_pot2, neworder)
+    #modify_potential().neworder_potential(pot1, out_pot, neworder, 1, potfile_2=pot2, 
+    #                                      replace_from_pot2=replace_newpos)
+    #modify_potential().neworder_potential(pot2, out_pot2, neworder, 1)
+    
+    # test 2
+    path = '/Users/ruess/sourcecodes/aiida/repositories/repository-ruess_test/repository/node/f5/77/ddf0-b6ec-415b-9e34-4e36969caf11/path/'
+    pot1 = path+'potential'
+    #from subprocess import check_output
+    #out = check_output('grep exc '+pot1, shell=True)
+    #print(out.split('\n'))
+    out_pot = path+'pot_new'
+    neworder = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    #modify_potential().neworder_potential(pot1, out_pot, neworder, 2, potfile_2=pot2, 
+    #                                      replace_from_pot2=replace_newpos)
+    modify_potential().neworder_potential(pot1, out_pot, neworder)
 #"""

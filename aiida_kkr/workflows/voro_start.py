@@ -310,17 +310,18 @@ class kkr_startpot_wc(WorkChain):
             gmax_input = kkrparams.get_KKRcalc_parameter_defaults()[0].get('GMAX')
             
         # check if emin should be changed:
-        if self.ctx.iter > 1 and self.ctx.dos_check_fail_reason == 'EMIN too high':
-            # decrease emin  by self.ctx.delta_e
-            emin_old = self.ctx.dos_params_dict['emin']
-            eV2Ry = 1./get_Ry2eV()
-            emin_new = emin_old - self.ctx.delta_e*eV2Ry
-            self.ctx.dos_params_dict['emin'] = emin_new
-            updated_params = True
-            update_list.append('EMIN')
-            skip_voro = True
-        else:
-            skip_voro = False
+        skip_voro = False
+        if self.ctx.iter > 1:
+            if (self.ctx.dos_check_fail_reason == 'EMIN too high' or 
+                self.ctx.dos_check_fail_reason == 'core state too close'):
+                # decrease emin  by self.ctx.delta_e
+                emin_old = self.ctx.dos_params_dict['emin']
+                eV2Ry = 1./get_Ry2eV()
+                emin_new = emin_old - self.ctx.delta_e*eV2Ry
+                self.ctx.dos_params_dict['emin'] = emin_new
+                updated_params = True
+                update_list.append('EMIN')
+                skip_voro = True
               
         # store updated nodes (also used via last_params in kkr_scf_wc)
         if updated_params:
@@ -579,11 +580,17 @@ class kkr_startpot_wc(WorkChain):
             self.report("INFO: emin= {} Ry".format(emin))
             self.report("INFO: highest core state= {} Ry".format(ecore_max))
             if ecore_max >= emin:
-                self.report("ERROR: contour contains core states!!!")
+                error = "ERROR: contour contains core states!!!"
+                self.report(error)
                 dos_ok = False
                 self.ctx.dos_check_fail_reason = 'core state in contour'
+                # TODO maybe some logic to automatically deal with this issue?
+                # for now stop if this case occurs
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
             elif abs(ecore_max-emin) < self.ctx.min_dist_core_states:
-                self.report("ERROR: core states too close to energy contour start!!!")
+                error = "ERROR: core states too close to energy contour start!!!"
+                self.report(error)
                 dos_ok = False
                 self.ctx.dos_check_fail_reason = 'core state too close'
             else:

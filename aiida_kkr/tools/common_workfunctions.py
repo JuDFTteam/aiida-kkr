@@ -412,6 +412,13 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     isitelist = array(isitelist)
     charges = array(charges)
     positions = array(positions)
+    
+    # workaround for voronoi calculation with Zatom=83 (Bi potential not there!)
+    if isvoronoi:
+        from numpy import where
+        mask_replace_Bi_Pb = where(charges==83)
+        charges[mask_replace_Bi_Pb] = 82
+        print('WARNING: Bi potentail not available, useing Pb instead!!!')
         
 
     ######################################
@@ -705,6 +712,14 @@ def neworder_potential_wc(settings_node, parent_calc_folder, **kwargs) : #, pare
             parent_calc = parent_calcs[0]
         remote_path = parent_calc.out.retrieved.get_abs_path('')
         pot1_path = os.path.join(remote_path, pot1)
+        
+        # extract nspin from parent calc's input parameter node
+        nspin = parent_calc.inp.parameters.get_dict().get('NSPIN')
+        neworder_spin = []
+        for iatom in neworder:
+            for ispin in range(nspin):    
+                neworder_spin.append(iatom*nspin+ispin)
+        neworder = neworder_spin
             
         # Copy optional files?
         if pot2 is not None and parent_calc_folder2 is not None:

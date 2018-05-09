@@ -406,7 +406,27 @@ class kkr_scf_wc(WorkChain):
         if 'calc_parameters' in self.inputs:
             params = self.inputs.calc_parameters
         else:
-            params = None # TODO: use defaults?
+            params = None 
+            
+        # check if default values are missing and set appropriately from defaults
+        defaults, version = kkrparams.get_KKRcalc_parameter_defaults()
+        if params is None:
+            params = ParameterData(dict=defaults)
+            params.label = 'default values'
+        newparams = {}
+        for key, val in defaults.iteritems():
+            if params.get_dict().get(key, None) is None:
+                if key != 'RCLUSTZ': # this one is automatically set by kkr_startpot_wc so we skip it here
+                    newparams[key] = val
+                    self.report("INFO: Automatically added default values to KKR parameters: {} {}".format(key, val))
+        if newparams!={}:
+            for key, val in params.get_dict().iteritems():
+                if val is not None:
+                    newparams[key] = val
+            updatenode = ParameterData(dict=newparams)
+            updatenode.label = 'added defaults to KKR input parameter'
+            updatenode.description = 'Overwritten KKR input parameter to correct missing default values automatically'
+            params = update_params_wf(params, updatenode)
             
         # set nspin to 2 if mag_init is used
         if self.ctx.mag_init:
@@ -850,10 +870,10 @@ class kkr_scf_wc(WorkChain):
         self.report("INFO: kkr_converged: {}".format(self.ctx.kkr_converged))
         self.report("INFO: rms: {}".format(self.ctx.rms))
         self.report("INFO: last_rms_all: {}".format(self.ctx.last_rms_all))
-        self.report("INFO: rms_all_steps: {}".format(self.ctx.rms_all_steps))
+        #self.report("INFO: rms_all_steps: {}".format(self.ctx.rms_all_steps))
         self.report("INFO: charge_neutrality: {}".format(self.ctx.neutr))
         self.report("INFO: last_neutr_all: {}".format(self.ctx.last_neutr_all))
-        self.report("INFO: neutr_all_steps: {}".format(self.ctx.neutr_all_steps))
+        #self.report("INFO: neutr_all_steps: {}".format(self.ctx.neutr_all_steps))
         
         # turn off initial magnetization once one step was successful (update_kkr_params) used in
         if self.ctx.mag_init and self.ctx.kkr_step_success:

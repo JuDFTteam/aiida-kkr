@@ -16,7 +16,7 @@ if version_info[0] >= 3:
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH,"
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4"
+__version__ = "0.5"
 __contributors__ = u"Philipp Rüßmann"
 
 # This defines the default parameters for KKR used in the aiida plugin:
@@ -590,17 +590,18 @@ class kkrparams(object):
                 raise ValueError
                 
             # check if KSHAPE and INS are consistent and add missing values automatically
+            # WARNING: KSHAPE should be 2*INS !!!
             if 'INS' not in set_values and 'KSHAPE' in set_values:
-                self.set_value('INS', self.get_value('KSHAPE'))
-                print("setting INS automatically with KSHAPE value ({})".format(self.get_value('KSHAPE')))
+                self.set_value('INS', self.get_value('KSHAPE')/2)
+                print("setting INS automatically with KSHAPE value ({})".format(self.get_value('KSHAPE')/2))
             elif 'INS' in set_values and 'KSHAPE' not in set_values:
-                self.set_value('KSHAPE', self.get_value('INS'))
-                print("setting KSHAPE automatically with INS value ({})".format(self.get_value('INS')))
+                self.set_value('KSHAPE', self.get_value('INS')*2)
+                print("setting KSHAPE automatically with INS value ({})".format(self.get_value('INS')*2))
             elif 'INS' in set_values and 'KSHAPE' in set_values:
                 ins = self.get_value('INS')
                 kshape = self.get_value('KSHAPE')
                 if (ins!=0 and kshape==0) or (ins==0 and kshape!=0):
-                    print("Error: values of 'INS' and 'KSHAPE' are both found but are inconsistent (should be equal)")
+                    print("Error: values of 'INS' and 'KSHAPE' are both found but are inconsistent (should be 0/0 or 1/2)")
                     raise ValueError('INS,KSHAPE mismatch')
 
 
