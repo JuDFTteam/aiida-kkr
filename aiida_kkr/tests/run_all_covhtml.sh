@@ -38,5 +38,5 @@
 #verdi code setup < "code_setup_kkr.txt"
 #verdi code setup < "code_setup_voronoi.txt"
 
-pytest -v --cov-report=html --cov=aiida_kkr --ignore=test_entrypoints.py --ignore=test_scf_wc_simple.py --ignore=test_common_workfunctions.py
-#pytest -v --cov-report=html --cov=aiida_kkr
+#pytest -v --cov-report=html --cov=aiida_kkr --ignore=test_entrypoints.py --ignore=test_scf_wc_simple.py --ignore=test_common_workfunctions.py
+pytest -v --cov-report=html --cov=aiida_kkr --ignore=test_scf_wc_simple.py
