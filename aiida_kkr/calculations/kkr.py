@@ -14,6 +14,7 @@ from aiida.orm import DataFactory
 from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_structure,
                                                   check_2Dinput_consistency, update_params_wf)
+from aiida_kkr.tools.tools_kkrimp import make_scoef 
 
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
@@ -287,27 +288,27 @@ class KkrCalculation(JobCalculation):
             runopt.append('KKRFLEX')
             parameters = update_params_wf(parameters, ParameterData(dict={'RUNOPT':runopt, 'nodename': '', 'nodedesc':''}))
         if found_imp_info and write_scoef:
-            # TODO check completeness of impurity info!
-            # TODO implement this!
-            # placeholder: take Fabian's functions later on
-            scoef = ['      13\n',
-                     '  0.0000000000000000000E+00  0.0000000000000000000E+00  0.0000000000000000000E+00    1 29.0  0.000000000E+00\n',
-                     '  0.2220446049250313081E-14 -0.7071067811865453523E+00 -0.7071067811865453523E+00    1 29.0  0.100000000E+01\n',
-                     ' -0.7071067811865453523E+00  0.2220446049250313081E-14 -0.7071067811865453523E+00    1 29.0  0.100000000E+01\n',
-                     '  0.7071067811865497932E+00  0.2220446049250313081E-14 -0.7071067811865453523E+00    1 29.0  0.100000000E+01\n',
-                     '  0.2220446049250313081E-14  0.7071067811865497932E+00 -0.7071067811865453523E+00    1 29.0  0.100000000E+01\n',
-                     ' -0.7071067811865453523E+00 -0.7071067811865453523E+00  0.2220446049250313081E-14    1 29.0  0.100000000E+01\n',
-                     '  0.7071067811865497932E+00 -0.7071067811865453523E+00  0.2220446049250313081E-14    1 29.0  0.100000000E+01\n',
-                     ' -0.7071067811865453523E+00  0.7071067811865497932E+00  0.2220446049250313081E-14    1 29.0  0.100000000E+01\n',
-                     '  0.7071067811865497932E+00  0.7071067811865497932E+00  0.2220446049250313081E-14    1 29.0  0.100000000E+01\n',
-                     '  0.2220446049250313081E-14 -0.7071067811865453523E+00  0.7071067811865497932E+00    1 29.0  0.100000000E+01\n',
-                     ' -0.7071067811865453523E+00  0.2220446049250313081E-14  0.7071067811865497932E+00    1 29.0  0.100000000E+01\n',
-                     '  0.7071067811865497932E+00  0.2220446049250313081E-14  0.7071067811865497932E+00    1 29.0  0.100000000E+01\n',
-                     '  0.2220446049250313081E-14  0.7071067811865497932E+00  0.7071067811865497932E+00    1 29.0  0.100000000E+01\n']
             scoef_filename = os.path.join(tempfolder.get_abs_path(''), self._SCOEF)
-            self.logger.info('Writing scoef file {}'.format(scoef_filename))
-            with open(scoef_filename, 'w') as file:
-                file.writelines(scoef)
+	    imp_info_dict = imp_info.get_dict()
+	    Rcut = imp_info_dict.get('Rcut', None)
+            hcut = imp_info_dict.get('hcut', -1.)
+	    cylinder_orient = imp_info_dict.get('cylinder_orient', [0., 0., 1.])
+	    ilayer_center = imp_info_dict.get('ilayer_center', 0)
+            for i in range(len(cylinder_orient)):
+                try:
+                  len(cylinder_orient[i])
+                  vec_shape = False
+                except TypeError:
+                  vec_shape = True
+            if ilayer_center > len(structure.sites) - 1:
+                raise IndexError('Index of the reference site is out of range! Possible values: 0 to {}.'.format(len(structure.sites) - 1))
+            elif Rcut < 0:
+                raise ValueError('Cutoff radius has to be positive!')
+            elif vec_shape == False or len(cylinder_orient) != 3:
+                raise TypeError('Input orientation vector ({}) has the wrong shape! It needs to be a 3D-vector!'.format(cylinder_orient))
+            else:
+                print('Input parameters for make_scoef read in correctly!')
+                make_scoef(structure, Rcut, scoef_filename, hcut, cylinder_orient, ilayer_center)
         elif write_scoef:
             self.logger.info('Need to write scoef file but no impurity_info given!')
             raise ValidationError('Found RUNOPT KKRFLEX but no impurity_info in inputs')

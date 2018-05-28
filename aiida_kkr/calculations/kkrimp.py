@@ -436,26 +436,15 @@ class KkrimpCalculation(JobCalculation):
         """
         write shapefun from impurity info and host shapefun and copy imp. potential
         """
-        # TODO implement this!
-        # placeholder: take Fabian's functions later on
-        scoef = ['      13\n',
-                 '  0.0000000000000000000E+00  0.0000000000000000000E+00  0.0000000000000000000E+00    1 29.0  0.000000000E+00\n',
-                 '  0.2220446049250313081E-14 -0.7071067811865453523E+00 -0.7071067811865453523E+00    1 29.0  0.100000000E+01\n',
-                 ' -0.7071067811865453523E+00  0.2220446049250313081E-14 -0.7071067811865453523E+00    1 29.0  0.100000000E+01\n',
-                 '  0.7071067811865497932E+00  0.2220446049250313081E-14 -0.7071067811865453523E+00    1 29.0  0.100000000E+01\n',
-                 '  0.2220446049250313081E-14  0.7071067811865497932E+00 -0.7071067811865453523E+00    1 29.0  0.100000000E+01\n',
-                 ' -0.7071067811865453523E+00 -0.7071067811865453523E+00  0.2220446049250313081E-14    1 29.0  0.100000000E+01\n',
-                 '  0.7071067811865497932E+00 -0.7071067811865453523E+00  0.2220446049250313081E-14    1 29.0  0.100000000E+01\n',
-                 ' -0.7071067811865453523E+00  0.7071067811865497932E+00  0.2220446049250313081E-14    1 29.0  0.100000000E+01\n',
-                 '  0.7071067811865497932E+00  0.7071067811865497932E+00  0.2220446049250313081E-14    1 29.0  0.100000000E+01\n',
-                 '  0.2220446049250313081E-14 -0.7071067811865453523E+00  0.7071067811865497932E+00    1 29.0  0.100000000E+01\n',
-                 ' -0.7071067811865453523E+00  0.2220446049250313081E-14  0.7071067811865497932E+00    1 29.0  0.100000000E+01\n',
-                 '  0.7071067811865497932E+00  0.2220446049250313081E-14  0.7071067811865497932E+00    1 29.0  0.100000000E+01\n',
-                 '  0.2220446049250313081E-14  0.7071067811865497932E+00  0.7071067811865497932E+00    1 29.0  0.100000000E+01\n']
-        # use scoef, shapes and shapefun_path to create shapefun for this impurity
-        scoef_filename = os.path.join(tempfolder.get_abs_path(''), KkrCalculation()._SCOEF)
-        with open(scoef_filename, 'w') as file:
-            file.writelines(scoef)
+
+
+        scoef_filename = os.path.join(tempfolder.get_abs_path(''), self._SCOEF)
+        imp_info_dict = imp_info.get_dict()
+        Rcut = imp_info_dict.get('Rcut', None)
+        hcut = imp_info_dict.get('hcut', -1.)
+        cylinder_orient = imp_info_dict.get('cylinder_orient', [0., 0., 1.])
+        ilayer_center = imp_info_dict.get('ilayer_center', 0)
+        make_scoef(structure, Rcut, scoef_filename, hcut, cylinder_orient, ilayer_center)
         
         # create impurity shapefun
         shapefun_new_path = tempfolder.get_abs_path(self._SHAPEFUN)
