@@ -13,7 +13,8 @@ from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.orm import DataFactory
 from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_structure,
-                                                  check_2Dinput_consistency, update_params_wf)
+                                                  check_2Dinput_consistency, update_params_wf,
+                                                  vca_check)
 
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
@@ -24,7 +25,7 @@ StructureData = DataFactory('structure')
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4"
+__version__ = "0.5"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -250,6 +251,9 @@ class KkrCalculation(JobCalculation):
         if inputdict:
             self.logger.error('KkrCalculation: Unknown inputs for structure lookup')
             raise ValidationError("Unknown inputs")
+            
+        # for VCA: check if input structure and parameter node define VCA structure
+        vca_structure = vca_check(structure, parameters)
 
 
         ###################################
@@ -269,8 +273,10 @@ class KkrCalculation(JobCalculation):
         
         # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
-        natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes)
-
+        
+        use_alat_input = parameters.get_dict().get('use_input_alat', False)
+        natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
+        
         # prepare scoef file if impurity_info was given
         write_scoef = False
         runopt = parameters.get_dict().get('RUNOPT', None)
@@ -356,7 +362,40 @@ class KkrCalculation(JobCalculation):
                 local_copy_list.append((
                         os.path.join(outfolderpath, file1),
                         os.path.join(filename)))
+                
+            
+            # for set-ef option:
+            ef_set = parameters.get_dict().get('ef_set', None)
+            if ef_set is not None:
+                print('local copy list before change: {}'.format(local_copy_list))
+                print("found 'ef_set' in parameters: change EF of potential to this value")
+                potcopy_info = [i for i in local_copy_list if i[1]==self._POTENTIAL][0]
+                with open(potcopy_info[0]) as file:
+                    # change potential and copy list
+                    local_copy_list.remove(potcopy_info)
+                    pot_new_name = tempfolder.get_abs_path(self._POTENTIAL+'_new_ef')
+                    local_copy_list.append((pot_new_name, self._POTENTIAL))
+                    
+                    # change potential
+                    txt = file.readlines()
+                    potstart = []
+                    for iline in range(len(txt)):
+                        line = txt[iline]
+                        if 'exc:' in line:
+                            potstart.append(iline)
+                    for ipotstart in potstart:
+                        tmpline = txt[ipotstart+3]
+                        tmpline = tmpline.split()
+                        newline = '%10.5f%20.14f%20.14f\n'%(float(tmpline[0]), ef_set, float(tmpline[-1]))
+                        txt[ipotstart+3] = newline
+                    # write new file
+                    pot_new_ef = open(pot_new_name, 'w')
+                    pot_new_ef.writelines(txt)
+                    pot_new_ef.close()                
+                
+                
             # TODO different copy lists, depending on the keywors input
+            print('local copy list: {}'.format(local_copy_list))
             self.logger.info('local copy list: {}'.format(local_copy_list))
 
 

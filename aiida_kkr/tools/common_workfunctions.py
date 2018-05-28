@@ -17,6 +17,9 @@ from aiida_kkr.tools.kkr_params import kkrparams
 #define aiida structures from DataFactory of aiida
 ParameterData = DataFactory('parameter')
 
+# keys that are used by aiida-kkr some something else than KKR parameters
+_ignored_keys = ['ef_set', 'use_input_alat']
+
 @wf
 def update_params_wf(parameternode, updatenode):
     """
@@ -87,7 +90,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
     
     # check if input dict contains only values for KKR parameters
     for key in inp_params:
-        if key not in params.values.keys():
+        if key not in params.values.keys() and key not in _ignored_keys:
             print('Input node contains unvalid key "{}"'.format(key))
             raise InputValidationError('unvalid key "{}" in input parameter node'.format(key))
     
@@ -332,7 +335,7 @@ def get_parent_paranode(remote_data):
     return inp_para
 
 
-def generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc=None, shapes=None, isvoronoi=False, use_input_alat=False):
+def generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc=None, shapes=None, isvoronoi=False, use_input_alat=False, vca_structure=False):
     """
     Takes information from parameter and structure data and writes input file 'input_filename'
     
@@ -396,17 +399,40 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
         sitekind = structure.get_kind(site.kind_name)
         for ikind in range(len(sitekind.symbols)):
             site_symbol = sitekind.symbols[ikind]
-            if not sitekind.has_vacancies():
-                charges.append(_atomic_numbers[site_symbol])
-            else:
-                charges.append(0.0)
-            #TODO deal with VCA case
             if sitekind.is_alloy():
-                weights.append(sitekind.weights[ikind])
+                wght = sitekind.weights[ikind]
             else:
-                weights.append(1.)
-            
-            isitelist.append(isite)
+                wght = 1.
+            if not sitekind.has_vacancies():
+                zatom_tmp = _atomic_numbers[site_symbol]
+            else:
+                zatom_tmp = 0.0
+            if vca_structure and ikind>0 and not isvoronoi:
+                print(site)
+                print(ikind)
+                print(zatom_tmp)
+                print(wght)
+                print(zatom)
+                print(wght_last)
+                # for VCA case take weighted average (only for KKR code, voronoi code uses zatom of first site for dummy calculation)
+                zatom  = zatom*wght_last + zatom_tmp*wght
+                # also reset weight to 1
+                wght = 1.
+            else:
+                zatom = zatom_tmp
+                if vca_structure and isvoronoi:
+                    wght = 1.
+                    
+            wght_last = wght # for VCA mode
+                
+            # make sure that for VCA only averaged position is written (or first for voronoi code)
+            if ( (vca_structure and ((len(sitekind.symbols)==1) or 
+                                     (not isvoronoi and ikind==1) or 
+                                     (isvoronoi and ikind==0))) 
+                 or (not vca_structure) ):
+                charges.append(zatom)
+                weights.append(wght)
+                isitelist.append(isite)
     
     weights = array(weights)
     isitelist = array(isitelist)
@@ -418,7 +444,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
         from numpy import where
         mask_replace_Bi_Pb = where(charges==83)
         charges[mask_replace_Bi_Pb] = 82
-        print('WARNING: Bi potentail not available, useing Pb instead!!!')
+        print('WARNING: Bi potential not available, using Pb instead!!!')
         
 
     ######################################
@@ -426,6 +452,12 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     
     # get parameter dictionary
     input_dict = parameters.get_dict()
+    
+    # remove special keys that are used for special cases but are not part of the KKR parameter set
+    for key in _ignored_keys:
+        if input_dict.get(key) is not None:
+            print('WARNING: automatically removing value of key', key)
+            input_dict.pop(key)
     
     # get rid of structure related inputs that are overwritten from structure input
     for key in ['BRAVAIS', 'ALATBASIS', 'NAEZ', '<ZATOM>', '<RBASIS>', 'CARTESIAN']:
@@ -551,7 +583,7 @@ def structure_from_params(parameters):
     """
     from aiida_kkr.tools.common_functions import get_aBohr2Ang
     from aiida.common.constants import elements as PeriodicTableElements
-    from numpy import array, shape
+    from numpy import array
     StructureData = DataFactory('structure')
     
     is_complete = True 
@@ -775,6 +807,31 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
         """
         return output_potential_sfd_node
     
+        
+        
+def vca_check(structure, parameters):
+    """
+    
+    """
+    nsites = 0
+    for site in structure.sites:
+        sitekind = structure.get_kind(site.kind_name)
+        nsites += len(sitekind.symbols)
+    # VCA mode if CPAINFO = [-1,-1] first 
+    try:
+        if parameters.get_dict().get('CPAINFO')[0]<0:
+            params_vca_mode= True
+        else:
+            params_vca_mode = False
+    except:
+        params_vca_mode = False
+    # check if structure supports VCA mode
+    vca_structure = False
+    if params_vca_mode:
+        if nsites>len(structure.sites):
+            vca_structure = True
+            
+    return vca_structure
     
  
 '''

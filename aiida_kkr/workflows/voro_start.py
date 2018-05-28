@@ -25,7 +25,7 @@ from numpy import where
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5"
+__version__ = "0.6"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -579,22 +579,23 @@ class kkr_startpot_wc(WorkChain):
             ecore_max = max(ecore_all)
             self.report("INFO: emin= {} Ry".format(emin))
             self.report("INFO: highest core state= {} Ry".format(ecore_max))
-            if ecore_max >= emin:
-                error = "ERROR: contour contains core states!!!"
-                self.report(error)
-                dos_ok = False
-                self.ctx.dos_check_fail_reason = 'core state in contour'
-                # TODO maybe some logic to automatically deal with this issue?
-                # for now stop if this case occurs
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
-            elif abs(ecore_max-emin) < self.ctx.min_dist_core_states:
-                error = "ERROR: core states too close to energy contour start!!!"
-                self.report(error)
-                dos_ok = False
-                self.ctx.dos_check_fail_reason = 'core state too close'
-            else:
-                self.report('INFO: DOS check successful')
+            if ecore_max is not None:
+                if ecore_max >= emin:
+                    error = "ERROR: contour contains core states!!!"
+                    self.report(error)
+                    dos_ok = False
+                    self.ctx.dos_check_fail_reason = 'core state in contour'
+                    # TODO maybe some logic to automatically deal with this issue?
+                    # for now stop if this case occurs
+                    self.ctx.errors.append(error)
+                    self.control_end_wc(error)
+                elif abs(ecore_max-emin) < self.ctx.min_dist_core_states:
+                    error = "ERROR: core states too close to energy contour start!!!"
+                    self.report(error)
+                    dos_ok = False
+                    self.ctx.dos_check_fail_reason = 'core state too close'
+                else:
+                    self.report('INFO: DOS check successful')
                 
             #TODO check for semi-core-states
             

@@ -186,19 +186,25 @@ class kkrparams(object):
 
     def get_type(self, key):
         """Extract expected type of 'key' from format info"""
-        fmtstr = self.__format[key]
-        # simple format or complex pattern
-        simplefmt = True
-        if fmtstr.count('%') > 1:
-            simplefmt = False
-        if simplefmt:
-            keytype = self._get_type_from_string(fmtstr)
+        try:
+            fmtstr = self.__format[key]
+        except KeyError:
+            fmtstr = None
+        if fmtstr is not None:
+            # simple format or complex pattern
+            simplefmt = True
+            if fmtstr.count('%') > 1:
+                simplefmt = False
+            if simplefmt:
+                keytype = self._get_type_from_string(fmtstr)
+            else:
+                fmtlist = fmtstr.replace('\n','').replace(' ','').split('%')[1:]
+                keytype = []
+                for fmtstr in fmtlist:
+                    keytype.append(self._get_type_from_string(fmtstr))
+            return keytype
         else:
-            fmtlist = fmtstr.replace('\n','').replace(' ','').split('%')[1:]
-            keytype = []
-            for fmtstr in fmtlist:
-                keytype.append(self._get_type_from_string(fmtstr))
-        return keytype
+            return None
 
 
     def _check_valuetype(self, key):
@@ -223,23 +229,24 @@ class kkrparams(object):
         # check if type matches format info
         cmptypes = self.get_type(key)
         success = True
-        #print(key, type(valtype), valtype, cmptypes)
-        changed_type_automatically = False
-        if valtype == int and cmptypes == float:
-            changed_type_automatically = True
-            self.values[key] = float(self.values[key])
-        elif type(valtype) == list:
-            for ival in range(len(valtype)):
-                if valtype[ival] == int and cmptypes == float:
-                    changed_type_automatically = True
-                    self.values[key][ival] = float(self.values[key][ival])
-        elif valtype != cmptypes and tmpval is not None:
-            success = False
-            print('Error: type of value does not match expected type for ', key, self.values[key], cmptypes)
-            raise TypeError
-
-        if changed_type_automatically:
-            print('Warning: filling value of "%s" with integer but expects float. Converting automatically and continue'%key)
+        if cmptypes is not None:
+            #print(key, type(valtype), valtype, cmptypes)
+            changed_type_automatically = False
+            if valtype == int and cmptypes == float:
+                changed_type_automatically = True
+                self.values[key] = float(self.values[key])
+            elif type(valtype) == list:
+                for ival in range(len(valtype)):
+                    if valtype[ival] == int and cmptypes == float:
+                        changed_type_automatically = True
+                        self.values[key][ival] = float(self.values[key][ival])
+            elif valtype != cmptypes and tmpval is not None:
+                success = False
+                print('Error: type of value does not match expected type for ', key, self.values[key], cmptypes)
+                raise TypeError
+    
+            if changed_type_automatically:
+                print('Warning: filling value of "%s" with integer but expects float. Converting automatically and continue'%key)
 
         return success
 
@@ -522,9 +529,8 @@ class kkrparams(object):
                 #success.append(tmpsuccess)
         
                 if not tmpsuccess:
-                    print('Error: array input not consistent')
                     print('check consistency:', key, self.values[key], cmpdims, tmpdims, tmpsuccess)
-                    raise TypeError
+                    raise TypeError('Error: array input not consistent for key {}'.format(key))
 
 
     def _check_input_consistency(self, set_lists_only=False):
