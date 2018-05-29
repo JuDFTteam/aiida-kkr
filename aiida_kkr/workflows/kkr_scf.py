@@ -120,7 +120,11 @@ class kkr_scf_wc(WorkChain):
                    'mag_init' : False,                        # initialize and converge magnetic calculation
                    'hfield' : 0.02, # Ry                      # external magnetic field used in initialization step
                    'init_pos' : None,                         # position in unit cell where magnetic field is applied [default (None) means apply to all]
-                   'retreive_dos_data_scf_run' : False        # add DOS to testopts and retrieve dos.atom files in each scf run
+                   'retreive_dos_data_scf_run' : False,       # add DOS to testopts and retrieve dos.atom files in each scf run
+                   # parameters passed on to vorostart 
+                   'fac_cls_increase' : 1.3,                  # factor by which the screening cluster is increased each iteration (up to num_rerun times)
+                   'r_cls' : 1.3, # alat                      # default cluster radius, is increased iteratively
+                   'natom_in_cls_min' : 79                    # minimum number of atoms in screening cluster
                    }
 
     # intended to guide user interactively in setting up a valid wf_params node

@@ -3,8 +3,6 @@
 AiiDA plugin for the KKR codes plus workflows and utility.
 
 
-# Documentation
-
 # Installation
 
 ```shell
@@ -17,4 +15,6 @@ $ verdi quicksetup  # better to set up a new profile
 $ verdi calculation plugins  # should now show kkr.* entrypoints
 ```
 
-# Usage
+# Usage and Documentation
+
+See http://aiida-kkr.readthedocs.io for user's guide and API reference.

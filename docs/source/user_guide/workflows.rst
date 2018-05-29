@@ -24,7 +24,7 @@ Inputs:
     * ``_label`` (*str*, optional): Label of the workflow
     * ``_description`` (*str*, optional): Longer description of the workflow
     
-Returns:
+Returns nodes:
     * ``dos_data`` (*XyData*): The DOS data on the DOS energy contour (i.e. at some finite temperature)
     * ``dos_data_interpol`` (*XyData*): The interpolated DOS from the line parallel to the real axis down onto the real axis
     * ``results_wf`` (*ParameterData*): The output node of the workflow containing some information on the DOS run
@@ -36,13 +36,15 @@ Returns:
         y = dos_data_node.get_y()
     
     where the returned list is of the form ``[label, numpy-array-of-data, unit]`` and the 
-    *y*-array contains entries for total DOS, s-, p-, d-, ... contributions to the DOS, e.g.::
+    *y*-array contains entries for total DOS, s-, p-, d-, ..., and non-spherical contributions to the DOS, e.g.::
         
         [(u'interpolated dos tot', array([[...]]), u'states/eV'),
          (u'interpolated dos s', array([[...]]), u'states/eV'),
          (u'interpolated dos p', array([[...]]), u'states/eV'),
          (u'interpolated dos d', array([[...]]), u'states/eV'),
          (u'interpolated dos ns', array([[...]]), u'states/eV')]
+                                        
+    Note that the output data are 2D arrays containing the atom resolved DOS, i.e. the DOS values for all atoms in the unit cell.
     
                                         
 Example Usage
@@ -76,18 +78,39 @@ Finally we run the workflow::
     run(kkr_dos_wc, _label='test_doscal', _description='My test dos calculation.', 
         kkr=kkrcode, remote_data=kkr_remote_folder, wf_parameters=workflow_settings)
     
-The following script can be used to plot the total interpolated DOS (in ``dos_data_interpol``) of the calculation above::
+The following script can be used to plot the total interpolated DOS (in the 
+``dos_data_interpol`` output node that can for example be access using 
+``dos_data_interpol = <kkr_dos_wc-node>.out.dos_data_interpol`` where 
+``<kkr_dos_wc-node>`` is the workflow node) of the calculation above::
 
-    x = dos_data_interpol.get_x()
-    y = dos_data_interpol.get_y()[0] # tot only
+    def plot_dos(dos_data_node):
+        x = dos_data_node.get_x()
+        y_all = dos_data_node.get_y()
+        
+        from matplotlib.pylab import figure, xlabel, ylabel, axhline, axvline, plot, legend, title
+        
+        figure()
+        
+        # loop over contributions (tot, s, p, d, ns)
+        for y in y_all:
+            if y==y_all[0]: # special line formatting for total DOS
+                style = 'x-'
+                lw = 3
+            else:
+                style = '--'
+                lw = 2
+            plot(x[1][0], y[1][0], style, lw=lw, ms=6, label=y[0].split('dos ')[1])
+        
+        # add axis labels etc                                
+        xlabel(x[0]+' ({})'.format(x[-1]))                   
+        ylabel(y[0].replace(' ns','')+' ({})'.format(y[-1]))
+        axhline(0, color='grey', linestyle='dotted', zorder=-100)
+        axvline(0, color='grey', linestyle='dotted', zorder=-100)
+        legend(loc=2)
+        title('DOS of bulk Cu')
     
-    figure()
-    plot(x[1][0], y[1][0], 'x-', lw=2, ms=6)
-    xlabel(x[0]+' ({})'.format(x[-1]))
-    ylabel(y[0]+' ({})'.format(y[-1]))
-    axhline(0, color='grey')
-    axvline(0, color='grey')
-
+    plot_dos(dos_data_interpol)
+    
 which will produce the following plot:
 
 .. image:: ../images/DOS_Cu_example.png
@@ -100,51 +123,69 @@ Generate KKR start potential
 Workflow: ``kkr_startpot_wc``
 
 Inputs:
-
-::
-        
-    {'delta_e_min': 1.0, 'delta_e_min_core_states': 1.0, 'fac_cls_increase': 1.3, 
-     'walltime_sec': 3600, 'custom_scheduler_commands': '', 'check_dos': True, 
-     'use_mpi': False, 'natom_in_cls_min': 79, 'dos_params': {'emax': 1, 'tempr': 200, 
-                                                              'emin': -1, 'kmesh': [50, 50, 50], 
-                                                              'nepts': 61}, 
-     'queue_name': '', 'num_rerun': 4, 'threshold_dos_zero': 0.001, 'r_cls': 1.3, 
-     'resources': {'num_machines': 1}}
+    * ``structure`` (*StructureData*): 
+    * ``voronoi`` (*Code*): 
+    * ``kkr`` (*Code*): 
+    * ``wf_parameters`` (*ParameterData*, optional): 
+    * ``calc_parameters`` (*ParameterData*, optional): 
+    * ``_label`` (*str*, optional): 
+    * ``_description`` (*str*, optional): 
     
-     _WorkChainSpecInputs({'_label': None, '_description': None, '_store_provenance': True, 
-                          'dynamic': None, 'calc_parameters': None, 'kkr': None, 'voronoi': None, 
-                          'wf_parameters': <ParameterData: uuid: aaa6f37f-5293-4801-a0bb-672af08b6870 (unstored)>, 
-                          'structure': None})
+.. note::
+    The default values of the ``wf_parameters`` input node can be extraced using 
+    ``kkr_dos_wc.get_wf_defaults()`` and it should contain the following entries:
+    
+    General settings:
+        * ``r_cls`` (*float*): 
+        * ``natom_in_cls_min`` (*int*): 
+        * ``fac_cls_increase`` (*float*): 
+        * ``num_rerun`` (*int*): 
+        
+    Computer settings:
+        * ``walltime_sec`` (*int*): 
+        * ``custom_scheduler_commands`` (*str*): 
+        * ``use_mpi`` (*bool*): 
+        * ``queue_name`` (*str*): 
+        * ``resources`` (*dict*): ``{'num_machines': 1}``
+        
+    Settings for DOS check of starting potential:
+        * ``check_dos`` (*bool*): 
+        * ``threshold_dos_zero`` (*float*): 
+        * ``delta_e_min`` (*float*): 
+        * ``delta_e_min_core_states`` (*float*): 
+        * ``dos_params`` (*dict*): with the keys
+            * ``emax`` (*float*): 
+            * ``tempr`` (*float*): 
+            * ``emin`` (*float*): 
+            * ``kmesh`` ([*int*, *int*, *int*]): 
+            * ``nepts`` (*int*): 
 
-Outputs:
-
-::
-
-    {'last_doscal_dosdata': <XyData: uuid: d210b6fd-e415-44e2-be3d-54d16ac3c12d (pk: 22627)>,
-     'last_doscal_dosdata_interpol': <XyData: uuid: 8420c34c-2a52-446b-8da1-38d679201afa (pk: 22628)>,
-     'last_doscal_results': <ParameterData: uuid: 087efc99-f675-46d8-a577-5a7bc98144d4 (pk: 22626)>,
-     'last_params_voronoi': <ParameterData: uuid: f9e65da2-39e4-493b-ae79-88664031be50 (pk: 22610)>,
-     'last_voronoi_remote': <RemoteData: uuid: 8df1c73f-3715-4e57-9c72-67416d99bff4 (pk: 22612)>,
-     'last_voronoi_results': <ParameterData: uuid: 2c8b440e-965d-4bff-9d64-2f6f829b1694 (pk: 22614)>,
-     'results_vorostart_wc': <ParameterData: uuid: bf6e2a95-55e0-424b-a3ec-a7e821f08a34 (pk: 22629)>}
+Output nodes:
+    * ``last_doscal_dosdata`` (*XyData*): 
+    * ``last_doscal_dosdata_interpol`` (*XyData*): 
+    * ``last_doscal_results`` (*ParameterData*): 
+    * ``last_params_voronoi`` (*ParameterData*): 
+    * ``last_voronoi_remote`` (*RemoteData*): 
+    * ``last_voronoi_results`` (*ParameterData*): 
+    * ``results_vorostart_wc`` (*ParameterData*): 
 
 
                           
 Example Usage
 -------------
 
-::
+First load KKRcode and Voronoi codes::
 
     from aiida.orm import Code
     kkrcode = Code.get_from_string('KKRcode@my_mac')
     vorocode = Code.get_from_string('voronoi@my_mac')
     
-::
+Then choose some settings for the KKR specific parameters (LMAX cutoff etc.)::
 
     from aiida_kkr.tools.kkr_params import kkrparams
     kkr_settings = kkrparams(NSPIN=1, LMAX=2)
     
-::
+Now we create a structure node for the system we want to calculate::
 
     # create Copper bulk aiida Structure
     from aiida.orm import DataFactory
@@ -154,7 +195,7 @@ Example Usage
     Cu = StructureData(cell=bravais)
     Cu.append_atom(position=[0,0,0], symbols='Cu')
     
-::
+Finally we run the ``kkr_startpot_wc`` workflow (here using the defaults for the workflow settings)::
 
     from aiida_kkr.workflows.voro_start import kkr_startpot_wc
     from aiida.work import run
@@ -206,8 +247,8 @@ Outputs:
 Example Usage
 -------------
 
-Case 1: Start from structure and run voronoi calculation first 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Case 1: Start from previous calculation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ::
 
@@ -234,8 +275,8 @@ Case 1: Start from structure and run voronoi calculation first
     run(kkr_scf_wc, kkr=kkrcode, calc_parameters=ParameterData(dict=kkr_settings.get_dict()), remote_data=last_vorono_remote)
     
 
-Case 2: Start from previous KKR calculation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Case 2: Start from structure and run voronoi calculation first 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ::
 
@@ -264,14 +305,73 @@ Workflow: ``aiida_kkr.workflows.eos``
 Check KKR parameter convergence
 +++++++++++++++++++++++++++++++
 
-``aiida_kkr.workflows.check_para_convergence``
+Workflow: ``aiida_kkr.workflows.check_para_convergence``
 
 .. warning:: Not implemented yet!
+
+Idea is to run checks after convergence for the following parameters:
+    * RMAX
+    * GMAX
+    * cluster radius
+    * energy contour
+    * kmesh 
    
 
 Find magnetic ground state
 ++++++++++++++++++++++++++
 
-``aiida_kkr.workflows.check_magnetic_state``
+Workflow: ``aiida_kkr.workflows.check_magnetic_state``
 
 .. warning:: Not implemented yet!
+
+The idea is to run a Jij calculation to estimate if the ferromagnetic state is 
+the ground state or not. Then the unit cell could be doubled to compute the 
+antiferromagnetic state. In case of noncollinear magnetism the full Jij tensor 
+should be analyzed.
+
+
+Prepare KKRimp startup
+++++++++++++++++++++++
+ 
+.. warning:: Not implemented yet!
+
+Possible inputs:
+    * ``impurity_info``: i.e. scoef cluster info and Zimp etc.
+    * ``reuse_host_GF``, optional: old kkrflex files that are reused in the same cluster for a different impurity (different Zimp)
+    * ``parent_kkr_calc``: needed if host GF has to be computed, also needed to extract host systems infos
+    * ``voro_code``: needed to get starting potential from ``impurity_info`` (i.e. Zimp)
+    * ``kkr_code``: needed if host GF has to be computed
+    
+Possible output nodes:
+    * ``output_parameters`` output node with dict containing infos of workflow run
+    * ``potential_imp`` single file data needed for impurity calculation
+
+Idea of the workflow:
+    #. check if host GF is reused and verify consistency of cluster info
+    #. run host GF generation if necessary
+    #. run voronoi step for impurity starting potential (needs to create auxiliary structure first)
+    #. use ``neworder_potential_wf`` workfunction to create single file data node
+
+
+KKRimp DOS
+++++++++++
+
+.. warning:: Not implemented yet!
+
+Idea:
+    * create host GF for DOS contour if not given as input
+    * run KKRimp step with dos settings
+
+
+KKRimp self-consistency
++++++++++++++++++++++++
+
+.. warning:: Not implemented yet!
+
+Idea: 
+    #. Use KKRimp startup workflow first if no parent KKRimp calculation is given
+    #. run several steps of KKRimp until convergence
+    #. check impurity DOS
+    
+    
+    
