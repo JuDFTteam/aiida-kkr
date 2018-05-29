@@ -15,7 +15,7 @@ from aiida_kkr.tools.kkrparser_functions import parse_kkr_outputfile, check_erro
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.4"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 

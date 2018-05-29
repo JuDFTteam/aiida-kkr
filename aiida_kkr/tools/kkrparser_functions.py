@@ -431,6 +431,32 @@ def get_orbmom(outfile, natom):
     return array(result)#, vec, angles
 
 
+def get_lattice_vectors(outfile_0init):
+    """
+    read direct and reciprocal lattice vectors in internal units (useful for qdos generation)
+    """
+    f = open(outfile_0init)
+    tmptxt = f.readlines()
+    f.close()
+    vecs, rvecs = [], []
+    tmpvecs = []
+    for search_txt in ['a_1: ', 'a_2: ', 'a_3: ', 'b_1: ', 'b_2: ', 'b_3: ']:
+        itmp = search_string(search_txt, tmptxt)
+        if itmp>=0:
+            tmpvec = tmptxt[itmp].split(':')[1].split()
+            tmpvecs.append([float(tmpvec[0]), float(tmpvec[1]), float(tmpvec[1])])
+        if search_txt in ['a_3: ', 'b_3: '] and itmp<0:
+            # reset vecs for 2D case 
+            tmpvecs[0] = tmpvecs[0][:2]
+            tmpvecs[1] = tmpvecs[1][:2]
+        if search_txt=='a_3: ':
+            vecs = tmpvecs
+            tmpvecs = []
+        elif search_txt=='b_3: ':
+            rvecs = tmpvecs
+    return vecs, rvecs
+
+    
 def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file, outfile_2='output.2.txt'):
     """
     Parser method for the kkr outfile. It returns a dictionary with results
@@ -714,6 +740,16 @@ def parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_f
             msg = "Error parsing output of KKR: ewald summation for madelung poterntial"
             msg_list.append(msg)
             
+    try:
+        bv, recbv = get_lattice_vectors(outfile_0init)
+        out_dict['direct_bravais_matrix'] = bv
+        out_dict['reciprocal_bravais_matrix'] = recbv
+        out_dict['direct_bravais_matrix_unit'] = 'alat'
+        out_dict['reciprocal_bravais_matrix_unit'] = '2*pi / alat'
+    except:
+        msg = "Error parsing output of KKR: lattice vectors (direct/reciprocal)"
+        msg_list.append(msg)
+            
         
     #convert arrays to lists
     from numpy import ndarray
@@ -762,7 +798,7 @@ def check_error_category(err_cat, err_msg, out_dict):
     
         
   
-"""
+#"""
 if __name__=='__main__':
     print('run test')
     path0 = '../../../development/calc_import_test/'
@@ -773,10 +809,11 @@ if __name__=='__main__':
     timing_file = path0+'out_timing.000.txt'
     potfile_out = path0+'potential'
     nonco_out_file = path0+'nonco_angle_out.dat'
-    print('test_path: {}'.format(path0))
-    out_dict = {}
-    success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file, outfile_2)
-    out_dict['parser_warnings'] = msg_list
-    print(success)
-    print(msg_list)
+    print(get_lattice_vectors(outfile_0init))
+    #print('test_path: {}'.format(path0))
+    #out_dict = {}
+    #success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file, outfile_2)
+    #out_dict['parser_warnings'] = msg_list
+    #print(success)
+    #print(msg_list)
 #"""

@@ -20,12 +20,13 @@ from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_struct
 RemoteData = DataFactory('remote')
 ParameterData = DataFactory('parameter')
 StructureData = DataFactory('structure')
+ArrayData = DataFactory('array')
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5"
+__version__ = "0.6"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -78,6 +79,9 @@ class KkrCalculation(JobCalculation):
         self._COMPLEXDOS = 'complex.dos'
         self._DOS_ATOM = 'dos.atom%i'
         self._LMDOS = 'lmdos.%2i.%i.dat'
+        # qdos files
+        self._QVEC = 'qvec.dat'
+        self._QDOS_ATOM = 'qdos.%2i.%i.dat'
         # kkrflex files for impurity calculation
         self._KKRFLEX_GREEN = 'kkrflex_green'
         self._KKRFLEX_TMAT = 'kkrflex_tmat'
@@ -137,6 +141,13 @@ class KkrCalculation(JobCalculation):
                               "of impurity cluster in scoef file that is "
                               "automatically created).")
             },
+            "kpath": {
+                'valid_types': ArrayData,
+                'additional_parameter': None,
+                'linkname': 'kpath',
+                'docstring': ("Use a ArrayDataNode that specifies the kpath for which"
+                              "a bandstructure calculation should be performed.")
+            },
             })
         return use_dict
 
@@ -173,6 +184,13 @@ class KkrCalculation(JobCalculation):
             code = inputdict.pop(self.get_linkname('code'))
         except KeyError:
             raise InputValidationError("No code specified for this calculation")
+            
+        # get qdos inputs
+        try:
+            kpath = inputdict.pop(self.get_linkname('kpath'))
+            found_kpath = True
+        except KeyError:
+            found_kpath = False
             
         try:
             parent_calc_folder = inputdict.pop(self.get_linkname('parent_folder'))
@@ -255,27 +273,7 @@ class KkrCalculation(JobCalculation):
         # for VCA: check if input structure and parameter node define VCA structure
         vca_structure = vca_check(structure, parameters)
 
-
         ###################################
-        
-        # Check for 2D case
-        twoDimcheck, msg = check_2Dinput_consistency(structure, parameters)
-        if not twoDimcheck:
-            raise InputValidationError(msg)
-            
-        # set shapes array either from parent voronoi run or read from inputcard in kkrimporter calculation
-        if parent_calc.get_parser_name() != 'kkr.kkrimporterparser':
-            # get shapes array from voronoi parent
-            shapes = voro_parent.res.shapes
-        else:
-            # extract shapes from input parameters node constructed by kkrimporter calculation
-            shapes = voro_parent.inp.parameters.get_dict().get('<SHAPE>')
-        
-        # Prepare inputcard from Structure and input parameter data
-        input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
-        
-        use_alat_input = parameters.get_dict().get('use_input_alat', False)
-        natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
         
         # prepare scoef file if impurity_info was given
         write_scoef = False
@@ -291,7 +289,7 @@ class KkrCalculation(JobCalculation):
             write_scoef = True
             runopt = parameters.get_dict().get('RUNOPT', [])
             runopt.append('KKRFLEX')
-            parameters = update_params_wf(parameters, ParameterData(dict={'RUNOPT':runopt, 'nodename': '', 'nodedesc':''}))
+            parameters = update_params_wf(parameters, ParameterData(dict={'RUNOPT':runopt, 'nodename': 'update_KKRFLEX', 'nodedesc':'Update Parameter node with KKRFLEX runopt'}))
         if found_imp_info and write_scoef:
             # TODO check completeness of impurity info!
             # TODO implement this!
@@ -318,7 +316,66 @@ class KkrCalculation(JobCalculation):
             self.logger.info('Need to write scoef file but no impurity_info given!')
             raise ValidationError('Found RUNOPT KKRFLEX but no impurity_info in inputs')
 
+        # qdos option, ensure low T, E-contour, qdos run option and write qvec.dat file
+        if found_kpath:
+            # check qdos settings
+            change_values = []
+            runopt = parameters.get_dict().get('RUNOPT')
+            if runopt is None: runopt = []
+            runopt = [i.strip() for i in runopt]
+            if 'qdos' not in runopt:
+                runopt.append('qdos')
+                change_values.append(['RUNOPT', runopt])
+            tempr = parameters.get_dict().get('TEMPR')
+            if tempr>100.:
+                change_values.append(['TEMPR', 50.])
+            N1 = parameters.get_dict().get('TEMPR')
+            if N1>0:
+                change_values.append(['NPT1', 0])
+            N2 = parameters.get_dict().get('NPT2')
+            if N2 is None:
+                change_values.append(['NPT2', 100])
+            N3 = parameters.get_dict().get('NPT3')
+            if N3>0.:
+                change_values.append(['NPT3', 0])
+            NPOL = parameters.get_dict().get('NPOL')
+            if NPOL>0.:
+                change_values.append(['NPOL', 0])
+            if change_values != []:
+                new_params = {'nodename': 'changed_params_qdos', 'nodedesc': 'Changed parameters to mathc qdos mode. Changed values: {}'.format(change_values)}
+                for key, val in change_values:
+                    new_params[key] = val
+                new_params_node = ParameterData(dict=new_params)
+                parameters = update_params_wf(parameters, new_params_node)
+            # write qvec.dat file
+            if 'kpath' not in kpath.get_arraynames():
+                raise InputValidationError("kpath input node needs to contain an array called 'kpath'")
+            kpath_array = kpath.get_array('kpath')
+            qvec = ['%i\n'%len(kpath_array)]
+            qvec+=['%e %e %e\n'%(kpt[0], kpt[1], kpt[2]) for kpt in kpath_array]
+            qvecpath = tempfolder.get_abs_path(self._QVEC)
+            with open(qvecpath, 'w') as file:
+                file.writelines(qvec)
+        
+        # Check for 2D case
+        twoDimcheck, msg = check_2Dinput_consistency(structure, parameters)
+        if not twoDimcheck:
+            raise InputValidationError(msg)
             
+        # set shapes array either from parent voronoi run or read from inputcard in kkrimporter calculation
+        if parent_calc.get_parser_name() != 'kkr.kkrimporterparser':
+            # get shapes array from voronoi parent
+            shapes = voro_parent.res.shapes
+        else:
+            # extract shapes from input parameters node constructed by kkrimporter calculation
+            shapes = voro_parent.inp.parameters.get_dict().get('<SHAPE>')
+        
+        # Prepare inputcard from Structure and input parameter data
+        input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
+        
+        use_alat_input = parameters.get_dict().get('use_input_alat', False)
+        natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
+        
 
         #################
         # Decide what files to copy based on settings to the code (e.g. KKRFLEX option needs scoef)
@@ -440,7 +497,6 @@ class KkrCalculation(JobCalculation):
                 add_files.append(self._DOS_ATOM%(iatom+1))
                 for ispin in range(nspin):
                     add_files.append((self._LMDOS%(iatom+1, ispin+1)).replace(' ','0'))
-            print(add_files)
             calcinfo.retrieve_list += add_files
             
         # 2. KKRFLEX calculation
@@ -454,6 +510,22 @@ class KkrCalculation(JobCalculation):
         if retrieve_kkrflex_files:
             add_files = self._ALL_KKRFLEX_FILES
             print('adding files for KKRFLEX output', add_files)
+            calcinfo.retrieve_list += add_files
+            
+        # 3. qdos claculation
+        retrieve_qdos_files = False
+        if 'RUNOPT' in  parameters.get_dict().keys():
+            runopts = parameters.get_dict()['RUNOPT']
+            if runopts is not None :
+                stripped_run_opts = [i.strip() for i in runopts]
+                if 'qdos' in stripped_run_opts:
+                    retrieve_qdos_files = True
+        if retrieve_qdos_files:
+            print('adding files for qdos output', self._QDOS_ATOM, self._QVEC)
+            add_files = [self._QVEC]
+            for iatom in range(natom):
+                for ispin in range(nspin):
+                    add_files.append((self._QDOS_ATOM%(iatom+1, ispin+1)).replace(' ','0'))
             calcinfo.retrieve_list += add_files
             
 
