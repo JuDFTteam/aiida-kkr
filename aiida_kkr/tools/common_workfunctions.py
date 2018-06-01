@@ -17,6 +17,9 @@ from aiida_kkr.tools.kkr_params import kkrparams
 #define aiida structures from DataFactory of aiida
 ParameterData = DataFactory('parameter')
 
+# keys that are used by aiida-kkr some something else than KKR parameters
+_ignored_keys = ['ef_set', 'use_input_alat']
+
 @wf
 def update_params_wf(parameternode, updatenode):
     """
@@ -87,7 +90,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
     
     # check if input dict contains only values for KKR parameters
     for key in inp_params:
-        if key not in params.values.keys():
+        if key not in params.values.keys() and key not in _ignored_keys:
             print('Input node contains unvalid key "{}"'.format(key))
             raise InputValidationError('unvalid key "{}" in input parameter node'.format(key))
     
@@ -332,7 +335,7 @@ def get_parent_paranode(remote_data):
     return inp_para
 
 
-def generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc=None, shapes=None, isvoronoi=False, use_input_alat=False):
+def generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc=None, shapes=None, isvoronoi=False, use_input_alat=False, vca_structure=False):
     """
     Takes information from parameter and structure data and writes input file 'input_filename'
     
@@ -396,22 +399,52 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
         sitekind = structure.get_kind(site.kind_name)
         for ikind in range(len(sitekind.symbols)):
             site_symbol = sitekind.symbols[ikind]
-            if not sitekind.has_vacancies():
-                charges.append(_atomic_numbers[site_symbol])
-            else:
-                charges.append(0.0)
-            #TODO deal with VCA case
             if sitekind.is_alloy():
-                weights.append(sitekind.weights[ikind])
+                wght = sitekind.weights[ikind]
             else:
-                weights.append(1.)
-            
-            isitelist.append(isite)
+                wght = 1.
+            if not sitekind.has_vacancies():
+                zatom_tmp = _atomic_numbers[site_symbol]
+            else:
+                zatom_tmp = 0.0
+            if vca_structure and ikind>0 and not isvoronoi:
+                print(site)
+                print(ikind)
+                print(zatom_tmp)
+                print(wght)
+                print(zatom)
+                print(wght_last)
+                # for VCA case take weighted average (only for KKR code, voronoi code uses zatom of first site for dummy calculation)
+                zatom  = zatom*wght_last + zatom_tmp*wght
+                # also reset weight to 1
+                wght = 1.
+            else:
+                zatom = zatom_tmp
+                if vca_structure and isvoronoi:
+                    wght = 1.
+                    
+            wght_last = wght # for VCA mode
+                
+            # make sure that for VCA only averaged position is written (or first for voronoi code)
+            if ( (vca_structure and ((len(sitekind.symbols)==1) or 
+                                     (not isvoronoi and ikind==1) or 
+                                     (isvoronoi and ikind==0))) 
+                 or (not vca_structure) ):
+                charges.append(zatom)
+                weights.append(wght)
+                isitelist.append(isite)
     
     weights = array(weights)
     isitelist = array(isitelist)
     charges = array(charges)
     positions = array(positions)
+    
+    # workaround for voronoi calculation with Zatom=83 (Bi potential not there!)
+    if isvoronoi:
+        from numpy import where
+        mask_replace_Bi_Pb = where(charges==83)
+        charges[mask_replace_Bi_Pb] = 82
+        print('WARNING: Bi potential not available, using Pb instead!!!')
         
 
     ######################################
@@ -419,6 +452,12 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     
     # get parameter dictionary
     input_dict = parameters.get_dict()
+    
+    # remove special keys that are used for special cases but are not part of the KKR parameter set
+    for key in _ignored_keys:
+        if input_dict.get(key) is not None:
+            print('WARNING: automatically removing value of key', key)
+            input_dict.pop(key)
     
     # get rid of structure related inputs that are overwritten from structure input
     for key in ['BRAVAIS', 'ALATBASIS', 'NAEZ', '<ZATOM>', '<RBASIS>', 'CARTESIAN']:
@@ -544,7 +583,7 @@ def structure_from_params(parameters):
     """
     from aiida_kkr.tools.common_functions import get_aBohr2Ang
     from aiida.common.constants import elements as PeriodicTableElements
-    from numpy import array, shape
+    from numpy import array
     StructureData = DataFactory('structure')
     
     is_complete = True 
@@ -621,6 +660,179 @@ def structure_from_params(parameters):
         
     # finally return structure
     return is_complete, struc
+    
+@wf
+def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, parent_calc_folder2=None):
+    """
+    Workfunction to create database structure for aiida_kkr.tools.modify_potential.neworder_potential function
+    A temporary file is written in a Sandbox folder on the computer specified via 
+    the input computer node before the output potential is stored as SingleFileData 
+    in the Database.
+    
+    :param settings_node: settings for the neworder_potentail function (ParameterData)
+    :param parent_calc_folder: parent calculation remote folder node where the input 
+        potential is retreived from (RemoteData)
+    :param parent_calc_folder2: *optional*, parent calculation remote folder node where 
+        the second input potential is retreived from in case 'pot2' and 'replace_newpos' 
+        are also set in settings_node (RemoteData)
+    
+    :returns: output_potential node (SingleFileData) 
+        
+    .. note::
+        
+        The settings_node dictionary needs to be of the following form::
+            
+            settings_dict = {'pot1': '<filename_input_potential>',  'out_pot': '<filename_output_potential>', 'neworder': [list of intended order in output potential]} 
+        
+        Optional entries are::
+            
+            'pot2': '<filename_second_input_file>'
+            'replace_newpos': [[position in neworder list which is replace with potential from pot2, position in pot2 that is chosen for replacement]]
+            'label': 'label_for_output_node'
+            'description': 'longer_description_for_output_node'
+    """
+    import os
+    from aiida_kkr.tools.tools_kkrimp import modify_potential
+    from aiida.common.folders import SandboxFolder
+    from aiida.common.exceptions import UniquenessError
+    from aiida.orm.calculation.job import JobCalculation
+    from aiida.orm import DataFactory
+    
+    if 'parent_calc_folder2' in kwargs.keys():
+        parent_calc_folder2=kwargs.get('parent_calc_folder2', None)
+    else:
+        parent_calc_folder2=None
+    
+    # get aiida data types used here
+    ParameterData = DataFactory('parameter')
+    RemoteData = DataFactory('remote')
+    SingleFileData = DataFactory('singlefile')
+    
+    # check input consistency
+    if not isinstance(settings_node, ParameterData):
+        raise InputValidationError('settings_node needs to be a valid aiida ParameterData node')
+    if not isinstance(parent_calc_folder, RemoteData):
+        raise InputValidationError('parent_calc_folder needs to be a valid aiida RemoteData node')
+    if parent_calc_folder2 is not None and not isinstance(parent_calc_folder2, RemoteData):
+        raise InputValidationError('parent_calc_folder2 needs to be a valid aiida RemoteData node')
+    
+    settings_dict = settings_node.get_dict()
+    pot1 = settings_dict.get('pot1', None)
+    if pot1 is None:
+        raise InputValidationError('settings_node_dict needs to have key "pot1" containing the filename of the input potential')
+    out_pot = settings_dict.get('out_pot', None)
+    if out_pot is None:
+        raise InputValidationError('settings_node_dict needs to have key "out_pot" containing the filename of the input potential')
+    neworder = settings_dict.get('neworder', None)
+    if neworder is None:
+        raise InputValidationError('settings_node_dict needs to have key "neworder" containing the list of new positions')
+    pot2 = settings_dict.get('pot2', None)
+    replace_newpos = settings_dict.get('replace_newpos', None)
+    
+    # Create Sandbox folder for generation of output potential file
+    # and construct output potential
+    with SandboxFolder() as tempfolder:
+        # Get abolute paths of input files from parent calc and filename
+        parent_calcs = parent_calc_folder.get_inputs(node_type=JobCalculation)
+        n_parents = len(parent_calcs)
+        if n_parents != 1:
+            raise UniquenessError(
+                    "Input RemoteData is child of {} "
+                    "calculation{}, while it should have a single parent"
+                    "".format(n_parents, "" if n_parents == 0 else "s"))
+        else:
+            parent_calc = parent_calcs[0]
+        remote_path = parent_calc.out.retrieved.get_abs_path('')
+        pot1_path = os.path.join(remote_path, pot1)
+        
+        # extract nspin from parent calc's input parameter node
+        nspin = parent_calc.inp.parameters.get_dict().get('NSPIN')
+        neworder_spin = []
+        for iatom in neworder:
+            for ispin in range(nspin):    
+                neworder_spin.append(iatom*nspin+ispin)
+        neworder = neworder_spin
+            
+        # Copy optional files?
+        if pot2 is not None and parent_calc_folder2 is not None:
+            parent_calcs = parent_calc_folder2.get_inputs(node_type=JobCalculation)
+            n_parents = len(parent_calcs)
+            if n_parents != 1:
+                raise UniquenessError(
+                        "Input RemoteData of parent_calc_folder2 is child of {} "
+                        "calculation{}, while it should have a single parent"
+                        "".format(n_parents, "" if n_parents == 0 else "s"))
+            else:
+                parent_calc = parent_calcs[0]
+            remote_path = parent_calc.out.retrieved.get_abs_path('')
+            pot2_path = os.path.join(remote_path, pot2)
+        else:
+            pot2_path = None
+            
+        # change file path to Sandbox folder accordingly
+        out_pot_path = tempfolder.get_abs_path(out_pot)
+        
+        # run neworder_potential function
+        modify_potential().neworder_potential(pot1_path, out_pot_path, neworder, potfile_2=pot2_path, 
+                                              replace_from_pot2=replace_newpos)
+        
+        # store output potential to SingleFileData
+        output_potential_sfd_node = SingleFileData(file=out_pot_path)
+        
+        lbl = settings_dict.get('label', None)
+        if lbl is not None:
+            output_potential_sfd_node.label = lbl
+        desc = settings_dict.get('description', None)
+        if desc is not None:
+            output_potential_sfd_node.description = desc
+            
+        #TODO create shapefun sfd node accordingly
+        """
+        out_shape_path = 
+        
+        output_shapefun_sfd_node = SingleFileData(file=out_shape_path)
+        
+        lbl2 = settings_dict.get('label_shape', None)
+        if lbl2 is None and lbl is not None:
+            lbl2 = lbl
+        if lbl2 is not None:
+            output_shapefun_sfd_node.label = lbl2
+        desc2 = settings_dict.get('description_shape', None)
+        if desc2 is None and desc is not None:
+            desc2 = desc
+        if desc2 is not None:
+            output_shapefun_sfd_node.description = desc2
+        
+        return output_potential_sfd_node, output_shapefun_sfd_node
+        """
+        return output_potential_sfd_node
+    
+        
+        
+def vca_check(structure, parameters):
+    """
+    
+    """
+    nsites = 0
+    for site in structure.sites:
+        sitekind = structure.get_kind(site.kind_name)
+        nsites += len(sitekind.symbols)
+    # VCA mode if CPAINFO = [-1,-1] first 
+    try:
+        if parameters.get_dict().get('CPAINFO')[0]<0:
+            params_vca_mode= True
+        else:
+            params_vca_mode = False
+    except:
+        params_vca_mode = False
+    # check if structure supports VCA mode
+    vca_structure = False
+    if params_vca_mode:
+        if nsites>len(structure.sites):
+            vca_structure = True
+            
+    return vca_structure
+    
  
 '''
 if __name__=='__main__':

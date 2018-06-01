@@ -11,7 +11,7 @@ if __name__=='__main__':
         
         
 
-from aiida.orm import Code, DataFactory
+from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, if_, ToContext
 from aiida.work.run import submit
 from aiida.work import workfunction as wf
@@ -19,13 +19,18 @@ from aiida.work.process_registry import ProcessRegistry
 from aiida_kkr.tools.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
+from aiida_kkr.calculations.voro import VoronoiCalculation
+from aiida.orm.calculation.job import JobCalculation
 from aiida.common.datastructures import calc_states
+from aiida.orm import WorkCalculation
+from aiida.common.exceptions import InputValidationError
+
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.4"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -168,6 +173,25 @@ class kkr_dos_wc(WorkChain):
             self.control_end_wc(error)
             input_ok = False
         
+        # extract correct remote folder of last calculation if input remote_folder node is not from KkrCalculation but kkr_scf_wc workflow
+        input_remote = self.inputs.remote_data
+        # check if input_remote has single KkrCalculation parent
+        parents = input_remote.get_inputs(node_type=JobCalculation)
+        nparents = len(parents)
+        if nparents!=1:
+            # extract parent workflow and get uuid of last calc from output node
+            parent_workflow = input_remote.inp.last_RemoteData
+            if not isinstance(parent_workflow, WorkCalculation):
+                raise InputValidationError("Input remote_data node neither output of a KKR/voronoi calculation nor of kkr_scf_wc workflow")
+            parent_workflow_out = parent_workflow.out.output_kkr_scf_wc_ParameterResults
+            uuid_last_calc = parent_workflow_out.get_dict().get('last_calc_nodeinfo').get('uuid')
+            last_calc = load_node(uuid_last_calc)
+            if not isinstance(last_calc, KkrCalculation) and not isinstance(last_calc, VoronoiCalculation):
+                raise InputValidationError("Extracted last_calc node not of type KkrCalculation: check remote_data input node")
+            # overwrite remote_data node with extracted remote folder
+            output_remote = last_calc.out.remote_folder
+            self.inputs.remote_data = output_remote
+        
         if 'kkr' in inputs:
             try:
                 test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
@@ -203,11 +227,25 @@ class kkr_dos_wc(WorkChain):
             self.control_end_wc(error)
             
         # step 2: check if all mandatory keys are there
+        label = ''
+        descr = ''
         missing_list = para_check.get_missing_keys(use_aiida=True)
         if missing_list != []:
-            error = 'ERROR: calc_parameters misses keys: {}'.format(missing_list)
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
+            kkrdefaults = kkrparams.get_KKRcalc_parameter_defaults()[0]
+            kkrdefaults_updated = []
+            for key_default, val_default in kkrdefaults.items():
+                if key_default in missing_list:
+                    para_check.set_value(key_default, kkrdefaults.get(key_default), silent=True)
+                    kkrdefaults_updated.append(key_default)
+                    missing_list.remove(key_default)
+            if len(missing_list)>0:
+                error = 'ERROR: calc_parameters misses keys: {}'.format(missing_list)
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
+            else:
+                self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
+                label = 'add_defaults_'
+                descr = 'added missing default keys, '
             
         # overwrite energy contour to DOS contour no matter what is in input parameter node. 
         # Contour parameter given as input to workflow.
@@ -236,8 +274,8 @@ class kkr_dos_wc(WorkChain):
             self.control_end_wc(error)
         
         updatenode = ParameterData(dict=para_check.get_dict())
-        updatenode.label = 'KKR parameter for DOS contour'
-        updatenode.description = 'KKR parameter node extracted from parent parameters and wf_parameter input node.'
+        updatenode.label = label+'KKRparam_DOS'
+        updatenode.description = descr+'KKR parameter node extracted from parent parameters and wf_parameter input node.'
         
         paranode_dos = update_params_wf(self.ctx.input_params_KKR, updatenode)
         self.ctx.dos_kkrparams = paranode_dos

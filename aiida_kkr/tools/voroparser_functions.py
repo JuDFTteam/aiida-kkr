@@ -177,8 +177,14 @@ def parse_voronoi_output(out_dict, outfile, potfile, atominfo, radii, inputfile)
         out_dict['alat_unit'] = 'a_Bohr'
     except:
         msg = "Error parsing output of voronoi: alat"
-        msg_list.append(msg)
+        msg_list.append(msg)   
         
+    try:
+        result = get_radial_meshpoints(potfile)
+        out_dict['radial_meshpoints'] = result
+    except:
+        msg = "Error parsing output of voronoi: radial meshpoints"
+        msg_list.append(msg)
         
     # some consistency checks comparing lists with natyp/naez numbers
     #TODO implement checks
@@ -338,4 +344,18 @@ def get_alat(inpfile):
     result = float(txt[itmp].split('ALATBASIS')[1].split('=')[1].split()[0])
     return result
     
+
+def get_radial_meshpoints(potfile):
+    f = open(potfile)
+    txt = f.readlines()
+    f.close()
+    itmp = 0
+    result = []
+    while itmp >= 0:
+        itmp = search_string('exc:', txt)
+        if itmp >= 0:
+            txt.pop(itmp)# remove header line
+            tmp = txt.pop(itmp+3) # extract meshpoints
+            result.append(float(tmp))
+    return result
     

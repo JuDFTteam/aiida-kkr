@@ -8,20 +8,21 @@ from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.orm import DataFactory
-from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency
+from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency, vca_check
 from aiida.common.exceptions import UniquenessError
 import os
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4"
+__version__ = "0.5"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
 ParameterData = DataFactory('parameter')
 StructureData = DataFactory('structure')
 RemoteData = DataFactory('remote')
+SingleFileData = DataFactory('singlefile')
 
 class VoronoiCalculation(JobCalculation):
     """
@@ -92,6 +93,13 @@ class VoronoiCalculation(JobCalculation):
                 'docstring':
                 ("Use a node that specifies a parent KKR calculation ")
                 },
+            "potential_overwrite": {
+                'valid_types': SingleFileData,
+                'additional_parameter': None,
+                'linkname': 'potential_overwrite',
+                'docstring':
+                ("Use a node that specifies the potential which is used instead of the voronoi output potential ")
+                },
             })
         return use_dict
 
@@ -120,11 +128,13 @@ class VoronoiCalculation(JobCalculation):
         except KeyError:
             found_structure = False
         
+        vca_structure = False
         if found_structure:
             if not isinstance(structure, StructureData):
                 raise InputValidationError("structure not of type "
                                             "StructureData")
-        
+            # for VCA: check if input structure and parameter node define VCA structure
+            vca_structure = vca_check(structure, parameters)        
         try:
             code = inputdict.pop(self.get_linkname('code'))
         except KeyError:
@@ -146,16 +156,37 @@ class VoronoiCalculation(JobCalculation):
             overwrite_potential, parent_calc = self._check_valid_parent(parent_calc_folder)
             
             #cross check if no structure was given and extract structure from parent
-            if found_structure:
+            if found_structure and not vca_structure:
                 raise InputValidationError("parent_KKR and structure found in input. "
                                            "Can only use either parent_KKR or structure in input.")   
             else:
-                structure, voro_parent = self.find_parent_structure(parent_calc)
+                structure_remote_KKR, voro_parent = self.find_parent_structure(parent_calc)
+                if not vca_structure:
+                    structure = structure_remote_KKR
+                else:
+                    # check consistency of input vca structure and structure  from remote KKR folder
+                    # TODO check consistency
+                    pass
         else:
             overwrite_potential = False
             if not found_structure:
-                raise InputValidationError("Neither structure not parent_KKR specified for this "
+                raise InputValidationError("Neither structure nor parent_KKR specified for this "
                                            "calculation")
+                
+        # check if overwrite potential is given explicitly
+        try:
+            potfile_overwrite = inputdict.pop(self.get_linkname('potential_overwrite'))
+            has_potfile_overwrite = True
+        except KeyError:
+            has_potfile_overwrite = False
+            
+        if has_potfile_overwrite:
+            overwrite_potential = True
+            if not isinstance(potfile_overwrite, SingleFileData):
+                raise InputValidationError("potfile_overwrite must be of type SingleFileData")       
+            if not found_structure:
+                raise InputValidationError("Input structure needed for this calculation "
+                                           "(using 'potential_overwrite' input node)")
             
         # finally check if something else was given as input (should not be the case)
         if inputdict:
@@ -171,31 +202,31 @@ class VoronoiCalculation(JobCalculation):
         # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
         try:
-            natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename, isvoronoi=True)
+            use_alat_input = parameters.get_dict().get('use_input_alat', False)
+            natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename, isvoronoi=True, vca_structure=vca_structure, use_input_alat=use_alat_input)
         except ValueError as e:
             raise InputValidationError("Input ParameterData not consistent: {}".format(e))
             
-           
-        local_copy_list = []
-        
         # Decide what files to copy
+        local_copy_list = []
         if overwrite_potential:
             # copy the right files #TODO check first if file, exists and throw
             # warning, now this will throw an error
-            outfolderpath = parent_calc.out.retrieved.folder.abspath
-            self.logger.info("out folder path {}".format(outfolderpath))
-            
-            copylist = []
-            if self._is_KkrCalc(parent_calc):
-                copylist = [parent_calc._OUT_POTENTIAL]              
+            if found_parent and self._is_KkrCalc(parent_calc):
+                outfolderpath = parent_calc.out.retrieved.folder.abspath
+                self.logger.info("out folder path {}".format(outfolderpath))
+                filename = os.path.join(outfolderpath, 'path', parent_calc._OUT_POTENTIAL)
+                copylist = [filename]   
+            elif has_potfile_overwrite:
+                copylist = [potfile_overwrite.get_file_abs_path()]
+            else:
+                copylist = []
             
             for file1 in copylist:
                 filename = file1
-                if file1 == parent_calc._OUT_POTENTIAL:
+                if (found_parent or has_potfile_overwrite) and file1 == copylist[0]:
                     filename = self._POTENTIAL_IN_OVERWRITE
-                local_copy_list.append((
-                        os.path.join(outfolderpath, 'path', file1),
-                        os.path.join(filename)))
+                local_copy_list.append((file1, filename))
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()

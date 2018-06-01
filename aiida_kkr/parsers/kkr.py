@@ -10,12 +10,12 @@ from aiida.orm.data.parameter import ParameterData
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida.common.exceptions import InputValidationError
 from aiida_kkr.tools.kkrparser_functions import parse_kkr_outputfile, check_error_category
-
+from aiida_kkr.tools.common_functions import search_string
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.5"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -29,6 +29,7 @@ class KkrParser(Parser):
         Initialize the instance of KkrParser
         """
         
+        # needed for KKRimporter parser
         self.icrit = 0
     
         # check for valid input
@@ -133,13 +134,23 @@ class KkrParser(Parser):
                     'calculation_plugin_version': self._calc._CALCULATION_PLUGIN_VERSION}
         
         #TODO job title, compound description
+        
+        # determine wether or not everything is parsed or not (e.g. qdos option)
+        skip_mode = False
+        with open(self._calc._INPUT_FILE_NAME) as file:
+            txt = file.readlines()
+            itmp = search_string('RUNOPT', txt)
+            if itmp>=0:
+                runopts = [i.strip() for i in txt[itmp].split()]
+                if 'qdos' in runopts:
+                    skip_mode = True
+            
+        
         success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, 
-                                                           outfile_0init, 
-                                                           outfile_000, 
-                                                           timing_file, 
-                                                           potfile_out,
-                                                           nonco_out_file,
-                                                           outfile_2)
+                                                           outfile_0init, outfile_000, 
+                                                           timing_file, potfile_out,
+                                                           nonco_out_file, outfile_2,
+                                                           skip_readin=skip_mode)
         
         # try to parse with other combinations of files to minimize parser errors
         if self.icrit != 0:
@@ -147,7 +158,8 @@ class KkrParser(Parser):
             # try second combination of files
             out_dict2 = out_dict.copy()
             success2, msg_list2, out_dict2 = parse_kkr_outputfile(out_dict2, outfile_2, 
-                outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file, outfile_2)
+                outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file, 
+                outfile_2, skip_readin=skip_mode)
             self.logger.info('msg_list1: {}'.format(msg_list2))
             if len(msg_list2)<len(msg_list): # overwrite parser outputs if less errors
                 self.logger.info('take output of parser run 1')
@@ -155,7 +167,8 @@ class KkrParser(Parser):
             # try third combination of files
             out_dict2 = out_dict.copy()
             success2, msg_list2, out_dict2 = parse_kkr_outputfile(out_dict2, outfile_000, 
-                outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file, outfile_2)
+                outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file, 
+                outfile_2, skip_readin=skip_mode)
             self.logger.info('msg_list2: {}'.format(msg_list2))
             if len(msg_list2)<len(msg_list): # overwrite parser outputs if less errors
                 self.logger.info('take output of parser run 2')

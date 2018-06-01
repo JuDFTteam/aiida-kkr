@@ -6,14 +6,8 @@ some helper methods to do so with AiiDA
 """
 
 from aiida.orm import Code, DataFactory
-from aiida.work.workchain import WorkChain, while_, if_, ToContext
-from aiida.work.run import submit, run
-from aiida.work import workfunction as wf
-from aiida.work.process_registry import ProcessRegistry
-from aiida.common.datastructures import calc_states
+from aiida.work.workchain import WorkChain, while_
 from aiida_kkr.calculations.kkr import KkrCalculation
-from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida_kkr.tools.kkr_params import kkrparams
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "

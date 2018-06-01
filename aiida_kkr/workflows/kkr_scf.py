@@ -24,7 +24,7 @@ from numpy import array, where, ones
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5"
+__version__ = "0.6"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -120,7 +120,11 @@ class kkr_scf_wc(WorkChain):
                    'mag_init' : False,                        # initialize and converge magnetic calculation
                    'hfield' : 0.02, # Ry                      # external magnetic field used in initialization step
                    'init_pos' : None,                         # position in unit cell where magnetic field is applied [default (None) means apply to all]
-                   'retreive_dos_data_scf_run' : False        # add DOS to testopts and retrieve dos.atom files in each scf run
+                   'retreive_dos_data_scf_run' : False,       # add DOS to testopts and retrieve dos.atom files in each scf run
+                   # parameters passed on to vorostart 
+                   'fac_cls_increase' : 1.3,                  # factor by which the screening cluster is increased each iteration (up to num_rerun times)
+                   'r_cls' : 1.3, # alat                      # default cluster radius, is increased iteratively
+                   'natom_in_cls_min' : 79                    # minimum number of atoms in screening cluster
                    }
 
     # intended to guide user interactively in setting up a valid wf_params node
@@ -406,7 +410,27 @@ class kkr_scf_wc(WorkChain):
         if 'calc_parameters' in self.inputs:
             params = self.inputs.calc_parameters
         else:
-            params = None # TODO: use defaults?
+            params = None 
+            
+        # check if default values are missing and set appropriately from defaults
+        defaults, version = kkrparams.get_KKRcalc_parameter_defaults()
+        if params is None:
+            params = ParameterData(dict=defaults)
+            params.label = 'default values'
+        newparams = {}
+        for key, val in defaults.iteritems():
+            if params.get_dict().get(key, None) is None:
+                if key != 'RCLUSTZ': # this one is automatically set by kkr_startpot_wc so we skip it here
+                    newparams[key] = val
+                    self.report("INFO: Automatically added default values to KKR parameters: {} {}".format(key, val))
+        if newparams!={}:
+            for key, val in params.get_dict().iteritems():
+                if val is not None:
+                    newparams[key] = val
+            updatenode = ParameterData(dict=newparams)
+            updatenode.label = 'added defaults to KKR input parameter'
+            updatenode.description = 'Overwritten KKR input parameter to correct missing default values automatically'
+            params = update_params_wf(params, updatenode)
             
         # set nspin to 2 if mag_init is used
         if self.ctx.mag_init:
@@ -622,12 +646,24 @@ class kkr_scf_wc(WorkChain):
             for key, val in input_dict.iteritems():
                 para_check.set_value(key, val, silent=True)
 
-            # step 1.2: check if all mandatory keys are there
+            # init new_params dict where updated params are collected
+            new_params = {}
+            
+            # step 1.2: check if all mandatory keys are there and add defaults if missing
             missing_list = para_check.get_missing_keys(use_aiida=True)
             if missing_list != []:
-                error = 'ERROR: calc_parameters misses keys: {}'.format(missing_list)
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+                kkrdefaults = kkrparams.get_KKRcalc_parameter_defaults()[0]
+                kkrdefaults_updated = []
+                for key_default, val_default in kkrdefaults.items():
+                    if key_default in missing_list:
+                        new_params[key_default] = kkrdefaults.get(key_default)
+                        kkrdefaults_updated.append(key_default)
+                if len(kkrdefaults_updated)>0:
+                    error = 'ERROR: calc_parameters misses keys: {}'.format(missing_list)
+                    self.ctx.errors.append(error)
+                    self.control_end_wc(error)
+                else:
+                    self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
 
             # step 2: change parameter (contained in new_params dictionary)
             last_mixing_scheme = para_check.get_value('IMIX')
@@ -639,7 +675,7 @@ class kkr_scf_wc(WorkChain):
             nsteps = self.ctx.nsteps
 
             # add number of scf steps
-            new_params = {'NSTEPS':nsteps}
+            new_params['NSTEPS'] = nsteps
 
             # step 2.1 fill new_params dict with values to be updated
             if decrease_mixing_fac:
@@ -838,10 +874,10 @@ class kkr_scf_wc(WorkChain):
         self.report("INFO: kkr_converged: {}".format(self.ctx.kkr_converged))
         self.report("INFO: rms: {}".format(self.ctx.rms))
         self.report("INFO: last_rms_all: {}".format(self.ctx.last_rms_all))
-        self.report("INFO: rms_all_steps: {}".format(self.ctx.rms_all_steps))
+        #self.report("INFO: rms_all_steps: {}".format(self.ctx.rms_all_steps))
         self.report("INFO: charge_neutrality: {}".format(self.ctx.neutr))
         self.report("INFO: last_neutr_all: {}".format(self.ctx.last_neutr_all))
-        self.report("INFO: neutr_all_steps: {}".format(self.ctx.neutr_all_steps))
+        #self.report("INFO: neutr_all_steps: {}".format(self.ctx.neutr_all_steps))
         
         # turn off initial magnetization once one step was successful (update_kkr_params) used in
         if self.ctx.mag_init and self.ctx.kkr_step_success:
@@ -1188,9 +1224,14 @@ class kkr_scf_wc(WorkChain):
             # step 2: check if all mandatory keys are there
             missing_list = para_check.get_missing_keys(use_aiida=True)
             if missing_list != []:
-                error = 'ERROR: calc_parameters given are not consistent! Missing mandatory keys: {}'.format(missing_list)
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+                all_defaults = True
+                for key in missing_list:
+                    if key not in kkrparams.get_KKRcalc_parameter_defaults()[0]:
+                        all_defaults = False
+                if not all_defaults:
+                    error = 'ERROR: calc_parameters given are not consistent! Missing mandatory keys: {}'.format(missing_list)
+                    self.ctx.errors.append(error)
+                    self.control_end_wc(error)
 
 
     def get_dos(self):

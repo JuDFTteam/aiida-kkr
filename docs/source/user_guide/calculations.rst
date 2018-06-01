@@ -106,6 +106,9 @@ then set structure and input parameter::
 
     voro_calc.use_structure(Cu)
     voro_calc.use_parameters(ParaNode)
+    
+.. note:: If you use a computer without a default queue you need to set the name of the queue as well:
+    ``voro_calc.set_queue_name('th1')``
 
 
 Now we are ready to submit the calculation. For that we first need to store the 
@@ -167,6 +170,9 @@ for a KKR calculation and fill the already set values from the previous voronoin
     # set the missing values
     params.set_multiple_values(RMAX=7., GMAX=65.)
     
+    # choose 20 simple mixing iterations first to preconverge potential (here 5% simple mixing)
+    params.set_multiple_values(NSTEPS=20, IMIX=0, STRMIX=0.05)
+    
     # create aiida ParameterData node from the KKR parameters
     ParaNode = ParameterData(dict=params.get_dict())
 
@@ -188,6 +194,8 @@ We can then run the KKR calculation by again storing the input nodes and submit 
     kkr_calc.submit()
         
 
+.. _KKR_KKR_scf:
+
 Continue KKR calculation from KKR parent calculation
 ----------------------------------------------------
 
@@ -207,7 +215,8 @@ then set input nodes for calculation::
 
     kkr_calc_continued.use_code(code)
     kkr_calc_continued.use_parameters(ParaNode)
-    kkr_calc_continued.use_parent_folder(voronoi_calc_folder)
+    kkr_calc_parent_folder = kkr_calc.out.remote_folder # parent remote folder of previous calculation
+    kkr_calc_continued.use_parent_folder(kkr_calc_parent_folder)
     kkr_calc_continued.set_resources({'num_machines': 1, 'num_mpiprocs_per_machine':1})
 
 store input nodes and submit calculation::
@@ -270,7 +279,7 @@ Now we create a new KKR calculation and set input nodes::
     GF_host_calc.use_parameters(ParaNode)
     GF_host_calc.use_parent_folder(kkr_converged_parent_folder)
     # prepare impurity_info node containing the information about the impurity cluster
-    imp_info = ParameterData(dict={'Rcut':1.01, 'imp_pos':[0, [0,0,0]], 'Zimp':[29.]}) # choose host-in-host calculation first
+    imp_info = ParameterData(dict={'Rcut':1.01, 'ilayer_center': 0, 'Zimp':[29.]}) # choose host-in-host calculation first
     # set impurity info node to calculation
     GF_host_calc.use_impurity_info(imp_info)
     
@@ -278,11 +287,15 @@ Now we create a new KKR calculation and set input nodes::
     the impurity cluster using the following parameters:
     
         * ``ilayer_center`` (int) layer index of position in the unit cell that describes the center of the impurity cluster 
-        * ``Rimp_rel`` (list of *Nimp* [float, float, float] entries, *optional*) cartesian positions of all *Nimp* impurities, relatice to center of cluster
-        * ``Zimp`` (list of *Nimp* float entries) A
         * ``Rcut`` (float) cluster radius of impurity cluster
         * ``hcut`` (float, *optional*) height of a cylindrical cluster with radius ``Rcut``, if not given spherical cluster is taken
-        * ``imp_cls`` (float, *optional*) full list of impurity cluster positions, overwrites auto generation using ``Rcut`` and ``hcut``
+        * ``cylinder_orient`` (list of 3 float values, *optional*)
+        * ``Zimp`` (list of *Nimp* float entries) atomic charges of the substitutional impurities on positions defined by ``Rimp_rel``
+        * ``Rimp_rel`` (list of *Nimp* [float, float, float] entries, *optional*, defaults to [0,0,0] for single impurity) cartesian positions of all *Nimp* impurities, relative to the center of cluster (i.e. position defined by ``ilayer_center``)
+        * ``imp_cls`` (list of [float, float, float, int] entries, *optional*) full list of impurity cluster positions and layer indices *(x, y, z, ilayer)*, overwrites auto generation using ``Rcut`` and ``hcut`` settings
+                       
+        .. warning:: ``imp_cls`` functionality not implemented yet
+            
     
 The calculation can then be submitted::
 
@@ -524,7 +537,7 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     from numpy import array
     
     # helper function
-    def wait_for_it(calc, maxwait=200):
+    def wait_for_it(calc, maxwait=300):
         from time import sleep
         N = 0
         print 'start waiting for calculation to finish'
@@ -561,6 +574,7 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     ParaNode = ParameterData(dict=params.get_dict())
     
     # choose a valid installation of the voronoi code
+    ### !!! adapt to your code name !!! ###
     codename = 'voronoi@my_mac'
     code = Code.get_from_string(codename)
     
@@ -569,6 +583,9 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     
     # and set resources that will be used (here serial job)
     voro_calc.set_resources({'num_machines':1, 'tot_num_mpiprocs':1})
+    
+    ### !!! use queue name if necessary !!! ###
+    # voro_calc.set_queue_name('<quene_name>')
     
     # then set structure and input parameter
     voro_calc.use_structure(Cu)
@@ -586,7 +603,7 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     
     
     ###################################################
-    # KKR step (single iteration)
+    # KKR step (20 iterations simple mixing)
     ###################################################
     
     # create new set of parameters for a KKR calculation and fill with values from previous voronoin calculation
@@ -595,10 +612,14 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     # and set the missing values
     params.set_multiple_values(RMAX=7., GMAX=65.)
     
+    # choose 20 simple mixing iterations first to preconverge potential (here 5% simple mixing)
+    params.set_multiple_values(NSTEPS=20, IMIX=0, STRMIX=0.05)
+    
     # create aiida ParameterData node from the KKR parameters
     ParaNode = ParameterData(dict=params.get_dict())
     
     # get KKR code and create new calculation instance
+    ### !!! use your code name !!! ###
     code = Code.get_from_string('KKRcode@my_mac')
     kkr_calc = code.new_calc()
     
@@ -606,6 +627,9 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     kkr_calc.use_parameters(ParaNode)
     kkr_calc.use_parent_folder(voronoi_calc_folder)
     kkr_calc.set_resources({'num_machines': 1, 'num_mpiprocs_per_machine':1})
+    
+    ### !!! use queue name if necessary !!! ###
+    # kkr_calc.set_queue_name('<quene_name>')
     
     # store nodes and submit calculation
     kkr_calc.store_all()
@@ -630,8 +654,12 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     # then set input nodes for calculation
     kkr_calc_continued.use_code(code)
     kkr_calc_continued.use_parameters(ParaNode)
-    kkr_calc_continued.use_parent_folder(voronoi_calc_folder)
+    kkr_calc_parent_folder = kkr_calc.out.remote_folder # parent remote folder of previous calculation
+    kkr_calc_continued.use_parent_folder(kkr_calc_parent_folder)
     kkr_calc_continued.set_resources({'num_machines': 1, 'num_mpiprocs_per_machine':1})
+    
+    ### !!! use queue name if necessary !!! ###
+    # kkr_calc_continued.set_queue_name('<quene_name>')
     
     # store input nodes and submit calculation
     kkr_calc_continued.store_all()
@@ -668,8 +696,11 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     GF_host_calc.use_parameters(ParaNode)
     GF_host_calc.use_parent_folder(kkr_converged_parent_folder)
     
+    ### !!! use queue name if necessary !!! ###
+    # GF_host_calc.set_queue_name('<quene_name>')
+    
     # prepare impurity_info node containing the information about the impurity cluster
-    imp_info = ParameterData(dict={'Rcut':1.01, 'imp_pos':[0], 'Zimp':[29.]}) # choose host-in-host calculation first
+    imp_info = ParameterData(dict={'Rcut':1.01, 'ilayer_center':0, 'Zimp':[29.]}) # choose host-in-host calculation first
     # set impurity info node to calculation
     GF_host_calc.use_impurity_info(imp_info)
     
@@ -697,6 +728,8 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     from aiida_kkr.calculations.kkrimp import KkrimpCalculation
     kkrimp_calc = KkrimpCalculation()
     
+    
+    ### !!! use your code name !!! ###
     kkrimp_code = Code.get_from_string('KKRimp@my_mac')
     
     kkrimp_calc.use_code(kkrimp_code)
@@ -704,6 +737,9 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     kkrimp_calc.use_impurity_potential(potfile_imp)
     kkrimp_calc.set_resources(resources)
     kkrimp_calc.set_computer(kkrimp_code.get_computer())
+    
+    ### !!! use queue name if necessary !!! ###
+    # kkrimp_calc.set_queue_name('<quene_name>')
     
     # store and submit
     kkrimp_calc.store_all()
@@ -727,6 +763,9 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     kkrimp_calc_continued.set_resources(resources)
     kkrimp_calc_continued.set_computer(code.get_computer())
     kkrimp_calc_continued.use_parameters(ParameterData(dict=kkrparams(params_type='kkrimp', IMIX=5, SCFSTEPS=50).get_dict()))
+    
+    ### !!! use queue name if necessary !!! ###
+    # kkrimp_calc_continued.set_queue_name('<quene_name>')
     
     kkrimp_calc_continued.store_all()
     kkrimp_calc_continued.submit()

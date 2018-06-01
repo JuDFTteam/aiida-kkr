@@ -47,6 +47,9 @@ coverage.xml
 .hypothesis/
 aiida_kkr/tests/coverage
 aiida_kkr/tests/inputcard
+aiida_kkr/tests/input.temp_unsorted.txt
+aiida_kkr/tests/input.temp.txt
+aiida_kkr/tests/config.cfg
 
 
 # Translations
