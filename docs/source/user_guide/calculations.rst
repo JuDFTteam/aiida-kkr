@@ -279,7 +279,7 @@ Now we create a new KKR calculation and set input nodes::
     GF_host_calc.use_parameters(ParaNode)
     GF_host_calc.use_parent_folder(kkr_converged_parent_folder)
     # prepare impurity_info node containing the information about the impurity cluster
-    imp_info = ParameterData(dict={'Rcut':1.01, 'ilayer_center': 0, 'Zimp':[29.]}) # choose host-in-host calculation first
+    imp_info = ParameterData(dict={'Rcut':1.01, 'ilayer_center': 0, 'Zimp':[79.]})
     # set impurity info node to calculation
     GF_host_calc.use_impurity_info(imp_info)
     
@@ -287,7 +287,7 @@ Now we create a new KKR calculation and set input nodes::
     the impurity cluster using the following parameters:
     
         * ``ilayer_center`` (int) layer index of position in the unit cell that describes the center of the impurity cluster 
-        * ``Rcut`` (float) cluster radius of impurity cluster
+        * ``Rcut`` (float) cluster radius of impurity cluster in units of the lattice constant
         * ``hcut`` (float, *optional*) height of a cylindrical cluster with radius ``Rcut``, if not given spherical cluster is taken
         * ``cylinder_orient`` (list of 3 float values, *optional*)
         * ``Zimp`` (list of *Nimp* float entries) atomic charges of the substitutional impurities on positions defined by ``Rimp_rel``
@@ -340,22 +340,81 @@ Three output nodes:
 Create impurity potential
 -------------------------
 
-So far the starting potential for the impurity calculation needs to be generated manually. 
+Now the starting potential for the impurity calculation needs to be generated. 
+This means that we need to create an auxiliary structure which contians the impurity 
+in the system where we want to embed it. Then we run a Voronoi calculation to create 
+the starting potential. Here we use the example of a Au impurity embedded into bulk Cu.
+
 The impurity code expects an aiida SingleFileData object that contains the impurity 
-potential (typically created from running the ``modify_potential.py`` script).
+potential. This is finally constructed using ``the neworder_potential_wf`` workfunction
+from ``aiida_kkr.tools.common_workfunctions``.
 
-Here we assume the starting impurity potentail was prepared and lies in ``<path-to-impurity-potential>``::
+We start with the creation of the auxiliary styructure::
 
-    SingleFileData = DataFactory('singlefile')
-    pot_imp_path = '<path-to-impurity-potential>'
-    potfile_imp = SingleFileData()
-    potfile_imp.set_file(pot_imp_path)
+    # use an aiida workfunction to keep track of the provenance
+    from aiida.work import workfunction as wf
+    @wf
+    def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at center only!
+        from aiida.common.constants import elements as PeriodicTableElements
+        _atomic_numbers = {data['symbol']: num for num, data in PeriodicTableElements.iteritems()}
+    
+        new_struc = StructureData(cell=struc.cell)
+        isite = 0
+        for site in struc.sites:
+            sname = site.kind_name
+            kind = struc.get_kind(sname)
+            pos = site.position
+            zatom = _atomic_numbers[kind.get_symbols_string()]
+            if isite == imp_info.get_dict().get('ilayer_center'):
+                zatom = imp_info.get_dict().get('Zimp')[0]
+            symbol = PeriodicTableElements.get(zatom).get('symbol')
+            new_struc.append_atom(position=pos, symbols=symbol)
+            isite += 1
+            
+        return new_struc
+
+    new_struc = change_struc_imp_aux_wf(voro_calc.inp.structure, imp_info)
+    
+Then we run the Voronoi calculation for auxiliary structure to create the impurity starting potential::
+
+    codename = 'voronoi@my_mac'
+    code = Code.get_from_string(codename)
+    
+    voro_calc_aux = code.new_calc()
+    voro_calc_aux.set_resources({'num_machines':1, 'tot_num_mpiprocs':1})
+    voro_calc_aux.use_structure(new_struc)
+    voro_calc_aux.use_parameters(kkrcalc_converged.inp.parameters)
+    
+    voro_calc_aux.store_all()
+    voro_calc_aux.submit()
+    
+Now we create the impurity starting potential using the converged host potential 
+for the surrounding of the impurity and the new Au impurity startpot::
+
+    from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
+
+    potname_converged = kkrcalc_converged._POTENTIAL
+    potname_imp = 'potential_imp'
+    neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]
+    potname_impvorostart = voro_calc_aux._OUT_POTENTIAL_voronoi
+    replacelist_pot2 = [[0,0]]
+    
+    settings_dict = {'pot1': potname_converged,  'out_pot': potname_imp, 'neworder': neworder_pot1,
+                     'pot2': potname_impvorostart, 'replace_newpos': replacelist_pot2, 'label': 'startpot_KKRimp',
+                     'description': 'starting potential for Au impurity in bulk Cu'} 
+    settings = ParameterData(dict=settings_dict)
+    
+    startpot_Au_imp_sfd = neworder_potential_wf(settings_node=settings, 
+                                                parent_calc_folder=kkrcalc_converged.out.remote_folder, 
+                                                parent_calc_folder2=voro_calc_aux.out.remote_folder)
     
 
 Create and submit initial KKRimp calculation
 --------------------------------------------
 
-Now we create a new impurity calculation, set all input nodes and submit the calculation::
+Now we create a new impurity calculation, set all input nodes and submit the calculation 
+to preconverge the impurity potential (Au embedded into Cu ulk host as described in the 
+``impurity_info`` node)::
 
     # needed to link to host GF writeout calculation
     GF_host_output_folder = GF_host_calc.out.remote_folder
@@ -368,9 +427,15 @@ Now we create a new impurity calculation, set all input nodes and submit the cal
     
     kkrimp_calc.use_code(kkrimp_code)
     kkrimp_calc.use_host_Greenfunction_folder(GF_host_output_folder)
-    kkrimp_calc.use_impurity_potential(potfile_imp)
+    kkrimp_calc.use_impurity_potential(startpot_Au_imp_sfd)
     kkrimp_calc.set_resources(resources)
     kkrimp_calc.set_computer(kkrimp_code.get_computer())
+    
+    # first set 20 simple mixing steps
+    kkrimp_params = kkrparams(params_type='kkrimp')
+    kkrimp_params.set_multiple_values(SCFSTEPS=20, IMIX=0, MIXFAC=0.05)
+    ParamsKKRimp = ParameterData(dict=kkrimp_params.get_dict())
+    kkrimp_calc.use_parameters(ParamsKKRimp)
     
     # store and submit
     kkrimp_calc.store_all()
@@ -380,27 +445,101 @@ Now we create a new impurity calculation, set all input nodes and submit the cal
 Restart KKRimp calculation from KKRimp parent
 ---------------------------------------------
 
-Here we demonstrate how to restart a KKRimp calculation from a parent calculation from which the starting potential is extracted::
+Here we demonstrate how to restart a KKRimp calculation from a parent calculation 
+from which the starting potential is extracted autimatically. This is used to compute 
+the converged impurity potential starting from the previous preconvergence step::
 
-    # remote folder of previous KKRimp calculation
-    kkrimp_parent_calc_folder = kkrimp_calc.out.remote_folder
+    kkrimp_calc_converge = kkrimp_code.new_calc()
+    kkrimp_calc_converge.use_parent_calc_folder(kkrimp_calc.out.remote_folder)
+    kkrimp_calc_converge.set_resources(resources)
+    kkrimp_calc_converge.use_host_Greenfunction_folder(kkrimp_calc.inp.GFhost_folder)
     
-    # extract kkrimp code from parent calc
-    kkrimp_code = kkrimp_calc.get_code()
-    
-    # create new KKRimp calculation
-    kkrimp_calc_continued = KkrimpCalculation()
-    kkrimp_calc_continued.use_code(kkrimp_code)
-    kkrimp_calc_continued.use_host_Greenfunction_folder(GF_host_output_folder)
-    kkrimp_calc_continued.use_parent_calc_folder(kkrimp_parent_calc_folder)
-    kkrimp_calc_continued.set_resources(resources)
-    kkrimp_calc_continued.set_computer(code.get_computer())
-    kkrimp_calc_continued.use_parameters(ParameterData(dict=kkrparams(params_type='kkrimp', IMIX=5, SCFSTEPS=50).get_dict()))
+    kkrimp_params = kkrparams(params_type='kkrimp', **kkrimp_calc.inp.parameters.get_dict())
+    kkrimp_params.set_multiple_values(SCFSTEPS=99, IMIX=5, MIXFAC=0.05)
+    ParamsKKRimp = ParameterData(dict=kkrimp_params.get_dict())
+    kkrimp_calc_converge.use_parameters(ParamsKKRimp)
     
     # store and submit
-    kkrimp_calc_continued.store_all()
-    kkrimp_calc_continued.submit()
+    kkrimp_calc_converge.store_all()
+    kkrimp_calc_converge.submit()
+    
 
+Impurity DOS
+------------
+
+create final imp DOS (new host GF for DOS contour, then KKRimp calc using converged potential)
+
+first prepare host GF with DOS contour::
+
+    params = kkrparams(**GF_host_calc.inp.parameters.get_dict())
+    params.set_multiple_values(EMIN=-0.2, EMAX=GF_host_calc.res.fermi_energy+0.1, NPOL=0, NPT1=0, NPT2=101, NPT3=0)
+    ParaNode = ParameterData(dict=params.get_dict())
+    
+    code = GF_host_calc.get_code() # take the same code as in the calculation before
+    GF_host_doscalc= code.new_calc()
+    resources = GF_host_calc.get_resources()
+    GF_host_doscalc.set_resources(resources)
+    GF_host_doscalc.use_parameters(ParaNode)
+    GF_host_doscalc.use_parent_folder(kkr_converged_parent_folder)
+    GF_host_doscalc.use_impurity_info(GF_host_calc.inp.impurity_info)
+    
+    GF_host_doscalc.store_all()
+    GF_host_doscalc.submit()
+    
+Then we run the KKRimp step using the converged potential (via the ``parent_calc_folder`` 
+node) and the host GF which contains the DOS contour information (via ``host_Greenfunction_folder``)::
+
+    kkrimp_doscalc = kkrimp_calc_converge.get_code().new_calc()
+    kkrimp_doscalc.use_host_Greenfunction_folder(GF_host_doscalc.out.remote_folder)
+    kkrimp_doscalc.use_parent_calc_folder(kkrimp_calc_converge.out.remote_folder)
+    kkrimp_doscalc.set_resources(kkrimp_calc_converge.get_resources())
+    
+    params = kkrparams(params_type='kkrimp', **kkrimp_calc_converge.inp.parameters.get_dict())
+    params.set_multiple_values(RUNFLAG=['lmdos'], SCFSTEPS=1)
+    ParaNode = ParameterData(dict=params.get_dict())
+    
+    kkrimp_doscalc.use_parameters(ParaNode)
+    
+    kkrimp_doscalc.store_all()
+    kkrimp_doscalc.submit()
+    
+Finally we plot the DOS::
+
+    # get interpolated DOS from GF_host_doscalc calculation:
+    from aiida_kkr.tools.common_functions import interpolate_dos
+    dospath_host = GF_host_doscalc.out.retrieved.get_abs_path('')
+    ef, dos, dos_interpol = interpolate_dos(dospath_host, return_original=True)
+    dos, dos_interpol = dos[0], dos_interpol[0]
+    
+    # read in impurity DOS
+    from numpy import loadtxt
+    impdos0 = loadtxt(kkrimp_doscalc.out.retrieved.get_abs_path('out_lmdos.interpol.atom=01_spin1.dat'))
+    impdos1 = loadtxt(kkrimp_doscalc.out.retrieved.get_abs_path('out_lmdos.interpol.atom=13_spin1.dat'))
+    # sum over spins:
+    impdos0[:,1:] = impdos0[:,1:]*2
+    impdos1[:,1:] = impdos1[:,1:]*2
+    
+    # plot bulk and impurity DOS
+    from matplotlib.pyplot import figure, fill_between, plot, legend, title, axhline, axvline, xlim, ylim, ylabel, xlabel, title, show
+    figure()
+    fill_between((dos_interpol[:,0]-ef)*13.6, dos_interpol[:,1]/13.6, color='lightgrey', lw=0, label='bulk Cu')
+    plot((impdos0[:,0]-ef)*13.6, impdos0[:,1]/13.6, label='Au imp')
+    plot((impdos0[:,0]-ef)*13.6, impdos1[:,1]/13.6, label='1st Cu neighbor')
+    plot((impdos0[:,0]-ef)*13.6, (impdos1[:,1]-dos_interpol[:,1])/dos_interpol[:,1], '--', label='relative difference in 1st Cu neighbor')
+    legend()
+    title('DOS of Au impurity embedded into bulk Cu')
+    axhline(0, lw=1, color='grey')
+    axvline(0, lw=1, color='grey')
+    xlim(-8, 1)
+    ylim(-0.5,8.5)
+    xlabel('E-E_F (eV)')
+    ylabel('DOS (states/eV)')
+    show()
+    
+Which should look like this:
+
+.. image:: ../images/impDOS_Au_Cu_example.png
+    :width: 60%
 
     
 KKR calculation importer
@@ -700,7 +839,7 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     # GF_host_calc.set_queue_name('<quene_name>')
     
     # prepare impurity_info node containing the information about the impurity cluster
-    imp_info = ParameterData(dict={'Rcut':1.01, 'ilayer_center':0, 'Zimp':[29.]}) # choose host-in-host calculation first
+    imp_info = ParameterData(dict={'Rcut':1.01, 'ilayer_center':0, 'Zimp':[79.]})
     # set impurity info node to calculation
     GF_host_calc.use_impurity_info(imp_info)
     
@@ -712,14 +851,73 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     wait_for_it(GF_host_calc)
     
     
-    ###################################################
-    # KKRimp calculation (single iteration first)
-    ###################################################
+    ######################################################################
+    # KKRimp calculation (20 simple mixing iterations  for preconvergence)
+    ######################################################################
     
-    SingleFileData = DataFactory('singlefile')
-    pot_imp_path = '<path-to-impurity-potential>'
-    potfile_imp = SingleFileData()
-    potfile_imp.set_file(pot_imp_path)
+    # first create impurity start pot using auxiliary voronoi calculation
+    
+    # creation of the auxiliary styructure:
+    # use an aiida workfunction to keep track of the provenance
+    from aiida.work import workfunction as wf
+    @wf
+    def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at center only!
+        from aiida.common.constants import elements as PeriodicTableElements
+        _atomic_numbers = {data['symbol']: num for num, data in PeriodicTableElements.iteritems()}
+    
+        new_struc = StructureData(cell=struc.cell)
+        isite = 0
+        for site in struc.sites:
+            sname = site.kind_name
+            kind = struc.get_kind(sname)
+            pos = site.position
+            zatom = _atomic_numbers[kind.get_symbols_string()]
+            if isite == imp_info.get_dict().get('ilayer_center'):
+                zatom = imp_info.get_dict().get('Zimp')[0]
+            symbol = PeriodicTableElements.get(zatom).get('symbol')
+            new_struc.append_atom(position=pos, symbols=symbol)
+            isite += 1
+    
+        return new_struc
+    
+    new_struc = change_struc_imp_aux_wf(voro_calc.inp.structure, imp_info)
+    
+    # then Voronoi calculation for auxiliary structure
+    ### !!! use your code name !!! ###
+    codename = 'voronoi@my_mac'
+    code = Code.get_from_string(codename)
+    voro_calc_aux = code.new_calc()
+    voro_calc_aux.set_resources({'num_machines':1, 'tot_num_mpiprocs':1})
+    voro_calc_aux.use_structure(new_struc)
+    voro_calc_aux.use_parameters(kkrcalc_converged.inp.parameters)
+    voro_calc_aux.store_all()
+    voro_calc_aux.submit()
+    ### !!! use queue name if necessary !!! ###
+    # voro_calc_aux.set_queue_name('<quene_name>')
+    
+    # wait for calculation to finish
+    wait_for_it(voro_calc_aux)
+    
+    # then create impurity startpot using auxiliary voronoi calc and converged host potential
+    
+    from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
+    
+    potname_converged = kkrcalc_converged._POTENTIAL
+    potname_imp = 'potential_imp'
+    neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]
+    potname_impvorostart = voro_calc_aux._OUT_POTENTIAL_voronoi
+    replacelist_pot2 = [[0,0]]
+    
+    settings_dict = {'pot1': potname_converged,  'out_pot': potname_imp, 'neworder': neworder_pot1,
+                     'pot2': potname_impvorostart, 'replace_newpos': replacelist_pot2, 'label': 'startpot_KKRimp',
+                     'description': 'starting potential for Au impurity in bulk Cu'}
+    settings = ParameterData(dict=settings_dict)
+    
+    startpot_Au_imp_sfd = neworder_potential_wf(settings_node=settings,
+                                                parent_calc_folder=kkrcalc_converged.out.remote_folder,
+                                                parent_calc_folder2=voro_calc_aux.out.remote_folder)
+    
+    # now create KKRimp calculation and run first (some simple mixing steps) calculation
     
     # needed to link to host GF writeout calculation
     GF_host_output_folder = GF_host_calc.out.remote_folder
@@ -728,18 +926,20 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     from aiida_kkr.calculations.kkrimp import KkrimpCalculation
     kkrimp_calc = KkrimpCalculation()
     
-    
     ### !!! use your code name !!! ###
     kkrimp_code = Code.get_from_string('KKRimp@my_mac')
     
     kkrimp_calc.use_code(kkrimp_code)
     kkrimp_calc.use_host_Greenfunction_folder(GF_host_output_folder)
-    kkrimp_calc.use_impurity_potential(potfile_imp)
+    kkrimp_calc.use_impurity_potential(startpot_Au_imp_sfd)
     kkrimp_calc.set_resources(resources)
     kkrimp_calc.set_computer(kkrimp_code.get_computer())
     
-    ### !!! use queue name if necessary !!! ###
-    # kkrimp_calc.set_queue_name('<quene_name>')
+    # first set 20 simple mixing steps
+    kkrimp_params = kkrparams(params_type='kkrimp')
+    kkrimp_params.set_multiple_values(SCFSTEPS=20, IMIX=0, MIXFAC=0.05)
+    ParamsKKRimp = ParameterData(dict=kkrimp_params.get_dict())
+    kkrimp_calc.use_parameters(ParamsKKRimp)
     
     # store and submit
     kkrimp_calc.store_all()
@@ -750,24 +950,147 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     
     
     ###################################################
-    # continued KKRimp calculation
+    # continued KKRimp calculation until convergence
     ###################################################
     
-    kkrimp_parent_calc_folder = kkrimp_calc.out.remote_folder
+    kkrimp_calc_converge = kkrimp_code.new_calc()
+    kkrimp_calc_converge.use_parent_calc_folder(kkrimp_calc.out.remote_folder)
+    kkrimp_calc_converge.set_resources(resources)
+    kkrimp_calc_converge.use_host_Greenfunction_folder(kkrimp_calc.inp.GFhost_folder)
     
-    kkrimp_code = kkrimp_calc.get_code()
-    kkrimp_calc_continued = KkrimpCalculation()
-    kkrimp_calc_continued.use_code(kkrimp_code)
-    kkrimp_calc_continued.use_host_Greenfunction_folder(GF_host_output_folder)
-    kkrimp_calc_continued.use_parent_calc_folder(kkrimp_parent_calc_folder)
-    kkrimp_calc_continued.set_resources(resources)
-    kkrimp_calc_continued.set_computer(code.get_computer())
-    kkrimp_calc_continued.use_parameters(ParameterData(dict=kkrparams(params_type='kkrimp', IMIX=5, SCFSTEPS=50).get_dict()))
+    kkrimp_params = kkrparams(params_type='kkrimp', **kkrimp_calc.inp.parameters.get_dict())
+    kkrimp_params.set_multiple_values(SCFSTEPS=99, IMIX=5, MIXFAC=0.05)
+    ParamsKKRimp = ParameterData(dict=kkrimp_params.get_dict())
+    kkrimp_calc_converge.use_parameters(ParamsKKRimp)
     
     ### !!! use queue name if necessary !!! ###
-    # kkrimp_calc_continued.set_queue_name('<quene_name>')
+    # kkrimp_calc_converge.set_queue_name('<quene_name>')
     
-    kkrimp_calc_continued.store_all()
-    kkrimp_calc_continued.submit()
+    # store and submit
+    kkrimp_calc_converge.store_all()
+    kkrimp_calc_converge.submit()
     
-    wait_for_it(kkrimp_calc_continued)
+    wait_for_it(kkrimp_calc_converge)
+    
+    
+KKRimp DOS (starting from converged parent KKRimp calculation)
+--------------------------------------------------------------
+
+Script running host GF step for DOS contour first before running KKRimp step and plotting.
+
+Download: :download:`this example script <../examples/kkrimp_dos_example.py>`
+
+::
+
+    #!/usr/bin/env python
+    
+    # connect to aiida db
+    from aiida import load_dbenv, is_dbenv_loaded
+    if not is_dbenv_loaded():
+        load_dbenv()
+    # load essential aiida classes
+    from aiida.orm import DataFactory, load_node
+    ParameterData = DataFactory('parameter')
+    
+
+    # some settings:
+    #DOS contour (in Ry units), emax=EF+dE_emax:
+    emin, dE_emax, npt = -0.2, 0.1, 101
+    # kkrimp parent (converged imp pot, needs to tbe a KKRimp calculation node)
+    kkrimp_calc_converge = load_node(25025)
+    
+    # derived quantities:
+    GF_host_calc = kkrimp_calc_converge.inp.GFhost_folder.inp.remote_folder
+    kkr_converged_parent_folder = GF_host_calc.inp.parent_calc_folder
+    
+    # helper function
+    def wait_for_it(calc, maxwait=300):
+        from time import sleep
+        N = 0
+        print 'start waiting for calculation to finish'
+        while not calc.has_finished() and N<(maxwait/2.):
+            N += 1
+            if N%5==0:
+                print('.')
+            sleep(2.)
+        print('waiting done after {} seconds: {} {}'.format(N*2, calc.has_finished(), calc.has_finished_ok()))
+    
+    ################################################################################################
+    
+    # first host GF with DOS contour
+    from aiida_kkr.tools.kkr_params import kkrparams
+    params = kkrparams(**GF_host_calc.inp.parameters.get_dict())
+    params.set_multiple_values(EMIN=emin, EMAX=GF_host_calc.res.fermi_energy+dE_emax, NPOL=0, NPT1=0, NPT2=npt, NPT3=0)
+    ParaNode = ParameterData(dict=params.get_dict())
+    
+    code = GF_host_calc.get_code() # take the same code as in the calculation before
+    GF_host_doscalc= code.new_calc()
+    resources = GF_host_calc.get_resources()
+    GF_host_doscalc.set_resources(resources)
+    GF_host_doscalc.use_parameters(ParaNode)
+    GF_host_doscalc.use_parent_folder(kkr_converged_parent_folder)
+    GF_host_doscalc.use_impurity_info(GF_host_calc.inp.impurity_info)
+    
+    # store and submit
+    GF_host_doscalc.store_all()
+    GF_host_doscalc.submit()
+    
+    # wait for calculation to finish
+    print 'host GF calc for DOS contour'
+    wait_for_it(GF_host_doscalc)
+    
+    # then KKRimp step using the converged potential
+    
+    kkrimp_doscalc = kkrimp_calc_converge.get_code().new_calc()
+    kkrimp_doscalc.use_host_Greenfunction_folder(GF_host_doscalc.out.remote_folder)
+    kkrimp_doscalc.use_parent_calc_folder(kkrimp_calc_converge.out.remote_folder)
+    kkrimp_doscalc.set_resources(kkrimp_calc_converge.get_resources())
+    
+    # set to DOS settings
+    params = kkrparams(params_type='kkrimp', **kkrimp_calc_converge.inp.parameters.get_dict())
+    params.set_multiple_values(RUNFLAG=['lmdos'], SCFSTEPS=1)
+    ParaNode = ParameterData(dict=params.get_dict())
+    
+    kkrimp_doscalc.use_parameters(ParaNode)
+    
+    # store and submit calculation
+    kkrimp_doscalc.store_all()
+    kkrimp_doscalc.submit()
+    
+    # wait for calculation to finish
+    
+    print 'KKRimp calc DOS'
+    wait_for_it(kkrimp_doscalc)
+    
+    # Finally plot the DOS:
+    
+    # get interpolated DOS from GF_host_doscalc calculation:
+    from aiida_kkr.tools.common_functions import interpolate_dos
+    dospath_host = GF_host_doscalc.out.retrieved.get_abs_path('')
+    ef, dos, dos_interpol = interpolate_dos(dospath_host, return_original=True)
+    dos, dos_interpol = dos[0], dos_interpol[0]
+    
+    # read in impurity DOS
+    from numpy import loadtxt
+    impdos0 = loadtxt(kkrimp_doscalc.out.retrieved.get_abs_path('out_lmdos.interpol.atom=01_spin1.dat'))
+    impdos1 = loadtxt(kkrimp_doscalc.out.retrieved.get_abs_path('out_lmdos.interpol.atom=13_spin1.dat'))
+    # sum over spins:
+    impdos0[:,1:] = impdos0[:,1:]*2
+    impdos1[:,1:] = impdos1[:,1:]*2
+    
+    # plot bulk and impurity DOS
+    from matplotlib.pyplot import figure, fill_between, plot, legend, title, axhline, axvline, xlim, ylim, ylabel, xlabel, title, show
+    figure()
+    fill_between((dos_interpol[:,0]-ef)*13.6, dos_interpol[:,1]/13.6, color='lightgrey', lw=0, label='bulk Cu')
+    plot((impdos0[:,0]-ef)*13.6, impdos0[:,1]/13.6, label='Au imp')
+    plot((impdos0[:,0]-ef)*13.6, impdos1[:,1]/13.6, label='1st Cu neighbor')
+    plot((impdos0[:,0]-ef)*13.6, (impdos1[:,1]-dos_interpol[:,1])/dos_interpol[:,1], '--', label='relative difference in 1st Cu neighbor')
+    legend()
+    title('DOS of Au impurity embedded into bulk Cu')
+    axhline(0, lw=1, color='grey')
+    axvline(0, lw=1, color='grey')
+    xlim(-8, 1)
+    ylim(-0.5,8.5)
+    xlabel('E-E_F (eV)')
+    ylabel('DOS (states/eV)')
+    show()

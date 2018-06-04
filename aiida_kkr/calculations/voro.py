@@ -310,10 +310,6 @@ class VoronoiCalculation(JobCalculation):
             parent_folder.inp.structure
         except:
             success = False
-        if success:
-            print('struc found')
-        else:
-            print('no struc found')
         return success
         
         
@@ -325,11 +321,9 @@ class VoronoiCalculation(JobCalculation):
         parent_folder_tmp0 = parent_folder
         try:
             parent_folder_tmp = parent_folder_tmp0.inp.remote_folder
-            print('input has remote folder')
         except:
             #TODO check if this is a remote folder
             parent_folder_tmp = parent_folder_tmp0
-            print('input is remote folder')
         return parent_folder_tmp
         
         
@@ -341,14 +335,11 @@ class VoronoiCalculation(JobCalculation):
         input_folder_tmp0 = input_folder
         try:
             parent_folder_tmp = input_folder_tmp0.inp.parent_calc_folder
-            print('input has parent folder')
         except:
             try:
                 parent_folder_tmp = input_folder_tmp0.inp.parent_calc
-                print('input has parent folder')
             except:
                 parent_folder_tmp = input_folder_tmp0
-                print('input is parent folder')
         return parent_folder_tmp
         
         
@@ -363,7 +354,6 @@ class VoronoiCalculation(JobCalculation):
         while not self._has_struc(parent_folder_tmp) and iiter<Nmaxiter:
             parent_folder_tmp = self._get_remote(self._get_parent(parent_folder_tmp))
             iiter += 1
-        print(iiter)
         if self._has_struc(parent_folder_tmp):
             struc = self._get_struc(parent_folder_tmp)
             return struc, parent_folder_tmp

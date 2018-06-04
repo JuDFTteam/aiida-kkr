@@ -293,11 +293,11 @@ class KkrCalculation(JobCalculation):
             parameters = update_params_wf(parameters, ParameterData(dict={'RUNOPT':runopt, 'nodename': 'update_KKRFLEX', 'nodedesc':'Update Parameter node with KKRFLEX runopt'}))
         if found_imp_info and write_scoef:
             scoef_filename = os.path.join(tempfolder.get_abs_path(''), self._SCOEF)
-	    imp_info_dict = imp_info.get_dict()
-	    Rcut = imp_info_dict.get('Rcut', None)
+            imp_info_dict = imp_info.get_dict()
+            Rcut = imp_info_dict.get('Rcut', None)
             hcut = imp_info_dict.get('hcut', -1.)
-	    cylinder_orient = imp_info_dict.get('cylinder_orient', [0., 0., 1.])
-	    ilayer_center = imp_info_dict.get('ilayer_center', 0)
+            cylinder_orient = imp_info_dict.get('cylinder_orient', [0., 0., 1.])
+            ilayer_center = imp_info_dict.get('ilayer_center', 0)
             for i in range(len(cylinder_orient)):
                 try:
                   len(cylinder_orient[i])

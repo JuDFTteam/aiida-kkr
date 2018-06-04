@@ -11,7 +11,11 @@ from aiida.orm import DataFactory
 from aiida_kkr.tools.kkr_params import kkrparams
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.tools.tools_kkrimp import modify_potential
+from aiida_kkr.tools.tools_kkrimp import make_scoef
+from aiida_kkr.tools.common_functions import search_string
+from aiida_kkr.calculations.voro import VoronoiCalculation
 import os
+from numpy import array, sqrt, sum, where
 
 ParameterData = DataFactory('parameter')
 RemoteData = DataFactory('remote')
@@ -21,7 +25,7 @@ SinglefileData = DataFactory('singlefile')
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1"
+__version__ = "0.2"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -152,14 +156,15 @@ class KkrimpCalculation(JobCalculation):
         params_host = tmp[7]
         impurity_potential = tmp[8]
         parent_calc_folder = tmp[9]
+        structure = tmp[10]
         
         # Prepare input files for KKRimp calculation
         # 1. fill kkr params for KKRimp, write config file
         self._extract_and_write_config(parent_calc_folder, params_host, parameters, tempfolder)
-        # 2. change kkrflex_atominfo to match impurity case
+        # 2. write shapefun from impurity info and host shapefun and copy imp. potential
+        potfile = self._get_pot_and_shape(imp_info, shapefun_path, shapes, impurity_potential, parent_calc_folder, tempfolder, structure)
+        # 3. change kkrflex_atominfo to match impurity case
         self._change_atominfo(imp_info, kkrflex_file_paths, tempfolder)
-        # 3. write shapefun from impurity info and host shapefun and copy imp. potential
-        potfile = self._get_pot_and_shape(imp_info, shapefun_path, shapes, impurity_potential, parent_calc_folder, tempfolder)
         
         # prepare copy and retrieve lists
         local_copy_list = [(potfile, self._POTENTIAL)]
@@ -173,17 +178,38 @@ class KkrimpCalculation(JobCalculation):
                          self._SHAPEFUN, self._KKRFLEX_ANGLE, self._KKRFLEX_LLYFAC, 
                          self._OUT_POTENTIAL, self._OUTPUT_000, self._OUT_TIMING_000,
                          self._OUT_ENERGYSP_PER_ATOM, self._OUT_ENERGYTOT_PER_ATOM]
-        """
-        # Lift of output files that are retrieved if special conditions are fulfilled
-        self._OUT_JIJDIJ = 'out_JijDij'
-        self._OUT_JIJDIJ_LOCAL = 'out_JijDij_local'
-        self._OUT_JIJMAT = 'out_Jijmatrix'
-        self._OUT_JIJMAT_LOCAL = 'out_Jijmatrix_local'
-        self._OUT_LDOS_BASE = 'out_ldos.atom=%2i_spin%i.dat'
-        self._OUT_LDOS_INTERPOL_BASE = 'out_ldos.interpol.atom=%2i_spin%i.dat'
-        self._OUT_LMDOS_BASE = 'out_lmdos.atom=%2i_spin%i.dat'
-        self._OUT_LMDOS_INTERPOL_BASE = 'out_lmdos.interpol.atom=%2i_spin%i.dat'
-        """
+
+        # retrieve l(m)dos files
+        runopts = parameters.get_dict().get('RUNFLAG')
+        if runopts is None:
+            runopts = []
+        testopts = parameters.get_dict().get('TESTFLAG')
+        if testopts is None:
+            testopts = []
+        allopts = runopts+testopts
+        if 'lmdos' in allopts or 'ldos' in allopts:
+            file = open(tempfolder.get_abs_path(self._CONFIG))
+            config = file.readlines()
+            file.close()
+            itmp = search_string('NSPIN', config)
+            if itmp>=0:
+                nspin = int(config[itmp].split()[-1])
+            else:
+                raise ValueError("Could not extract NSPIN value from config.cfg")
+            file = open(tempfolder.get_abs_path(self._KKRFLEX_ATOMINFO))
+            atominfo = file.readlines()
+            file.close()
+            itmp = search_string('NATOM', atominfo)
+            if itmp>=0:
+                natom = int(atominfo[itmp+1].split()[0])
+            else:
+                raise ValueError("Could not extract NATOM value from kkrflex_atominfo")
+            for iatom in range(1,natom+1):
+                for ispin in range(1,nspin+1):
+                    retrieve_list.append((self._OUT_LDOS_BASE%(iatom, ispin)).replace(' ', '0'))
+                    retrieve_list.append((self._OUT_LDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
+                    retrieve_list.append((self._OUT_LMDOS_BASE%(iatom, ispin)).replace(' ', '0'))
+                    retrieve_list.append((self._OUT_LMDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
         
         # Prepare CalcInfo to be returned to aiida (e.g. retreive_list etc.)
         calcinfo = CalcInfo()
@@ -281,7 +307,15 @@ class KkrimpCalculation(JobCalculation):
         if type(shapes)==int:
             shapes = [shapes]
             
-        return imp_info, kkrflex_file_paths, shapefun_path, shapes, parent_calc, params_host_calc
+        # extract input structure
+        try:
+            structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
+        except:
+            structure, voro_parent = None, None
+        if structure is None:
+            raiseInputValidationError("No structure node found from host GF parent")
+            
+        return imp_info, kkrflex_file_paths, shapefun_path, shapes, parent_calc, params_host_calc, structure
         
         
     def _check_and_extract_input_nodes(self, inputdict):
@@ -314,9 +348,10 @@ class KkrimpCalculation(JobCalculation):
         except KeyError:
             raise InputValidationError("No code specified for this calculation")
         # 3. get hostfiles
-        imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host = self._get_and_verify_hostfiles(inputdict)
+        imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, structure = self._get_and_verify_hostfiles(inputdict)
         
         # 4. check impurity potential or parent calc input
+        # imp potential
         try:
             impurity_potential = inputdict.pop(self.get_linkname('impurity_potential'))
             if not isinstance(impurity_potential, SinglefileData):
@@ -325,6 +360,7 @@ class KkrimpCalculation(JobCalculation):
         except KeyError:
             impurity_potential = None
             found_imp_pot = False
+        # parent calc folder
         try:
             parent_calc_folder = inputdict.pop(self.get_linkname('parent_calc_folder'))
             if not isinstance(parent_calc_folder, RemoteData):
@@ -333,6 +369,7 @@ class KkrimpCalculation(JobCalculation):
         except KeyError:
             parent_calc_folder = None
             found_parent_calc = False
+        # consistency checks
         if not found_parent_calc and not found_imp_pot:
             raise InputValidationError("Neither impurity_potential nor parent_calc_folder specified for this calculation.\n"
                                        "Please provide either impurity_potential or parent_calc_folder.")
@@ -343,7 +380,7 @@ class KkrimpCalculation(JobCalculation):
         if inputdict:
             raise ValidationError("Unknown inputs: {}".format(inputdict))
         # Done checking inputdict, returning ...
-        return parameters, code, imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, impurity_potential, parent_calc_folder
+        return parameters, code, imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, impurity_potential, parent_calc_folder, structure
 
 
     def _extract_and_write_config(self, parent_calc_folder, params_host, parameters, tempfolder):
@@ -417,13 +454,34 @@ class KkrimpCalculation(JobCalculation):
             
         #TODO implement logic to extract this info from imp_info
         replace_zatom_imp = []
+        
+        # read scoef for comparison with Rimp_rel
+        scoef = []
+        with open(tempfolder.get_abs_path(KkrCalculation()._SCOEF), 'r') as file:
+            Nscoef = int(file.readline().split()[0])
+            for iline in range(Nscoef):
+                tmpline = file.readline().split()
+                scoef.append([float(i) for i in tmpline[:3]])
+        scoef = array(scoef)
+        
+        # find replaceZimp list from Zimp and Rimp_rel
+        imp_info_dict = imp_info.get_dict()
+        Zimp_list = imp_info_dict.get('Zimp')
+        Rimp_rel_list = imp_info_dict.get('Rimp_rel', [[0,0,0]])
+        for iatom in range(len(Zimp_list)):
+            rtmp = Rimp_rel_list[iatom]
+            diff = sqrt(sum((rtmp-scoef)**2, axis=1))
+            Zimp = Zimp_list[iatom]
+            ipos_replace = where(diff==diff.min())[0][0]
+            replace_zatom_imp.append([ipos_replace, Zimp])
+        
         for (iatom, zimp) in replace_zatom_imp:
             tmp = atominfo[iatom+4].split()
             x, y, z = float(tmp[0]), float(tmp[1]), float(tmp[2])
             zatom = float(tmp[3])
             virt, remove, lmax = int(tmp[4]), int(tmp[5]), int(tmp[6])
             zatom = zimp
-            tmp = ' %24.16f %24.16f %24.16f %5.2f %11i %11i %11i\n'%(x, y, z, zatom, virt, remove, lmax)
+            tmp = ' %24.16f %24.16f %24.16f %5.2f %4i %4i %4i\n'%(x, y, z, zatom, virt, remove, lmax)
             atominfo[iatom+4] = tmp
             
         # write atominfo file
@@ -432,13 +490,12 @@ class KkrimpCalculation(JobCalculation):
             file.writelines(atominfo)
     
 
-    def _get_pot_and_shape(self, imp_info, shapefun_path, shapes, impurity_potential, parent_calc_folder, tempfolder):
+    def _get_pot_and_shape(self, imp_info, shapefun_path, shapes, impurity_potential, parent_calc_folder, tempfolder, structure):
         """
         write shapefun from impurity info and host shapefun and copy imp. potential
         """
 
-
-        scoef_filename = os.path.join(tempfolder.get_abs_path(''), self._SCOEF)
+        scoef_filename = os.path.join(tempfolder.get_abs_path(''), KkrCalculation()._SCOEF)
         imp_info_dict = imp_info.get_dict()
         Rcut = imp_info_dict.get('Rcut', None)
         hcut = imp_info_dict.get('hcut', -1.)

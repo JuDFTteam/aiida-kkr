@@ -392,9 +392,7 @@ def parse_dosfiles(dospath):
     XyData = DataFactory('array.xy')
     
     eVscale = get_Ry2eV()
-    
-    print dospath
-    
+        
     ef, dos, dos_int = interpolate_dos(dospath, return_original=True)
     
     # convert to eV units
