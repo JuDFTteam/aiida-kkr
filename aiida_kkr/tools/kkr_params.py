@@ -442,6 +442,8 @@ class kkrparams(object):
                     key2 = 'RUNFLAG'
                 if key=='TESTOPT':
                     key2 = 'TESTFLAG'
+                if key=='NSTEPS':
+                    key2 = 'SCFSTEPS'
             default_keywords[key2][0] = kwargs[key]
 
         return default_keywords

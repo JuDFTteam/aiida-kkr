@@ -128,7 +128,6 @@ def get_corestates_from_potential(potfile='potential'):
 
     #get start of each potential part
     istarts = [iline for iline in range(len(txt)) if 'POTENTIAL' in txt[iline]]
-    print(istarts)
 
     n_core_states = [] #number of core states per potential
     e_core_states = [] #energies of core states
@@ -136,7 +135,6 @@ def get_corestates_from_potential(potfile='potential'):
     for ipot in range(len(istarts)):
         line = txt[istarts[ipot]+6]
         n = int(line.split()[0])
-        print(ipot, n)
         n_core_states.append(n)
         elevels = zeros(n) #temp array for energies
         langmom = zeros(n, dtype=int) #temp array for angular momentum index

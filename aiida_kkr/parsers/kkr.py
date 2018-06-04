@@ -137,7 +137,7 @@ class KkrParser(Parser):
         
         # determine wether or not everything is parsed or not (e.g. qdos option)
         skip_mode = False
-        with open(self._calc._INPUT_FILE_NAME) as file:
+        with open(out_folder.get_abs_path(self._calc._INPUT_FILE_NAME)) as file:
             txt = file.readlines()
             itmp = search_string('RUNOPT', txt)
             if itmp>=0:

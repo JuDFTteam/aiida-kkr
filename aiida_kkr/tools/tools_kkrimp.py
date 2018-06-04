@@ -150,7 +150,8 @@ class modify_potential():
                 raise ValueError('replace_from_pot2 given but potfile_2 not given')
         
         # set order in which potential file is written
-        order=neworder
+        # ensure that numbers are integers:
+        order = [int(i) for i in neworder]
                 
         datanew=[]
         for i in range(len(order)):
