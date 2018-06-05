@@ -141,10 +141,9 @@ class KkrParser(Parser):
             txt = file.readlines()
             itmp = search_string('RUNOPT', txt)
             if itmp>=0:
-                runopts = [i.strip() for i in txt[itmp].split()]
+                runopts = [i.strip() for i in txt[itmp+1].split()]
                 if 'qdos' in runopts:
                     skip_mode = True
-            
         
         success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile, 
                                                            outfile_0init, outfile_000, 

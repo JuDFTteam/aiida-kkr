@@ -4,24 +4,26 @@ Input plug-in for a KKR calculation.
 """
 
 import os
+from numpy import pi, array
 
 from aiida.orm.calculation.job import JobCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.utils import classproperty
-from aiida.common.exceptions import (InputValidationError, ValidationError)
-from aiida.common.datastructures import (CalcInfo, CodeInfo)
+from aiida.common.exceptions import InputValidationError, ValidationError
+from aiida.common.datastructures import CalcInfo, CodeInfo
 from aiida.orm import DataFactory
 from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_structure,
                                                   check_2Dinput_consistency, update_params_wf,
                                                   vca_check)
+from aiida_kkr.tools.common_functions import get_alat_from_bravais, get_Ang2aBohr
 from aiida_kkr.tools.tools_kkrimp import make_scoef 
 
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
 ParameterData = DataFactory('parameter')
 StructureData = DataFactory('structure')
-ArrayData = DataFactory('array')
+KpointsData = DataFactory('array.kpoints')
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
@@ -137,17 +139,17 @@ class KkrCalculation(JobCalculation):
                 'valid_types': ParameterData,
                 'additional_parameter': None,
                 'linkname': 'impurity_info',
-                'docstring': ("Use a ParameterNode that specifies properties "
+                'docstring': ("Use a Parameter node that specifies properties "
                               "for a follwoing impurity calculation (e.g. setting "
                               "of impurity cluster in scoef file that is "
                               "automatically created).")
             },
-            "kpath": {
-                'valid_types': ArrayData,
+            "kpoints": {
+                'valid_types': KpointsData,
                 'additional_parameter': None,
-                'linkname': 'kpath',
-                'docstring': ("Use a ArrayDataNode that specifies the kpath for which"
-                              "a bandstructure calculation should be performed.")
+                'linkname': 'kpoints',
+                'docstring': ("Use a KpointsData node that specifies the kpoints for which a "
+                              "bandstructure (i.e. 'qdos') calculation should be performed.")
             },
             })
         return use_dict
@@ -188,7 +190,7 @@ class KkrCalculation(JobCalculation):
             
         # get qdos inputs
         try:
-            kpath = inputdict.pop(self.get_linkname('kpath'))
+            kpath = inputdict.pop(self.get_linkname('kpoints'))
             found_kpath = True
         except KeyError:
             found_kpath = False
@@ -316,47 +318,6 @@ class KkrCalculation(JobCalculation):
         elif write_scoef:
             self.logger.info('Need to write scoef file but no impurity_info given!')
             raise ValidationError('Found RUNOPT KKRFLEX but no impurity_info in inputs')
-
-        # qdos option, ensure low T, E-contour, qdos run option and write qvec.dat file
-        if found_kpath:
-            # check qdos settings
-            change_values = []
-            runopt = parameters.get_dict().get('RUNOPT')
-            if runopt is None: runopt = []
-            runopt = [i.strip() for i in runopt]
-            if 'qdos' not in runopt:
-                runopt.append('qdos')
-                change_values.append(['RUNOPT', runopt])
-            tempr = parameters.get_dict().get('TEMPR')
-            if tempr>100.:
-                change_values.append(['TEMPR', 50.])
-            N1 = parameters.get_dict().get('TEMPR')
-            if N1>0:
-                change_values.append(['NPT1', 0])
-            N2 = parameters.get_dict().get('NPT2')
-            if N2 is None:
-                change_values.append(['NPT2', 100])
-            N3 = parameters.get_dict().get('NPT3')
-            if N3>0.:
-                change_values.append(['NPT3', 0])
-            NPOL = parameters.get_dict().get('NPOL')
-            if NPOL>0.:
-                change_values.append(['NPOL', 0])
-            if change_values != []:
-                new_params = {'nodename': 'changed_params_qdos', 'nodedesc': 'Changed parameters to mathc qdos mode. Changed values: {}'.format(change_values)}
-                for key, val in change_values:
-                    new_params[key] = val
-                new_params_node = ParameterData(dict=new_params)
-                parameters = update_params_wf(parameters, new_params_node)
-            # write qvec.dat file
-            if 'kpath' not in kpath.get_arraynames():
-                raise InputValidationError("kpath input node needs to contain an array called 'kpath'")
-            kpath_array = kpath.get_array('kpath')
-            qvec = ['%i\n'%len(kpath_array)]
-            qvec+=['%e %e %e\n'%(kpt[0], kpt[1], kpt[2]) for kpt in kpath_array]
-            qvecpath = tempfolder.get_abs_path(self._QVEC)
-            with open(qvecpath, 'w') as file:
-                file.writelines(qvec)
         
         # Check for 2D case
         twoDimcheck, msg = check_2Dinput_consistency(structure, parameters)
@@ -371,10 +332,56 @@ class KkrCalculation(JobCalculation):
             # extract shapes from input parameters node constructed by kkrimporter calculation
             shapes = voro_parent.inp.parameters.get_dict().get('<SHAPE>')
         
+        #
+        use_alat_input = parameters.get_dict().get('use_input_alat', False)
+        
+        # qdos option, ensure low T, E-contour, qdos run option and write qvec.dat file
+        if found_kpath:
+            # check qdos settings
+            change_values = []
+            runopt = parameters.get_dict().get('RUNOPT')
+            if runopt is None: runopt = []
+            runopt = [i.strip() for i in runopt]
+            if 'qdos' not in runopt:
+                runopt.append('qdos')
+                change_values.append(['RUNOPT', runopt])
+            tempr = parameters.get_dict().get('TEMPR')
+            if tempr is None or tempr>100.:
+                change_values.append(['TEMPR', 50.])
+            N1 = parameters.get_dict().get('TEMPR')
+            if N1 is None or N1>0:
+                change_values.append(['NPT1', 0])
+            N2 = parameters.get_dict().get('NPT2')
+            if N2 is None:
+                change_values.append(['NPT2', 100])
+            N3 = parameters.get_dict().get('NPT3')
+            if N3 is None or N3>0.:
+                change_values.append(['NPT3', 0])
+            NPOL = parameters.get_dict().get('NPOL')
+            if NPOL is None or NPOL>0.:
+                change_values.append(['NPOL', 0])
+            if change_values != []:
+                new_params = {'nodename': 'changed_params_qdos', 'nodedesc': 'Changed parameters to mathc qdos mode. Changed values: {}'.format(change_values)}
+                for key, val in change_values:
+                    new_params[key] = val
+                new_params_node = ParameterData(dict=new_params)
+                parameters = update_params_wf(parameters, new_params_node)
+            # write qvec.dat file
+            kpath_array = kpath.get_kpoints()
+            # convert automatically to internal units
+            if use_alat_input:
+                alat = parameters.get_dict().get('ALATBASIS')
+            else:
+                alat = get_alat_from_bravais(array(structure.cell), is3D=structure.pbc[2]) * get_Ang2aBohr()
+            kpath_array = kpath_array * (alat/2./pi)
+            qvec = ['%i\n'%len(kpath_array)]
+            qvec+=['%e %e %e\n'%(kpt[0], kpt[1], kpt[2]) for kpt in kpath_array]
+            qvecpath = tempfolder.get_abs_path(self._QVEC)
+            with open(qvecpath, 'w') as file:
+                file.writelines(qvec)
+        
         # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
-        
-        use_alat_input = parameters.get_dict().get('use_input_alat', False)
         natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
         
 

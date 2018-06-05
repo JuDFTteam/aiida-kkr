@@ -51,14 +51,15 @@ Input nodes:
 Output node:
     * ``potential_file`` (SingleFileData): output potential in new order
     
-.. note:: The settings_dict should contain the following keys:
-            * ``pot1``, mandatory: *<filename_input_potential>*
-            * ``out_pot``, mandatory: *<filename_output_potential>*
-            * ``neworder``, mandatory: *[list of intended order in output potential]* 
-            * ``pot2``, mandatory if ``parent_calc_folder2`` is given as input node: *<filename_second_input_file>*
-            * ``replace_newpos``, mandatory if ``parent_calc_folder2`` is given as input node: *[[position in neworder list which is replace with potential from pot2, position in pot2 that is chosen for replacement]]*
-            * ``label``, optional: *label_for_output_node*
-            * ``description``, optional: *longer_description_for_output_node*
+.. note:: 
+    The settings_dict should contain the following keys:
+        * ``pot1``, mandatory: *<filename_input_potential>*
+        * ``out_pot``, mandatory: *<filename_output_potential>*
+        * ``neworder``, mandatory: *[list of intended order in output potential]* 
+        * ``pot2``, mandatory if ``parent_calc_folder2`` is given as input node: *<filename_second_input_file>*
+        * ``replace_newpos``, mandatory if ``parent_calc_folder2`` is given as input node: *[[position in neworder list which is replace with potential from pot2, position in pot2 that is chosen for replacement]]*
+        * ``label``, optional: *label_for_output_node*
+        * ``description``, optional: *longer_description_for_output_node*
 
 
 prepare_VCA_structure_wf
