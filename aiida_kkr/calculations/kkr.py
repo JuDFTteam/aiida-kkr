@@ -346,19 +346,19 @@ class KkrCalculation(JobCalculation):
                 runopt.append('qdos')
                 change_values.append(['RUNOPT', runopt])
             tempr = parameters.get_dict().get('TEMPR')
-            if tempr>100.:
+            if tempr is None or tempr>100.:
                 change_values.append(['TEMPR', 50.])
             N1 = parameters.get_dict().get('TEMPR')
-            if N1>0:
+            if N1 is None or N1>0:
                 change_values.append(['NPT1', 0])
             N2 = parameters.get_dict().get('NPT2')
             if N2 is None:
                 change_values.append(['NPT2', 100])
             N3 = parameters.get_dict().get('NPT3')
-            if N3>0.:
+            if N3 is None or N3>0.:
                 change_values.append(['NPT3', 0])
             NPOL = parameters.get_dict().get('NPOL')
-            if NPOL>0.:
+            if NPOL is None or NPOL>0.:
                 change_values.append(['NPOL', 0])
             if change_values != []:
                 new_params = {'nodename': 'changed_params_qdos', 'nodedesc': 'Changed parameters to mathc qdos mode. Changed values: {}'.format(change_values)}
@@ -372,8 +372,8 @@ class KkrCalculation(JobCalculation):
             if use_alat_input:
                 alat = parameters.get_dict().get('ALATBASIS')
             else:
-                alat = get_alat_from_bravais(array(structure.cell), is3D=structure.pbc[2])
-            kpath_array = kpath_array * (alat/2./pi) * get_Ang2aBohr()
+                alat = get_alat_from_bravais(array(structure.cell), is3D=structure.pbc[2]) * get_Ang2aBohr()
+            kpath_array = kpath_array * (alat/2./pi)
             qvec = ['%i\n'%len(kpath_array)]
             qvec+=['%e %e %e\n'%(kpt[0], kpt[1], kpt[2]) for kpt in kpath_array]
             qvecpath = tempfolder.get_abs_path(self._QVEC)
