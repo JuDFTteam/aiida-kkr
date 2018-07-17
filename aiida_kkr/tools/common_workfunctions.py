@@ -273,7 +273,7 @@ def get_inputs_common(process, code, remote, structure, options, label, descript
     """
     Base function common in get_inputs_* functions for different codes
     """
-    inputs = process.get_inputs_template()
+    inputs = process.get_builder()
     
     if structure:
         inputs.structure = structure
@@ -286,27 +286,33 @@ def get_inputs_common(process, code, remote, structure, options, label, descript
         
     if params:
         inputs.parameters = params
+ 
+    if not options:
+        options = {}
         
-    for key, val in options.iteritems():
-        if val==None:
-            #leave them out, otherwise the dict schema won't validate
-            continue
-        else:
-            inputs._options[key] = val
+    #for key, val in options.iteritems():
+    #    if val==None:
+    #        #leave them out, otherwise the dict schema won't validate
+    #        continue
+    #    else:
+    #        inputs.options[key] = val
 
     if description:
-        inputs['_description'] = description
+        inputs['description'] = description
     else:
-        inputs['_description'] = ''
+        inputs['description'] = ''
 
     if label:
-        inputs['_label'] = label
+        inputs['label'] = label
     else:
-        inputs['_label'] = ''
+        inputs['label'] = ''
 
     if serial:
-        inputs._options.withmpi = False # for now
-        inputs._options.resources = {"num_machines": 1}
+        options['withmpi'] = False # for now
+        options['resources'] = {"num_machines": 1}
+
+    if options:
+        inputs.options = options
     '''
     options = {
     "max_wallclock_seconds": int,
