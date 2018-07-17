@@ -13,9 +13,8 @@ if __name__=='__main__':
 
 from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, if_, ToContext
-from aiida.work.run import submit
+from aiida.work.launch import submit
 from aiida.work import workfunction as wf
-from aiida.work.process_registry import ProcessRegistry
 from aiida_kkr.tools.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
@@ -109,9 +108,8 @@ class kkr_dos_wc(WorkChain):
         """
         init context and some parameters
         """
-        self.report('INFO: started KKR dos workflow version {}\n'
-                    'INFO: Workchain node identifiers: {}'
-                    ''.format(self._workflowversion, ProcessRegistry().current_calc_node))
+        self.report('INFO: started KKR dos workflow version {}'
+                    ''.format(self._workflowversion))
 
         ####### init    #######
 
