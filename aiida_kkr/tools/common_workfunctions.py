@@ -298,14 +298,14 @@ def get_inputs_common(process, code, remote, structure, options, label, descript
     #        inputs.options[key] = val
 
     if description:
-        inputs['description'] = description
+        inputs.description = description
     else:
-        inputs['description'] = ''
+        inputs.description = ''
 
     if label:
-        inputs['label'] = label
+        inputs.label = label
     else:
-        inputs['label'] = ''
+        inputs.label = ''
 
     if serial:
         options['withmpi'] = False # for now
