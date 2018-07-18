@@ -1,18 +1,12 @@
-n#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 In this module you find the base workflow for writing out the kkr_flexfiles and
 some helper methods to do so with AiiDA
 """
-if __name__=='__main__':
-    from aiida import is_dbenv_loaded, load_dbenv
-    if not is_dbenv_loaded():
-        load_dbenv()
-        
         
 
 from aiida.orm import Code, DataFactory, load_node
-from aiida.work.workchain import WorkChain, if_, ToContext
+from aiida.work.workchain import WorkChain, ToContext
 from aiida.work.run import submit
 from aiida.work import workfunction as wf
 from aiida.work.process_registry import ProcessRegistry
@@ -42,7 +36,7 @@ KkrProcess = KkrCalculation.process()
 
 class kkr_flex_wc(WorkChain):
     """
-  f  Workchain of a kkr_flex calculation with KKR starting from the RemoteData node 
+    Workchain of a kkr_flex calculation with KKR starting from the RemoteData node 
     of a previous calculation (either Voronoi or KKR).
 
     :param wf_parameters: (ParameterData), Workchain specifications
@@ -56,154 +50,148 @@ class kkr_flex_wc(WorkChain):
     _workflowversion = __version__
     _wf_label = 'kkr_flex_wc'
     _wf_description = 'Workflow for a KKR flex calculation starting from RemoteData node of previous KKR calculation'
-    _wf_default = {'queue_name' : '',                        # Queue name to submit jobs too
+    _wf_default = {'flex_params' : {"RUNOPT": "KKRFLEX",     # ToDo: specify all necessary params               
+                   }}
+    _options_default = {'queue_name' : '',                        # Queue name to submit jobs too
                    'resources': {"num_machines": 1},         # resources to allowcate for the job
-                   'walltime_sec' : 60*60,                   # walltime after which the job gets killed (gets parsed to KKR)
-                   'use_mpi' : False,                        # execute KKR with mpi or without
+                   'walltime_sec' : 60*60,                   # walltime after which the job gets killed (gets parsed to KKR)}
                    'custom_scheduler_commands' : '',         # some additional scheduler commands 
-                   'flex_params' : {"RUNOPT": "KKRFLEX",     # ToDo: specify all necessary params
-                                    
-                   }
+                   'use_mpi' : False}                        # execute KKR with mpi or without
 
     @classmethod
     def get_wf_defaults(self):
-    """
-    Print and return _wf_defaults dictionary. Can be used to easily create set of wf_parameters.
-    returns _wf_defaults
-    """
-
-    print('Version of workflow: {}'.format(self._workflowversion))
-    return self._wf_default
+        """
+        Print and return _wf_defaults dictionary. Can be used to easily create set of wf_parameters.
+        returns _wf_defaults
+        """
+    
+        print('Version of workflow: {}'.format(self._workflowversion))
+        return self._wf_default
 
     @classmethod
     def define(cls, spec):
-    """
-    Defines the outline of the workflow
-    """
-
-    # Take input of the workflow or use defaults defined above
-    super(kkr_flex_wc, cls).define(spec)
-    spec.input("wf_parameters", valid_type=ParameterData, required=False,
-                   default=ParameterData(dict=cls._wf_default))
-    spec.input("remote_data", valid_type=RemoteData, required=True)
-    spec.input("kkr", valid_type=Code, required=True)
-
-    # Here the structure of the workflow is defined
-    spec.outline(
-        # initialize workflow
-        cls.start,
-        # validate input
-        if_(cls.validate_input)(
-            # set parameters for KKRflex calculation
+        """
+        Defines the outline of the workflow
+        """
+    
+        # Take input of the workflow or use defaults defined above
+        super(kkr_flex_wc, cls).define(spec)
+        spec.input("wf_parameters", valid_type=ParameterData, required=False,
+                       default=ParameterData(dict=cls._wf_default))
+        spec.input("remote_data", valid_type=RemoteData, required=True)
+        spec.input("kkr", valid_type=Code, required=True)
+    
+        # Here the structure of the workflow is defined
+        spec.outline(
+            cls.start,
+            cls.validate_input,
             cls.set_params_flex,
-            # calculate host GF
-            cls.get_flex),
-            #  collect results and store kkrflex-files, scoef and other files (TODO!!!)
+            cls.get_flex,# calculate host GF
             cls.return_results
-        )
+            )
 
     def start(self):
-    """
-    init context and some parameters
-    """
-
-    self.report('INFO: started KKRflex workflow version {}\n'
-                'INFO: Workchain node identifiers: {}'
-                ''.format(self._workflowversion, ProcessRegistry().current_calc_node))
-
-    ####### init #######
-    # internal para / control para
-    self.ctx.abort = False
-
-    # input para
-    wf_dict = self.inputs.wf_parameters.get_dict()
-
-    if wf_dict == {}:
-        wf_dict = self._wf_default
-        self.report('INFO: using default wf parameters')
-
-    # set values, or defaults
-    self.ctx.use_mpi = wf_dict.get('use_mpi', self._wf_default['use_mpi'])
-    self.ctx.resources = wf_dict.get('resources', self._wf_default['resources'])
-    self.ctx.walltime_sec = wf_dict.get('walltime_sec', self._wf_default['walltime_sec'])
-    self.ctx.queue = wf_dict.get('queue_name', self._wf_default['queue_name'])
-    self.ctx.custom_scheduler_commands = wf_dict.get('custom_scheduler_commands', self._wf_default['custom_scheduler_commands'])
+        """
+        init context and some parameters
+        """
     
-    self.ctx.flex_params_dict = wf_dict.get('flex_params', self._wf_default['flex_params'])
-    # compare to 'dos_workflow.py' -> necessary?!?
-
-    self.ctx.description_wf = self.inputs.get('_description', self._wf_description)
-    self.ctx.label_wf = self.inputs.get('_label', self._wf_label)
-
-    self.report('INFO: use the following parameter:\n'
-                'use_mpi: {}\n'
-                'Resources: {}\n'
-                'Walltime (s): {}\n'
-                'queue name: {}\n'
-                'scheduler command: {}\n'
-                'description: {}\n'
-                'label: {}\n'
-                'flex_params: {}\n'.format(self.ctx.use_mpi, self.ctx.resources, self.ctx.walltime_sec, 
-                                           self.ctx.queue, self.ctx.custom_scheduler_commands, 
-                                           self.ctx.description_wf, self.ctx.label_wf, 
-                                           self.ctx.flex_params_dict))
-
-    # return para/vars
-    self.ctx.successful = True
-    self.ctx.errors = []
-    self.ctx.formula = ''
-
+        self.report('INFO: started KKRflex workflow version {}\n'
+                    'INFO: Workchain node identifiers: {}'
+                    ''.format(self._workflowversion, ProcessRegistry().current_calc_node))
+    
+        ####### init #######
+        # internal para / control para
+        self.ctx.abort = False
+    
+        # input para
+        wf_dict = self.inputs.wf_parameters.get_dict()
+    
+        if wf_dict == {}:
+            wf_dict = self._wf_default
+            self.report('INFO: using default wf parameters')
+    
+        # set values, or defaults
+        self.ctx.use_mpi = wf_dict.get('use_mpi', self._wf_default['use_mpi'])
+        self.ctx.resources = wf_dict.get('resources', self._wf_default['resources'])
+        self.ctx.walltime_sec = wf_dict.get('walltime_sec', self._wf_default['walltime_sec'])
+        self.ctx.queue = wf_dict.get('queue_name', self._wf_default['queue_name'])
+        self.ctx.custom_scheduler_commands = wf_dict.get('custom_scheduler_commands', self._wf_default['custom_scheduler_commands'])
+        
+        self.ctx.flex_params_dict = wf_dict.get('flex_params', self._wf_default['flex_params'])
+        # compare to 'dos_workflow.py' -> necessary?!?
+    
+        self.ctx.description_wf = self.inputs.get('_description', self._wf_description)
+        self.ctx.label_wf = self.inputs.get('_label', self._wf_label)
+    
+        self.report('INFO: use the following parameter:\n'
+                    'use_mpi: {}\n'
+                    'Resources: {}\n'
+                    'Walltime (s): {}\n'
+                    'queue name: {}\n'
+                    'scheduler command: {}\n'
+                    'description: {}\n'
+                    'label: {}\n'
+                    'flex_params: {}\n'.format(self.ctx.use_mpi, self.ctx.resources, self.ctx.walltime_sec, 
+                                               self.ctx.queue, self.ctx.custom_scheduler_commands, 
+                                               self.ctx.description_wf, self.ctx.label_wf, 
+                                               self.ctx.flex_params_dict))
+    
+        # return para/vars
+        self.ctx.successful = True
+        self.ctx.errors = []
+        self.ctx.formula = ''
+    
 
 
     def validate_input(self):
-    """
-    Validate input
-    """
-
-    inputs = self.inputs
-
-    if 'remote_data' in inputs:
-        input_ok = True
-    else:
-        error = 'ERROR: No remote_data was provided as Input'
-        self.ctx.errors.append(error)
-        self.control_end_wc(error)
-        input_ok = False
-
-    # extract correct remote folder of last calculation if input remote_folder node
-    # is not from KKRCalculation but kkr_scf_wc workflow
-    input_remote = self.inputs.remote_data
-    # check if input_remote has single KKRCalculation parent
-    parents = input_remote.get_inputs(node_type=JobCalculation)
-    nparents = len(parents)
-    if nparents!=1:
-        # extract parent workflow and get uuid of last calc from output node
-        parent_workflow = input_remote.inp.last_RemoteData
-        if not isinstance(parent_workflow, WorkCalculation):
-            raise InputValidationError("Input remote_data node neither output of a KKR calculation nor of kkr_scf_wc workflow")
-            parent_workflow_out = parent_workflow.out.output_kkr_scf_wc_ParameterResults
-            uuid_last_calc = parent_workflow_out.get_dict().get('last_calc_nodeinfo').get('uuid')
-            last_calc = load_node(uuid_last_calc)
-            if not isinstance(last_calc, KkrCalculation)
-                raise InputValidationError("Extracted last_calc node not of type KkrCalculation: check remote_data input node")
-            # overwrite remote_data node with extracted remote folder
-            output_remote = last_calc.out.remote_folder
-            self.inputs.remote_data = output_remote
-        
-        if 'kkr' in inputs:
-            try:
-                test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
-            except ValueError:
-                error = ("The code you provided for kkr does not "
-                         "use the plugin kkr.kkr")
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
-                input_ok = False
-        
-        # set self.ctx.input_params_KKR
-        self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
-        
-        return input_ok
+        """
+        Validate input
+        """
+    
+        inputs = self.inputs
+    
+        if 'remote_data' in inputs:
+            input_ok = True
+        else:
+            error = 'ERROR: No remote_data was provided as Input'
+            self.ctx.errors.append(error)
+            self.control_end_wc(error)
+            input_ok = False
+    
+        # extract correct remote folder of last calculation if input remote_folder node
+        # is not from KKRCalculation but kkr_scf_wc workflow
+        input_remote = self.inputs.remote_data
+        # check if input_remote has single KKRCalculation parent
+        parents = input_remote.get_inputs(node_type=JobCalculation)
+        nparents = len(parents)
+        if nparents!=1:
+            # extract parent workflow and get uuid of last calc from output node
+            parent_workflow = input_remote.inp.last_RemoteData
+            if not isinstance(parent_workflow, WorkCalculation):
+                raise InputValidationError("Input remote_data node neither output of a KKR calculation nor of kkr_scf_wc workflow")
+                parent_workflow_out = parent_workflow.out.output_kkr_scf_wc_ParameterResults
+                uuid_last_calc = parent_workflow_out.get_dict().get('last_calc_nodeinfo').get('uuid')
+                last_calc = load_node(uuid_last_calc)
+                if not isinstance(last_calc, KkrCalculation):
+                    raise InputValidationError("Extracted last_calc node not of type KkrCalculation: check remote_data input node")
+                # overwrite remote_data node with extracted remote folder
+                output_remote = last_calc.out.remote_folder
+                self.inputs.remote_data = output_remote
+            
+            if 'kkr' in inputs:
+                try:
+                    test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
+                except ValueError:
+                    error = ("The code you provided for kkr does not "
+                             "use the plugin kkr.kkr")
+                    self.ctx.errors.append(error)
+                    self.control_end_wc(error)
+                    input_ok = False
+            
+            # set self.ctx.input_params_KKR
+            self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
+            
+            return input_ok
 
     def set_params_flex(self):
         """

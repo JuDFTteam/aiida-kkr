@@ -1,13 +1,8 @@
-#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
 Here workfunctions and normal functions using aiida-stuff (typically used 
 within workfunctions) are collected.
 """
-if __name__=='__main__':
-    from aiida import is_dbenv_loaded, load_dbenv
-    if not is_dbenv_loaded():
-        load_dbenv()
 
 from aiida.common.exceptions import InputValidationError
 from aiida.work import workfunction as wf
