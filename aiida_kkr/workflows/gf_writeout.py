@@ -40,8 +40,9 @@ class kkr_flex_wc(WorkChain):
     of a previous calculation (either Voronoi or KKR).
 
     :param wf_parameters: (ParameterData), Workchain specifications
-    :param remote_data: (RemoteData), mandatory; from a KKR calculation
+    :param remote_data: (RemoteData), mandatory; from a converged KKR calculation
     :param kkr: (Code), mandatory; KKR code running the DOS calculation
+    :param imp_info: imp_info node specifying information of the impurities in the system
 
     :return result_kkr_flex_wc: (ParameterData), Information of workflow results
                                 like success, last result node, list with convergence behavior
@@ -49,10 +50,12 @@ class kkr_flex_wc(WorkChain):
 
     _workflowversion = __version__
     _wf_label = 'kkr_flex_wc'
-    _wf_description = 'Workflow for a KKR flex calculation starting from RemoteData node of previous KKR calculation'
-    _wf_default = {'flex_params' : {"RUNOPT": "KKRFLEX",     # ToDo: specify all necessary params               
-                   }}
-    _options_default = {'queue_name' : '',                        # Queue name to submit jobs too
+    _wf_description = 'Workflow for a KKR flex calculation starting from RemoteData node of previous converged KKR calculation'
+    
+    # _wf_default = {'flex_params' : {"RUNOPT": "KKRFLEX"}}    
+    # not necessary any more (RUNOPT set in set_params_flex)    
+
+    _options_default = {'queue_name' : '',                   # Queue name to submit jobs too
                    'resources': {"num_machines": 1},         # resources to allowcate for the job
                    'walltime_sec' : 60*60,                   # walltime after which the job gets killed (gets parsed to KKR)}
                    'custom_scheduler_commands' : '',         # some additional scheduler commands 
@@ -76,19 +79,31 @@ class kkr_flex_wc(WorkChain):
     
         # Take input of the workflow or use defaults defined above
         super(kkr_flex_wc, cls).define(spec)
+        spec.input('code', valid_type=Code)
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
                        default=ParameterData(dict=cls._wf_default))
         spec.input("remote_data", valid_type=RemoteData, required=True)
         spec.input("kkr", valid_type=Code, required=True)
+        spec.input("imp_info", valid_type=ParameterData, required=True)
+        spec.input("options", valid_type=ParameterData, required=False)
     
         # Here the structure of the workflow is defined
         spec.outline(
             cls.start,
             cls.validate_input,
             cls.set_params_flex,
-            cls.get_flex,# calculate host GF
+            cls.get_flex, # calculate host GF and kkr-flexfiles
             cls.return_results
             )
+
+        # ToDo: add implementation of exit codes (compare to aiida_qe)
+
+        # ToDo: add output of the workflow
+        # Define the output of the workflow
+        spec.output('remote_folder', valid_type=RemoteData)
+
+
+
 
     def start(self):
         """
@@ -103,26 +118,39 @@ class kkr_flex_wc(WorkChain):
         # internal para / control para
         self.ctx.abort = False
     
-        # input para
+        # input both wf and options parameters
+        options_dict = self.inputs.options.get_dict()
         wf_dict = self.inputs.wf_parameters.get_dict()
     
+        if options_dict == {}:
+            options_dict = self._options_default
+            self.report('INFO: using default options parameters')
+
         if wf_dict == {}:
             wf_dict = self._wf_default
             self.report('INFO: using default wf parameters')
     
         # set values, or defaults
-        self.ctx.use_mpi = wf_dict.get('use_mpi', self._wf_default['use_mpi'])
-        self.ctx.resources = wf_dict.get('resources', self._wf_default['resources'])
-        self.ctx.walltime_sec = wf_dict.get('walltime_sec', self._wf_default['walltime_sec'])
-        self.ctx.queue = wf_dict.get('queue_name', self._wf_default['queue_name'])
-        self.ctx.custom_scheduler_commands = wf_dict.get('custom_scheduler_commands', self._wf_default['custom_scheduler_commands'])
-        
-        self.ctx.flex_params_dict = wf_dict.get('flex_params', self._wf_default['flex_params'])
-        # compare to 'dos_workflow.py' -> necessary?!?
+        # ToDo: arrange option assignment differently (look at scf.py from aiida-fleur)
+        self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
+        self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
+        self.ctx.walltime_sec = options_dict.get('walltime_sec', self._options_default['walltime_sec'])
+        self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
+        self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
+
+        # ToDo: probably not right that way, think on that
+        # self.ctx.runopt = wf_dict.get('RUNOPT', self._wf_default['RUNOPT'])
+        # new: handled in set_params_flex        
+
+        # already taken care of in set_params_flex, not necessary any more
+        # self.ctx.flex_params_dict = wf_dict.get('flex_params', self._wf_default['flex_params'])
+        # self.ctx.flex_kkrparams = None # ToDo: compare to 'set_params_dos' in dos.py
     
+        # ToDo: exchange underscore in front of description and label?
         self.ctx.description_wf = self.inputs.get('_description', self._wf_description)
         self.ctx.label_wf = self.inputs.get('_label', self._wf_label)
     
+
         self.report('INFO: use the following parameter:\n'
                     'use_mpi: {}\n'
                     'Resources: {}\n'
@@ -148,6 +176,9 @@ class kkr_flex_wc(WorkChain):
         Validate input
         """
     
+
+        # ToDo: not modified enough yet!        
+
         inputs = self.inputs
     
         if 'remote_data' in inputs:
@@ -195,7 +226,7 @@ class kkr_flex_wc(WorkChain):
 
     def set_params_flex(self):
         """
-        Take input parameter node and change to input from wf_parameter input
+        Take input parameter node and change to input from wf_parameter and options 
         """
     
         params = self.ctx.input_params_KKR
@@ -232,27 +263,32 @@ class kkr_flex_wc(WorkChain):
                 label = 'add_defaults_'
                 descr = 'added missing default keys, '
     
-        # overwrite RUNOPT no matter what is in input parameter
-        runopt_new = self.ctx.flex_params_dict
-        runopt_new['RUNOPT'] = ['KKRFLEX']
-    
+        # add the RUNOPT = KKRFLEX to the params
+        para_check.set_value(['RUNOPT'], ['KKRFLEX'], silent=True)
+
+        #construct the final param node containing all of the params   
         updatenode = ParameterData(dict=para_check.get_dict())
         updatenode.label = label+'KKRparam_flex'
-        updatenode.description = descr+'KKR parameter node extracted from parent parameters and wf_parameter input node.'
+        updatenode.description = descr+'KKR parameter node extracted from parent parameters and wf_parameter and options input node.'
         paranode_flex = update_params_wf(self.ctx.input_params_KKR, updatenode)
         self.ctx.flex_kkrparams = paranode_flex
 
+       
 
     def get_flex(self):
         """
         Submit a KKRFLEX calculation
         """
+
+        #ToDo: add use_impurity_info(imp_info) before submitting the job
+        #Update: check whether assignment with 'self.use_impurity_info' is correct
+
         label = 'KKRFLEX calc.'
         flexdict = self.ctx.flex_params_dict
-        description = 'KKRFLEX calcularion to write out host GF'
+        description = 'KKRFLEX calculation to write out host GF using RUNOPT={}'.format()
         code = self.inputs.kkr
         remote = self.inputs.remote_data
-        params = self.ctx.dos_kkrparams
+        params = self.ctx.flex_kkrparams
         options = {"max_wallcloxk_seconds": self.ctx.walltime_sec,
                    "resources": self.ctx.resources,
                    "queue_name": self.ctx.queue}
@@ -262,7 +298,8 @@ class kkr_flex_wc(WorkChain):
 
         # run the KKRFLEX calculation
         self.report('INFO: doing calculation')
-        flexrun = submit(KkrProcess, **inputs)
+        self.use_impurity_info(imp_info)
+        flexrun = self.submit(KkrProcess, **inputs)
 
         return ToContext(flexrun=flexrun)
 
@@ -291,7 +328,10 @@ class kkr_flex_wc(WorkChain):
         outputnode_dict['walltime_sec'] = self.ctx.walltime_sec
         outputnode_dict['queue'] = self.ctx.queue
         outputnode_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
+        
+        # ToDo: has to be modified
         outputnode_dict['flex_params'] = self.ctx.flex_params_dict
+        
         try:
             outputnode_dict['nspin'] = self.ctx.flex.res.nspin # TODO: how does that work?
         except:
@@ -345,8 +385,6 @@ class kkr_flex_wc(WorkChain):
         self.return_results()
         self.abort(errormsg)
 
-
-    # equivalent to 'parse_dosfiles' not neccessary here ...
 
 
 
