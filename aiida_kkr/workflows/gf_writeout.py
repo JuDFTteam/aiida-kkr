@@ -94,17 +94,14 @@ class kkr_flex_wc(WorkChain):
             cls.return_results
             )
 
-        # ToDo: add implementation of exit codes (compare to aiida_quantumespresso)
         spec.exit_code(101, 'ERROR_INVALID_INPUT_IMP_INFO', 
             message="the 'imp_info' input ParameterData node could not be used")
         spec.exit_code(102, 'ERROR_INVALID_INPUT_KKR',
             message="the code you provided for kkr does not use the plugin kkr.kkr")
 
-
-        # ToDo: add output of the workflow
         # Define the output of the workflow
         spec.output('remote_folder', valid_type=RemoteData)
-        spec.output(, valid_type=ParameterData) # calc succesful? ....
+        #spec.output(, valid_type=ParameterData) calc sucessful?
 
 
 
@@ -136,8 +133,6 @@ class kkr_flex_wc(WorkChain):
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
 
-    
-        # ToDo: exchange underscore in front of description and label?
         self.ctx.description_wf = self.inputs.get('_description', self._wf_description)
         self.ctx.label_wf = self.inputs.get('_label', self._wf_label)
     
@@ -256,9 +251,10 @@ class kkr_flex_wc(WorkChain):
                 label = 'add_defaults_'
                 descr = 'added missing default keys, '
     
-        # add the RUNOPT = KKRFLEX to the params
-        para_check.set_value(['RUNOPT'], ['KKRFLEX'], silent=True)
-
+        runopt = para_check.get_dict().get('RUNOPT', [])
+        runopt.append('KKRFLEX')
+        para_check = update_params_wf(self.ctx.input_params_KKR, ParameterData(dict={'RUNOPT':runopt}))
+        
         #construct the final param node containing all of the params   
         updatenode = ParameterData(dict=para_check.get_dict())
         updatenode.label = label+'KKRparam_flex'
@@ -274,7 +270,6 @@ class kkr_flex_wc(WorkChain):
         """
 
         label = 'KKRFLEX calc.'
-        # flexdict = self.ctx.flex_params_dict
         description = 'KKRFLEX calculation to write out host GF using RUNOPT={}'.format()
         code = self.inputs.kkr
         remote = self.inputs.remote_data
@@ -299,9 +294,8 @@ class kkr_flex_wc(WorkChain):
         This should run through and produce output nodes even if everything failed,
         therefore it only uses results from context.
         """ 
-        # has to be worked on, ask Philipp
 
-        # capture error of unsuccessful DOS run
+        # capture error of unsuccessful flexrun
         calc_state = self.ctx.flexrun.get_state()
         if calc_state != calc_states.FINISHED:
             self.ctx.successful = False
@@ -318,22 +312,11 @@ class kkr_flex_wc(WorkChain):
         outputnode_dict['walltime_sec'] = self.ctx.walltime_sec
         outputnode_dict['queue'] = self.ctx.queue
         outputnode_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
-        
-        # ToDo: has to be modified
-        # outputnode_dict['flex_params'] = self.ctx.flex_params_dict
-        
-        try:
-            outputnode_dict['nspin'] = self.ctx.flex.res.nspin # TODO: how does that work?
-        except:
-            error = "ERROR: nspin not extracted"
-            self.report(error)
-            self.ctx.successful = False
-            self.ctx.errors.append(error)
         outputnode_dict['successful'] = self.ctx.successful
         outputnode_dict['list_of_errors'] = self.ctx.errors
             
         outputnode = ParameterData(dict=outputnode_dict)
-        outputnode.label = 'kkr_scf_wc_results'
+        outputnode.label = 'kkr_flex_wc_results'
         outputnode.description = ''
         outputnode.store()
         
@@ -347,17 +330,15 @@ class kkr_flex_wc(WorkChain):
             has_flexrun = False
 
         # interpol dos file and store to XyData nodes
-        if has_flexrun:
-            # ask Philipp
-            outdict = create_flex_result_node(outputnode, self.ctx.flexrun.out.retrieved)
-        else:
-            # ask Philipp how this function can be defined and where
-            outdict = create_flex_result_node_minimal(outputnode)
+        #if has_flexrun:
+            #outdict = create_flex_result_node(outputnode, self.ctx.flexrun.out.retrieved)
+        #else:
+            #outdict = create_flex_result_node_minimal(outputnode)
     
         
-        for link_name, node in outdict.iteritems():
+        #for link_name, node in outdict.iteritems():
             #self.report("INFO: storing node '{}' with link name '{}'".format(node, link_name))
             #self.report("INFO: node type: {}".format(type(node)))
-            self.out(link_name, node)
+            #self.out(link_name, node)
             
         self.report("INFO: done with KKRFLEX GF writeout  workflow!\n")

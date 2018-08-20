@@ -286,7 +286,7 @@ class kkr_dos_wc(WorkChain):
         
         label = 'KKR DOS calc.'
         dosdict = self.ctx.dos_params_dict
-        description = 'dos calculation using the following parameter set. emin= {}, emax= {}, nepts= {}, tempr={}, kmesh={}'.format(dosdict['emin'], dosdict['emax'], dosdict['nepts'], dosdict['tempr'], dosdict['kmesh'])           
+        description = 'dos calc: emin= {}, emax= {}, nepts= {}, tempr={}, kmesh={}'.format(dosdict['emin'], dosdict['emax'], dosdict['nepts'], dosdict['tempr'], dosdict['kmesh'])
         code = self.inputs.kkr
         remote = self.inputs.remote_data
         params = self.ctx.dos_kkrparams
