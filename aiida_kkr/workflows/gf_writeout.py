@@ -104,7 +104,7 @@ class kkr_flex_wc(WorkChain):
         # ToDo: add output of the workflow
         # Define the output of the workflow
         spec.output('remote_folder', valid_type=RemoteData)
-
+        spec.output(, valid_type=ParameterData) # calc succesful? ....
 
 
 
@@ -284,11 +284,10 @@ class kkr_flex_wc(WorkChain):
                    "queue_name": self.ctx.queue}
         if self.ctx.custom_scheduler_commands:
             options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
-        inputs = get_inputs_kkr(code, remote, options, label, description, parameters=params, serial=(not self.ctx.use_mpi))
+        inputs = get_inputs_kkr(code, remote, options, label, description, parameters=params, serial=(not self.ctx.use_mpi), imp_info=imp_info)
 
         # run the KKRFLEX calculation
         self.report('INFO: doing calculation')
-        self.use_impurity_info(imp_info)
         flexrun = self.submit(KkrProcess, **inputs)
 
         return ToContext(flexrun=flexrun)

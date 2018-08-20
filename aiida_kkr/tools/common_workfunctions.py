@@ -218,7 +218,7 @@ def test_and_get_codenode(codenode, expected_code_type, use_exceptions=False):
     return code
 
     
-def get_inputs_kkr(code, remote, options, label='', description='', parameters=None, serial=False):
+def get_inputs_kkr(code, remote, options, label='', description='', parameters=None, serial=False, imp_info=None):
     """
     Get the input for a voronoi calc.
     Wrapper for KkrProcess setting structure, code, options, label, description etc.
@@ -230,7 +230,8 @@ def get_inputs_kkr(code, remote, options, label='', description='', parameters=N
     KkrProcess = KkrCalculation.process()
         
     # then reuse common inputs setter 
-    inputs = get_inputs_common(KkrProcess, code, remote, None, options, label, description, parameters, serial)
+    inputs = get_inputs_common(KkrProcess, code, remote, None, options, label,
+                               description, parameters, serial, imp_info)
 
     return inputs
 
@@ -264,7 +265,7 @@ def get_inputs_voronoi(code, structure, options, label='', description='', param
     return VoronoiProcess, inputs
     
     
-def get_inputs_common(process, code, remote, structure, options, label, description, params, serial):
+def get_inputs_common(process, code, remote, structure, options, label, description, params, serial, imp_info=None):
     """
     Base function common in get_inputs_* functions for different codes
     """
@@ -324,6 +325,9 @@ def get_inputs_common(process, code, remote, structure, options, label, descript
     "prepend_text": unicode,
     "append_text": unicode}
     '''
+    
+    if imp_info:
+        inputs.imp_info = imp_info
 
     return inputs
 
