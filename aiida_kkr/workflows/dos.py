@@ -445,7 +445,7 @@ def create_dos_result_node(outputnode, dos_retrieved):
         dos_extracted = False        
         
     outdict = {}
-    outdict['results_wf'] = outputnode.copy()
+    outdict['results_wf'] = outputnode
     if dos_extracted:
         outdict['dos_data'] = dosXyDatas[0]
         outdict['dos_data_interpol'] = dosXyDatas[1]
@@ -459,5 +459,5 @@ def create_dos_result_node_minimal(outputnode):
     minimal if dosrun unsuccesful
     """
     outdict = {}
-    outdict['results_wf'] = outputnode.copy()
+    outdict['results_wf'] = outputnode
     return outdict

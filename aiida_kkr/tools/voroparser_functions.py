@@ -19,7 +19,7 @@ if sys.version_info[0] >= 3:
 
 def get_valence_min(outfile='out_voronoi'):
     """Construct minimum of energy contour (between valence band bottom and core states)"""
-    from scipy import array
+    from numpy import array
     txt = open(outfile).readlines()
     searchstr = 'All other states are above'
     valence_minimum = array([float(line.split(':')[1].split()[0]) for line in txt if searchstr in line])
@@ -28,7 +28,7 @@ def get_valence_min(outfile='out_voronoi'):
 
 def check_voronoi_output(potfile, outfile, delta_emin_safety=0.1):
     """Read output from voronoi code and create guess of energy contour"""
-    from scipy import zeros
+    from numpy import zeros
     #analyse core levels, minimum of valence band and their difference
     ncore, ecore, lcore = get_corestates_from_potential(potfile=potfile)
     e_val_min = get_valence_min(outfile=outfile)

@@ -37,7 +37,7 @@ class Test_scf_workflow():
         from aiida_kkr.tools.kkr_params import kkrparams
         from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
         from pprint import pprint
-        from scipy import array
+        from numpy import array
        
         ParameterData = DataFactory('parameter')
         StructureData = DataFactory('structure')
