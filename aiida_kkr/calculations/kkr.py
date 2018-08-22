@@ -18,6 +18,7 @@ from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_struct
                                                   vca_check)
 from aiida_kkr.tools.common_functions import get_alat_from_bravais, get_Ang2aBohr
 from aiida_kkr.tools.tools_kkrimp import make_scoef 
+from aiida_kkr.tools.kkr_params import __kkr_default_params__
 
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
@@ -236,9 +237,11 @@ class KkrCalculation(JobCalculation):
             if not value is None:
                 if key in self._do_never_modify:
                     oldvalue = parent_inp_dict[key]
+                    if oldvalue is None and key in __kkr_default_params__:
+                        oldvalue = __kkr_default_params__.get(key)
                     if value != oldvalue:
                         self.logger.error("You are trying to set keyword {} = {} but this is not allowed since the structure would be modified. Please use a suitable workfunction instead.".format(key, value))
-                        raise InputValidationError("You are trying to modify a keyword that is not allowed to be changed!")
+                        raise InputValidationError("You are trying to modify a keyword that is not allowed to be changed! (key={}, oldvalue={}, newvalue={})".format(key, oldvalue, value))
 
 
         #TODO check for remote folder (starting from folder data not implemented yet)

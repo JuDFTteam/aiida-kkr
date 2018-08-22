@@ -2,7 +2,7 @@
 
 
 # for support of the xml files and parsers
-aiida>=0.9.0
+aiida<0.12
 
 # for utilities
 #ase

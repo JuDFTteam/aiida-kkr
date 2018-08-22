@@ -18,7 +18,7 @@
     "setup_requires": ["reentry"],
     "reentry_register": true,
     "install_requires": [
-        "aiida-core >= 0.9",
+        "aiida-core < 0.12",
         "pytest-cov"
     ],
     "entry_points": {

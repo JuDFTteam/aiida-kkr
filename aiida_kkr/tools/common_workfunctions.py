@@ -408,12 +408,6 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
             else:
                 zatom_tmp = 0.0
             if vca_structure and ikind>0 and not isvoronoi:
-                print(site)
-                print(ikind)
-                print(zatom_tmp)
-                print(wght)
-                print(zatom)
-                print(wght_last)
                 # for VCA case take weighted average (only for KKR code, voronoi code uses zatom of first site for dummy calculation)
                 zatom  = zatom*wght_last + zatom_tmp*wght
                 # also reset weight to 1

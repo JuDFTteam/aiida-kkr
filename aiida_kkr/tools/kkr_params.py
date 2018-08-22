@@ -22,6 +22,7 @@ __contributors__ = u"Philipp Rüßmann"
 # This defines the default parameters for KKR used in the aiida plugin:
 __kkr_default_params__ = {"LMAX": 3,          # lmax-cutoff
                           "INS": 1,           # use shape corrections (full potential)
+                          "KSHAPE": 2,        # basically the same information as INS (KSHAPE=2*INS should always hold!)
                           "NSPIN": 2,         # spin-polarized calculation (but by default not automatically initialized with external field)
                           "RMAX": 10.,        # Madelung sum real-space cutoff
                           "GMAX": 100.,       # Madelung sum reciprocal-space cutoff
@@ -180,7 +181,7 @@ class kkrparams(object):
             keytype = str
         else:
             print('Error: type of keyvalue not found:', fmtstr)
-            raise TypeError
+            raise TypeError('Type not found for format string: {}'.format(fmtstr))
         return keytype
 
 
@@ -243,7 +244,7 @@ class kkrparams(object):
             elif valtype != cmptypes and tmpval is not None:
                 success = False
                 print('Error: type of value does not match expected type for ', key, self.values[key], cmptypes)
-                raise TypeError
+                raise TypeError('type of value does not match expected type for key={}; value={}; expected type={}'.format(key, self.values[key], cmptypes))
     
             if changed_type_automatically:
                 print('Warning: filling value of "%s" with integer but expects float. Converting automatically and continue'%key)
