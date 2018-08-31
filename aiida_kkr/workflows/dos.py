@@ -134,8 +134,8 @@ class kkr_dos_wc(WorkChain):
         self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
         self.ctx.dos_kkrparams = None # is set in set_params_dos
         
-        self.ctx.description_wf = self.inputs.get('_description', self._wf_description)
-        self.ctx.label_wf = self.inputs.get('_label', self._wf_label)
+        self.ctx.description_wf = self.inputs.get('description', self._wf_description)
+        self.ctx.label_wf = self.inputs.get('label', self._wf_label)
         
         self.report('INFO: use the following parameter:\n'
                     'use_mpi: {}\n'
@@ -299,7 +299,7 @@ class kkr_dos_wc(WorkChain):
 
         # run the DOS calculation
         self.report('INFO: doing calculation')
-        dosrun = submit(KkrProcess, **inputs)
+        dosrun = self.submit(KkrProcess, **inputs)
 
         return ToContext(dosrun=dosrun)
     

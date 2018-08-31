@@ -6,14 +6,10 @@ some helper methods to do so with AiiDA
         
 
 from aiida.orm import Code, DataFactory, load_node
-from aiida.work.workchain import WorkChain, ToContext
-from aiida.work.run import submit
-from aiida.work import workfunction as wf
-from aiida.work.process_registry import ProcessRegistry
+from aiida.work.workchain import WorkChain, ToContext, if_
 from aiida_kkr.tools.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
-from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.orm.calculation.job import JobCalculation
 from aiida.common.datastructures import calc_states
 from aiida.orm import WorkCalculation
@@ -78,30 +74,28 @@ class kkr_flex_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_flex_wc, cls).define(spec)
         
-        spec.input('code', valid_type=Code)     
+        spec.input("kkr", valid_type=Code, required=True)     
         spec.input("options_parameters", valid_type=ParameterData, required=False,
-                       default=ParameterData(dict=cls._options_default)
+                       default=ParameterData(dict=cls._options_default))
         spec.input("remote_data", valid_type=RemoteData, required=True)
-        spec.input("kkr", valid_type=Code, required=True)
         spec.input("imp_info", valid_type=ParameterData, required=True)
     
         # Here the structure of the workflow is defined
         spec.outline(
             cls.start,
-            cls.validate_input,
-            cls.set_params_flex,
-            cls.get_flex, # calculate host GF and kkr-flexfiles
-            cls.return_results
-            )
+            if_(cls.validate_input)(
+                cls.set_params_flex,
+                cls.get_flex, # calculate host GF and kkr-flexfiles
+                cls.return_results))   
 
         spec.exit_code(101, 'ERROR_INVALID_INPUT_IMP_INFO', 
             message="the 'imp_info' input ParameterData node could not be used")
         spec.exit_code(102, 'ERROR_INVALID_INPUT_KKR',
             message="the code you provided for kkr does not use the plugin kkr.kkr")
 
-        # Define the output of the workflow
         spec.output('remote_folder', valid_type=RemoteData)
-        #spec.output(, valid_type=ParameterData) calc sucessful?
+        spec.output('calculation_info', valid_type=ParameterData)
+        spec.output('retrieved_node', valid_type=RemoteData)
 
 
 
@@ -110,9 +104,8 @@ class kkr_flex_wc(WorkChain):
         init context and some parameters
         """
     
-        self.report('INFO: started KKRflex workflow version {}\n'
-                    'INFO: Workchain node identifiers: {}'
-                    ''.format(self._workflowversion, ProcessRegistry().current_calc_node))
+        self.report('INFO: started KKRflex workflow version {}'
+                    ''.format(self._workflowversion))
     
         ####### init #######
         # internal para / control para
@@ -133,8 +126,8 @@ class kkr_flex_wc(WorkChain):
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
 
-        self.ctx.description_wf = self.inputs.get('_description', self._wf_description)
-        self.ctx.label_wf = self.inputs.get('_label', self._wf_label)
+        self.ctx.description_wf = self.inputs.get('description', self._wf_description)
+        self.ctx.label_wf = self.inputs.get('label', self._wf_label)
     
 
         self.report('INFO: use the following parameter:\n'
@@ -162,7 +155,7 @@ class kkr_flex_wc(WorkChain):
         # ToDo: not modified enough yet! Taken from DOS workflow   
 
         inputs = self.inputs
-
+        
         if not 'imp_info' in inputs:
             input_ok = False
             return self.exit_codes.ERROR_INVALID_INPUT_IMP_INFO
@@ -195,28 +188,33 @@ class kkr_flex_wc(WorkChain):
                 output_remote = last_calc.out.remote_folder
                 self.inputs.remote_data = output_remote
             
-            if 'kkr' in inputs:
-                try:
-                    test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
-                except ValueError:
-                    error = ("The code you provided for kkr does not "
-                             "use the plugin kkr.kkr")
-                    self.ctx.errors.append(error)
-                    self.control_end_wc(error)
-                    input_ok = False
+        if 'kkr' in inputs:
+            try:
+                test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
+            except ValueError:
+                error = ("The code you provided for kkr does not "
+                         "use the plugin kkr.kkr")
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
+                input_ok = False
             
-            # set self.ctx.input_params_KKR
-            self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
+        # set self.ctx.input_params_KKR
+        self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
+        
+        if input_ok:
+            self.report('Checking inputs successful')
             
-            return input_ok
+        return input_ok
 
             
             
     def set_params_flex(self):
         """
         Take input parameter node and change to input from wf_parameter and options 
-        """
-    
+        """        
+        
+        self.report('setting parameters')
+        
         params = self.ctx.input_params_KKR
         input_dict = params.get_dict()
         para_check = kkrparams()
@@ -252,7 +250,15 @@ class kkr_flex_wc(WorkChain):
                 descr = 'added missing default keys, '
     
         runopt = para_check.get_dict().get('RUNOPT', [])
-        runopt.append('KKRFLEX')
+        #self.report(para_check.get_dict())
+        if runopt == None:
+            runopt = []
+        runopt = [i.strip() for i in runopt]
+        if 'KKRFLEX' not in runopt:
+            runopt.append('KKRFLEX')
+            #change_values.append(['RUNOPT', runopt])
+            
+        self.report('RUNOPT set to: {}'.format(runopt))
         para_check = update_params_wf(self.ctx.input_params_KKR, ParameterData(dict={'RUNOPT':runopt}))
         
         #construct the final param node containing all of the params   
@@ -261,6 +267,7 @@ class kkr_flex_wc(WorkChain):
         updatenode.description = descr+'KKR parameter node extracted from parent parameters and wf_parameter and options input node.'
         paranode_flex = update_params_wf(self.ctx.input_params_KKR, updatenode)
         self.ctx.flex_kkrparams = paranode_flex
+        self.ctx.flex_runopt = runopt
 
        
 
@@ -270,11 +277,12 @@ class kkr_flex_wc(WorkChain):
         """
 
         label = 'KKRFLEX calc.'
-        description = 'KKRFLEX calculation to write out host GF using RUNOPT={}'.format()
+        description = 'KKRFLEX calculation to write out host GF'
         code = self.inputs.kkr
         remote = self.inputs.remote_data
         params = self.ctx.flex_kkrparams
-        options = {"max_wallcloxk_seconds": self.ctx.walltime_sec,
+        imp_info = self.inputs.imp_info
+        options = {"max_wallclock_seconds": self.ctx.walltime_sec,
                    "resources": self.ctx.resources,
                    "queue_name": self.ctx.queue}
         if self.ctx.custom_scheduler_commands:
@@ -294,7 +302,7 @@ class kkr_flex_wc(WorkChain):
         This should run through and produce output nodes even if everything failed,
         therefore it only uses results from context.
         """ 
-
+        
         # capture error of unsuccessful flexrun
         calc_state = self.ctx.flexrun.get_state()
         if calc_state != calc_states.FINISHED:
@@ -317,17 +325,26 @@ class kkr_flex_wc(WorkChain):
             
         outputnode = ParameterData(dict=outputnode_dict)
         outputnode.label = 'kkr_flex_wc_results'
-        outputnode.description = ''
-        outputnode.store()
+        #outputnode.description = ''
+        #outputnode.store()
+               
+        # return the input remote_data folder as output node
+        self.out('remote_data', self.inputs.remote_data)
+        # return ParameterData node containing information about previous calculation
+        self.out('calculation_info', outputnode)
+        # return retrieved data from kkrflex calculation
+        self.out('retrieved_node', self.ctx.flexrun.out.retrieved)
         
-        self.report("INFO: create GF writeout results nodes: outputnode={}".format(outputnode))
-        try:
-            self.report("INFO: create GF writeout results nodes. KKRFLEX calc retrieved node={}".format(self.ctx.flexrun.out.retrieved))
-            has_flexrun = True
-        except AttributeError as e:
-            self.report("ERROR: no KKRFLEX calc retrieved node found")
-            self.report("Caught AttributeError {}".format(e))
-            has_flexrun = False
+        self.report('INFO: created GF writeout result nodes')
+        
+#        self.report("INFO: create GF writeout results nodes: outputnode={}".format(outputnode))
+#        try:
+#            self.report("INFO: create GF writeout results nodes. KKRFLEX calc retrieved node={}".format(self.ctx.flexrun.out.retrieved))
+#            has_flexrun = True
+#        except AttributeError as e:
+#            self.report("ERROR: no KKRFLEX calc retrieved node found")
+#            self.report("Caught AttributeError {}".format(e))
+#            has_flexrun = False
 
         # interpol dos file and store to XyData nodes
         #if has_flexrun:
@@ -341,4 +358,17 @@ class kkr_flex_wc(WorkChain):
             #self.report("INFO: node type: {}".format(type(node)))
             #self.out(link_name, node)
             
-        self.report("INFO: done with KKRFLEX GF writeout  workflow!\n")
+        self.report("INFO: done with KKRFLEX GF writeout workflow!\n")
+#        self.report("Successful run: {}".format(has_flexrun))
+        
+        
+    def control_end_wc(self, errormsg):
+        """
+        Controled way to shutdown the workchain. will initalize the output nodes
+        """
+        self.report('ERROR: shutting workchain down in a controlled way.\n')
+        self.ctx.successful = False
+        self.ctx.abort = True
+        self.report(errormsg)
+        self.return_results()
+        self.abort(errormsg)
