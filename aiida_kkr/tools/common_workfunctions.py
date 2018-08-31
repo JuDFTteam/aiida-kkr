@@ -326,8 +326,8 @@ def get_inputs_common(process, code, remote, structure, options, label, descript
     "append_text": unicode}
     '''
     
-    if imp_info:
-        inputs.imp_info = imp_info
+    if imp_info is not None:
+        inputs.impurity_info = imp_info
 
     return inputs
 
