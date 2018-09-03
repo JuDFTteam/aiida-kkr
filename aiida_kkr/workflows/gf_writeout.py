@@ -27,6 +27,7 @@ __contributors__ = u"Fabian Bertoldo"
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
 ParameterData = DataFactory('parameter')
+FolderData = DataFactory('folder')
 KkrProcess = KkrCalculation.process()
 
 
@@ -88,14 +89,16 @@ class kkr_flex_wc(WorkChain):
                 cls.get_flex, # calculate host GF and kkr-flexfiles
                 cls.return_results))   
 
+        # ToDo: improve error codes
         spec.exit_code(101, 'ERROR_INVALID_INPUT_IMP_INFO', 
             message="the 'imp_info' input ParameterData node could not be used")
         spec.exit_code(102, 'ERROR_INVALID_INPUT_KKR',
             message="the code you provided for kkr does not use the plugin kkr.kkr")
 
+        # specify the outputs
         spec.output('remote_folder', valid_type=RemoteData)
         spec.output('calculation_info', valid_type=ParameterData)
-        spec.output('retrieved_node', valid_type=RemoteData)
+        spec.output('retrieved_node', valid_type=FolderData)
 
 
 
@@ -202,7 +205,7 @@ class kkr_flex_wc(WorkChain):
         self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
         
         if input_ok:
-            self.report('Checking inputs successful')
+            self.report('INFO: Checking inputs successful')
             
         return input_ok
 
@@ -213,7 +216,7 @@ class kkr_flex_wc(WorkChain):
         Take input parameter node and change to input from wf_parameter and options 
         """        
         
-        self.report('setting parameters')
+        self.report('INFO: setting parameters ...')
         
         params = self.ctx.input_params_KKR
         input_dict = params.get_dict()
@@ -325,8 +328,8 @@ class kkr_flex_wc(WorkChain):
             
         outputnode = ParameterData(dict=outputnode_dict)
         outputnode.label = 'kkr_flex_wc_results'
-        #outputnode.description = ''
-        #outputnode.store()
+        outputnode.description = ''
+        outputnode.store()
                
         # return the input remote_data folder as output node
         self.out('remote_data', self.inputs.remote_data)
@@ -344,14 +347,7 @@ class kkr_flex_wc(WorkChain):
 #        except AttributeError as e:
 #            self.report("ERROR: no KKRFLEX calc retrieved node found")
 #            self.report("Caught AttributeError {}".format(e))
-#            has_flexrun = False
-
-        # interpol dos file and store to XyData nodes
-        #if has_flexrun:
-            #outdict = create_flex_result_node(outputnode, self.ctx.flexrun.out.retrieved)
-        #else:
-            #outdict = create_flex_result_node_minimal(outputnode)
-    
+#            has_flexrun = False    
         
         #for link_name, node in outdict.iteritems():
             #self.report("INFO: storing node '{}' with link name '{}'".format(node, link_name))
