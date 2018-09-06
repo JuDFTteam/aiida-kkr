@@ -20,7 +20,7 @@ from aiida.common.exceptions import InputValidationError
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4"
+__version__ = "0.1"
 __contributors__ = u"Fabian Bertoldo"
 
 
@@ -33,13 +33,14 @@ KkrProcess = KkrCalculation.process()
 
 class kkr_flex_wc(WorkChain):
     """
-    Workchain of a kkr_flex calculation with KKR starting from the RemoteData node 
-    of a previous calculation (either Voronoi or KKR).
+    Workchain of a kkr_flex calculation to calculate the Green function with 
+    KKR starting from the RemoteData node of a previous calculation (either Voronoi or KKR).
 
-    :param wf_parameters: (ParameterData), Workchain specifications
+    :param options_parameters: (ParameterData), Workchain specifications
     :param remote_data: (RemoteData), mandatory; from a converged KKR calculation
     :param kkr: (Code), mandatory; KKR code running the flexfile writeout
-    :param imp_info: imp_info node specifying information of the impurities in the system
+    :param imp_info: ParameterData, mandatory: imp_info node specifying information 
+                     of the impurities in the system
 
     :return result_kkr_flex_wc: (ParameterData), Information of workflow results
                                 like success, last result node, list with convergence behavior
@@ -91,14 +92,16 @@ class kkr_flex_wc(WorkChain):
 
         # ToDo: improve error codes
         spec.exit_code(101, 'ERROR_INVALID_INPUT_IMP_INFO', 
-            message="the 'imp_info' input ParameterData node could not be used")
+            message="ERROR: the 'imp_info' input ParameterData node could not be used")
         spec.exit_code(102, 'ERROR_INVALID_INPUT_KKR',
-            message="the code you provided for kkr does not use the plugin kkr.kkr")
+            message="ERROR: the code you provided for kkr does not use the plugin kkr.kkr")
+        spec.exit_code(103, 'ERROR_INVALID_INPUT_REMOTE_DATA',
+            message="ERROR: No remote_data was provided as Input")
 
         # specify the outputs
-        spec.output('remote_folder', valid_type=RemoteData)
+        #spec.output('remote_folder', valid_type=RemoteData)
         spec.output('calculation_info', valid_type=ParameterData)
-        spec.output('retrieved_node', valid_type=FolderData)
+        #spec.output('retrieved_node', valid_type=FolderData)
 
 
 
@@ -107,7 +110,7 @@ class kkr_flex_wc(WorkChain):
         init context and some parameters
         """
     
-        self.report('INFO: started KKRflex workflow version {}'
+        self.report('INFO: started KKR flex workflow version {}'
                     ''.format(self._workflowversion))
     
         ####### init #######
@@ -154,10 +157,10 @@ class kkr_flex_wc(WorkChain):
     def validate_input(self):
         """
         Validate input
-        """
-        # ToDo: not modified enough yet! Taken from DOS workflow   
+        """ 
 
         inputs = self.inputs
+        input_ok = True
         
         if not 'imp_info' in inputs:
             input_ok = False
@@ -166,10 +169,8 @@ class kkr_flex_wc(WorkChain):
         if 'remote_data' in inputs:
             input_ok = True
         else:
-            error = 'ERROR: No remote_data was provided as Input'
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
             input_ok = False
+            return self.exit_codes.ERROR_INVALID_REMOTE_DATA
     
         # extract correct remote folder of last calculation if input remote_folder node
         # is not from KKRCalculation but kkr_scf_wc workflow
@@ -198,8 +199,8 @@ class kkr_flex_wc(WorkChain):
                 error = ("The code you provided for kkr does not "
                          "use the plugin kkr.kkr")
                 self.ctx.errors.append(error)
-                self.control_end_wc(error)
                 input_ok = False
+                return self.exit_codes.ERROR_INVALID_INPUT_KKR
             
         # set self.ctx.input_params_KKR
         self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
@@ -261,7 +262,7 @@ class kkr_flex_wc(WorkChain):
             runopt.append('KKRFLEX')
             #change_values.append(['RUNOPT', runopt])
             
-        self.report('RUNOPT set to: {}'.format(runopt))
+        self.report('INFO: RUNOPT set to: {}'.format(runopt))
         para_check = update_params_wf(self.ctx.input_params_KKR, ParameterData(dict={'RUNOPT':runopt}))
         
         #construct the final param node containing all of the params   
@@ -332,11 +333,11 @@ class kkr_flex_wc(WorkChain):
         outputnode.store()
                
         # return the input remote_data folder as output node
-        self.out('remote_data', self.inputs.remote_data)
+        #self.out('remote_data', self.inputs.remote_data)
         # return ParameterData node containing information about previous calculation
         self.out('calculation_info', outputnode)
         # return retrieved data from kkrflex calculation
-        self.out('retrieved_node', self.ctx.flexrun.out.retrieved)
+        #self.out('retrieved_node', self.ctx.flexrun.out.retrieved)
         
         self.report('INFO: created GF writeout result nodes')
         
@@ -367,4 +368,4 @@ class kkr_flex_wc(WorkChain):
         self.ctx.abort = True
         self.report(errormsg)
         self.return_results()
-        self.abort(errormsg)
+        #self.abort(errormsg)

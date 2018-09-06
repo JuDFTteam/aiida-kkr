@@ -8,11 +8,13 @@ from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, ToContext, if_, while_
 from aiida_kkr.tools.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
-from aiida_kkr.calculations.kkr import KkrimpCalculation
+from aiida_kkr.calculations.kkrimp import KkrimpCalculation
+from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida.orm.calculation.job import JobCalculation
 from aiida.common.datastructures import calc_states
 from aiida.orm import WorkCalculation
 from aiida.common.exceptions import InputValidationError
+from numpy import array, where, ones
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
@@ -139,8 +141,19 @@ class kkr_imp_sub_wc(WorkChain):
             message="ERROR: Unable to extract parent paremeter node of "
                     "input remote folder")
         # probably not necessary
-        spec.exit code(124, 'ERROR_NO_CALC_PARAMS',
+        spec.exit_code(124, 'ERROR_NO_CALC_PARAMS',
             message="ERROR: No calculation parameters provided")
+        
+        spec.exit_code(125, 'ERROR_SUB_FAILURE',
+            message="ERROR: Last KKRcalc in SUBMISSIONFAILED state!\nstopping now")
+        spec.exit_code(126, 'ERROR_MAX_STEPS_REACHED',
+            message="ERROR: Maximal number of KKR restarts reached. Exiting now!")
+        spec.exit_code(127, 'ERROR_SETTING_LAST_REMOTE',
+            message="ERROR: Last_remote could not be set to a previous succesful calculation")
+        spec.exit_code(127, 'ERROR_MISSING_PARAMS',
+            message="ERROR: There are still missing calculation parameters")
+        spec.exit_code(128, 'ERROR_PARAMETER_UPDATE',
+            message="ERROR: Parameters could not be updated")
         
         # Define the outputs of the workflow
         spec.output('calculation_info', valid_type=ParameterData)
@@ -318,3 +331,280 @@ class kkr_imp_sub_wc(WorkChain):
         self.report('Validated input successfully: {}'.format(inputs_ok))
 
         return inputs_ok
+        
+        
+        
+    def condition(self):
+        """
+        check convergence condition
+        """
+        self.report("INFO: checking condition for kkrimp step")
+        do_kkr_step = True
+        stopreason = ''
+
+        #increment KKR runs loop counter
+        self.ctx.loop_count += 1
+
+        # check if previous calculation reached convergence criterion
+        if self.ctx.kkr_converged:
+            if not self.ctx.kkr_higher_accuracy:
+                do_kkr_step = do_kkr_step & True
+            else:
+                stopreason = 'KKR converged'
+                do_kkr_step = False
+        else:
+            do_kkr_step = do_kkr_step & True
+            
+        # check if previous calculation is in SUBMISSIONFAILED state
+        if self.ctx.loop_count>1 and self.ctx.last_calc.get_state() == calc_states.SUBMISSIONFAILED:
+            return self.exit_codes.ERROR_SUB_FAILURE
+
+        # next check only needed if another iteration should be done after validating convergence etc. (previous checks)
+        if do_kkr_step:
+            # check if maximal number of iterations has been reached
+            if self.ctx.loop_count <= self.ctx.max_number_runs:
+                do_kkr_step = do_kkr_step & True
+            else:
+                return self.exit_codes.ERROR_MAX_STEPS_REACHED
+
+        self.report("INFO: Done checking condition for kkr step (result={})".format(do_kkr_step))
+
+        if not do_kkr_step:
+            self.report("INFO: Stopreason={}".format(stopreason))
+
+        return do_kkr_step
+        
+        
+        
+    def update_kkrimp_params(self):
+        """
+        update set of KKR parameters (check for reduced mixing, change of 
+        mixing strategy, change of accuracy setting)
+        """
+        
+        self.report("INFO: updating kkrimp param step")
+        decrease_mixing_fac = False
+        switch_agressive_mixing = False
+        switch_higher_accuracy= False
+        initial_settings = False
+
+        # only do something other than simple mixing after first kkr run
+        if self.ctx.loop_count != 1:
+            # first determine if previous step was successful 
+            # (otherwise try to find some rms value and decrease mixing to try again)
+            if not self.ctx.kkr_step_success:
+                decrease_mixing_fac = True
+                self.report("INFO: last KKR calculation failed. Trying decreasing mixfac")
+
+            convergence_on_track = self.convergence_on_track()
+
+            # check if calculation was on its way to converge
+            if not convergence_on_track:
+                decrease_mixing_fac = True
+                self.report("INFO: Last KKR did not converge. Trying decreasing mixfac")
+                # reset last_remote to last successful calculation
+                for icalc in range(len(self.ctx.calcs))[::-1]:
+                    self.report("INFO: last calc success? {} {}".format(icalc, self.ctx.KKR_steps_stats['success'][icalc]))
+                    if self.ctx.KKR_steps_stats['success'][icalc]:
+                        self.ctx.last_remote = self.ctx.calcs[icalc].out.remote_folder
+                        break # exit loop if last_remote was found successfully
+                    else:
+                        self.ctx.last_remote = None
+                # if no previous calculation was succesful take voronoi output 
+                # or remote data from input (depending on the inputs)
+                self.report("INFO: Last_remote is None? {} {}".format(self.ctx.last_remote is None, 'structure' in self.inputs))
+                if self.ctx.last_remote is None:
+                    if 'structure' in self.inputs:
+                        self.ctx.voronoi.out.last_voronoi_remote
+                    else:
+                        self.ctx.last_remote = self.inputs.remote_data
+                # check if last_remote has finally been set and abort if this is not the case
+                self.report("INFO: last_remote is still None? {}".format(self.ctx.last_remote is None))
+                if self.ctx.last_remote is None:
+                    error = 'ERROR: last_remote could not be set to a previous succesful calculation'
+                    self.ctx.errors.append(error)
+                    return self.exit_codes.ERROR_SETTING_LAST_REMOTE
+
+            # check if mixing strategy should be changed
+            last_mixing_scheme = self.ctx.last_params.get_dict()['IMIX']
+            if last_mixing_scheme is None:
+                last_mixing_scheme = 0
+
+            if convergence_on_track:
+                last_rms = self.ctx.last_rms_all[-1]
+
+                if last_rms < self.ctx.threshold_aggressive_mixing and last_mixing_scheme == 0:
+                    switch_agressive_mixing = True
+                    self.report("INFO: rms low enough, switch to agressive mixing")
+
+                # check if switch to higher accuracy should be done
+                if not self.ctx.kkr_higher_accuracy:
+                    if self.ctx.kkr_converged or last_rms < self.ctx.threshold_switch_high_accuracy:
+                        switch_higher_accuracy = True
+                        self.report("INFO: rms low enough, switch to higher accuracy settings")
+        else:
+            initial_settings = True
+
+        # if needed update parameters
+        if decrease_mixing_fac or switch_agressive_mixing or switch_higher_accuracy or initial_settings or self.ctx.mag_init:
+
+            if initial_settings:
+                label = 'initial KKR scf parameters'
+                description = 'initial parameter set for scf calculation'
+            else:
+                label = ''
+                description = ''
+
+            # step 1: extract info from last input parameters and check consistency
+            params = self.ctx.last_params
+            input_dict = params.get_dict()
+            para_check = kkrparams()
+
+            # step 1.1: try to fill keywords
+            for key, val in input_dict.iteritems():
+                para_check.set_value(key, val, silent=True)
+
+            # init new_params dict where updated params are collected
+            new_params = {}
+            
+            # step 1.2: check if all mandatory keys are there and add defaults if missing
+            missing_list = para_check.get_missing_keys(use_aiida=True)
+            if missing_list != []:
+                kkrdefaults = kkrparams.get_KKRcalc_parameter_defaults()[0]
+                kkrdefaults_updated = []
+                for key_default, val_default in kkrdefaults.items():
+                    if key_default in missing_list:
+                        new_params[key_default] = kkrdefaults.get(key_default)
+                        kkrdefaults_updated.append(key_default)
+                if len(kkrdefaults_updated)>0:
+                    error = 'ERROR: Calc_parameters misses keys: {}'.format(missing_list)
+                    self.ctx.errors.append(error)
+                    return self.exit_codes.ERROR_MISSING_PARAMS
+                else:
+                    self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
+
+            # step 2: change parameter (contained in new_params dictionary)
+            last_mixing_scheme = para_check.get_value('IMIX')
+            if last_mixing_scheme is None:
+                last_mixing_scheme = 0
+
+            strmixfac = self.ctx.strmix
+            brymixfac = self.ctx.brymix
+            nsteps = self.ctx.nsteps
+
+            # add number of scf steps
+            new_params['NSTEPS'] = nsteps
+
+            # step 2.1 fill new_params dict with values to be updated
+            if decrease_mixing_fac:
+                if last_mixing_scheme == 0:
+                    self.report('(strmixfax, mixreduce)= ({}, {})'.format(strmixfac, self.ctx.mixreduce))
+                    self.report('type(strmixfax, mixreduce)= {} {}'.format(type(strmixfac), type(self.ctx.mixreduce)))
+                    strmixfac = strmixfac * self.ctx.mixreduce
+                    self.ctx.strmix = strmixfac
+                    label += 'decreased_mix_fac_str (step {})'.format(self.ctx.loop_count)
+                    description += 'decreased STRMIX factor by {}'.format(self.ctx.mixreduce)
+                else:
+                    self.report('(brymixfax, mixreduce)= ({}, {})'.format(brymixfac, self.ctx.mixreduce))
+                    self.report('type(brymixfax, mixreduce)= {} {}'.format(type(brymixfac), type(self.ctx.mixreduce)))
+                    brymixfac = brymixfac * self.ctx.mixreduce
+                    self.ctx.brymix = brymixfac
+                    label += 'decreased_mix_fac_bry'
+                    description += 'decreased BRYMIX factor by {}'.format(self.ctx.mixreduce)
+
+            #add mixing factor
+            new_params['STRMIX'] = strmixfac
+            new_params['BRYMIX'] = brymixfac
+
+            if switch_agressive_mixing:
+                last_mixing_scheme = 5
+                label += ' switched_to_agressive_mixing'
+                description += ' switched to agressive mixing scheme (IMIX={})'.format(last_mixing_scheme)
+
+            # add mixing scheme
+            new_params['IMIX'] = last_mixing_scheme
+            self.ctx.last_mixing_scheme = last_mixing_scheme
+
+            if switch_higher_accuracy:
+                self.ctx.kkr_higher_accuracy = True
+                convergence_settings = self.ctx.convergence_setting_fine
+                label += ' use_higher_accuracy'
+                description += ' using higher accuracy settings goven in convergence_setting_fine'
+            else:
+                convergence_settings = self.ctx.convergence_setting_coarse
+                
+            # slightly increase temperature if previous calculation was unsuccessful for the second time
+            if decrease_mixing_fac and not self.convergence_on_track():
+                self.report('INFO: last calculation did not converge and convergence not on track. Try to increase temperature by 50K.')
+                convergence_settings['tempr'] += 50.
+                label += ' TEMPR+50K'
+                description += ' with increased temperature of 50K'
+
+            # add convergence settings
+            if self.ctx.loop_count == 1 or self.ctx.last_mixing_scheme == 0:
+                new_params['QBOUND'] = self.ctx.threshold_aggressive_mixing
+            else:
+                new_params['QBOUND'] = self.ctx.convergence_criterion
+            new_params['NPOL'] = convergence_settings['npol']
+            new_params['NPT1'] = convergence_settings['n1']
+            new_params['NPT2'] = convergence_settings['n2']
+            new_params['NPT3'] = convergence_settings['n3']
+            new_params['TEMPR'] = convergence_settings['tempr']
+            new_params['BZDIVIDE'] = convergence_settings['kmesh']
+            
+            # initial magnetization
+            if initial_settings and self.ctx.mag_init:
+                if self.ctx.hfield <= 0:
+                    self.report('\nWARNING: magnetization initialization chosen but hfield is zero. Automatically change back to default value (hfield={})\n'.format(self._wf_default['hfield']))
+                    self.ctx.hfield = self._wf_default['hfield']
+                xinipol = self.ctx.xinit
+                if xinipol is None:
+                    if 'structure' in self.inputs:
+                        struc = self.inputs.structure
+                    else:
+                        struc, voro_parent = KkrCalculation.find_parent_structure(self.ctx.last_remote)
+                    natom = len(struc.sites)
+                    xinipol = ones(natom)
+                new_params['LINIPOL'] = True
+                new_params['HFIELD'] = self.ctx.hfield
+                new_params['XINIPOL'] = xinipol
+            elif self.ctx.mag_init and self.ctx.mag_init_step_success: # turn off initialization after first (successful) iteration
+                new_params['LINIPOL'] = False
+                new_params['HFIELD'] = 0.0
+            elif not self.ctx.mag_init:
+                self.report("INFO: mag_init is False. Overwrite 'HFIELD' to '0.0' and 'LINIPOL' to 'False'.")
+                # reset mag init to avoid resinitializing
+                new_params['HFIELD'] = 0.0
+                new_params['LINIPOL'] = False
+                
+            # set nspin to 2 if mag_init is used
+            if self.ctx.mag_init:
+                nspin_in = para_check.get_value('NSPIN')
+                if nspin_in is None:
+                    nspin_in = 1
+                if nspin_in < 2:
+                    self.report('WARNING: found NSPIN=1 but for maginit needs NPIN=2. Overwrite this automatically')
+                    new_params['NSPIN'] = 2
+
+            # step 2.2 update values
+            try:
+                for key, val in new_params.iteritems():
+                    para_check.set_value(key, val, silent=True)
+            except:
+                error = 'ERROR: parameter update unsuccessful: some key, value pair not valid!'
+                self.ctx.errors.append(error)
+                return self.exit_codes.ERROR_PARAMETER_UPDATE
+
+            # step 3:
+            self.report("INFO: update parameters to: {}".format(para_check.get_set_values()))
+            updatenode = ParameterData(dict=para_check.get_dict())
+            updatenode.label = label
+            updatenode.description = description
+
+            paranode_new = update_params_wf(self.ctx.last_params, updatenode)
+            self.ctx.last_params = paranode_new
+        else:
+            self.report("INFO: reuse old settings")
+
+        self.report("INFO: done updating kkr param step")
+
