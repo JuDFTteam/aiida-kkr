@@ -224,13 +224,13 @@ class kkr_scf_wc(WorkChain):
         self.ctx.walltime_sec = wf_dict.get('walltime_sec', self._wf_default['walltime_sec'])
         self.ctx.queue = wf_dict.get('queue_name', self._wf_default['queue_name'])
         self.ctx.custom_scheduler_commands = wf_dict.get('custom_scheduler_commands', self._wf_default['custom_scheduler_commands'])
-        self.ctx.description_wf = self.inputs.get('_description', 'Workflow for '
+        self.ctx.description_wf = self.inputs.get('description', 'Workflow for '
                                                   'a KKR scf calculation starting '
                                                   'either from a structure with '
                                                   'automatic voronoi calculation '
                                                   'or a valid RemoteData node of '
                                                   'a previous calculation')
-        self.ctx.label_wf = self.inputs.get('_label', 'kkr_scf_wc')
+        self.ctx.label_wf = self.inputs.get('label', 'kkr_scf_wc')
         self.ctx.strmix = wf_dict.get('strmix', self._wf_default['strmix'])
         self.ctx.brymix = wf_dict.get('brymix', self._wf_default['brymix'])
         self.ctx.check_dos = wf_dict.get('check_dos', self._wf_default['check_dos'])
@@ -476,7 +476,7 @@ class kkr_scf_wc(WorkChain):
         wf_desc = 'subworkflow to set up the input of a KKR calculation'
         future = submit(kkr_startpot_wc, kkr=kkrcode, voronoi=voronoicode,
                         calc_parameters=params, wf_parameters=sub_wf_params,
-                        structure=structure, _label=wf_label, _description=wf_desc)
+                        structure=structure, label=wf_label, description=wf_desc)
 
         return ToContext(voronoi=future, last_calc=future)
 
@@ -1086,7 +1086,7 @@ class kkr_scf_wc(WorkChain):
         # report the status
         if self.ctx.successful:
             self.report('STATUS: Done, the convergence criteria are reached.\n'
-                        'INFO: The charge density of the KKR calculation pk= {}'
+                        'INFO: The charge density of the KKR calculation pk= {} '
                         'converged after {} KKR runs and {} iterations to {} \n'
                         ''.format(last_calc_pk, self.ctx.loop_count, self.ctx.loop_count, last_rms))
         else: # Termination ok, but not converged yet...
@@ -1192,7 +1192,7 @@ class kkr_scf_wc(WorkChain):
         self.report(errormsg) # because return_results still fails somewhen
         self.return_results()
         #self.abort_nowait(errormsg)
-        self.abort(errormsg)
+        #self.abort(errormsg)
 
 
     def check_input_params(self, params, is_voronoi=False):
@@ -1268,7 +1268,7 @@ class kkr_scf_wc(WorkChain):
             remote = self.ctx.last_calc.out.remote_folder
             wf_label= ' final DOS calculation'
             wf_desc = ' subworkflow of a DOS calculation'
-            future = submit(kkr_dos_wc, kkr=code, remote_data=remote, wf_parameters=wfdospara_node, _label=wf_label, _description=wf_desc)
+            future = submit(kkr_dos_wc, kkr=code, remote_data=remote, wf_parameters=wfdospara_node, label=wf_label, description=wf_desc)
 
             return ToContext(doscal=future)
 
@@ -1401,49 +1401,49 @@ def create_scf_result_node(**kwargs):
     outdict = {}
 
     if has_last_outpara:
-        outputnode = outpara.copy()
+        outputnode = outpara 
         outputnode.label = 'workflow_Results'
         outputnode.description = ('Contains self-consistency results and '
                                   'information of an kkr_scf_wc run.')
         outdict['output_kkr_scf_wc_ParameterResults'] = outputnode
 
     if has_last_calc_out_dict:
-        outputnode = last_calc_out_dict.copy()
+        outputnode = last_calc_out_dict 
         outputnode.label = 'last_calc_out'
         outputnode.description = ('Contains the Results Parameter node from the output '
                                    'of the last calculation done in the workflow.')
         outdict['last_calc_out'] = outputnode
 
     if has_last_RemoteData:
-        outputnode = last_RemoteData_dict.copy()
+        outputnode = last_RemoteData_dict 
         outputnode.label = 'last_RemoteData'
         outputnode.description = ('Contains a link to the latest remote data node '
                                    'where the output of the calculation can be accessed.')
         outdict['last_RemoteData'] = outputnode
 
     if has_last_InputParameters:
-        outputnode = last_InputParameters_dict.copy()
+        outputnode = last_InputParameters_dict
         outputnode.label = 'last_InputParameters'
         outputnode.description = ('Contains the latest parameter data node '
                                    'where the input of the last calculation can be found.')
         outdict['last_InputParameters'] = outputnode
 
     if has_vorostart_output:
-        outputnode = vorostart_output_dict.copy()
+        outputnode = vorostart_output_dict 
         outputnode.label = 'results_vorostart'
         outputnode.description = ('Contains the results parameter data node '
                                    'of the vorostart sub-workflow (sets up starting portentials).')
         outdict['results_vorostart'] = outputnode
 
     if has_starting_dos:
-        outputnode = start_dosdata_interpol_dict.copy()
+        outputnode = start_dosdata_interpol_dict
         outputnode.label = 'starting_dosdata_interpol'
         outputnode.description = ('Contains the interpolated DOS data note, computed '
                                    'from the starting portential.')
         outdict['starting_dosdata_interpol'] = outputnode
 
     if has_final_dos:
-        outputnode = final_dosdata_interpol_dict.copy()
+        outputnode = final_dosdata_interpol_dict
         outputnode.label = 'final_dosdata_interpol'
         outputnode.description = ('Contains the interpolated DOS data note, computed '
                                    'from the converged potential.')

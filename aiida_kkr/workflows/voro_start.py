@@ -106,16 +106,15 @@ class kkr_startpot_wc(WorkChain):
             cls.start,
             # check if another iteration is done (in case of either voro_ok, doscheck_ok is False)
             while_(cls.do_iteration_check)(
-                    # run voronoi calculation
-                    cls.run_voronoi,
-                    # check voronoi output (also sets ctx.voro_ok)
-                    if_(cls.check_voronoi)(
-                            # create starting DOS using dos sub-workflow
-                            cls.get_dos,
-                            # perform some checks and set ctx.doscheck_ok accordingly
-                            cls.check_dos
-                        )
-                    ),
+                # run voronoi calculation
+                cls.run_voronoi,
+                # check voronoi output (also sets ctx.voro_ok)
+                if_(cls.check_voronoi)(
+                    # create starting DOS using dos sub-workflow
+                    cls.get_dos,
+                    # perform some checks and set ctx.doscheck_ok accordingly
+                    cls.check_dos)
+            ),
             # collect results and return
             cls.return_results
         )
@@ -488,7 +487,7 @@ class kkr_startpot_wc(WorkChain):
             wf_desc = 'subworkflow of a DOS calculation that perform a singe-shot KKR calc.'
             future = submit(kkr_dos_wc, kkr=code, remote_data=remote, 
                             wf_parameters=wfdospara_node, 
-                            _label=wf_label, _description=wf_desc)
+                            label=wf_label, description=wf_desc)
             
             return ToContext(doscal=future)
         
@@ -615,7 +614,7 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.abort = True
         self.report(errormsg)
         self.return_results()
-        self.abort(errormsg)
+        #self.abort(errormsg)
         
         
     def return_results(self):
@@ -782,7 +781,7 @@ def update_voro_input(params_old, updatenode, voro_output):
     Pseudo wf used to keep track of updated parameters in voronoi calculation.
     voro_output only enters as dummy argument for correct connection but logic using this value is done somewhere else.
     """
-    dummy = voro_output.copy()
+    dummy = voro_output 
     # voro_output is only dummy input to draw connection in graph
     
     updatenode_dict = updatenode.get_dict()
