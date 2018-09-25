@@ -23,6 +23,11 @@ __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.1"
 __contributors__ = u"Fabian Bertoldo"
 
+#TODO: work on return results function, so far output like in kkr_scf
+#TODO: check get_inputs_kkr and modify for impurity calculation
+#TODO: edit inspect_kkrimp function
+#TODO: get rid of create_scf_result node and create output nodes differently
+
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
@@ -154,6 +159,8 @@ class kkr_imp_sub_wc(WorkChain):
             message="ERROR: There are still missing calculation parameters")
         spec.exit_code(128, 'ERROR_PARAMETER_UPDATE',
             message="ERROR: Parameters could not be updated")
+        spec.exit_code(129, 'ERROR_LAST_CALC_NOT_FINISHED',
+            message="ERROR: Last calculation is not in finished state")
         
         # Define the outputs of the workflow
         spec.output('calculation_info', valid_type=ParameterData)
@@ -608,3 +615,398 @@ class kkr_imp_sub_wc(WorkChain):
 
         self.report("INFO: done updating kkr param step")
 
+
+        
+    def run_kkrimp(self):
+        """
+        submit a KKR impurity calculation
+        """
+        self.report("INFO: setting up kkrimp calculation step {}".format(self.ctx.loop_count))
+
+
+        label = 'KKRimp calculation step {} (IMIX={})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
+        description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
+        code = self.inputs.kkr
+        remote = self.ctx.last_remote
+        params = self.ctx.last_params
+        options = {"max_wallclock_seconds": self.ctx.walltime_sec,
+                   "resources": self.ctx.resources,
+                   "queue_name" : self.ctx.queue}
+        if self.ctx.custom_scheduler_commands:
+            options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
+        inputs = get_inputs_kkr(code, remote, options, label, description, parameters=params, serial=(not self.ctx.use_mpi))
+
+        # run the KKR calculation
+        self.report('INFO: doing calculation')
+        kkrimp_run = self.submit(KkrimpProcess, **inputs)
+
+        return ToContext(kkr=kkrimp_run, last_calc=kkrimp_run)
+        
+        
+        
+    def inspect_kkrimp(self):
+        """
+        check for convergence and store some of the results of the last calculation to context
+        """
+        self.report("INFO: inspecting kkrimp results step")
+
+        self.ctx.calcs.append(self.ctx.last_calc)
+        self.ctx.kkrimp_step_success = True
+
+        # check calculation state
+        calc_state = self.ctx.last_calc.get_state()
+        if calc_state != calc_states.FINISHED:
+            self.ctx.kkrimp_step_success = False
+            return self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED
+
+        self.report("INFO: kkrimp_step_success: {}".format(self.ctx.kkrimp_step_success))
+
+        # extract convergence info about rms etc. (used to determine convergence behavior)
+        try:
+            self.report("INFO: trying to find output of last_calc: {}".format(self.ctx.last_calc))
+            last_calc_output = self.ctx.last_calc.out.output_parameters.get_dict()
+            found_last_calc_output = True
+        except:
+            found_last_calc_output = False
+        self.report("INFO: found_last_calc_output: {}".format(found_last_calc_output))
+        
+        # try yo extract remote folder
+        try:
+            self.ctx.last_remote = self.ctx.kkr.out.remote_folder
+        except:
+            self.ctx.last_remote = None
+            self.ctx.kkrimp_step_success = False
+
+        self.report("INFO: last_remote: {}".format(self.ctx.last_remote))
+
+        if self.ctx.kkrimp_step_success and found_last_calc_output:
+            # check convergence
+            self.ctx.kkr_converged = last_calc_output['convergence_group']['calculation_converged']
+            # check rms
+            self.ctx.rms.append(last_calc_output['convergence_group']['rms'])
+            rms_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_all_iterations'])
+            #check charge neutrality
+            self.ctx.neutr.append(last_calc_output['convergence_group']['charge_neutrality'])
+            neutr_all_iter_last_calc = list(last_calc_output['convergence_group']['charge_neutrality_all_iterations'])
+
+            # add lists of last iterations
+            self.ctx.last_rms_all = rms_all_iter_last_calc
+            self.ctx.last_neutr_all = neutr_all_iter_last_calc
+            if self.ctx.kkrimp_step_success and self.convergence_on_track():
+                self.ctx.rms_all_steps += rms_all_iter_last_calc
+                self.ctx.neutr_all_steps += neutr_all_iter_last_calc
+        else:
+            self.ctx.kkr_converged = False
+
+        self.report("INFO: kkr_converged: {}".format(self.ctx.kkr_converged))
+        self.report("INFO: rms: {}".format(self.ctx.rms))
+        self.report("INFO: last_rms_all: {}".format(self.ctx.last_rms_all))
+        #self.report("INFO: rms_all_steps: {}".format(self.ctx.rms_all_steps))
+        self.report("INFO: charge_neutrality: {}".format(self.ctx.neutr))
+        self.report("INFO: last_neutr_all: {}".format(self.ctx.last_neutr_all))
+        #self.report("INFO: neutr_all_steps: {}".format(self.ctx.neutr_all_steps))
+        
+        # turn off initial magnetization once one step was successful (update_kkr_params) used in
+        if self.ctx.mag_init and self.ctx.kkrimp_step_success:
+            self.ctx.mag_init_step_success = True
+
+        # TODO: extract something else (maybe total energy, charge neutrality, magnetisation)?
+
+        # store some statistics used to print table in the end of the report
+        self.ctx.KKR_steps_stats['success'].append(self.ctx.kkr_step_success)
+        try:
+            isteps = self.ctx.last_calc.out.output_parameters.get_dict()['convergence_group']['number_of_iterations']
+        except:
+            self.ctx.warnings.append('cound not set isteps in KKR_steps_stats dict')
+            isteps = -1
+
+        try:
+            first_rms = self.ctx.last_rms_all[0]
+            last_rms = self.ctx.last_rms_all[-1]
+        except:
+            self.ctx.warnings.append('cound not set first_rms, last_rms in KKR_steps_stats dict')
+            first_rms = -1
+            last_rms = -1
+
+        try:
+            first_neutr = self.ctx.last_neutr_all[0]
+            last_neutr = self.ctx.last_neutr_all[-1]
+        except:
+            self.ctx.warnings.append('cound not set first_neutr, last_neutr in KKR_steps_stats dict')
+            first_neutr = -999
+            last_neutr = -999
+
+        if self.ctx.last_mixing_scheme == 0:
+            mixfac = self.ctx.strmix
+        else:
+            mixfac = self.ctx.brymix
+        
+        if self.ctx.kkr_higher_accuracy:
+            qbound = self.ctx.convergence_criterion
+        else:
+            qbound = self.ctx.threshold_switch_high_accuracy
+
+        self.ctx.KKR_steps_stats['isteps'].append(isteps)
+        self.ctx.KKR_steps_stats['imix'].append(self.ctx.last_mixing_scheme)
+        self.ctx.KKR_steps_stats['mixfac'].append(mixfac)
+        self.ctx.KKR_steps_stats['qbound'].append(qbound)
+        self.ctx.KKR_steps_stats['high_sett'].append(self.ctx.kkr_higher_accuracy)
+        self.ctx.KKR_steps_stats['first_rms'].append(first_rms)
+        self.ctx.KKR_steps_stats['last_rms'].append(last_rms)
+        self.ctx.KKR_steps_stats['first_neutr'].append(first_neutr)
+        self.ctx.KKR_steps_stats['last_neutr'].append(last_neutr)
+        self.ctx.KKR_steps_stats['pk'].append(self.ctx.last_calc.pk)
+        self.ctx.KKR_steps_stats['uuid'].append(self.ctx.last_calc.uuid)
+
+        self.report("INFO: done inspecting kkrimp results step")
+
+        
+        
+    def convergence_on_track(self):
+        """
+        Check if convergence behavior of the last calculation is on track (i.e. going down)
+        """
+        on_track = True
+        threshold = 5. # used to check condition if at least one of charnge_neutrality, rms-error goes down fast enough
+
+        # first check if previous calculation was stopped due to reaching the QBOUND limit
+        try:
+            calc_reached_qbound = self.ctx.last_calc.out.output_parameters.get_dict()['convergence_group']['calculation_converged']
+        except AttributeError: # captures error when last_calc dies not have an output node
+            calc_reached_qbound = False
+        except KeyError: # captures
+            calc_reached_qbound = False
+           
+        if self.ctx.kkrimp_step_success and not calc_reached_qbound:
+            first_rms = self.ctx.last_rms_all[0]
+            first_neutr = abs(self.ctx.last_neutr_all[0])
+            last_rms = self.ctx.last_rms_all[-1]
+            last_neutr = abs(self.ctx.last_neutr_all[-1])
+            # use this trick to avoid division by zero
+            if last_neutr == 0:
+                last_neutr = 10**-16
+            if last_rms == 0:
+                last_rms = 10**-16
+            r, n = last_rms/first_rms, last_neutr/first_neutr
+            self.report("INFO convergence check: first/last rms {}, {}; first/last neutrality {}, {}".format(first_rms, last_rms, first_neutr, last_neutr))
+            if r < 1 and n < 1:
+                self.report("INFO convergence check: both rms and neutrality go down")
+                on_track = True
+            elif n > threshold or r > threshold:
+                self.report("INFO convergence check: rms or neutrality goes up too fast, convergence is not expected")
+                on_track = False
+            elif n*r < 1:
+                self.report("INFO convergence check: either rms goes up and neutrality goes down or vice versa")
+                self.report("INFO convergence check: but product goes down fast enough")
+                on_track = True
+            elif len(self.ctx.last_rms_all) ==1:
+                self.report("INFO convergence check: already converged after single iteration")
+                on_track = True
+            else:
+                self.report("INFO convergence check: rms or neutrality do not shrink fast enough, convergence is not expected")
+                on_track = False
+        elif calc_reached_qbound:
+            self.report("INFO convergence check: calculation reached QBOUND")
+            on_track = True
+        else:
+            self.report("INFO convergence check: calculation unsuccessful")
+            on_track = False
+
+        self.report("INFO convergence check result: {}".format(on_track))
+
+        return on_track
+
+        
+        
+    def return_results(self):
+        """
+        Return the results of the calculations
+        This should run through and produce output nodes even if everything failed,
+        therefore it only uses results from context.
+        """
+
+        self.report("INFO: entering return_results")
+
+        # try/except to capture as mnuch as possible (everything that is there even when workflow exits unsuccessfully)
+        # capture pk and uuids of last calc, params and remote
+        try:
+            last_calc_uuid = self.ctx.last_calc.uuid
+            last_calc_pk = self.ctx.last_calc.pk
+            last_params_uuid = self.ctx.last_params.uuid
+            last_params_pk = self.ctx.last_params.pk
+            last_remote_uuid = self.ctx.last_remote.uuid
+            last_remote_pk = self.ctx.last_remote.pk
+        except:
+            last_calc_uuid = None
+            last_calc_pk = None
+            last_params_uuid = None
+            last_params_pk = None
+            last_remote_uuid = None
+            last_remote_pk = None
+        
+        all_pks = []
+        for calc in self.ctx.calcs:
+            try:
+                all_pks.append(calc.pk)
+            except:
+                self.ctx.warnings.append('cound not get pk of calc {}'.format(calc))
+
+
+        # capture links to last parameter, calcualtion and output
+        try:
+            last_calc_out = self.ctx.kkr.out['output_parameters']
+            last_calc_out_dict = last_calc_out.get_dict()
+            last_RemoteData = self.ctx.last_remote
+            last_InputParameters = self.ctx.last_params
+        except:
+            last_InputParameters = None
+            last_RemoteData = None
+            last_calc_out = None
+            last_calc_out_dict = {}
+
+        # capture convergence info
+        try:
+            last_rms = self.ctx.rms[-1]
+            last_neutr = self.ctx.neutr[-1]
+        except:
+            last_rms = None
+            last_neutr = None
+
+        # capture result of vorostart sub-workflow
+        try:
+            results_vorostart = self.ctx.voronoi.out.results_vorostart_wc
+        except:
+            results_vorostart = None
+        try:
+            starting_dosdata_interpol = self.ctx.voronoi.out.last_doscal_dosdata_interpol
+        except:
+            starting_dosdata_interpol = None
+
+        try:
+            final_dosdata_interpol = self.ctx.doscal.out.dos_data_interpol
+        except:
+            final_dosdata_interpol = None
+
+        # now collect results saved in results node of workflow
+        self.report("INFO: collect outputnode_dict")
+        outputnode_dict = {}
+        outputnode_dict['workflow_name'] = self.__class__.__name__
+        outputnode_dict['workflow_version'] = self._workflowversion
+        outputnode_dict['material'] = self.ctx.formula
+        outputnode_dict['loop_count'] = self.ctx.loop_count
+        outputnode_dict['warnings'] = self.ctx.warnings
+        outputnode_dict['successful'] = self.ctx.successful
+        outputnode_dict['last_params_nodeinfo'] = {'uuid':last_params_uuid, 'pk':last_params_pk}
+        outputnode_dict['last_remote_nodeinfo'] = {'uuid':last_remote_uuid, 'pk':last_remote_pk}
+        outputnode_dict['last_calc_nodeinfo'] = {'uuid':last_calc_uuid, 'pk':last_calc_pk}
+        outputnode_dict['pks_all_calcs'] = all_pks
+        outputnode_dict['errors'] = self.ctx.errors
+        outputnode_dict['convergence_value'] = last_rms
+        outputnode_dict['convergence_values_all_steps'] = array(self.ctx.rms_all_steps)
+        outputnode_dict['convergence_values_last_step'] = array(self.ctx.last_rms_all)
+        outputnode_dict['charge_neutrality'] = last_neutr
+        outputnode_dict['charge_neutrality_all_steps'] = array(self.ctx.neutr_all_steps)
+        outputnode_dict['charge_neutrality_last_step'] = array(self.ctx.last_neutr_all)
+        outputnode_dict['dos_check_ok'] = self.ctx.dos_ok
+        outputnode_dict['convergence_reached'] = self.ctx.kkr_converged
+        outputnode_dict['voronoi_step_success'] = self.ctx.voro_step_success
+        outputnode_dict['kkr_step_success'] = self.ctx.kkr_step_success
+        outputnode_dict['used_higher_accuracy'] = self.ctx.kkr_higher_accuracy
+
+        # report the status
+        if self.ctx.successful:
+            self.report('STATUS: Done, the convergence criteria are reached.\n'
+                        'INFO: The charge density of the KKR calculation pk= {} '
+                        'converged after {} KKR runs and {} iterations to {} \n'
+                        ''.format(last_calc_pk, self.ctx.loop_count, self.ctx.loop_count, last_rms))
+        else: # Termination ok, but not converged yet...
+            if self.ctx.abort: # some error occured, donot use the output.
+                self.report('STATUS/ERROR: I abort, see logs and '
+                            'erros/warning/hints in output_kkr_scf_wc_para')
+            else:
+                self.report('STATUS/WARNING: Done, the maximum number of runs '
+                            'was reached or something failed.\n INFO: The '
+                            'charge density of the KKR calculation pk= '
+                            'after {} KKR runs and {} iterations is {} "me/bohr^3"\n'
+                            ''.format(self.ctx.loop_count, sum(self.ctx.KKR_steps_stats.get('isteps')), last_rms))
+
+        # create results  node
+        self.report("INFO: create results node") #: {}".format(outputnode_dict))
+        outputnode_t = ParameterData(dict=outputnode_dict)
+        outputnode_t.label = 'kkr_scf_wc_results'
+        outputnode_t.description = 'Contains results of workflow (e.g. workflow version number, info about success of wf, lis tof warnings that occured during execution, ...)'
+
+
+        # collect nodes in outputs dictionary
+        # call helper function to create output nodes in correct AiiDA graph structure
+        if last_calc_out is not None and last_RemoteData is not None and last_InputParameters is not None:
+            if results_vorostart is not None and starting_dosdata_interpol is not None and final_dosdata_interpol is not None:
+                outdict = create_scf_result_node(outpara=outputnode_t,
+                                                 last_calc_out=last_calc_out,
+                                                 last_RemoteData=last_RemoteData,
+                                                 last_InputParameters=last_InputParameters,
+                                                 final_dosdata_interpol=final_dosdata_interpol,
+                                                 starting_dosdata_interpol=starting_dosdata_interpol,
+                                                 results_vorostart=results_vorostart)
+            elif results_vorostart is not None and starting_dosdata_interpol is not None:
+                outdict = create_scf_result_node(outpara=outputnode_t,
+                                                 last_calc_out=last_calc_out,
+                                                 last_RemoteData=last_RemoteData,
+                                                 last_InputParameters=last_InputParameters,
+                                                 starting_dosdata_interpol=starting_dosdata_interpol,
+                                                 results_vorostart=results_vorostart)
+            elif results_vorostart is not None:
+                outdict = create_scf_result_node(outpara=outputnode_t,
+                                                 last_calc_out=last_calc_out,
+                                                 last_RemoteData=last_RemoteData,
+                                                 last_InputParameters=last_InputParameters,
+                                                 results_vorostart=results_vorostart)
+            elif final_dosdata_interpol is not None:
+                outdict = create_scf_result_node(outpara=outputnode_t,
+                                                 last_calc_out=last_calc_out,
+                                                 last_RemoteData=last_RemoteData,
+                                                 last_InputParameters=last_InputParameters,
+                                                 final_dosdata_interpol=final_dosdata_interpol)
+            else:
+                outdict = create_scf_result_node(outpara=outputnode_t,
+                                                 last_calc_out=last_calc_out,
+                                                 last_RemoteData=last_RemoteData,
+                                                 last_InputParameters=last_InputParameters)
+        else:
+            outdict = create_scf_result_node(outpara=outputnode_t)
+
+        for link_name, node in outdict.iteritems():
+            #self.report("INFO: storing node {} {} with linkname {}".format(type(node), node, link_name))
+            self.out(link_name, node)
+
+
+        # print results table for overview
+        # table layout:
+        message = "INFO: overview of the result:\n\n"
+        message += "|------|---------|--------|------|--------|-------------------|-----------------|-----------------|-------------\n"
+        message += "| irun | success | isteps | imix | mixfac | accuracy settings |       rms       | abs(neutrality) | pk and uuid \n"
+        message += "|      |         |        |      |        | qbound  | higher? | first  |  last  | first  |  last  |             \n"
+        message += "|------|---------|--------|------|--------|---------|---------|--------|--------|--------|--------|-------------\n"
+        #| %6i  | %9s     | %8i    | %6i  | %.2e   | %.3e    | %9s     | %.2e   |  %.2e  |  %.2e  |  %.2e  |
+        KKR_steps_stats = self.ctx.KKR_steps_stats
+        for irun in range(len(KKR_steps_stats.get('success'))):
+            KKR_steps_stats.get('first_neutr')[irun] = abs(KKR_steps_stats.get('first_neutr')[irun])
+            KKR_steps_stats.get('last_neutr')[irun] = abs(KKR_steps_stats.get('last_neutr')[irun])
+            message += "|%6i|%9s|%8i|%6i|%.2e|%.3e|%9s|%.2e|%.2e|%.2e|%.2e|"%(irun+1,
+                          KKR_steps_stats.get('success')[irun], KKR_steps_stats.get('isteps')[irun],
+                          KKR_steps_stats.get('imix')[irun], KKR_steps_stats.get('mixfac')[irun],
+                          KKR_steps_stats.get('qbound')[irun], KKR_steps_stats.get('high_sett')[irun],
+                          KKR_steps_stats.get('first_rms')[irun], KKR_steps_stats.get('last_rms')[irun],
+                          KKR_steps_stats.get('first_neutr')[irun], KKR_steps_stats.get('last_neutr')[irun])
+            message += " {} | {}\n".format(KKR_steps_stats.get('pk')[irun], KKR_steps_stats.get('uuid')[irun])
+            """
+            message += "#|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|\n".format(irun+1,
+                          KKR_steps_stats.get('success')[irun], KKR_steps_stats.get('isteps')[irun],
+                          KKR_steps_stats.get('imix')[irun], KKR_steps_stats.get('mixfac')[irun],
+                          KKR_steps_stats.get('qbound')[irun], KKR_steps_stats.get('high_sett')[irun],
+                          KKR_steps_stats.get('first_rms')[irun], KKR_steps_stats.get('last_rms')[irun],
+                          KKR_steps_stats.get('first_neutr')[irun], KKR_steps_stats.get('last_neutr')[irun])
+            """
+        self.report(message)
+
+        self.report("\nINFO: done with kkr_scf workflow!\n")
