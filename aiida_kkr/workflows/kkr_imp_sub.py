@@ -936,49 +936,7 @@ class kkr_imp_sub_wc(WorkChain):
         outputnode_t.label = 'kkr_scf_wc_results'
         outputnode_t.description = 'Contains results of workflow (e.g. workflow version number, info about success of wf, lis tof warnings that occured during execution, ...)'
 
-
-        # collect nodes in outputs dictionary
-        # call helper function to create output nodes in correct AiiDA graph structure
-        if last_calc_out is not None and last_RemoteData is not None and last_InputParameters is not None:
-            if results_vorostart is not None and starting_dosdata_interpol is not None and final_dosdata_interpol is not None:
-                outdict = create_scf_result_node(outpara=outputnode_t,
-                                                 last_calc_out=last_calc_out,
-                                                 last_RemoteData=last_RemoteData,
-                                                 last_InputParameters=last_InputParameters,
-                                                 final_dosdata_interpol=final_dosdata_interpol,
-                                                 starting_dosdata_interpol=starting_dosdata_interpol,
-                                                 results_vorostart=results_vorostart)
-            elif results_vorostart is not None and starting_dosdata_interpol is not None:
-                outdict = create_scf_result_node(outpara=outputnode_t,
-                                                 last_calc_out=last_calc_out,
-                                                 last_RemoteData=last_RemoteData,
-                                                 last_InputParameters=last_InputParameters,
-                                                 starting_dosdata_interpol=starting_dosdata_interpol,
-                                                 results_vorostart=results_vorostart)
-            elif results_vorostart is not None:
-                outdict = create_scf_result_node(outpara=outputnode_t,
-                                                 last_calc_out=last_calc_out,
-                                                 last_RemoteData=last_RemoteData,
-                                                 last_InputParameters=last_InputParameters,
-                                                 results_vorostart=results_vorostart)
-            elif final_dosdata_interpol is not None:
-                outdict = create_scf_result_node(outpara=outputnode_t,
-                                                 last_calc_out=last_calc_out,
-                                                 last_RemoteData=last_RemoteData,
-                                                 last_InputParameters=last_InputParameters,
-                                                 final_dosdata_interpol=final_dosdata_interpol)
-            else:
-                outdict = create_scf_result_node(outpara=outputnode_t,
-                                                 last_calc_out=last_calc_out,
-                                                 last_RemoteData=last_RemoteData,
-                                                 last_InputParameters=last_InputParameters)
-        else:
-            outdict = create_scf_result_node(outpara=outputnode_t)
-
-        for link_name, node in outdict.iteritems():
-            #self.report("INFO: storing node {} {} with linkname {}".format(type(node), node, link_name))
-            self.out(link_name, node)
-
+        self.out('calculation_info', outputnode_t)
 
         # print results table for overview
         # table layout:
