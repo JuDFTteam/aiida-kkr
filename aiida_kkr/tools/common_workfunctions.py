@@ -234,7 +234,8 @@ def get_inputs_kkr(code, remote, options, label='', description='', parameters=N
                                description, parameters, serial, imp_info)
 
     return inputs
-
+       
+    
     
 def get_inputs_kkrimporter(code, remote, options, label='', description='', parameters=None, serial=False):
     """
@@ -245,7 +246,8 @@ def get_inputs_kkrimporter(code, remote, options, label='', description='', para
     KkrProcess = KkrCalculation.process()
         
     # then reuse common inputs setter 
-    inputs = get_inputs_common(KkrProcess, code, remote, None, options, label, description, parameters, serial)
+    inputs = get_inputs_common(KkrProcess, code, remote, None, options, label, 
+                               description, parameters, serial)
 
     return inputs
 
@@ -260,12 +262,31 @@ def get_inputs_voronoi(code, structure, options, label='', description='', param
     VoronoiProcess = VoronoiCalculation.process()
     
     # then reuse common inputs setter all options
-    inputs = get_inputs_common(VoronoiProcess, code, None, structure, options, label, description, params, serial)
+    inputs = get_inputs_common(VoronoiProcess, code, None, structure, options, label, 
+                               description, params, serial)
     
     return VoronoiProcess, inputs
     
     
-def get_inputs_common(process, code, remote, structure, options, label, description, params, serial, imp_info=None):
+def get_inputs_kkrimp(code, options, label='', description='', parameters=None, serial=False, imp_info=None, host_GF=None, imp_pot=None):
+    """
+    Get the input for a kkrimp calc.
+    Wrapper for KkrimpProcess setting structure, code, options, label, description etc.
+    :param code: a valid KKRimpcode installation (e.g. input from Code.get_from_string('codename@computername'))
+    TBD  
+    """
+    
+    from aiida_kkr.calculations.kkrimp import KkrimpCalculation
+    KkrimpProcess = KkrimpCalculation.process()
+        
+    # then reuse common inputs setter 
+    inputs = get_inputs_common(KkrimpProcess, code, None, None, options, label,
+                               description, parameters, serial, imp_info, host_GF, imp_pot)
+
+    return inputs
+    
+    
+def get_inputs_common(process, code, remote, structure, options, label, description, params, serial, imp_info=None, host_GF=None, imp_pot=None):
     """
     Base function common in get_inputs_* functions for different codes
     """
@@ -326,8 +347,15 @@ def get_inputs_common(process, code, remote, structure, options, label, descript
     "append_text": unicode}
     '''
     
+    # for kkrimp calculations
     if imp_info is not None:
         inputs.impurity_info = imp_info
+        
+    if host_GF is not None:
+        inputs.host_Greenfunction_folder = host_GF
+        
+    if imp_pot is not None:
+        inputs.impurity_potential = imp_pot
 
     return inputs
 
