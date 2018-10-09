@@ -228,7 +228,7 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.label_wf = self.inputs.get('label', 'kkr_imp_sub_wc')
         self.ctx.strmix = wf_dict.get('strmix', self._wf_default['strmix'])
         self.ctx.convergence_criterion = wf_dict.get('convergence_criterion', self._wf_default['convergence_criterion'])
-#        self.ctx.mixreduce = wf_dict.get('mixreduce', self._wf_default['mixreduce'])
+        self.ctx.mixreduce = wf_dict.get('mixreduce', self._wf_default['mixreduce'])
         self.ctx.threshold_aggressive_mixing = wf_dict.get('threshold_aggressive_mixing', self._wf_default['threshold_aggressive_mixing'])
         self.ctx.type_aggressive_mixing = wf_dict.get('aggressive_mix', self._wf_default['aggressive_mix'])
         self.ctx.aggrmix = wf_dict.get('aggrmix', self._wf_default['aggrmix'])
@@ -262,6 +262,7 @@ class kkr_imp_sub_wc(WorkChain):
                     'threshold_aggressive_mixing: {}\n'
                     'Aggressive mixing technique: {}\n'
                     'Aggressive mixing factor: {}\n'
+                    'Mixing decrease factor if convergence fails: {}\n'
                     'Convergence criterion: {}\n'
                     '\nAdditional parameter\n'
                     'init magnetism in first step: {}\n'
@@ -274,7 +275,7 @@ class kkr_imp_sub_wc(WorkChain):
                                 self.ctx.strmix, self.ctx.nsteps, self.ctx.nspin,
                                 self.ctx.threshold_aggressive_mixing,
                                 self.ctx.type_aggressive_mixing, self.ctx.aggrmix,
-                                self.ctx.convergence_criterion,
+                                self.ctx.mixreduce, self.ctx.convergence_criterion,
                                 self.ctx.mag_init, self.ctx.hfield, self.ctx.xinit)
                     )
 
@@ -307,8 +308,6 @@ class kkr_imp_sub_wc(WorkChain):
         validate input and catch possible errors from the input
         """
 
-        self.report('INFO: Validate input ...')
-        
         inputs = self.inputs
         inputs_ok = True
 
@@ -337,7 +336,7 @@ class kkr_imp_sub_wc(WorkChain):
             self.report('ERROR: {}'.format(self.exit_codes.ERROR_NO_CALC_PARAMS))            
             return self.exit_codes.ERROR_NO_CALC_PARAMS 
             
-        self.report('INFO: Validated input successfully: {}'.format(inputs_ok))   
+        self.report('INFO: validated input successfully: {}'.format(inputs_ok))   
         
         
         
@@ -346,7 +345,6 @@ class kkr_imp_sub_wc(WorkChain):
         check convergence condition
         """
         
-        self.report("INFO: checking condition for kkrimp calculation")
         do_kkr_step = True
         stopreason = ''
 
@@ -378,12 +376,12 @@ class kkr_imp_sub_wc(WorkChain):
 #                self.report('ERROR: {}'.format(self.exit_codes.ERROR_MAX_STEPS_REACHED))  
 #                return self.exit_codes.ERROR_MAX_STEPS_REACHED
 
-        self.report("INFO: Done checking condition for kkr step (result={})".format(do_kkr_step))
+        self.report("INFO: done checking condition for kkr step (result={})".format(do_kkr_step))
 
         if not do_kkr_step:
             self.report("INFO: Stopreason={}".format(stopreason))
             
-        self.report("INFO: kkr_higher_accuracy = {}".format(self.ctx.kkr_higher_accuracy))
+#        self.report("INFO: kkr_higher_accuracy = {}".format(self.ctx.kkr_higher_accuracy))
 
         return do_kkr_step
         
@@ -395,47 +393,46 @@ class kkr_imp_sub_wc(WorkChain):
         mixing strategy, change of accuracy setting)
         """
         
-        self.report("INFO: updating kkrimp param step")
-#        decrease_mixing_fac = False
+        decrease_mixing_fac = False
         switch_agressive_mixing = False
         switch_higher_accuracy= False
         initial_settings = False
 
         # only do something other than simple mixing after first kkr run
         if self.ctx.loop_count != 1:
-            # first determine if previous step was successful 
-            # (otherwise try to find some rms value and decrease mixing to try again)
-#            if not self.ctx.kkr_step_success:
-#                decrease_mixing_fac = True
-#                self.report("INFO: last KKR calculation failed. Trying decreasing mixfac")
+            # first determine if previous step was successful (otherwise try to find some rms value and decrease mixing to try again)
+            if not self.ctx.kkr_step_success:
+                decrease_mixing_fac = True
+                self.report("INFO: last KKR calculation failed. Trying decreasing mixfac")
 
-#            convergence_on_track = self.convergence_on_track()
+            convergence_on_track = self.convergence_on_track()
 
             # check if calculation was on its way to converge
-#            if not convergence_on_track:
-#            self.report("INFO: Last KKR did not converge. Trying decreasing mixfac")
-            # reset last_remote to last successful calculation
-            for icalc in range(len(self.ctx.calcs))[::-1]:
-                self.report("INFO: last calc success? {} {}".format(icalc, self.ctx.KKR_steps_stats['success'][icalc]))
-                if self.ctx.KKR_steps_stats['success'][icalc]:
-                    self.ctx.last_remote = self.ctx.calcs[icalc].out.remote_folder
-                    break # exit loop if last_remote was found successfully
-                else:
-                    self.ctx.last_remote = None
-            # if no previous calculation was succesful take voronoi output 
-            # or remote data from input (depending on the inputs)
-            self.report("INFO: Last_remote is None? {} {}".format(self.ctx.last_remote is None, 'structure' in self.inputs))
-            if self.ctx.last_remote is None:
-                if 'structure' in self.inputs:
-                    self.ctx.voronoi.out.last_voronoi_remote
-                else:
-                    self.ctx.last_remote = self.inputs.remote_data
-            # check if last_remote has finally been set and abort if this is not the case
-            self.report("INFO: last_remote is still None? {}".format(self.ctx.last_remote is None))
-            if self.ctx.last_remote is None:
-                error = 'ERROR: last_remote could not be set to a previous succesful calculation'
-                self.ctx.errors.append(error)
-                return self.exit_codes.ERROR_SETTING_LAST_REMOTE
+            if not convergence_on_track:
+                decrease_mixing_fac = True
+                self.report("INFO: Last KKR did not converge. Trying decreasing mixfac")
+                # reset last_remote to last successful calculation
+                for icalc in range(len(self.ctx.calcs))[::-1]:
+                    self.report("INFO: last calc success? {} {}".format(icalc, self.ctx.KKR_steps_stats['success'][icalc]))
+                    if self.ctx.KKR_steps_stats['success'][icalc]:
+                        self.ctx.last_remote = self.ctx.calcs[icalc].out.remote_folder
+                        break # exit loop if last_remote was found successfully
+                    else:
+                        self.ctx.last_remote = None
+                # if no previous calculation was succesful take voronoi output 
+                # or remote data from input (depending on the inputs)
+                self.report("INFO: Last_remote is None? {} {}".format(self.ctx.last_remote is None, 'structure' in self.inputs))
+                if self.ctx.last_remote is None:
+                    if 'structure' in self.inputs:
+                        self.ctx.voronoi.out.last_voronoi_remote
+                    else:
+                        self.ctx.last_remote = self.inputs.remote_data
+                # check if last_remote has finally been set and abort if this is not the case
+                self.report("INFO: last_remote is still None? {}".format(self.ctx.last_remote is None))
+                if self.ctx.last_remote is None:
+                    error = 'ERROR: last_remote could not be set to a previous succesful calculation'
+                    self.ctx.errors.append(error)
+                    return self.exit_codes.ERROR_SETTING_LAST_REMOTE
 
             # check if mixing strategy should be changed
             last_mixing_scheme = self.ctx.last_params.get_dict()['IMIX']
@@ -452,7 +449,7 @@ class kkr_imp_sub_wc(WorkChain):
 
                 # check if switch to higher accuracy should be done
                 if not self.ctx.kkr_higher_accuracy:
-                    if self.ctx.kkr_converged or last_rms < self.ctx.threshold_switch_high_accuracy:
+                    if self.ctx.kkr_converged: # or last_rms < self.ctx.threshold_switch_high_accuracy:
                         switch_higher_accuracy = True
 #                        self.report("INFO: rms low enough, switch to higher accuracy settings")
         else:
@@ -463,7 +460,7 @@ class kkr_imp_sub_wc(WorkChain):
             last_rms = self.ctx.last_rms_all[-1]
 
         # if needed update parameters
-        if switch_agressive_mixing or switch_higher_accuracy or initial_settings or self.ctx.mag_init:
+        if decrease_mixing_fac or switch_agressive_mixing or switch_higher_accuracy or initial_settings or self.ctx.mag_init:
             if initial_settings:
                 label = 'initial KKR scf parameters'
                 description = 'initial parameter set for scf calculation'
@@ -497,7 +494,7 @@ class kkr_imp_sub_wc(WorkChain):
                 if len(kkrdefaults_updated)>0:
                     error = 'ERROR: Calc_parameters misses keys: {}'.format(missing_list)
                     self.ctx.errors.append(error)
-                    print('ERROR: {}'.format(self.exit_codes.ERROR_MISSING_PARAMS))
+                    self.report('ERROR: {}'.format(self.exit_codes.ERROR_MISSING_PARAMS))
                     return self.exit_codes.ERROR_MISSING_PARAMS
                 else:
                     self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
@@ -506,34 +503,34 @@ class kkr_imp_sub_wc(WorkChain):
             last_mixing_scheme = para_check.get_value('IMIX')
             if last_mixing_scheme is None:
                 last_mixing_scheme = 0                     
-
-            # TODO: maybe add decrease mixing factor option as in kkr_scf wc
-#            # step 2.1 fill new_params dict with values to be updated
-#            if decrease_mixing_fac:
-#                if last_mixing_scheme == 0:
-#                    self.report('(strmixfax, mixreduce)= ({}, {})'.format(strmixfac, self.ctx.mixreduce))
-#                    self.report('type(strmixfax, mixreduce)= {} {}'.format(type(strmixfac), type(self.ctx.mixreduce)))
-#                    strmixfac = strmixfac * self.ctx.mixreduce
-#                    self.ctx.strmix = strmixfac
-#                    label += 'decreased_mix_fac_str (step {})'.format(self.ctx.loop_count)
-#                    description += 'decreased STRMIX factor by {}'.format(self.ctx.mixreduce)
-#                else:
-#                    self.report('(brymixfax, mixreduce)= ({}, {})'.format(brymixfac, self.ctx.mixreduce))
-#                    self.report('type(brymixfax, mixreduce)= {} {}'.format(type(brymixfac), type(self.ctx.mixreduce)))
-#                    brymixfac = brymixfac * self.ctx.mixreduce
-#                    self.ctx.brymix = brymixfac
-#                    label += 'decreased_mix_fac_bry'
-#                    description += 'decreased BRYMIX factor by {}'.format(self.ctx.mixreduce)
-
-            if switch_agressive_mixing:
-                last_mixing_scheme = self.ctx.type_aggressive_mixing
-                label += ' switched_to_agressive_mixing'
-                description += ' switched to agressive mixing scheme (IMIX={})'.format(last_mixing_scheme)
                 
             strmixfac = self.ctx.strmix
             aggrmixfac = self.ctx.aggrmix
             nsteps = self.ctx.nsteps
             nspin = self.ctx.nspin
+            
+            # TODO: maybe add decrease mixing factor option as in kkr_scf wc
+            # step 2.1 fill new_params dict with values to be updated
+            if decrease_mixing_fac:
+                if last_mixing_scheme == 0:
+                    self.report('(strmixfax, mixreduce)= ({}, {})'.format(strmixfac, self.ctx.mixreduce))
+                    self.report('type(strmixfax, mixreduce)= {} {}'.format(type(strmixfac), type(self.ctx.mixreduce)))
+                    strmixfac = strmixfac * self.ctx.mixreduce
+                    self.ctx.strmix = strmixfac
+                    label += 'decreased_mix_fac_str (step {})'.format(self.ctx.loop_count)
+                    description += 'decreased STRMIX factor by {}'.format(self.ctx.mixreduce)
+                else:
+                    self.report('(aggrmixfax, mixreduce)= ({}, {})'.format(aggrmixfac, self.ctx.mixreduce))
+                    self.report('type(aggrmixfax, mixreduce)= {} {}'.format(type(aggrmixfac), type(self.ctx.mixreduce)))
+                    aggrmixfac = aggrmixfac * self.ctx.mixreduce
+                    self.ctx.aggrmix = aggrmixfac
+                    label += 'decreased_mix_fac_bry'
+                    description += 'decreased AGGRMIX factor by {}'.format(self.ctx.mixreduce)
+
+            if switch_agressive_mixing:
+                last_mixing_scheme = self.ctx.type_aggressive_mixing
+                label += ' switched_to_agressive_mixing'
+                description += ' switched to agressive mixing scheme (IMIX={})'.format(last_mixing_scheme)
                 
             # add number of scf steps, spin
             new_params['SCFSTEPS'] = nsteps
@@ -670,7 +667,6 @@ class kkr_imp_sub_wc(WorkChain):
         """
         check for convergence and store some of the results of the last calculation to context
         """
-        self.report("INFO: inspecting kkrimp results step")
 
         self.ctx.calcs.append(self.ctx.last_calc)
         self.ctx.kkrimp_step_success = True
@@ -710,36 +706,24 @@ class kkr_imp_sub_wc(WorkChain):
         if self.ctx.kkrimp_step_success and found_last_calc_output:
             # check convergence
             self.ctx.kkr_converged = last_calc_output['convergence_group']['calculation_converged']
-            print(self.ctx.kkr_converged)
             # check rms
             self.ctx.rms.append(last_calc_output['convergence_group']['rms'])
             rms_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_all_iterations'])
-#            #check charge neutrality
-#            self.ctx.neutr.append(last_calc_output['convergence_group']['charge_neutrality'])
-#            neutr_all_iter_last_calc = list(last_calc_output['convergence_group']['charge_neutrality_all_iterations'])
 
             # add lists of last iterations
             self.ctx.last_rms_all = rms_all_iter_last_calc
-#            self.ctx.last_neutr_all = neutr_all_iter_last_calc
-#            if self.ctx.kkrimp_step_success and self.convergence_on_track():
-#                self.ctx.rms_all_steps += rms_all_iter_last_calc
-#                self.ctx.neutr_all_steps += neutr_all_iter_last_calc
+            if self.ctx.kkrimp_step_success and self.convergence_on_track():
+                self.ctx.rms_all_steps += rms_all_iter_last_calc
         else:
             self.ctx.kkr_converged = False
 
         self.report("INFO: kkr_converged: {}".format(self.ctx.kkr_converged))
         self.report("INFO: rms: {}".format(self.ctx.rms))
         self.report("INFO: last_rms_all: {}".format(self.ctx.last_rms_all))
-        #self.report("INFO: rms_all_steps: {}".format(self.ctx.rms_all_steps))
-        self.report("INFO: charge_neutrality: {}".format(self.ctx.neutr))
-        self.report("INFO: last_neutr_all: {}".format(self.ctx.last_neutr_all))
-        #self.report("INFO: neutr_all_steps: {}".format(self.ctx.neutr_all_steps))
         
         # turn off initial magnetization once one step was successful (update_kkr_params) used in
         if self.ctx.mag_init and self.ctx.kkrimp_step_success:
             self.ctx.mag_init_step_success = True
-
-        # TODO: extract something else (maybe total energy, charge neutrality, magnetisation)?
 
         # store some statistics used to print table in the end of the report
         self.ctx.KKR_steps_stats['success'].append(self.ctx.kkr_step_success)
@@ -757,33 +741,23 @@ class kkr_imp_sub_wc(WorkChain):
             first_rms = -1
             last_rms = -1
 
-        try:
-            first_neutr = self.ctx.last_neutr_all[0]
-            last_neutr = self.ctx.last_neutr_all[-1]
-        except:
-            self.ctx.warnings.append('cound not set first_neutr, last_neutr in KKR_steps_stats dict')
-            first_neutr = -999
-            last_neutr = -999
-
         if self.ctx.last_mixing_scheme == 0:
             mixfac = self.ctx.strmix
         elif self.ctx.last_mixing_scheme == 3 or self.ctx.last_mixing_scheme == 4:
             mixfac = self.ctx.aggrmix
         
-#        if self.ctx.kkr_higher_accuracy:
-#            qbound = self.ctx.convergence_criterion
-#        else:
-#            qbound = self.ctx.threshold_switch_high_accuracy
+        if self.ctx.kkr_higher_accuracy:
+            qbound = self.ctx.convergence_criterion
+        else:
+            qbound = self.ctx.threshold_aggressive_mixing
 
         self.ctx.KKR_steps_stats['isteps'].append(isteps)
         self.ctx.KKR_steps_stats['imix'].append(self.ctx.last_mixing_scheme)
         self.ctx.KKR_steps_stats['mixfac'].append(mixfac)
-        self.ctx.KKR_steps_stats['qbound'].append(self.ctx.convergence_criterion)
+        self.ctx.KKR_steps_stats['qbound'].append(qbound)
         self.ctx.KKR_steps_stats['high_sett'].append(self.ctx.kkr_higher_accuracy)
         self.ctx.KKR_steps_stats['first_rms'].append(first_rms)
         self.ctx.KKR_steps_stats['last_rms'].append(last_rms)
-        self.ctx.KKR_steps_stats['first_neutr'].append(first_neutr)
-        self.ctx.KKR_steps_stats['last_neutr'].append(last_neutr)
         self.ctx.KKR_steps_stats['pk'].append(self.ctx.last_calc.pk)
         self.ctx.KKR_steps_stats['uuid'].append(self.ctx.last_calc.uuid)
 
@@ -791,60 +765,53 @@ class kkr_imp_sub_wc(WorkChain):
 
         
 # TODO: solve problem with this function and use it later on
-#        
-#    def convergence_on_track(self):
-#        """
-#        Check if convergence behavior of the last calculation is on track (i.e. going down)
-#        """
-#        on_track = True
-#        threshold = 5. # used to check condition if at least one of charnge_neutrality, rms-error goes down fast enough
-#
-#        # first check if previous calculation was stopped due to reaching the QBOUND limit
-#        try:
-#            calc_reached_qbound = self.ctx.last_calc.out.output_parameters.get_dict()['convergence_group']['calculation_converged']
-#        except AttributeError: # captures error when last_calc dies not have an output node
-#            calc_reached_qbound = False
-#        except KeyError: # captures
-#            calc_reached_qbound = False
-#           
-#        if self.ctx.kkrimp_step_success and not calc_reached_qbound:
-#            first_rms = self.ctx.last_rms_all[0]
-#            first_neutr = abs(self.ctx.last_neutr_all[0])
-#            last_rms = self.ctx.last_rms_all[-1]
-#            last_neutr = abs(self.ctx.last_neutr_all[-1])
-#            # use this trick to avoid division by zero
-#            if last_neutr == 0:
-#                last_neutr = 10**-16
-#            if last_rms == 0:
-#                last_rms = 10**-16
-#            r, n = last_rms/first_rms, last_neutr/first_neutr
-#            self.report("INFO convergence check: first/last rms {}, {}; first/last neutrality {}, {}".format(first_rms, last_rms, first_neutr, last_neutr))
-#            if r < 1 and n < 1:
-#                self.report("INFO convergence check: both rms and neutrality go down")
-#                on_track = True
-#            elif n > threshold or r > threshold:
-#                self.report("INFO convergence check: rms or neutrality goes up too fast, convergence is not expected")
-#                on_track = False
-#            elif n*r < 1:
-#                self.report("INFO convergence check: either rms goes up and neutrality goes down or vice versa")
-#                self.report("INFO convergence check: but product goes down fast enough")
-#                on_track = True
-#            elif len(self.ctx.last_rms_all) ==1:
-#                self.report("INFO convergence check: already converged after single iteration")
-#                on_track = True
-#            else:
-#                self.report("INFO convergence check: rms or neutrality do not shrink fast enough, convergence is not expected")
-#                on_track = False
-#        elif calc_reached_qbound:
-#            self.report("INFO convergence check: calculation reached QBOUND")
-#            on_track = True
-#        else:
-#            self.report("INFO convergence check: calculation unsuccessful")
-#            on_track = False
-#
-#        self.report("INFO convergence check result: {}".format(on_track))
-#
-#        return on_track
+        
+    def convergence_on_track(self):
+        """
+        Check if convergence behavior of the last calculation is on track (i.e. going down)
+        """
+        
+        on_track = True
+        threshold = 5. # used to check condition if at least one of charnge_neutrality, rms-error goes down fast enough
+
+        # first check if previous calculation was stopped due to reaching the QBOUND limit
+        try:
+            calc_reached_qbound = self.ctx.last_calc.out.output_parameters.get_dict()['convergence_group']['calculation_converged']
+        except AttributeError: # captures error when last_calc dies not have an output node
+            calc_reached_qbound = False
+        except KeyError: # captures
+            calc_reached_qbound = False
+           
+        if self.ctx.kkrimp_step_success and not calc_reached_qbound:
+            first_rms = self.ctx.last_rms_all[0]
+            last_rms = self.ctx.last_rms_all[-1]
+            # use this trick to avoid division by zero
+            if last_rms == 0:
+                last_rms = 10**-16
+            r = last_rms/first_rms
+            self.report("INFO: convergence check: first/last rms {}, {}".format(first_rms, last_rms))
+            if r < 1:
+                self.report("INFO: convergence check: rms goes down")
+                on_track = True
+            elif r > threshold:
+                self.report("INFO: convergence check: rms goes up too fast, convergence is not expected")
+                on_track = False
+            elif len(self.ctx.last_rms_all) == 1:
+                self.report("INFO: convergence check: already converged after single iteration")
+                on_track = True
+            else:
+                self.report("INFO: convergence check: rms does not shrink fast enough, convergence is not expected")
+                on_track = False
+        elif calc_reached_qbound:
+            self.report("INFO: convergence check: calculation reached QBOUND")
+            on_track = True
+        else:
+            self.report("INFO: convergence check: calculation unsuccessful")
+            on_track = False
+
+        self.report("INFO: convergence check result: {}".format(on_track))
+
+        return on_track
 
         
         
@@ -919,9 +886,6 @@ class kkr_imp_sub_wc(WorkChain):
         outputnode_dict['convergence_value'] = last_rms
         outputnode_dict['convergence_values_all_steps'] = array(self.ctx.rms_all_steps)
         outputnode_dict['convergence_values_last_step'] = array(self.ctx.last_rms_all)
-        outputnode_dict['charge_neutrality'] = last_neutr
-        outputnode_dict['charge_neutrality_all_steps'] = array(self.ctx.neutr_all_steps)
-        outputnode_dict['charge_neutrality_last_step'] = array(self.ctx.last_neutr_all)
         outputnode_dict['convergence_reached'] = self.ctx.kkr_converged
         outputnode_dict['kkr_step_success'] = self.ctx.kkr_step_success
         outputnode_dict['used_higher_accuracy'] = self.ctx.kkr_higher_accuracy
@@ -931,7 +895,7 @@ class kkr_imp_sub_wc(WorkChain):
             self.report('STATUS: Done, the convergence criteria are reached.\n'
                         'INFO: The charge density of the KKR calculation pk= {} '
                         'converged after {} KKR runs and {} iterations to {} \n'
-                        ''.format(last_calc_pk, self.ctx.loop_count, sum(self.ctx.KKR_steps_stats.get('isteps')), self.ctx.last_rms_all[-1]))
+                        ''.format(last_calc_pk, self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps')), self.ctx.last_rms_all[-1]))
         else: # Termination ok, but not converged yet...
             if self.ctx.abort: # some error occured, donot use the output.
                 self.report('STATUS/ERROR: I abort, see logs and '
@@ -941,7 +905,7 @@ class kkr_imp_sub_wc(WorkChain):
                             'was reached or something failed.\n INFO: The '
                             'charge density of the KKR calculation pk= '
                             'after {} KKR runs and {} iterations is {} "me/bohr^3"\n'
-                            ''.format(self.ctx.loop_count, sum(self.ctx.KKR_steps_stats.get('isteps')), self.ctx.last_rms_all[-1]))
+                            ''.format(self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps')), self.ctx.last_rms_all[-1]))
 
         # create results  node
         self.report("INFO: create results nodes") #: {}".format(outputnode_dict))
@@ -955,29 +919,25 @@ class kkr_imp_sub_wc(WorkChain):
         # print results table for overview
         # table layout:
         message = "INFO: overview of the result:\n\n"
-        message += "|------|---------|--------|------|--------|-------------------|-----------------|-----------------|-------------\n"
-        message += "| irun | success | isteps | imix | mixfac | accuracy settings |       rms       | abs(neutrality) | pk and uuid \n"
-        message += "|      |         |        |      |        | qbound  | higher? | first  |  last  | first  |  last  |             \n"
-        message += "|------|---------|--------|------|--------|---------|---------|--------|--------|--------|--------|-------------\n"
-        #| %6i  | %9s     | %8i    | %6i  | %.2e   | %.3e    | %9s     | %.2e   |  %.2e  |  %.2e  |  %.2e  |
+        message += "|------|---------|--------|------|--------|---------|-----------------|--------------------------------------------|\n"
+        message += "| irun | success | isteps | imix | mixfac | qbound  |       rms       |                pk and uuid                 |\n"
+        message += "|      |         |        |      |        |         | first  |  last  |                                            |\n"
+        message += "|------|---------|--------|------|--------|---------|--------|--------|--------------------------------------------|\n"
+        #| %6i  | %9s     | %8i    | %6i  | %.2e   | %.3e    | %.2e   |  %.2e  |
         KKR_steps_stats = self.ctx.KKR_steps_stats
         for irun in range(len(KKR_steps_stats.get('success'))):
-            KKR_steps_stats.get('first_neutr')[irun] = abs(KKR_steps_stats.get('first_neutr')[irun])
-            KKR_steps_stats.get('last_neutr')[irun] = abs(KKR_steps_stats.get('last_neutr')[irun])
-            message += "|%6i|%9s|%8i|%6i|%.2e|%.3e|%9s|%.2e|%.2e|%.2e|%.2e|"%(irun+1,
+            message += "|%6i|%9s|%8i|%6i|%.2e|%.3e|%.2e|%.2e|"%(irun+1,
                           KKR_steps_stats.get('success')[irun], KKR_steps_stats.get('isteps')[irun],
                           KKR_steps_stats.get('imix')[irun], KKR_steps_stats.get('mixfac')[irun],
-                          KKR_steps_stats.get('qbound')[irun], KKR_steps_stats.get('high_sett')[irun],
-                          KKR_steps_stats.get('first_rms')[irun], KKR_steps_stats.get('last_rms')[irun],
-                          KKR_steps_stats.get('first_neutr')[irun], KKR_steps_stats.get('last_neutr')[irun])
-            message += " {} | {}\n".format(KKR_steps_stats.get('pk')[irun], KKR_steps_stats.get('uuid')[irun])
+                          KKR_steps_stats.get('qbound')[irun],
+                          KKR_steps_stats.get('first_rms')[irun], KKR_steps_stats.get('last_rms')[irun])
+            message += " {} | {}|\n".format(KKR_steps_stats.get('pk')[irun], KKR_steps_stats.get('uuid')[irun])
             """
             message += "#|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|\n".format(irun+1,
                           KKR_steps_stats.get('success')[irun], KKR_steps_stats.get('isteps')[irun],
                           KKR_steps_stats.get('imix')[irun], KKR_steps_stats.get('mixfac')[irun],
-                          KKR_steps_stats.get('qbound')[irun], KKR_steps_stats.get('high_sett')[irun],
-                          KKR_steps_stats.get('first_rms')[irun], KKR_steps_stats.get('last_rms')[irun],
-                          KKR_steps_stats.get('first_neutr')[irun], KKR_steps_stats.get('last_neutr')[irun])
+                          KKR_steps_stats.get('qbound')[irun],
+                          KKR_steps_stats.get('first_rms')[irun], KKR_steps_stats.get('last_rms')[irun])
             """
         self.report(message)
 
