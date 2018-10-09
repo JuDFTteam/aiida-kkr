@@ -101,7 +101,7 @@ class kkr_flex_wc(WorkChain):
         # specify the outputs
         #spec.output('remote_folder', valid_type=RemoteData)
         spec.output('calculation_info', valid_type=ParameterData)
-        #spec.output('retrieved_node', valid_type=FolderData)
+        spec.output('GF_host_remote', valid_type=RemoteData)
 
 
 
@@ -260,7 +260,6 @@ class kkr_flex_wc(WorkChain):
         runopt = [i.strip() for i in runopt]
         if 'KKRFLEX' not in runopt:
             runopt.append('KKRFLEX')
-            #change_values.append(['RUNOPT', runopt])
             
         self.report('INFO: RUNOPT set to: {}'.format(runopt))
         para_check = update_params_wf(self.ctx.input_params_KKR, ParameterData(dict={'RUNOPT':runopt}))
@@ -337,7 +336,7 @@ class kkr_flex_wc(WorkChain):
         # return ParameterData node containing information about previous calculation
         self.out('calculation_info', outputnode)
         # return retrieved data from kkrflex calculation
-        #self.out('retrieved_node', self.ctx.flexrun.out.retrieved)
+        self.out('GF_host_remote', self.ctx.flexrun.out.remote_folder)
         
         self.report('INFO: created GF writeout result nodes')
         
