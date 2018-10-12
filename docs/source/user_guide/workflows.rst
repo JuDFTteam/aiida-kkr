@@ -293,7 +293,175 @@ Case 2: Start from structure and run voronoi calculation first
 
     run(kkr_scf_wc, structure=Cu, kkr=kkrcode, voronoi=vorocode, calc_parameters=ParameterData(dict=kkr_settings.get_dict()))
     
+    
+KKR flex (GF calculation)
++++++++++++++++++++++++++
 
+The Green's function writeout workflow performs a KKR calculation with runoption
+``KKRFLEX`` to write out the ``kkr_flexfiles``. Those are needed for a ``kkrimp``
+calculation.
+
+Inputs:
+    * ``kkr`` (*aiida.orm.Code*): KKRcode using the ``kkr.kkr`` plugin
+    * ``remote_data`` (*RemoteData*): The remote folder of the (converged) kkr calculation
+    * ``imp_info`` (*ParameterData*): ParameterData node containing the information of the desired impurities (needed to write out the ``kkr_flexfiles`` and the ``scoef`` file)
+    * ``options_parameters`` (*ParameterData*, optional): Some settings of the workflow behavior (e.g. computer settings)
+    * ``label`` (*str*, optional): Label of the workflow
+    * ``description`` (*str*, optional): Longer description of the workflow
+    
+Returns nodes:
+    * ``calculation_info`` (*ParameterData*): Node containing general information about the workflow (e.g. errors, computer information, ...)
+    * ``GF_host_remote`` (*RemoteData*): RemoteFolder with all of the ``kkrflexfiles`` and further output of the workflow
+    
+    
+Example Usage
+-------------
+
+We start by getting an installation of the KKRcode::
+
+    from aiida.orm import Code
+    kkrcode = Code.get_from_string('KKRcode@my_mac')
+    
+Next load the remote folder node of the previous calculation 
+(here the :ref:`converged calculation of the Cu bulk test case <KKR_KKR_scf>`) 
+from which we want to start the following KKRFLEX calculation::
+
+    # import old KKR remote folder
+    from aiida.orm import load_node
+    kkr_remote_folder = load_node(<pid of converged calc>).out.remote_folder
+    
+Afterwards, the information regarding the impurity has to be given
+(in this example, we use a Au impurity with a cutoff radius of 2 alat which is placed in the first labelled lattice point of the unit cell). Further keywords for the ``impurity_info`` node can be found in the respective part of the documentation::
+ 
+     # set up impurity info node
+     imps = ParameterData(dict={'ilayer_center':0, 'Rcut':2, 'Zimp':[79.]})
+    
+Then we set some settings of the options parameters (this step is optional)::
+
+    # create workflow settings
+    from aiida.orm import DataFactory
+    ParameterData = DataFactory('parameter')
+    options = ParameterData(dict={'use_mpi':'false', 'queue_name':'viti_node', 'walltime_sec' : 60*60*2,  
+                                            'resources':{'num_machines':1, 'num_mpiprocs_per_machine':1}})
+    
+Finally we run the workflow::
+
+    from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
+    from aiida.work import run
+    run(kkr_flex_wc, label='test_gf_writeout', description='My test KKRflex calculation.', 
+        kkr=kkrcode, remote_data=kkr_remote_folder, options_parameters=options)
+    
+
+KKR impurity self consistency
++++++++++++++++++++++++++++++
+
+This workflow performs a KKRimp self consistency calculation starting from a 
+given host-impurity startpotential and converges it.
+    
+.. note::
+    This workflow does only work for a non-magnetic calculation without spin-orbit-coupling. Those
+    two features will be added at a later stage. This is also just a sub workflow, meaning that it only 
+    converges an already given host-impurity potential. The whole kkrimp workflow starting from scratch
+    will also be added at a later stage.
+    
+Inputs:
+    * ``kkrimp`` (*aiida.orm.Code*): KKRimpcode using the ``kkr.kkrimp`` plugin
+    * ``host_imp_startpot`` (*SinglefileData*): File containing the host impurity potential (potential file with the whole cluster with all host and impurity potentials)
+    * ``GF_remote_data`` (*RemoteData*): Output from a KKRflex calculation (can be extracted from the output of the GF writeout workflow)
+    * ``structure`` (*StructureData*, optional): Structure of the problem (not yet needed, needed later for the magnetic feature implementation)
+    * ``options_parameters`` (*ParameterData*, optional): Some general settings for the workflow (e.g. computer settings, queue, ...)
+    * ``wf_parameters`` (*ParameterData*, optional) : Settings for the behavior of the workflow (e.g. convergence settings, physical properties, ...)
+    * ``label`` (*str*, optional): Label of the workflow
+    * ``description`` (*str*, optional): Longer description of the workflow
+    
+Returns nodes:
+    * ``calculation_info`` (*ParameterData*): Node containing general information about the workflow (e.g. errors, computer information, ...)
+    * ``host_imp_pot`` (*SinglefileData*): Converged host impurity potential that can be used for further calculations (DOS calc, new input for different KKRimp calculation)
+    
+
+Example Usage
+-------------
+
+We start by getting an installation of the KKRimpcode::
+
+    from aiida.orm import Code
+    kkrimpcode = Code.get_from_string('KKRimpcode@my_mac')
+    
+Next, either load the remote folder node of the previous calculation 
+(here the KKRflex calculation that writes out the GF and KKRflexfiles) or the output node
+of the  gf_writeout workflow from which we want to start the following KKRimp calculation::
+
+    # import old KKRFLEX remote folder
+    from aiida.orm import load_node
+    GF_host_output_folder = load_node(<pid of KKRFLEX calc>).out.remote_folder # 1st possibility
+    # GF_host_output_folder = load_node(<pid of gf_writeout wf output node>) # 2nd possibility: take ``GF_host_remote`` output node from gf_writeout workflow
+    
+Now, load a converged calculation of the host system (here Cu bulk) as well as an auxiliary voronoi calculation
+(here Au) for the desired impurity::
+
+    # load converged KKRcalc
+    kkrcalc_converged = load_node(<pid of converged KKRcalc (Cu bulk)>)
+    # load auxiliary voronoi calculation
+    voro_calc_aux = load_node(<pid of voronoi calculation for the impurity (Au)>)
+
+Using those, one can obtain the needed host-impurity potential that is needed as input for the workflow. Therefore,
+we use the ``neworder_potential_wf`` workfunction which is able to generate the startpot::
+
+    ## load the neccessary function
+    from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
+    import numpy as np
+
+    # extract the name of the converged host potential
+    potname_converged = kkrcalc_converged._POTENTIAL
+    # set the name for the potential of the desired impurity (here Au)
+    potname_imp = 'potential_imp'
+    
+    neworder_pot1 = [int(i) for i in np.loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]
+    potname_impvorostart = voro_calc_aux._OUT_POTENTIAL_voronoi
+    replacelist_pot2 = [[0,0]]
+
+    # set up settings node to use as argument for the neworder_potential function
+    settings_dict = {'pot1': potname_converged,  'out_pot': potname_imp, 'neworder': neworder_pot1,
+                     'pot2': potname_impvorostart, 'replace_newpos': replacelist_pot2, 'label': 'startpot_KKRimp',
+                     'description': 'starting potential for Au impurity in bulk Cu'}
+    settings = ParameterData(dict=settings_dict)
+
+    # finally create the host-impurity potential (here ``startpot_Au_imp_sfd``) using the settings node as well as
+    the previously loaded converged KKR calculation and auxiliary voronoi calculation:
+    startpot_Au_imp_sfd = neworder_potential_wf(settings_node=settings,
+                                                parent_calc_folder=kkrcalc_converged.out.remote_folder,
+                                                parent_calc_folder2=voro_calc_aux.out.remote_folder)
+    
+.. note ::
+    Further information how the neworder potential function works can be found in the respective part of
+    this documentation.
+    
+    
+Afterwards, the information regarding the impurity has to be given
+(in this example, we use a Au impurity with a cutoff radius of 2 alat which is placed in the first labelled lattice point of the unit cell). Further 
+keywords for the ``impurity_info`` node can be found in the respective part of the documentation::
+ 
+     # set up impurity info node
+     imps = ParameterData(dict={'ilayer_center':0, 'Rcut':2, 'Zimp':[79.]})
+    
+Then, we set some settings of the options parameters on the one hand and specific wf_parameters
+regarding the convergence etc.::
+
+    options = ParameterData(dict={'use_mpi':'false', 'queue_name':'viti_node', 'walltime_sec' : 60*60*2,  
+                                  'resources':{'num_machines':1, 'num_mpiprocs_per_machine':20}})
+    kkrimp_params = ParameterData(dict={'nsteps': 50, 'convergence_criterion': 1*10**-8, 'strmix': 0.1, 
+                                        'threshold_aggressive_mixing': 3*10**-2, 'aggressive_mix': 3,
+                                         'aggrmix': 0.1, 'kkr_runmax': 5})
+    
+Finally we run the workflow::
+
+    from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
+    from aiida.work import run
+    run(kkr_imp_sub_wc, label='kkr_imp_sub test (CuAu)', description='test of the kkr_imp_sub workflow for Cu, Au system',
+        kkrimp=kkrimpcode, options_parameters=options, host_imp_startpot=startpot_Au_imp_sfd, 
+        GF_remote_data=GF_host_output_folder, wf_parameters=kkrimp_params)
+    
+    
 Equation of states
 ++++++++++++++++++
 
