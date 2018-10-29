@@ -300,8 +300,19 @@ class kkrimp_parser_functions():
         :param file: file that is parsed to find magnetic moments
         :returns: list of total magnetic moments of all atoms
         """
-        #TODO implement
-        return []
+        from aiida_kkr.tools.common_functions import search_string
+        
+        f = open(file)
+        tmptxt = f.readlines()
+        f.close()
+        itmp = 0
+        magtot = []
+        while itmp >= 0:
+           itmp = search_string('TOTAL mag. moment in unit cell =', tmptxt) 
+           if itmp >= 0:
+               magtot.append(float(tmptxt.pop(itmp).split()[-1]))
+        
+        return magtot
     
     
     def _extract_timings(self, outfile):
@@ -362,21 +373,47 @@ class kkrimp_parser_functions():
         Extract spin moment for all atoms
         :param file: file that is parsed
         :param natom: number of atoms in impurity cluster
-        :returns: spinmom_at (list), spin moments for all atoms
-        """
-        #TODO implement
-        return spinmom_at
+        :returns: spinmom_at (array of spin moments for all atoms and the last iteration), 
+                  spinmom_at_all (array of spin moments for all atoms and iterations)
+        """        
+        import numpy as np
+        
+        f = open(file)
+        lines = f.readlines()
+        startline = len(lines) - natom
+        spinmom_at = np.array([lines[startline].split()])
+        spinmom_at_all = np.array([lines[1].split()])
+        for i in range(1, natom):
+            spinmom_at = np.append(spinmom_at, [lines[startline+i].split()], axis=0)
+        for j in range(2, len(lines)):
+            spinmom_at_all = np.append(spinmom_at_all, [lines[j].split()], axis=0)
+            
+        return spinmom_at, spinmom_at_all
     
     
     def _get_orbmom_per_atom(self, file, natom):
         """
-        Extract orbital moment for all atoms
+        Extract orbital moment for all atoms (orbmom_at: all atoms in last iteration,
+        orbmom_at_all: all atoms in all iterations). For each atom there are six values:
+        first -> x-component real part, second -> x-component imaginary part,
+        third -> y-component real part, ... sixth -> z-component imaginary part.
         :param file: file that is parsed
         :param natom: number of atoms in impurity cluster
         :returns: orbmom_at (list), orbital moments for all atoms
         """
-        #TODO implement
-        return orbmom_at
+        import numpy as np
+        
+        f = open(file)
+        lines = f.readlines()
+        startline = len(lines) - natom
+        orbmom_at = np.array([lines[startline].split()])
+        orbmom_at_all = np.array([lines[1].split()])
+        for i in range(1, natom):
+            orbmom_at = np.append(orbmom_at, [lines[startline+i].split()], axis=0)
+        for j in range(2, len(lines)):
+            orbmom_at_all = np.append(orbmom_at_all, [lines[j].split()], axis=0)
+            
+        return orbmom_at, orbmom_at_all
         
         
     def _get_EF_potfile(self, potfile):
@@ -481,7 +518,9 @@ class kkrimp_parser_functions():
             
         tmp_dict = {} # used to group magnetism info (spin and orbital moments)
         try:
+            #print('Try extracting magtot')
             result = self._get_magtot(files['out_log'])
+            #print(result)
             if len(result)>0:
                 tmp_dict['total_spin_moment'] = result[-1]
                 out_dict['convergence_group']['total_spin_moment_all_iterations'] = result
@@ -503,18 +542,22 @@ class kkrimp_parser_functions():
             msg_list.append(msg)
         
         try:
-            if nspin>1:
-                #result, vec, angles = get_spinmom_per_atom(outfile, natom, nonco_out_file)
-                spinmom_atom, spinmom_atom_vec_all_iter,  = self._get_spinmom_per_atom(files['out_spinmom'], natom)
-                if len(result)>0:
-                    tmp_dict['spin_moment_per_atom'] = result[-1,:]
-                    if newsosol:
-                        tmp_dict['spin_moment_vector_per_atom'] = vec[:]
-                        tmp_dict['spin_moment_angles_per_atom'] = angles[:]
-                        tmp_dict['spin_moment_angles_per_atom_unit'] = 'degree'
-                    out_dict['convergence_group']['spin_moment_per_atom_all_iterations'] = result[:,:]
-                    tmp_dict['spin_moment_unit'] = 'mu_Bohr'
-                    out_dict['magnetism_group'] = tmp_dict
+            if nspin>1 and newsosol:
+#                #result, vec, angles = get_spinmom_per_atom(outfile, natom, nonco_out_file)
+                print('Trying to extract spinmom vector')
+                spinmom_atom, spinmom_atom_all_iter  = self._get_spinmom_per_atom(files['out_spinmom'], natom)
+                print(spinmom_atom)
+#                if len(result)>0:
+#                    tmp_dict['spin_moment_per_atom'] = result[-1,:]
+#                    if newsosol:
+#                        tmp_dict['spin_moment_vector_per_atom'] = vec[:]
+#                        tmp_dict['spin_moment_angles_per_atom'] = angles[:]
+#                        tmp_dict['spin_moment_angles_per_atom_unit'] = 'degree'
+#                    out_dict['convergence_group']['spin_moment_per_atom_all_iterations'] = result[:,:]
+#                    tmp_dict['spin_moment_unit'] = 'mu_Bohr'
+#                    out_dict['magnetism_group'] = tmp_dict
+                tmp_dict['spin_moment_per_atom'] = spinmom_atom
+                tmp_dict['spin_moment_all_iter'] = spinmom_atom_all_iter
         except:
             msg = "Error parsing output of KKRimp: spin moment per atom"
             msg_list.append(msg)
@@ -522,11 +565,13 @@ class kkrimp_parser_functions():
         # add orbital moments to magnetis group in parser output
         try:
             if nspin>1 and newsosol:
-                orbmom_atom = self._get_orbmom_per_atom(files['out_orbmom'], natom)
+                print('trying to extract orbmoms')
+                orbmom_atom, orbmom_atom_all = self._get_orbmom_per_atom(files['out_orbmom'], natom)
+                print(orbmom_atom)
                 if len(result)>0:
-                    tmp_dict['total_orbital_moment'] = sum(result[-1,:])
-                    tmp_dict['orbital_moment_per_atom'] = result[-1,:]
-                    out_dict['convergence_group']['orbital_moment_per_atom_all_iterations'] = result[:,:]
+                    #tmp_dict['total_orbital_moment'] = sum(result[-1,:])
+                    tmp_dict['orbital_moment_per_atom'] = orbmom_atom
+                    out_dict['convergence_group']['orbital_moment_per_atom_all_iterations'] = orbmom_atom_all
                     tmp_dict['orbital_moment_unit'] = 'mu_Bohr'
                     out_dict['magnetism_group'] = tmp_dict
         except:
@@ -543,7 +588,6 @@ class kkrimp_parser_functions():
     
         try:
             result = self._get_Etot(files['out_log'])
-            print(result)
             out_dict['energy'] = result[-1]*Ry2eV
             out_dict['energy_unit'] = 'eV'
             out_dict['total_energy_Ry'] = result[-1]
