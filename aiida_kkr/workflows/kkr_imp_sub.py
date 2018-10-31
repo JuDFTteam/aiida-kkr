@@ -9,9 +9,8 @@ from aiida.work.workchain import WorkChain, ToContext, while_
 from aiida_kkr.tools.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
-from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida.common.datastructures import calc_states
-from numpy import array, ones
+from numpy import array
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
@@ -79,14 +78,15 @@ class kkr_imp_sub_wc(WorkChain):
                    'broyden-number': 20,                      # number of potentials to 'remember' for Broyden's mixing
                    'born-iter': 2,                            # number of Born iterations for the non-spherical calculation
                    'mag_init' : False,                        # initialize and converge magnetic calculation
-                   'hfield' : 0.02, # Ry                      # external magnetic field used in initialization step
+                   'hfield' : [0.1, 10], # Ry                      # external magnetic field used in initialization step
                    'init_pos' : None,                         # position in unit cell where magnetic field is applied [default (None) means apply to all]
-                   'r_cls' : 1.3 # alat                       # default cluster radius, is increased iteratively
-#                   ############################################################
-#                   # TODO: add options for SOC calculations
-#                   ############################################################
-#                   'spinorbit': 0,                            # use old (noSOC) solver, (1 for SOC solver, tmatnew testoption needed)
-#                   'NCOLL': 0,                                # must be 1 if SPINORBIT= 1
+                   'r_cls' : 1.3, # alat                       # default cluster radius, is increased iteratively
+                   'calc_orbmom' : False,                     # defines of orbital moments will be calculated and written out
+                   'spinorbit' : False,                       # SOC calculation (True/False)
+                   'newsol' : False,                           # new SOC solver is applied
+                   'mesh_params': { 'NPAN_LOG': 10,
+                                    'NPAN_EQ': 5,
+                                    'NCHEB': 7}
 #                   # Some parameter for direct solver (same as in host code)
 #                   'NPAN_LOGPANELFAC': 2,
 #                   'RADIUS_LOGPANELS': 0.6,                   # where to set change of logarithmic to linear radial mesh
@@ -164,6 +164,7 @@ class kkr_imp_sub_wc(WorkChain):
             message="ERROR: Parameters could not be updated")
         spec.exit_code(129, 'ERROR_LAST_CALC_NOT_FINISHED',
             message="ERROR: Last calculation is not in finished state")
+        
         
         # Define the outputs of the workflow
         spec.output('calculation_info', valid_type=ParameterData)
@@ -243,6 +244,12 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.hfield = wf_dict.get('hfield', self._wf_default['hfield'])
         self.ctx.xinit = wf_dict.get('init_pos', self._wf_default['init_pos'])
         self.ctx.mag_init_step_success = False
+        
+        # SOC
+        self.ctx.calc_orbmom = wf_dict.get('calc_orbmom', self._wf_default['calc_orbmom'])
+        self.ctx.spinorbit = wf_dict.get('spinorbit', self._wf_default['spinorbit'])
+        self.ctx.newsol = wf_dict.get('newsol', self._wf_default['newsol']) 
+        self.ctx.mesh_params = wf_dict.get('mesh_params', self._wf_default['mesh_params'])
 
         
         self.report('INFO: use the following parameter:\n'
@@ -268,6 +275,9 @@ class kkr_imp_sub_wc(WorkChain):
                     'init magnetism in first step: {}\n'
                     'init magnetism, hfield: {}\n'
                     'init magnetism, init_pos: {}\n'
+                    'use new SOC solver: {}\n'
+                    'SOC calculation: {}\n'
+                    'write out orbital moments: {}\n'
                     ''.format(self.ctx.use_mpi, self.ctx.max_number_runs,
                                 self.ctx.resources, self.ctx.walltime_sec,
                                 self.ctx.queue, self.ctx.custom_scheduler_commands,
@@ -276,7 +286,8 @@ class kkr_imp_sub_wc(WorkChain):
                                 self.ctx.threshold_aggressive_mixing,
                                 self.ctx.type_aggressive_mixing, self.ctx.aggrmix,
                                 self.ctx.mixreduce, self.ctx.convergence_criterion,
-                                self.ctx.mag_init, self.ctx.hfield, self.ctx.xinit)
+                                self.ctx.mag_init, self.ctx.hfield, self.ctx.xinit,
+                                self.ctx.newsol, self.ctx.spinorbit, self.ctx.calc_orbmom)
                     )
 
         # return para/vars
@@ -537,6 +548,20 @@ class kkr_imp_sub_wc(WorkChain):
             new_params['NSPIN'] = nspin
             new_params['INS'] = self.ctx.spherical
             
+            # add newsosol
+            if self.ctx.newsol:
+                new_params['TESTFLAG'] = ['tmatnew']
+                
+            if self.ctx.spinorbit:
+                new_params['SPINORBIT'] = 1
+                new_params['NCOLL'] = 1
+                new_params['NCHEB'] = self.ctx.mesh_params['NCHEB']
+                new_params['NPAN_LOG'] = self.ctx.mesh_params['NPAN_LOG']
+                new_params['NPAN_EQ'] = self.ctx.mesh_params['NPAN_EQ']                
+                
+            if self.ctx.calc_orbmom:
+                new_params['CALCORBITALMOMENT'] = 1
+            
             # set mixing schemes and factors
             if last_mixing_scheme == 3 or last_mixing_scheme == 4:
                 new_params['ITDBRY'] = self.ctx.broyden_num  
@@ -576,29 +601,17 @@ class kkr_imp_sub_wc(WorkChain):
                 if self.ctx.hfield <= 0:
                     self.report('\nWARNING: magnetization initialization chosen but hfield is zero. Automatically change back to default value (hfield={})\n'.format(self._wf_default['hfield']))
                     self.ctx.hfield = self._wf_default['hfield']
-                xinipol = self.ctx.xinit
-                if xinipol is None:
-                    if 'structure' in self.inputs:
-                        struc = self.inputs.structure
-                    else:
-                        struc, voro_parent = KkrCalculation.find_parent_structure(self.ctx.last_remote)
-                    natom = len(struc.sites)
-                    xinipol = ones(natom)
-                #new_params['LINIPOL'] = True
                 new_params['HFIELD'] = self.ctx.hfield
-                new_params['XINIPOL'] = xinipol
             elif self.ctx.mag_init and self.ctx.mag_init_step_success: # turn off initialization after first (successful) iteration
-                #new_params['LINIPOL'] = False
                 new_params['HFIELD'] = [0.0, 0]
             elif not self.ctx.mag_init:
                 self.report("INFO: mag_init is False. Overwrite 'HFIELD' to '0.0' and 'LINIPOL' to 'False'.")
                 # reset mag init to avoid resinitializing
-                #new_params['LINIPOL'] = False
                 new_params['HFIELD'] = [0.0, 0]
                 
             # set nspin to 2 if mag_init is used
             if self.ctx.mag_init:
-                nspin_in = para_check.get_value('NSPIN')
+                nspin_in = nspin
                 if nspin_in is None:
                     nspin_in = 1
                 if nspin_in < 2:
@@ -763,8 +776,7 @@ class kkr_imp_sub_wc(WorkChain):
 
         self.report("INFO: done inspecting kkrimp results step")
 
-        
-# TODO: solve problem with this function and use it later on
+
         
     def convergence_on_track(self):
         """
@@ -864,10 +876,8 @@ class kkr_imp_sub_wc(WorkChain):
         # capture convergence info
         try:
             last_rms = self.ctx.rms[-1]
-            last_neutr = self.ctx.neutr[-1]
         except:
             last_rms = None
-            last_neutr = None
 
         # now collect results saved in results node of workflow
         self.report("INFO: collect outputnode_dict")
@@ -919,10 +929,10 @@ class kkr_imp_sub_wc(WorkChain):
         # print results table for overview
         # table layout:
         message = "INFO: overview of the result:\n\n"
-        message += "|------|---------|--------|------|--------|---------|-----------------|--------------------------------------------|\n"
-        message += "| irun | success | isteps | imix | mixfac | qbound  |       rms       |                pk and uuid                 |\n"
-        message += "|      |         |        |      |        |         | first  |  last  |                                            |\n"
-        message += "|------|---------|--------|------|--------|---------|--------|--------|--------------------------------------------|\n"
+        message += "|------|---------|--------|------|--------|---------|-----------------|---------------------------------------------|\n"
+        message += "| irun | success | isteps | imix | mixfac | qbound  |       rms       |                pk and uuid                  |\n"
+        message += "|      |         |        |      |        |         | first  |  last  |                                             |\n"
+        message += "|------|---------|--------|------|--------|---------|--------|--------|---------------------------------------------|\n"
         #| %6i  | %9s     | %8i    | %6i  | %.2e   | %.3e    | %.2e   |  %.2e  |
         KKR_steps_stats = self.ctx.KKR_steps_stats
         for irun in range(len(KKR_steps_stats.get('success'))):
@@ -932,6 +942,7 @@ class kkr_imp_sub_wc(WorkChain):
                           KKR_steps_stats.get('qbound')[irun],
                           KKR_steps_stats.get('first_rms')[irun], KKR_steps_stats.get('last_rms')[irun])
             message += " {} | {}|\n".format(KKR_steps_stats.get('pk')[irun], KKR_steps_stats.get('uuid')[irun])
+            message += "|------|---------|--------|------|--------|---------|-----------------|---------------------------------------------|\n"
             """
             message += "#|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|\n".format(irun+1,
                           KKR_steps_stats.get('success')[irun], KKR_steps_stats.get('isteps')[irun],

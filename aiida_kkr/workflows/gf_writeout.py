@@ -87,8 +87,8 @@ class kkr_flex_wc(WorkChain):
             cls.start,
             if_(cls.validate_input)(
                 cls.set_params_flex,
-                cls.get_flex, # calculate host GF and kkr-flexfiles
-                cls.return_results))   
+                cls.get_flex), # calculate host GF and kkr-flexfiles
+            cls.return_results)   
 
         # ToDo: improve error codes
         spec.exit_code(101, 'ERROR_INVALID_INPUT_IMP_INFO', 
@@ -207,7 +207,7 @@ class kkr_flex_wc(WorkChain):
         
         if input_ok:
             self.report('INFO: Checking inputs successful')
-            
+        
         return input_ok
 
             
@@ -324,6 +324,7 @@ class kkr_flex_wc(WorkChain):
         outputnode_dict['queue'] = self.ctx.queue
         outputnode_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
         outputnode_dict['successful'] = self.ctx.successful
+        outputnode_dict['pk_flexcalc'] = self.ctx.flexrun.pk
         outputnode_dict['list_of_errors'] = self.ctx.errors
             
         outputnode = ParameterData(dict=outputnode_dict)
