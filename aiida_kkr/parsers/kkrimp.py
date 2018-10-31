@@ -129,7 +129,7 @@ class KkrimpParser(Parser):
             filepath = out_folder.get_abs_path(fname)
             files['kkrflex_llyfac'] = filepath
         except OSError:
-            file_errors.append((2, "Critical error! file '{}' not found ".format(fname)))
+            file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
             files['kkrflex_llyfac'] = None
         try:
             fname = self._calc._KKRFLEX_ANGLE
