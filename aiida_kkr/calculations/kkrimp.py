@@ -210,6 +210,28 @@ class KkrimpCalculation(JobCalculation):
                     retrieve_list.append((self._OUT_LDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
                     retrieve_list.append((self._OUT_LMDOS_BASE%(iatom, ispin)).replace(' ', '0'))
                     retrieve_list.append((self._OUT_LMDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
+
+        file = open(tempfolder.get_abs_path(self._CONFIG))
+        config = file.readlines()
+        file.close()
+        itmp = search_string('NSPIN', config)
+        if itmp>=0:
+            nspin = int(config[itmp].split()[-1])
+        else:
+            raise ValueError("Could not extract NSPIN value from config.cfg")
+        if 'tmatnew' in allopts and nspin>1:
+            retrieve_list.append(self._OUT_MAGNETICMOMENTS) 
+            file = open(tempfolder.get_abs_path(self._CONFIG))
+            outorb = file.readlines()
+            file.close()
+            itmp = search_string('CALCORBITALMOMENT', outorb)
+            if itmp>=0:
+                calcorb = int(outorb[itmp].split()[-1])
+            else:
+                calcorb = 0
+            if calcorb==1:
+                retrieve_list.append(self._OUT_ORBITALMOMENTS)
+        
         
         # Prepare CalcInfo to be returned to aiida (e.g. retreive_list etc.)
         calcinfo = CalcInfo()

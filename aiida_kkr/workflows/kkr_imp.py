@@ -90,7 +90,11 @@ class kkr_imp_wc(WorkChain):
                         'delta_e_min' : 1., # eV                   # minimal distance in DOS contour to emin and emax in eV
                         'threshold_dos_zero' : 10**-3,             #states/eV  
                         'check_dos': True,                         # logical to determine if DOS is computed and checked
-                        'delta_e_min_core_states' : 1.0} # Ry     # minimal distance of start of energy contour to highest lying core state in Ry
+                        'delta_e_min_core_states' : 1.0,  # Ry     # minimal distance of start of energy contour to highest lying core state in Ry
+                        'lmax': 3,
+                        'gmax': 65.,
+                        'rmax': 7.,
+                        'rclustz': 2.5}
                                           
                                  
                                           
@@ -121,6 +125,7 @@ class kkr_imp_wc(WorkChain):
         spec.input("kkrcode", valid_type=Code, required=True)
         spec.input("kkrimpcode", valid_type=Code, required=True)
         spec.input("remote_converged_host", valid_type=RemoteData, required=True)
+        spec.input("kkrflex_remote", valid_type=RemoteData, required=False)
         spec.input("impurity_info", valid_type=ParameterData, required=True)
         spec.input("options_parameters", valid_type=ParameterData, required=False)
         spec.input("voro_aux_parameters", valid_type=ParameterData, required=False)
@@ -202,6 +207,10 @@ class kkr_imp_wc(WorkChain):
         self.ctx.voro_threshold_dos_zero = voro_aux_dict.get('threshold_dos_zero', self._voro_aux_default['threshold_dos_zero'])
         self.ctx.voro_check_dos = voro_aux_dict.get('check_dos', self._voro_aux_default['check_dos'])
         self.ctx.voro_delta_e_min_core_states = voro_aux_dict.get('delta_e_min_core_states', self._voro_aux_default['delta_e_min_core_states'])
+        self.ctx.voro_lmax = voro_aux_dict.get('lmax', self._voro_aux_default['lmax'])
+        self.ctx.voro_gmax = voro_aux_dict.get('gmax', self._voro_aux_default['gmax'])
+        self.ctx.voro_rmax = voro_aux_dict.get('rmax', self._voro_aux_default['rmax'])
+        self.ctx.voro_rclustz = voro_aux_dict.get('rclustz', self._voro_aux_default['rclustz'])
         # set up new parameter dict to pass to voronoi subworkflow later
         self.ctx.voro_params_dict = ParameterData(dict={'queue_name': self.ctx.queue, 'resources': self.ctx.resources, 'walltime_sec': self.ctx.walltime_sec, 
                                                         'use_mpi': self.ctx.use_mpi, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
@@ -238,7 +247,7 @@ class kkr_imp_wc(WorkChain):
                                                           'strmix': self.ctx.strmix, 'aggressive_mix': self.ctx.aggressive_mix,
                                                           'aggrmix': self.ctx.aggrmix, 'non_spherical': self.ctx.non_spherical,
                                                           'broyden_number': self.ctx.broyden_number, 'born_iter': self.ctx.born_iter,
-                                                          'mag_init': self.ctx.mag_init, 'hfield': self.ctx.mag_init, 'init_pos': self.ctx.init_pos,
+                                                          'mag_init': self.ctx.mag_init, 'hfield': self.ctx.hfield, 'init_pos': self.ctx.init_pos,
                                                           'r_cls': self.ctx.r_cls, 'calc_orbmom': self.ctx.calc_orbmom, 
                                                           'spinorbit': self.ctx.spinorbit, 'newsol': self.ctx.newsol})
         
@@ -333,7 +342,8 @@ class kkr_imp_wc(WorkChain):
         imp_info = self.inputs.impurity_info
         voro_params = self.ctx.voro_params_dict
         converged_host_remote = self.inputs.remote_converged_host
-        calc_params = ParameterData(dict=kkrparams(NSPIN=self.ctx.nspin, LMAX=3, GMAX=65., RMAX=7.).get_dict())
+        calc_params = ParameterData(dict=kkrparams(NSPIN=self.ctx.nspin, LMAX=self.ctx.voro_lmax, GMAX=self.ctx.voro_gmax, 
+                                                   RMAX=self.ctx.voro_rmax, RCLUSTZ=self.ctx.voro_rclustz).get_dict())
         structure_host, voro_calc = VoronoiCalculation.find_parent_structure(converged_host_remote) 
         
         # for every impurity, generate a structure and launch the voronoi workflow
@@ -369,6 +379,7 @@ class kkr_imp_wc(WorkChain):
         
         # collect all nodes necessary to construct the startpotential
         GF_host_calc_pk = self.ctx.gf_writeout.out.calculation_info.get_attr('pk_flexcalc')
+        self.report('GF_host_calc_pk: {}'.format(GF_host_calc_pk))
         GF_host_calc = load_node(GF_host_calc_pk)
         converged_host_remote = self.inputs.remote_converged_host
         voro_calc_remote = self.ctx.last_voro_calc.out.last_voronoi_remote
@@ -434,7 +445,7 @@ class kkr_imp_wc(WorkChain):
         outputnode_dict = {}
         outputnode_dict['workflow_name'] = self.__class__.__name__
         outputnode_dict['workflow_version'] = self._workflowversion
-        outputnode_dict['successful'] = self.ctx.successful
+        #outputnode_dict['successful'] = self.ctx.successful
         outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk, 'auxiliary_voronoi': self.ctx.last_voro_calc.pk,
                                                 'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}   
         outputnode_t = ParameterData(dict=outputnode_dict)
@@ -442,7 +453,7 @@ class kkr_imp_wc(WorkChain):
         outputnode_t.description = 'Contains information for workflow'
 
         self.out('workflow_info', outputnode_t)
-        self.out('hostimp_output_pot', self.ctx.kkrimp_scf_sub.out.host_imp_pot)
+        #self.out('hostimp_output_pot', self.ctx.kkrimp_scf_sub.out.host_imp_pot)
         
         self.report('INFO: created output nodes successfully')        
         self.report('\n'
@@ -470,12 +481,4 @@ def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at ce
         isite += 1
 
     return new_struc            
-            
-            
-            
-            
-        
-        
-        
-
-    
+              

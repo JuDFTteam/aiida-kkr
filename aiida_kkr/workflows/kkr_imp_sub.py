@@ -84,7 +84,7 @@ class kkr_imp_sub_wc(WorkChain):
                    'calc_orbmom' : False,                     # defines of orbital moments will be calculated and written out
                    'spinorbit' : False,                       # SOC calculation (True/False)
                    'newsol' : False,                           # new SOC solver is applied
-                   'mesh_params': { 'NPAN_LOG': 10,
+                   'mesh_params': { 'NPAN_LOG': 8,
                                     'NPAN_EQ': 5,
                                     'NCHEB': 7}
 #                   # Some parameter for direct solver (same as in host code)
@@ -551,16 +551,23 @@ class kkr_imp_sub_wc(WorkChain):
             # add newsosol
             if self.ctx.newsol:
                 new_params['TESTFLAG'] = ['tmatnew']
+            else:
+                new_params['TESTFLAG'] = []
                 
             if self.ctx.spinorbit:
                 new_params['SPINORBIT'] = 1
                 new_params['NCOLL'] = 1
                 new_params['NCHEB'] = self.ctx.mesh_params['NCHEB']
                 new_params['NPAN_LOG'] = self.ctx.mesh_params['NPAN_LOG']
-                new_params['NPAN_EQ'] = self.ctx.mesh_params['NPAN_EQ']                
+                new_params['NPAN_EQ'] = self.ctx.mesh_params['NPAN_EQ']  
+            else:
+                new_params['SPINORBIT'] = 0
+                new_params['NCOLL'] = 0
                 
             if self.ctx.calc_orbmom:
                 new_params['CALCORBITALMOMENT'] = 1
+            else:
+                new_params['CALCORBITALMOMENT'] = 0
             
             # set mixing schemes and factors
             if last_mixing_scheme == 3 or last_mixing_scheme == 4:
@@ -617,6 +624,7 @@ class kkr_imp_sub_wc(WorkChain):
                 if nspin_in < 2:
                     self.report('WARNING: found NSPIN=1 but for maginit needs NPIN=2. Overwrite this automatically')
                     new_params['NSPIN'] = 2
+            self.report('new_params: {}'.format(new_params))
 
             # step 2.2 update values
             try:
@@ -626,7 +634,7 @@ class kkr_imp_sub_wc(WorkChain):
                 error = 'ERROR: parameter update unsuccessful: some key, value pair not valid!'
                 self.ctx.errors.append(error)
                 self.report(error)
-                return self.exit_codes.ERROR_PARAMETER_UPDATE
+                #return self.exit_codes.ERROR_PARAMETER_UPDATE
 
             # step 3:
             self.report("INFO: update parameters to: {}".format(para_check.get_set_values()))
