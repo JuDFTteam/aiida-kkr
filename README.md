@@ -1,3 +1,5 @@
+[![Documentation Status](https://readthedocs.org/projects/aiida-kkr/badge/?version=latest)](https://aiida-kkr.readthedocs.io/en/latest/?badge=latest)
+
 # aiida-kkr
 
 AiiDA plugin for the KKR codes plus workflows and utility.
