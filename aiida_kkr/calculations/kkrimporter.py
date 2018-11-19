@@ -25,7 +25,7 @@ StructureData = DataFactory('structure')
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1"
+__version__ = "0.2"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -215,12 +215,20 @@ class KkrImporterCalculation(KkrCalculation):
         # Manually set the files that will be copied to the repository and that
         # the parser will extract the results from. This would normally be
         # performed in self._prepare_for_submission prior to submission.
+        
+        natom = 1000 # maximal number of atom-resolved files that are retrieved
+        # TODO take actual natom value (maybe extract from number of files that are there)
         self._set_attr('retrieve_list',
-                       [self._DEFAULT_OUTPUT_FILE, self._NONCO_ANGLES_OUT, 
-                        self._OUTPUT_0_INIT, self._OUTPUT_000, self._OUTPUT_2,
+                       [self._INPUT_FILE_NAME, # inputcard needed for parsing
+                        self._DEFAULT_OUTPUT_FILE, # out_kkr, std shell output
+                        self._NONCO_ANGLES_OUT, # nonco angles files
+                        self._OUTPUT_0_INIT, self._OUTPUT_000, self._OUTPUT_2, # output files in new(er) style
                         'output.0','output.1a','output.1b','output.1c','output.2', # try to import old style output
-                        self._OUT_TIMING_000,
-                        self._OUT_POTENTIAL, self._SHAPEFUN])  # make sure to retrieve potential and shapefun as well
+                        self._OUT_TIMING_000, # timing file
+                        self._OUT_POTENTIAL, self._SHAPEFUN  # make sure to retrieve potential and shapefun as well
+                        # add Jij files etc for other run options
+                        ] + [self._SHELLS_DAT] + [self._Jij_ATOM%iatom for iatom in range(1,natom+1)]
+                        )
         self._set_attr('retrieve_singlefile_list', [])
 
         # Make sure the calculation and input links are stored.
