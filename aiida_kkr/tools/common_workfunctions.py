@@ -610,11 +610,16 @@ def structure_from_params(parameters):
     """
     from aiida_kkr.tools.common_functions import get_aBohr2Ang
     from aiida.common.constants import elements as PeriodicTableElements
+    from aiida_kkr.tools.kkr_params import kkrparams
     from numpy import array
+    
+    #check input
+    if not isinstance(parameters, kkrparams):
+        raise InputValidationError('input parameters needs to be a "kkrparams" instance!') 
+    
+    # initialize some stuff
     StructureData = DataFactory('structure')
-    
-    is_complete = True 
-    
+    is_complete = True
     for icheck in ['<ZATOM>', '<RBASIS>', 'BRAVAIS', 'ALATBASIS']:
         if parameters.get_value(icheck) is None:
             is_complete = False
@@ -658,13 +663,22 @@ def structure_from_params(parameters):
     else:
         pos_all = pos_all * alat * get_aBohr2Ang() # now positions are in Ang. units
     
+    # extract atom numbers
     zatom_all = parameters.get_value('<ZATOM>')
+    # convert to list if input contains a single entry only
+    if type(zatom_all) != list:
+        zatom_all = [zatom_all]
+        pos_all = [pos_all]
+        
+    #extract weights and sites for CPA calculations
     if natyp==naez:
         weights = [1. for i in range(natyp)]
         sites = range(1,natyp+1)
     else:
         weights = parameters.get_value('<CPA-CONC>')
         sites = parameters.get_value('<SITE>')
+        
+    # fill structure from zatom, weights and sites information
     for isite in sites:
         pos = pos_all[sites.index(isite)]
         weight = weights[sites.index(isite)]

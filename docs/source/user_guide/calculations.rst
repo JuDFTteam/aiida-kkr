@@ -364,6 +364,49 @@ should look like this (see :ref:`here for the plotting script<KKR_bandstruc_exam
     :width: 80%
 
 
+Special run modes: Jij extraction
+---------------------------------
+
+The extraction of exchange coupling parameters is triggered with the ``XCPL`` 
+run option and needs at lest the ``JIJRAD`` paramter to be set.
+Here we take the remote folder of the converged calculation and compute the exchange
+parameters::
+
+    from aiida.orm import load_node
+    kkr_calc_converged = load_node(<-id-of-previous-calc>)
+    
+Then we set the ``XCLP`` run option and the ``JIJRAD`` parameter (the ``JIJRADXY``, 
+``JIJSITEI`` and ``JIJSITEJ`` parameters are not mandatory and are ommitted in this 
+example) in the input node to a new KKR calculation::
+
+    # create bandstructure calculation reusing old settings (including same computer and resources in this example)
+    kkrcode = kkr_calc_converged.get_code()
+    kkrcalc = kkrcode.new_calc()
+    kkrcalc.use_parent_folder(kkr_calc_converged.out.remote_folder)
+    kkrcalc.set_resources(kkr_calc_converged.get_resources())
+    # change parameters to Jij settings ('XCPL' runopt and JIJRAD parameter)
+    from aiida_kkr.tools.kkr_params import kkrparams
+    Jij_params = kkrparams(**kkr_calc_converged.inp.parameters.get_dict()) # reuse old settings
+    # add JIJRAD (remember: in alat units)
+    Jij_params.set_value('JIJRAD', 1.5)
+    # add 'XCPL' runopt to list of runopts
+    runopts = Jij_params.get_value('RUNOPT')
+    runopts.append('XCPL    ')
+    Jij_params.set_value('RUNOPT', runopts)
+    # now use updated parameters
+    kkrcalc.use_parameters(ParameterData(dict=qdos_params.get_dict()))
+    
+The calculation is then ready to be submitted::
+
+    # store and submit calculation
+    kkrcalc.store_all()
+    kkrcalc.submit()
+
+The result of the calculation will then contain the ``Jijatom.*`` files in the 
+retrieved node and the ``shells.dat`` files which allows to map the values of the 
+exchange interaction to equivalent positions in the different shells.
+
+
 KKR impurity calculation
 ++++++++++++++++++++++++
 
@@ -619,7 +662,10 @@ the extracted aiida StructureData node ``structure`` as inputs and creates
 A KKRimporter calculation can then be used like a KKR claculation to continue 
 calculations with correct provenance tracking in the database.
 
-.. note:: At least ``input_file`` and ``potentail_file`` need to be given in ``input_file_names``.
+.. note:: 
+
+    * At least ``input_file`` and ``potential_file`` need to be given in ``input_file_names``.
+    * Works also if output was a Jij calculation, then ``Jijatom.*`` and ``shells.dat`` files are retreived as well.
 
 
 Example on how to use the calculation importer::
