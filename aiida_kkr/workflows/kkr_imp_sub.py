@@ -960,4 +960,4 @@ class kkr_imp_sub_wc(WorkChain):
             """
         self.report(message)
 
-        self.report("\nINFO: done with kkr_scf workflow!\n")
+        self.report("INFO: done with kkr_scf workflow!\n")

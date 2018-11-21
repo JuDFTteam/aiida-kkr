@@ -358,7 +358,7 @@ class kkr_startpot_wc(WorkChain):
     
             VoronoiProcess, inputs = get_inputs_voronoi(voronoicode, structure, options, label, description, params=params)
             self.report('INFO: run voronoi step {}'.format(self.ctx.iter))
-            future = submit(VoronoiProcess, **inputs)
+            future = self.submit(VoronoiProcess, **inputs)
             
             
             # return remote_voro (passed to dos calculation as input)

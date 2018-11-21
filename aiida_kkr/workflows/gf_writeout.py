@@ -206,7 +206,7 @@ class kkr_flex_wc(WorkChain):
         self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
         
         if input_ok:
-            self.report('INFO: Checking inputs successful')
+            self.report('INFO: checking inputs successful')
         
         return input_ok
 
