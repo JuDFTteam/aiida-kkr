@@ -30,7 +30,7 @@ KpointsData = DataFactory('array.kpoints')
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6"
+__version__ = "0.7"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -93,6 +93,9 @@ class KkrCalculation(JobCalculation):
         self._KKRFLEX_INTERCELL_REF = 'kkrflex_intercell_ref'
         self._KKRFLEX_INTERCELL_CMOMS = 'kkrflex_intercell_cmoms'
         self._ALL_KKRFLEX_FILES = [self._KKRFLEX_GREEN, self._KKRFLEX_TMAT, self._KKRFLEX_ATOMINFO, self._KKRFLEX_INTERCELL_REF, self._KKRFLEX_INTERCELL_CMOMS]
+        # Jij files
+        self._Jij_ATOM = 'Jij.atom%0.5i'
+        self._SHELLS_DAT = 'shells.dat'
         
         # template.product entry point defined in setup.json
         self._default_parser = 'kkr.kkrparser'
@@ -539,6 +542,18 @@ class KkrCalculation(JobCalculation):
                     add_files.append((self._QDOS_ATOM%(iatom+1, ispin+1)).replace(' ','0'))
             calcinfo.retrieve_list += add_files
             
+        # 4. Jij calculation
+        retrieve_Jij_files = False
+        if 'RUNOPT' in  parameters.get_dict().keys():
+            runopts = parameters.get_dict()['RUNOPT']
+            if runopts is not None :
+                stripped_run_opts = [i.strip() for i in runopts]
+                if 'XCPL' in stripped_run_opts:
+                    retrieve_Jij_files = True
+        if retrieve_Jij_files:
+            add_files = [self._SHELLS_DAT] + [self._Jij_ATOM%iatom for iatom in range(1,natom+1)]
+            print('adding files for Jij output', add_files)
+            calcinfo.retrieve_list += add_files
 
         codeinfo = CodeInfo()
         codeinfo.cmdline_params = []
