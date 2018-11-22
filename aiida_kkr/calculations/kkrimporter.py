@@ -12,7 +12,7 @@ from aiida.common.exceptions import InputValidationError, InvalidOperation
 from aiida.common.datastructures import calc_states
 from aiida.common.links import LinkType
 from aiida_kkr.calculations.kkr import KkrCalculation
-from aiida_kkr.tools.kkr_params import kkrparams
+from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import structure_from_params
 
 

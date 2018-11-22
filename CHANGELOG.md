@@ -23,7 +23,7 @@ Start of large KKR repository holding *voronoi*, *KKRhost*, *KKRimp*, *KKRsusc*,
 
 
 ### Added
-- None
+- masci-tools dependency for kkr_params
 
 ### Changed
 - kkr calculation retrieves Jij files
@@ -32,7 +32,7 @@ Start of large KKR repository holding *voronoi*, *KKRhost*, *KKRimp*, *KKRsusc*,
 - KKRimporter calculation now also retrieves Jij files
 
 ### Removed
-- None
+- kkr_params deleted from aiida_kkr/tools, instead use masci-tools dependecy
 
 ### Fixed
 - None

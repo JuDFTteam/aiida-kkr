@@ -7,7 +7,7 @@ within workfunctions) are collected.
 from aiida.common.exceptions import InputValidationError
 from aiida.work import workfunction as wf
 from aiida.orm import DataFactory
-from aiida_kkr.tools.kkr_params import kkrparams
+from masci_tools.io.kkr_params import kkrparams
 
 #define aiida structures from DataFactory of aiida
 ParameterData = DataFactory('parameter')
@@ -393,7 +393,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     
     from aiida.common.constants import elements as PeriodicTableElements
     from numpy import array
-    from aiida_kkr.tools.kkr_params import kkrparams
+    from masci_tools.io.kkr_params import kkrparams
     from aiida_kkr.tools.common_functions import get_Ang2aBohr, get_alat_from_bravais
     from aiida_kkr.calculations.voro import VoronoiCalculation
     
@@ -610,7 +610,7 @@ def structure_from_params(parameters):
     """
     from aiida_kkr.tools.common_functions import get_aBohr2Ang
     from aiida.common.constants import elements as PeriodicTableElements
-    from aiida_kkr.tools.kkr_params import kkrparams
+    from masci_tools.io.kkr_params import kkrparams
     from numpy import array
     
     #check input

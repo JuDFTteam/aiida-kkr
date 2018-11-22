@@ -15,7 +15,7 @@ from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, if_, ToContext
 from aiida.work.launch import submit
 from aiida.work import workfunction as wf
-from aiida_kkr.tools.kkr_params import kkrparams
+from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation

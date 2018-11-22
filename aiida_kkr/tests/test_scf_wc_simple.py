@@ -2,6 +2,12 @@
 
 import pytest
 
+# some global settings
+
+voro_codename = 'voronoi@iff003'
+kkr_codename = 'KKRhost@iff003'
+queuename = 'th1_node'
+
 # helper function
 def print_clean_inouts(node):
     from pprint import pprint
@@ -34,7 +40,7 @@ class Test_scf_workflow():
         """
         from aiida.orm import Code, load_node, DataFactory
         from aiida.work import run
-        from aiida_kkr.tools.kkr_params import kkrparams
+        from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
         from pprint import pprint
         from numpy import array
@@ -61,9 +67,9 @@ class Test_scf_workflow():
         wfd['check_dos'] = False 
         wfd['kkr_runmax'] = 5
         wfd['nsteps'] = 50 
-        wfd['queue_name'] = ''
+        wfd['queue_name'] = queuename
         wfd['resources']['num_machines'] = 1 
-        wfd['use_mpi'] = False #True
+        wfd['use_mpi'] = True
        
         wfd['num_rerun'] = 2
         wfd['natom_in_cls_min'] = 20
@@ -71,8 +77,8 @@ class Test_scf_workflow():
         KKRscf_wf_parameters = ParameterData(dict=wfd)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
-        VoroCode = Code.get_from_string('voronoi@my_mac')
-        KKRCode = Code.get_from_string('KKRcode@my_mac')
+        VoroCode = Code.get_from_string(voro_codename)
+        KKRCode = Code.get_from_string(kkr_codename)
        
         # Finally we use the kkrparams class to prepare a valid set of KKR parameters that are stored as a ParameterData object for the use in aiida
         ParaNode = ParameterData(dict=kkrparams(LMAX=2, RMAX=7, GMAX=65, NSPIN=1, RCLUSTZ=1.9).get_dict())

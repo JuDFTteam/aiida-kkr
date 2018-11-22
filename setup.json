@@ -19,7 +19,9 @@
     "reentry_register": true,
     "install_requires": [
         "aiida-core >= 0.12",
-        "pytest-cov"
+        "pgtest",
+        "pytest-cov >= 2.5.0",
+        "masci-tools"
     ],
     "entry_points": {
         "aiida.calculations": [
