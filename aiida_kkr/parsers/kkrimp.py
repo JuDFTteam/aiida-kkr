@@ -9,7 +9,7 @@ from aiida.parsers.parser import Parser
 from aiida.orm.data.parameter import ParameterData
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from aiida.common.exceptions import InputValidationError
-from aiida_kkr.tools.kkrparser_functions import check_error_category
+from masci_tools.io.parsers.kkrparser_functions import check_error_category
 from aiida_kkr.tools.tools_kkrimp import kkrimp_parser_functions
 
 

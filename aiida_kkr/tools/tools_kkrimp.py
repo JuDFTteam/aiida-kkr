@@ -503,7 +503,7 @@ class kkrimp_parser_functions():
             * 'out_spinmoms', the output spin moments file
             * 'out_orbmoms', the output orbital moments file
         """
-        from aiida_kkr.tools.kkrparser_functions import get_rms, find_warnings, get_charges_per_atom, get_core_states
+        from masci_tools.io.parsers.kkrparser_functions import get_rms, find_warnings, get_charges_per_atom, get_core_states
         from aiida_kkr.tools.common_functions import get_version_info, get_Ry2eV
         
         Ry2eV = get_Ry2eV()
