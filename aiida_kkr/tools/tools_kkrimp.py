@@ -509,7 +509,6 @@ class kkrimp_parser_functions():
         Ry2eV = get_Ry2eV()
         msg_list = []
         files = file_dict
-        print('List of files: {}'.format(files))
         
         try:
             code_version, compile_options, serial_number = get_version_info(files['out_log'])
@@ -551,7 +550,6 @@ class kkrimp_parser_functions():
         tmp_dict = {} # used to group magnetism info (spin and orbital moments)
         try:
             if nspin>1 and newsosol:
-                print('Try to get spinmom from out_spinmoms')
                 spinmom_vec, spinmom_vec_all, magtot = self._get_spinmom_per_atom(files['out_spinmoms'], natom)
                 tmp_dict['total_spin_moment'] = magtot
                 out_dict['convergence_group']['spin_moment_per_atom'] = spinmom_vec
@@ -559,14 +557,12 @@ class kkrimp_parser_functions():
                 tmp_dict['total_spin_moment_unit'] = 'mu_Bohr'
                 out_dict['magnetism_group'] = tmp_dict
             elif nspin>1:
-                print('Try to get spinmoment from out_log')
                 spinmom_vec, spinmom_vec_all, magtot = self._get_magtot(files['out_log'], natom)
                 tmp_dict['total_spin_moment'] = magtot
                 out_dict['convergence_group']['spin_moment_per_atom'] = spinmom_vec
                 out_dict['convergence_group']['spin_moment_per_atom_all_iterations'] = spinmom_vec_all
                 tmp_dict['total_spin_moment_unit'] = 'mu_Bohr'
                 out_dict['magnetism_group'] = tmp_dict
-            print('Do not extract spinmom, since NSPIN = 1 and nonmagn. calculation')
         except:
             msg = "Error parsing output of KKRimp: spin moment per atom"
             msg_list.append(msg)        

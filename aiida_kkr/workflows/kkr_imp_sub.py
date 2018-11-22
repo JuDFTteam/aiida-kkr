@@ -16,7 +16,7 @@ from numpy import array
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1"
+__version__ = "0.2"
 __contributors__ = u"Fabian Bertoldo"
 
 #TODO: work on return results function
@@ -48,6 +48,8 @@ class kkr_imp_sub_wc(WorkChain):
     :param kkrimp: (Code), mandatory; KKRimp code converging the host-imp-potential
     :param GF_remote_data: (RemoteData), mandatory; remote folder of a previous
                            kkrflex calculation containing the flexfiles ...
+    :param impurity_info: (ParameterData), Parameter node with information
+                          about the impurity cluster
 
     :return result_kkr_imp_sub_wc: (ParameterData), Information of workflow results
                                    like success, last result node, list with 
@@ -124,6 +126,7 @@ class kkr_imp_sub_wc(WorkChain):
         spec.input("kkrimp", valid_type=Code, required=True) 
         spec.input("host_imp_startpot", valid_type=SinglefileData, required=True)
         spec.input("GF_remote_data", valid_type=RemoteData, required=True)
+        spec.input("impurity_info", valid_type=ParameterData, required=False)
         spec.input("options_parameters", valid_type=ParameterData, required=False,
                        default=ParameterData(dict=cls._options_default))
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
@@ -674,7 +677,13 @@ class kkr_imp_sub_wc(WorkChain):
                    "queue_name" : self.ctx.queue}
         if self.ctx.custom_scheduler_commands:
             options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
-        inputs = get_inputs_kkrimp(code, options, label, description, params, not self.ctx.use_mpi, host_GF=host_GF, imp_pot=imp_pot)
+        if 'impurity_info' in self.inputs:
+            self.report('INFO: using impurity_info node as input for kkrimp calculation')
+            imp_info = self.inputs.impurity_info
+            inputs = get_inputs_kkrimp(code, options, label, description, params, not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, imp_pot=imp_pot)
+        else:
+            self.report('INFO: getting inpurity_info node from previous GF calculation')
+            inputs = get_inputs_kkrimp(code, options, label, description, params, not self.ctx.use_mpi, host_GF=host_GF, imp_pot=imp_pot)
         
         # run the KKR calculation
         self.report('INFO: doing calculation')

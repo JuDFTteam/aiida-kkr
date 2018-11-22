@@ -109,28 +109,38 @@ class KkrimpCalculation(JobCalculation):
                 'additional_parameter': None,
                 'linkname': 'parameters',
                 'docstring':
-                ("Use a node that specifies the input parameters (calculation settings)")
+                ("Use a node that specifies the input parameters (calculation settings).")
                 },
             "host_Greenfunction_folder": {
                 'valid_types': RemoteData,
                 'additional_parameter': None,
                 'linkname': 'GFhost_folder',
                 'docstring':
-                ("Use a node that specifies the host KKR calculation contaning the host Green function and tmatrix (KkrCalculation with impurity_info input)")
+                ("Use a node that specifies the host KKR calculation contaning "
+                 "the host Green function and tmatrix (KkrCalculation with "
+                 "impurity_info input).")
                 },
             "impurity_potential": {
                 'valid_types': SinglefileData,
                 'additional_parameter': None,
                 'linkname': 'potential',
                 'docstring':
-                ("Use a node contains the input potential")
+                ("Use a node contains the input potential.")
                 },
             "parent_calc_folder": {
                 'valid_types': RemoteData,
                 'additional_parameter': None,
                 'linkname': 'parent_calc_folder',
                 'docstring':
-                ("Use a node that specifies a parent KKRimp calculation")
+                ("Use a node that specifies a parent KKRimp calculation.")
+                },
+            "impurity_info": {
+                'valid_types': ParameterData,
+                'additional_parameter': None,
+                'linkname': 'impurity_info',
+                'docstring':
+                ("Use a Parameter node that specifies properties "
+                 "for a impurity calculation.")
                 }
             })
         return use_dict
@@ -289,10 +299,51 @@ class KkrimpCalculation(JobCalculation):
             parent_calc = parent_calcs[0]
             
         # extract impurity_info
-        imp_info = parent_calc.get_inputs_dict().get('impurity_info', None)
-        if imp_info is None:
-            raise InputValidationError("host_Greenfunction calculation does not have an input node impurity_info")
-            
+        try:
+            imp_info_inputnode = inputdict.pop(self.get_linkname('impurity_info'))
+            if not isinstance(imp_info_inputnode, ParameterData):
+                raise InputValidationError("impurity_info not of type ParameterData")
+            imp_info = parent_calc.get_inputs_dict().get('impurity_info', None)
+            if imp_info is None:
+                raise InputValidationError("host_Greenfunction calculation does not have an input node impurity_info")
+            found_impurity_inputnode = True
+            found_impurity_parent = True
+        except KeyError:
+            imp_info = parent_calc.get_inputs_dict().get('impurity_info', None)
+            if imp_info is None:
+                raise InputValidationError("host_Greenfunction calculation does not have an input node impurity_info")
+            found_impurity_inputnode = False
+        # if impurity input is seperate input, check if it is the same as 
+        # the one from the parent calc (except for 'Zimp'). If that's not the 
+        # case, raise an error
+        if found_impurity_inputnode and found_impurity_parent:
+            if (imp_info_inputnode.get_attr('ilayer_center') == imp_info.get_attr('ilayer_center')
+                and imp_info_inputnode.get_attr('Rcut') == imp_info.get_attr('Rcut')):
+                check_consistency_imp_info = True
+                try:
+                    if (imp_info_inputnode.get_attr('hcut') == imp_info.get_attr('hcut')
+                        and imp_info_inputnode.get_attr('cylinder_orient') == imp_info.get_attr('cylinder_orient')
+                        and imp_info_inputnode.get_attr('Rimp_rel') == imp_info.get_attr('Rimp_rel')
+                        and imp_info_inputnode.get_attr('imp_cls') == imp_info.get_attr('imp_cls')):
+                        print('impurity_info node from input and from previous GF calculation are compatible')
+                        check_consistency_imp_info = True
+                    else:
+                        print('impurity_info node from input and from previous GF calculation are NOT compatible!. ' 
+                              'Please check your impurity_info nodes for consistency.')
+                        check_consistency_imp_info = False
+                except AttributeError:
+                    print("Non default values of the impurity_info node from input and from previous "
+                          "GF calculation are compatible. Default values haven't been checked")
+                    check_consistency_imp_info = True
+            else:
+                print('impurity_info node from input and from previous GF calculation are NOT compatible!. ' 
+                      'Please check your impurity_info nodes for consistency.')
+                check_consistency_imp_info = False           
+            if check_consistency_imp_info:
+                imp_info = imp_info_inputnode
+            else:
+                raise InputValidationError("impurity_info nodes (input and GF calc) are not compatible") 
+                    
         # check if host parent was KKRFLEX calculation
         hostfolderpath = parent_calc.out.retrieved.folder.abspath
         hostfolderpath = os.path.join(hostfolderpath, 'path')

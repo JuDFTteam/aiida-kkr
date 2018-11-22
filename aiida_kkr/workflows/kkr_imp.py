@@ -470,6 +470,7 @@ class kkr_imp_wc(WorkChain):
         startpot = self.ctx.startpot_kkrimp
         kkrimp_params = self.ctx.kkrimp_params_dict
         options = self.ctx.options_params_dict
+        imp_info = self.inputs.impurity_info
         if self.ctx.do_gf_calc:
             self.report('INFO: get GF remote from gf_writeout sub wf (pid: {})'.format(self.ctx.gf_writeout.pk))
             gf_remote = self.ctx.gf_writeout.out.GF_host_remote
@@ -482,7 +483,7 @@ class kkr_imp_wc(WorkChain):
         sub_description = 'convergence of the host-impurity potential (pk: {}) using GF remote (pk: {})'.format(startpot.pk, gf_remote.pk)
         
         future = self.submit(kkr_imp_sub_wc, label=sub_label, description=sub_description, 
-                             kkrimp=kkrimpcode, options_parameters=options, 
+                             kkrimp=kkrimpcode, options_parameters=options, impurity_info=imp_info,
                              host_imp_startpot=startpot, GF_remote_data=gf_remote, wf_parameters=kkrimp_params)
                
         self.report('INFO: running kkrimp_sub_wf (startpot: {}, GF_remote: {}, wf pid: {})'.format(startpot.pk, gf_remote.pk, future.pk))
