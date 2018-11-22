@@ -4,7 +4,7 @@ from aiida.parsers.parser import Parser
 from aiida.orm.data.parameter import ParameterData
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.exceptions import InputValidationError
-from aiida_kkr.tools.voroparser_functions import parse_voronoi_output
+from masci_tools.io.parsers.voroparser_functions import parse_voronoi_output
 
 
 
