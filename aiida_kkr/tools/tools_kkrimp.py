@@ -511,7 +511,6 @@ class kkrimp_parser_functions():
         Ry2eV = get_Ry2eV()
         msg_list = []
         files = file_dict
-        print('List of files: {}'.format(files))
         
         try:
             code_version, compile_options, serial_number = get_version_info(files['out_log'])
@@ -559,7 +558,7 @@ class kkrimp_parser_functions():
                 out_dict['convergence_group']['spin_moment_per_atom_all_iterations'] = spinmom_vec_all
                 tmp_dict['total_spin_moment_unit'] = 'mu_Bohr'
                 out_dict['magnetism_group'] = tmp_dict
-            elif nspin>1: # extract magnetic information only if nspin>1!
+            elif nspin>1:
                 spinmom_vec, spinmom_vec_all, magtot = self._get_magtot(files['out_log'], natom)
                 tmp_dict['total_spin_moment'] = magtot
                 out_dict['convergence_group']['spin_moment_per_atom'] = spinmom_vec

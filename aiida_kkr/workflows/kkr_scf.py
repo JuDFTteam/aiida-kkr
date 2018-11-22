@@ -474,7 +474,7 @@ class kkr_scf_wc(WorkChain):
         
         wf_label= 'kkr_startpot (voronoi)'
         wf_desc = 'subworkflow to set up the input of a KKR calculation'
-        future = submit(kkr_startpot_wc, kkr=kkrcode, voronoi=voronoicode,
+        future = self.submit(kkr_startpot_wc, kkr=kkrcode, voronoi=voronoicode,
                         calc_parameters=params, wf_parameters=sub_wf_params,
                         structure=structure, label=wf_label, description=wf_desc)
 
