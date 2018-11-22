@@ -79,6 +79,14 @@ class TestAiida_kkr_entrypoints:
         assert parser == VoronoiParser
 
 
+    def test_kkrimp_parser_entry_point(aiida_env):
+        from aiida.parsers import ParserFactory
+        from aiida_kkr.parsers.kkrimp import KkrimpParser
+
+        parser = ParserFactory('kkr.kkrimpparser')
+        assert parser == KkrimpParser
+
+
     # Workchains
 
     def test_scf_workchain_entry_point(aiida_env):
@@ -127,5 +135,27 @@ class TestAiida_kkr_entrypoints:
         
         wf = WorkflowFactory('kkr.convergence_check')
         assert wf == kkr_check_para_wc
+
+
+    def test_gf_writeout_workchain_entry_point(aiida_env):
+        from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
+        from aiida.orm import WorkflowFactory
         
+        wf = WorkflowFactory('kkr.gf_writeout')
+        assert wf == kkr_flex_wc
+
+
+    def test_kkrimp_workchain_entry_point(aiida_env):
+        from aiida_kkr.workflows.kkr_imp import kkr_imp_wc
+        from aiida.orm import WorkflowFactory
         
+        wf = WorkflowFactory('kkr.imp')
+        assert wf == kkr_imp_wc
+
+
+    def test_kkrimp_sub_workchain_entry_point(aiida_env):
+        from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
+        from aiida.orm import WorkflowFactory
+        
+        wf = WorkflowFactory('kkr.imp_sub')
+        assert wf == kkr_imp_sub_wc

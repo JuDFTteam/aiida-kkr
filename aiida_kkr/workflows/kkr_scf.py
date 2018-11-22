@@ -17,7 +17,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, get_inp
                                                   get_parent_paranode, update_params_wf)
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.dos import kkr_dos_wc
-from aiida_kkr.tools.common_functions import get_Ry2eV, get_ef_from_potfile
+from masci_tools.io.common_functions import get_Ry2eV, get_ef_from_potfile
 from numpy import array, where, ones
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "

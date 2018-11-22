@@ -15,7 +15,7 @@ from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.workflows.dos import kkr_dos_wc
 from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_params, 
                                                   update_params_wf, get_inputs_voronoi)
-from aiida_kkr.tools.common_functions import get_ef_from_potfile, get_Ry2eV
+from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
 from aiida.common.datastructures import calc_states
 from numpy import where
 

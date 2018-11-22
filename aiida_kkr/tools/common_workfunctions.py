@@ -394,7 +394,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     from aiida.common.constants import elements as PeriodicTableElements
     from numpy import array
     from masci_tools.io.kkr_params import kkrparams
-    from aiida_kkr.tools.common_functions import get_Ang2aBohr, get_alat_from_bravais
+    from masci_tools.io.common_functions import get_Ang2aBohr, get_alat_from_bravais
     from aiida_kkr.calculations.voro import VoronoiCalculation
     
     #list of globally used constants
@@ -608,7 +608,7 @@ def structure_from_params(parameters):
     :returns: success, boolean to determine if structure creatoin was successful
     :returns: structure, an aiida StructureData object
     """
-    from aiida_kkr.tools.common_functions import get_aBohr2Ang
+    from masci_tools.io.common_functions import get_aBohr2Ang
     from aiida.common.constants import elements as PeriodicTableElements
     from masci_tools.io.kkr_params import kkrparams
     from numpy import array

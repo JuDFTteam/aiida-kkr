@@ -384,8 +384,8 @@ def parse_dosfiles(dospath):
     """
     parse dos files to XyData nodes
     """
-    from aiida_kkr.tools.common_functions import interpolate_dos
-    from aiida_kkr.tools.common_functions import get_Ry2eV
+    from masci_tools.io.common_functions import interpolate_dos
+    from masci_tools.io.common_functions import get_Ry2eV
     from aiida.orm import DataFactory
     XyData = DataFactory('array.xy')
     
