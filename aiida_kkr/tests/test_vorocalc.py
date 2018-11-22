@@ -24,14 +24,18 @@ def wait_for_it(calc, maxwait=500, dT=10):
     print 'waiting for calculation to finish (maximally wait for {} seconds)'.format(maxwait)
     istep = 0
     calcstate = u'UNKNOWN'
-    while istep < nsteps and calcstate != u'FINISHED':
+    while istep < nsteps:
         print 'checking status'
         sleep(dT)
         calcstate = calc.get_state()
         istep += 1
+        if calcstate == u'FINISHED' or calcstate == u'FAILED':
+            break
 
     if calcstate == u'FINISHED':
         print 'calculation reached FINISHED state'
+    elif calcstate == u'FAILED':
+        print 'calculation in FAILED state'
     else:
         print 'maximum waiting time exhausted'
         
