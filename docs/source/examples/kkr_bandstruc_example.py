@@ -78,7 +78,7 @@ klbl[3] = tmp
 #plotting of bandstructure and previously calculated DOS data
 
 # load DOS data
-from aiida_kkr.tools.common_functions import interpolate_dos
+from masci_tools.io.common_functions import interpolate_dos
 dospath_host = host_dos_calc.out.retrieved.get_abs_path('')
 ef, dos, dos_interpol = interpolate_dos(dospath_host, return_original=True)
 dos, dos_interpol = dos[0], dos_interpol[0]

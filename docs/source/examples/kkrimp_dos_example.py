@@ -81,7 +81,7 @@ wait_for_it(kkrimp_doscalc)
 # Finally plot the DOS:
 
 # get interpolated DOS from GF_host_doscalc calculation:
-from aiida_kkr.tools.common_functions import interpolate_dos
+from masci_tools.io.common_functions import interpolate_dos
 dospath_host = GF_host_doscalc.out.retrieved.get_abs_path('')
 ef, dos, dos_interpol = interpolate_dos(dospath_host, return_original=True)
 dos, dos_interpol = dos[0], dos_interpol[0]
