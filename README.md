@@ -1,4 +1,5 @@
 [![Documentation Status](https://readthedocs.org/projects/aiida-kkr/badge/?version=latest)](https://aiida-kkr.readthedocs.io/en/latest/?badge=latest)
+[![Build Status](https://travis-ci.org/JuDFTteam/aiida-kkr.svg?branch=develop)](https://travis-ci.org/JuDFTteam/aiida-kkr)
 
 # aiida-kkr
 
