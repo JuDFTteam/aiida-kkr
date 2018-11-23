@@ -84,6 +84,7 @@ class Test_voronoi_calculation():
        
         #first run a submit-test
         voro_calc.submit_test()
+        """
        
         # now store all nodes and submit calculation
         #voro_calc.store_all()
@@ -116,6 +117,7 @@ class Test_voronoi_calculation():
         assert test_ok
        
         print '\ndone with checks\n'
+        """
     
     def test_vca_structure(self):
         """

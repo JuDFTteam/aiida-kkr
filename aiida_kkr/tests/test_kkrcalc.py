@@ -51,6 +51,7 @@ class Test_kkr_calculation():
         #calc.store_all()
         #calc.submit()
         calc.submit_test()
+        """
 
         # now wait for the calculation to finish
         #wait_for_it(calc)
@@ -87,6 +88,7 @@ class Test_kkr_calculation():
         assert test_ok
        
         print '\ndone with checks\n'
+        """
     
 
     def test_kkr_from_kkr(self):
@@ -116,6 +118,7 @@ class Test_kkr_calculation():
         #calc.store_all()
         #calc.submit()
         calc.submit_test()
+        """
 
         # now wait for the calculation to finish
         #wait_for_it(calc)
@@ -152,6 +155,7 @@ class Test_kkr_calculation():
         assert test_ok
        
         print '\ndone with checks\n'
+        """
 
     
     def test_qdos(self):
@@ -195,6 +199,7 @@ class Test_kkr_calculation():
         #calc.store_all()
         #calc.submit()
         calc.submit_test()
+        """
 
         # now wait for the calculation to finish
         #wait_for_it(calc)
@@ -216,6 +221,7 @@ class Test_kkr_calculation():
             print 'OK'
        
         print '\ndone with checks\n'
+        """
 
     
     def test_vca(self):
