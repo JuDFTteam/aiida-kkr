@@ -15,7 +15,7 @@ class Test_kkrimp_calculation():
     """
     Tests for the kkrimp calculation
     """
-    
+
     def test_host_in_host(self):
         """
         simple Cu noSOC, FP, lmax2
@@ -54,11 +54,12 @@ class Test_kkrimp_calculation():
        
 
         # now store all nodes and submit calculation
-        calc.store_all()
-        calc.submit()
+        #calc.store_all()
+        #calc.submit()
+        calc.submit_test()
 
         # now wait for the calculation to finish
-        wait_for_it(calc)
+        #wait_for_it(calc)
 
         # finally check some output
         print '\n\ncheck values ...\n-------------------------------------------------'

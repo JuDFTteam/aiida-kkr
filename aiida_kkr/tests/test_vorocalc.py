@@ -68,7 +68,7 @@ class Test_voronoi_calculation():
         params.set_multiple_values(LMAX=2, NSPIN=1, RCLUSTZ=2.3)
         ParameterData = DataFactory('parameter') # use DataFactory to get ParamerterData class
         ParaNode = ParameterData(dict=params.get_dict())
-       
+
         # import computer etc from database dump
         from aiida.orm.importexport import import_data
         import_data('files/db_dump_vorocalc.tar.gz')
@@ -83,14 +83,14 @@ class Test_voronoi_calculation():
         voro_calc.set_queue_name(queuename)
        
         #first run a submit-test
-        #voro_calc.submit_test()
+        voro_calc.submit_test()
        
         # now store all nodes and submit calculation
-        voro_calc.store_all()
-        voro_calc.submit()
+        #voro_calc.store_all()
+        #voro_calc.submit()
 
         # now wait for the calculation to finish
-        wait_for_it(voro_calc)
+        #wait_for_it(voro_calc)
 
         # finally check some output
         print '\n\ncheck values ...\n-------------------------------------------------'
