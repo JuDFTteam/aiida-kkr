@@ -8,8 +8,13 @@ computers:
     queue_name: test_queue_name
 
 codes:
-  tinpgen:
-    description: test inpgen code object
-    default_plugin: fleur.inpgen
+  voronoi:
+    description: test voronoi calculation
+    default_plugin: kkr.voro
     remote_computer: localhost
-    remote_abspath: /Users/broeder/codes/fleur_git_v27/fleur/build/inpgen
+    remote_abspath: /Users/ruess/sourcecodes/voronoi/voronoi.exe
+  kkr:
+    description: test KKRhost calculation
+    default_plugin: kkr.kkr
+    remote_computer: localhost
+    remote_abspath: /Users/ruess/sourcecodes/KKRcode/kkr.x

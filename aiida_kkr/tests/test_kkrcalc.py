@@ -26,6 +26,8 @@ class Test_kkr_calculation():
         ParameterData = DataFactory('parameter')
 
         # first load parent voronoi calculation       
+        from aiida.orm.importexport import import_data
+        import_data('files/db_dump_vorocalc.tar.gz')
         voro_calc = load_node('559b9d9b-3525-402e-9b24-ecd8b801853c')
 
         # extract and update KKR parameter (add missing values)
@@ -92,6 +94,8 @@ class Test_kkr_calculation():
         ParameterData = DataFactory('parameter')
 
         # first load parent voronoi calculation       
+        from aiida.orm.importexport import import_data
+        import_data('files/db_dump_kkrcalc.tar.gz')
         kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
 
         # extract KKR parameter (add missing values)

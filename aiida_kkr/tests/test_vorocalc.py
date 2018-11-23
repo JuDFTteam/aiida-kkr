@@ -14,7 +14,7 @@ import pytest
 codename = 'voronoi@iff003'
 queuename = 'th1_node'
 
-def wait_for_it(calc, maxwait=500, dT=10):
+def wait_for_it(calc, maxwait=300, dT=10):
     """
     helper function used to wait until calculation reaches FINISHED state
     wait for maximally <maxwait> seconds and check the calculation's state every <dT> seconds
@@ -69,6 +69,10 @@ class Test_voronoi_calculation():
         ParameterData = DataFactory('parameter') # use DataFactory to get ParamerterData class
         ParaNode = ParameterData(dict=params.get_dict())
        
+        # import computer etc from database dump
+        from aiida.orm.importexport import import_data
+        import_data('files/db_dump_vorocalc.tar.gz')
+
         # load code from database and create new voronoi calculation
         code = Code.get_from_string(codename)
        
