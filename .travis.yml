@@ -26,6 +26,7 @@ before_install:  # copied from pgtest's travis.yml
 install:
     - pip install -U pip wheel setuptools
     - pip install -e git+https://github.com/aiidateam/aiida_core@develop#egg=aiida-core[testing]
+    - pip install -e git+https://github.com/JuDFTteam/masci-tools@master#egg=masci-tools
     - pip install -e .
 
 env:
