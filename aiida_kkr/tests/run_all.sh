@@ -4,4 +4,4 @@ mkdir -p '.aiida';
 #pytest -sv
 #pytest -v
 #pytest --cov-report=term-missing --cov=aiida_kkr --ignore=test_scf_wc_simple.py
-pytest --cov-report=term-missing --cov=aiida_kkr --ignore=test_scf_wc_simple.py 
+pytest --cov-report=term-missing --cov=aiida_kkr --ignore=test_scf_wc_simple.py --ignore=test_vorostart_wc.py 
