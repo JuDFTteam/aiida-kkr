@@ -470,8 +470,9 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     if isvoronoi:
         from numpy import where
         mask_replace_Bi_Pb = where(charges==83)
-        charges[mask_replace_Bi_Pb] = 82
-        print('WARNING: Bi potential not available, using Pb instead!!!')
+        if len(mask_replace_Bi_Pb[0])>0:
+            charges[mask_replace_Bi_Pb] = 82
+            print('WARNING: Bi potential not available, using Pb instead!!!')
         
 
     ######################################
