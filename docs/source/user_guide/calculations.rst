@@ -605,7 +605,7 @@ node) and the host GF which contains the DOS contour information (via ``host_Gre
 Finally we plot the DOS::
 
     # get interpolated DOS from GF_host_doscalc calculation:
-    from aiida_kkr.tools.common_functions import interpolate_dos
+    from masci_tools.io.common_functions import interpolate_dos
     dospath_host = GF_host_doscalc.out.retrieved.get_abs_path('')
     ef, dos, dos_interpol = interpolate_dos(dospath_host, return_original=True)
     dos, dos_interpol = dos[0], dos_interpol[0]
@@ -1167,7 +1167,7 @@ Download: :download:`this example script <../examples/kkrimp_dos_example.py>`
     # Finally plot the DOS:
     
     # get interpolated DOS from GF_host_doscalc calculation:
-    from aiida_kkr.tools.common_functions import interpolate_dos
+    from masci_tools.io.common_functions import interpolate_dos
     dospath_host = GF_host_doscalc.out.retrieved.get_abs_path('')
     ef, dos, dos_interpol = interpolate_dos(dospath_host, return_original=True)
     dos, dos_interpol = dos[0], dos_interpol[0]
@@ -1293,7 +1293,7 @@ Download: :download:`this example script <../examples/kkr_bandstruc_example.py>`
     #plotting of bandstructure and previously calculated DOS data
     
     # load DOS data
-    from aiida_kkr.tools.common_functions import interpolate_dos
+    from masci_tools.io.common_functions import interpolate_dos
     dospath_host = host_dos_calc.out.retrieved.get_abs_path('')
     ef, dos, dos_interpol = interpolate_dos(dospath_host, return_original=True)
     dos, dos_interpol = dos[0], dos_interpol[0]

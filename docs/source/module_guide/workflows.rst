@@ -47,3 +47,25 @@ Find magnetic ground state
    :members:
    :private-members:
    :special-members:
+   
+Find Green Function writeout for KKRimp
+---------------------------------------
+.. automodule:: aiida_kkr.workflows.gf_writeout
+   :members:
+   :private-members:
+   :special-members:
+   
+KKRimp self-consistency
+-----------------------
+.. automodule:: aiida_kkr.workflows.kkr_imp_sub
+   :members:
+   :private-members:
+   :special-members:
+
+KKRimp complete calculation
+---------------------------
+.. automodule:: aiida_kkr.workflows.kkr_imp
+   :members:
+   :private-members:
+   :special-members:
+   

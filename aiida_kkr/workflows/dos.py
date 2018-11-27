@@ -13,10 +13,9 @@ if __name__=='__main__':
 
 from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, if_, ToContext
-from aiida.work.run import submit
+from aiida.work.launch import submit
 from aiida.work import workfunction as wf
-from aiida.work.process_registry import ProcessRegistry
-from aiida_kkr.tools.kkr_params import kkrparams
+from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
@@ -109,9 +108,8 @@ class kkr_dos_wc(WorkChain):
         """
         init context and some parameters
         """
-        self.report('INFO: started KKR dos workflow version {}\n'
-                    'INFO: Workchain node identifiers: {}'
-                    ''.format(self._workflowversion, ProcessRegistry().current_calc_node))
+        self.report('INFO: started KKR dos workflow version {}'
+                    ''.format(self._workflowversion))
 
         ####### init    #######
 
@@ -136,8 +134,8 @@ class kkr_dos_wc(WorkChain):
         self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
         self.ctx.dos_kkrparams = None # is set in set_params_dos
         
-        self.ctx.description_wf = self.inputs.get('_description', self._wf_description)
-        self.ctx.label_wf = self.inputs.get('_label', self._wf_label)
+        self.ctx.description_wf = self.inputs.get('description', self._wf_description)
+        self.ctx.label_wf = self.inputs.get('label', self._wf_label)
         
         self.report('INFO: use the following parameter:\n'
                     'use_mpi: {}\n'
@@ -288,7 +286,7 @@ class kkr_dos_wc(WorkChain):
         
         label = 'KKR DOS calc.'
         dosdict = self.ctx.dos_params_dict
-        description = 'dos calculation using the following parameter set. emin= {}, emax= {}, nepts= {}, tempr={}, kmesh={}'.format(dosdict['emin'], dosdict['emax'], dosdict['nepts'], dosdict['tempr'], dosdict['kmesh'])           
+        description = 'dos calc: emin= {}, emax= {}, nepts= {}, tempr={}, kmesh={}'.format(dosdict['emin'], dosdict['emax'], dosdict['nepts'], dosdict['tempr'], dosdict['kmesh'])
         code = self.inputs.kkr
         remote = self.inputs.remote_data
         params = self.ctx.dos_kkrparams
@@ -301,7 +299,7 @@ class kkr_dos_wc(WorkChain):
 
         # run the DOS calculation
         self.report('INFO: doing calculation')
-        dosrun = submit(KkrProcess, **inputs)
+        dosrun = self.submit(KkrProcess, **inputs)
 
         return ToContext(dosrun=dosrun)
     
@@ -386,8 +384,8 @@ def parse_dosfiles(dospath):
     """
     parse dos files to XyData nodes
     """
-    from aiida_kkr.tools.common_functions import interpolate_dos
-    from aiida_kkr.tools.common_functions import get_Ry2eV
+    from masci_tools.io.common_functions import interpolate_dos
+    from masci_tools.io.common_functions import get_Ry2eV
     from aiida.orm import DataFactory
     XyData = DataFactory('array.xy')
     
@@ -447,7 +445,7 @@ def create_dos_result_node(outputnode, dos_retrieved):
         dos_extracted = False        
         
     outdict = {}
-    outdict['results_wf'] = outputnode.copy()
+    outdict['results_wf'] = outputnode
     if dos_extracted:
         outdict['dos_data'] = dosXyDatas[0]
         outdict['dos_data_interpol'] = dosXyDatas[1]
@@ -461,5 +459,5 @@ def create_dos_result_node_minimal(outputnode):
     minimal if dosrun unsuccesful
     """
     outdict = {}
-    outdict['results_wf'] = outputnode.copy()
+    outdict['results_wf'] = outputnode
     return outdict

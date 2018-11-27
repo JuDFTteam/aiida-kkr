@@ -7,16 +7,15 @@ some helper methods to do so with AiiDA
 
 from aiida.orm import Code, DataFactory
 from aiida.work.workchain import WorkChain, while_, if_, ToContext
-from aiida.work.run import submit
+from aiida.work.launch import submit
 from aiida.work import workfunction as wf
-from aiida.work.process_registry import ProcessRegistry
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida_kkr.tools.kkr_params import kkrparams
+from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.workflows.dos import kkr_dos_wc
 from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_params, 
                                                   update_params_wf, get_inputs_voronoi)
-from aiida_kkr.tools.common_functions import get_ef_from_potfile, get_Ry2eV
+from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
 from aiida.common.datastructures import calc_states
 from numpy import where
 
@@ -97,7 +96,7 @@ class kkr_startpot_wc(WorkChain):
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
                    default=ParameterData(dict=cls._wf_default))
         spec.input("structure", valid_type=StructureData, required=True)
-        spec.input("kkr", valid_type=Code, required=True)
+        spec.input("kkr", valid_type=Code, required=False)
         spec.input("voronoi", valid_type=Code, required=True)
         spec.input("calc_parameters", valid_type=ParameterData, required=False)
 
@@ -107,16 +106,15 @@ class kkr_startpot_wc(WorkChain):
             cls.start,
             # check if another iteration is done (in case of either voro_ok, doscheck_ok is False)
             while_(cls.do_iteration_check)(
-                    # run voronoi calculation
-                    cls.run_voronoi,
-                    # check voronoi output (also sets ctx.voro_ok)
-                    if_(cls.check_voronoi)(
-                            # create starting DOS using dos sub-workflow
-                            cls.get_dos,
-                            # perform some checks and set ctx.doscheck_ok accordingly
-                            cls.check_dos
-                        )
-                    ),
+                # run voronoi calculation
+                cls.run_voronoi,
+                # check voronoi output (also sets ctx.voro_ok)
+                if_(cls.check_voronoi)(
+                    # create starting DOS using dos sub-workflow
+                    cls.get_dos,
+                    # perform some checks and set ctx.doscheck_ok accordingly
+                    cls.check_dos)
+            ),
             # collect results and return
             cls.return_results
         )
@@ -126,9 +124,8 @@ class kkr_startpot_wc(WorkChain):
         """
         init context and some parameters
         """
-        self.report('INFO: started VoroStart workflow version {}\n'
-                    'INFO: Workchain node identifiers: {}'
-                    ''.format(self._workflowversion, ProcessRegistry().current_calc_node))
+        self.report('INFO: started VoroStart workflow version {}'
+                    ''.format(self._workflowversion))
 
         ####### init    #######
 
@@ -212,13 +209,14 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.formula = ''
         
         # get kkr and voronoi codes from input
-        try:
-            test_and_get_codenode(self.inputs.kkr, 'kkr.kkr', use_exceptions=True)
-        except ValueError:
-            error = ("The code you provided for kkr does not "
-                     "use the plugin kkr.kkr")
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
+        if self.ctx.check_dos:
+            try:
+                test_and_get_codenode(self.inputs.kkr, 'kkr.kkr', use_exceptions=True)
+            except ValueError:
+                error = ("The code you provided for kkr does not "
+                         "use the plugin kkr.kkr")
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
         try:
             test_and_get_codenode(self.inputs.voronoi, 'kkr.voro', use_exceptions=True)
         except ValueError:
@@ -361,7 +359,7 @@ class kkr_startpot_wc(WorkChain):
     
             VoronoiProcess, inputs = get_inputs_voronoi(voronoicode, structure, options, label, description, params=params)
             self.report('INFO: run voronoi step {}'.format(self.ctx.iter))
-            future = submit(VoronoiProcess, **inputs)
+            future = self.submit(VoronoiProcess, **inputs)
             
             
             # return remote_voro (passed to dos calculation as input)
@@ -490,7 +488,7 @@ class kkr_startpot_wc(WorkChain):
             wf_desc = 'subworkflow of a DOS calculation that perform a singe-shot KKR calc.'
             future = submit(kkr_dos_wc, kkr=code, remote_data=remote, 
                             wf_parameters=wfdospara_node, 
-                            _label=wf_label, _description=wf_desc)
+                            label=wf_label, description=wf_desc)
             
             return ToContext(doscal=future)
         
@@ -617,7 +615,7 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.abort = True
         self.report(errormsg)
         self.return_results()
-        self.abort(errormsg)
+        #self.abort(errormsg)
         
         
     def return_results(self):
@@ -784,7 +782,7 @@ def update_voro_input(params_old, updatenode, voro_output):
     Pseudo wf used to keep track of updated parameters in voronoi calculation.
     voro_output only enters as dummy argument for correct connection but logic using this value is done somewhere else.
     """
-    dummy = voro_output.copy()
+    dummy = voro_output 
     # voro_output is only dummy input to draw connection in graph
     
     updatenode_dict = updatenode.get_dict()

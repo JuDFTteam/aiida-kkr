@@ -11,21 +11,37 @@
 .. _Jülich KKRcode: http://www.judft.de/pm/index.php
 
 
+
 Welcome to documentation of the AiiDA plugin for the Jülich KKRcode!
 ===========================================================================
 
-The plugin is available at https://github.com/broeder-j/aiida-kkr
+The plugin is available at https://github.com/JuDFTteam/aiida-kkr
 
 If you use this plugin for your research, please cite the following work:
 
 .. highlights:: Author Name1, Author Name2, *Paper title*, Jornal Name XXX, YYYY (Year).
 
-If you use AiiDA for your research, please cite the following work:
+iAlso please cite the original AiiDA paper:
 
 .. highlights:: Giovanni Pizzi, Andrea Cepellotti, Riccardo Sabatini, Nicola Marzari,
   and Boris Kozinsky, *AiiDA: automated interactive infrastructure and database
   for computational science*, Comp. Mat. Sci 111, 218-230 (2016);
   http://dx.doi.org/10.1016/j.commatsci.2015.09.013; http://www.aiida.net.
+
+Requirements
+------------
+
+- Installation of `aiida-core`_
+- Installation of KKR codes (*kkrhost*, *kkrimp*, *voronoi*) of the `JuKKR package`_
+- Installation of `aiida-kkr`_
+
+Once all requirements are installed you need to `set up the computers and codes`_ before you can submit KKR calcutions using the *aiida-kkr* plugin.
+
+
+.. _`aiida-core`: https://aiida-core.readthedocs.io/en/stable/installation/index.html
+.. _`aiida-kkr`: https://github.com/JuDFTteam/aiida-kkr/blob/master/README.md
+.. _`JuKKR package`: https://iffgit.fz-juelich.de/kkr/jukkr
+.. _`set up the computers and codes`: https://aiida-core.readthedocs.io/en/stable/get_started/index.html#setup-of-computers-and-codes
 
 
 User's guide

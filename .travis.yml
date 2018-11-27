@@ -10,6 +10,7 @@ notifications:
 
 services:
     - postgresql
+    - rabbitmq
 
 addons:
     postgresql: "9.5"
@@ -20,18 +21,24 @@ before_install:  # copied from pgtest's travis.yml
     - sudo apt-get install locate
     - sudo service postgresql stop
     - sudo apt-get remove postgresql
-    - sudo apt-get install postgresql
+    - sudo apt-get install postgresql-9.5
     - sudo updatedb
 
 install:
     - pip install -U pip wheel setuptools
     - pip install -e git+https://github.com/aiidateam/aiida_core@develop#egg=aiida-core[testing]
+    - pip install -e git+https://github.com/JuDFTteam/masci-tools@master#egg=masci-tools
     - pip install -e .
+    - pip install codecov
 
 env:
     - TEST_TYPE="unittests"
 
-script: cd ./aiida_kkr/tests/ && ./run_all.sh
+script: 
+    - cd ./aiida_kkr/tests/ && ./run_all.sh
+
+after_success:
+    - codecov
 
 git:
   depth: 3

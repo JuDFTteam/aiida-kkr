@@ -14,12 +14,16 @@
         "Topic :: Scientific/Engineering :: Physics",
         "Natural Language :: English"      
     ],
-    "version": "0.1.2",
+    "version": "1.0.0",
     "setup_requires": ["reentry"],
     "reentry_register": true,
     "install_requires": [
-        "aiida-core < 0.12",
-        "pytest-cov"
+        "aiida-core >= 1.0.0a4",
+        "pgtest",
+        "pytest-cov >= 2.5.0",
+        "masci-tools",
+        "sphinx",
+        "sphinx_rtd_theme"
     ],
     "entry_points": {
         "aiida.calculations": [
@@ -43,8 +47,11 @@
             "kkr.eos = aiida_kkr.workflows.eos:kkr_eos_wc",
             "kkr.startpot = aiida_kkr.workflows.voro_start:kkr_startpot_wc",
             "kkr.check_mag = aiida_kkr.workflows.check_magnetic_state:kkr_check_mag_wc",
-            "kkr.convergence_check = aiida_kkr.workflows.check_para_convergence:kkr_check_para_wc"
-            ],
+            "kkr.convergence_check = aiida_kkr.workflows.check_para_convergence:kkr_check_para_wc",
+            "kkr.gf_writeout = aiida_kkr.workflows.gf_writeout:kkr_flex_wc",
+            "kkr.imp_sub = aiida_kkr.workflows.kkr_imp_sub:kkr_imp_sub_wc",
+	    "kkr.imp = aiida_kkr.workflows.kkr_imp:kkr_imp_wc"
+	    ],
         "console_scripts": [
             "kkrstructure = aiida_kkr.cmdline.data_cli:cli"
             ]
