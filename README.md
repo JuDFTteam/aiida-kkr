@@ -10,6 +10,15 @@
 
 AiiDA plugin for the KKR codes plus workflows and utility.
 
+## Features
+
+* KKR calculations for bulk and interfaces
+* treatment of alloys using VCA or CPA
+* self-consistency, DOS and bandstructure calculations
+* extraction of magnetic exchange coupling parameters (*J_ij*, *D_ij*)
+* impurity embedding solving the Dyson equation
+* ~~import old calculations using the calculation importer~~ (only working with aiida-core<1.0, i.e. in aiida-kkr v0.1.2)
+
 
 # Installation
 
