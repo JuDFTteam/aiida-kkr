@@ -680,9 +680,13 @@ class kkr_imp_sub_wc(WorkChain):
         if 'impurity_info' in self.inputs:
             self.report('INFO: using impurity_info node as input for kkrimp calculation')
             imp_info = self.inputs.impurity_info
+            label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_attr('Zimp'))
+            description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
             inputs = get_inputs_kkrimp(code, options, label, description, params, not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, imp_pot=imp_pot)
         else:
             self.report('INFO: getting inpurity_info node from previous GF calculation')
+            label = 'KKRimp calculation step {} (IMIX={}, GF_remote: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, host_GF.pk)
+            description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
             inputs = get_inputs_kkrimp(code, options, label, description, params, not self.ctx.use_mpi, host_GF=host_GF, imp_pot=imp_pot)
         
         # run the KKR calculation
@@ -726,7 +730,10 @@ class kkr_imp_sub_wc(WorkChain):
         
         # try yo extract remote folder
         try:
-            self.ctx.last_remote = self.ctx.kkr.out.remote_folder
+            if self.convergence_on_track():
+                self.ctx.last_remote = self.ctx.kkr.out.remote_folder
+            else: 
+                self.ctx.last_remote = self.inputs.remote_data
         except:
             self.ctx.last_remote = None
             self.ctx.kkrimp_step_success = False
