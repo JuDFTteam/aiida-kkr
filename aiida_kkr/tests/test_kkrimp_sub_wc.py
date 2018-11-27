@@ -70,6 +70,7 @@ class Test_kkrimp_scf_workflow():
         wfd['nsteps'] = 20
         wfd['strmix'] = 0.05
         options['queue_name'] = queuename
+        options['use_mpi'] = True
        
         options = ParameterData(dict=options)
        

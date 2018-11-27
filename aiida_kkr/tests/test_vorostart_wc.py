@@ -38,9 +38,9 @@ class Test_vorostart_workflow():
         if len(all_computers)>0:
             for icomp in range(len(all_computers)):
                 c = all_computers[icomp].get('computer').get('*')
-                if c.get_hostname() == computername:
+                if c.get_name() == computername:
                     computer_found_in_db = True
-                    comp = c
+                    comp = Computer.from_backend_entity(c)
         # if it is not there create a new one
         if not computer_found_in_db:
             comp = Computer(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir='/temp/ruess/aiida_run_iff734/')

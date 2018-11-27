@@ -97,6 +97,7 @@ class Test_kkrimp_full_workflow():
         wfd['nsteps'] = 20
         wfd['strmix'] = 0.05
         options['queue_name'] = queuename
+        options['use_mpi'] = True
         voro_aux_settings['check_dos'] = False
         voro_aux_settings['dos_params']['kmesh'] = [10,10,10]
         voro_aux_settings['dos_params']['nepts'] = 10
