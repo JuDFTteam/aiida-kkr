@@ -18,7 +18,7 @@
     "setup_requires": ["reentry"],
     "reentry_register": true,
     "install_requires": [
-        "aiida-core >= 1.0",
+        "aiida-core >= 1.0.0a4",
         "pgtest",
         "pytest-cov >= 2.5.0",
         "masci-tools",
