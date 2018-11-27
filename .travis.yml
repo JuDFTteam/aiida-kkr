@@ -33,7 +33,11 @@ install:
 env:
     - TEST_TYPE="unittests"
 
-script: cd ./aiida_kkr/tests/ && ./run_all.sh
+script: 
+    - cd ./aiida_kkr/tests/ && ./run_all.sh
+
+after_success:
+    - coveralls
 
 git:
   depth: 3
