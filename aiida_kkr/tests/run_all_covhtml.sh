@@ -44,5 +44,6 @@
 #pytest -s --cov-report=html --cov=aiida_kkr -k Test_scf_workflow
 #pytest -s --cov-report=html --cov=aiida_kkr -k Test_vorostart_workflow
 
-pytest --cov-report=html --cov=aiida_kkr --ignore=test_scf_wc_simple.py 
+#pytest --cov-report=html --cov=aiida_kkr --ignore=test_scf_wc_simple.py 
 #pytest -s --cov-report=html --cov=aiida_kkr -k Test_gf_writeout_workflow
+pytest -s --cov-report=html --cov=aiida_kkr -k Test_kkrimp_scf_workflow
