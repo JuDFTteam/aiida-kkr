@@ -1,9 +1,0 @@
-# for support of the xml files and parsers
-aiida<0.12
-
-# for parser functions and utilities that do not rely on aiida
-masci-tools
-
-# for auto tests
-pgtest
-pytest-cov >= 2.5.0
