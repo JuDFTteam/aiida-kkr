@@ -11,11 +11,11 @@ from aiida.work.launch import submit
 from aiida.work import workfunction as wf
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida_kkr.tools.kkr_params import kkrparams
+from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.workflows.dos import kkr_dos_wc
 from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_params, 
                                                   update_params_wf, get_inputs_voronoi)
-from aiida_kkr.tools.common_functions import get_ef_from_potfile, get_Ry2eV
+from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
 from aiida.common.datastructures import calc_states
 from numpy import where
 
@@ -96,7 +96,7 @@ class kkr_startpot_wc(WorkChain):
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
                    default=ParameterData(dict=cls._wf_default))
         spec.input("structure", valid_type=StructureData, required=True)
-        spec.input("kkr", valid_type=Code, required=True)
+        spec.input("kkr", valid_type=Code, required=False)
         spec.input("voronoi", valid_type=Code, required=True)
         spec.input("calc_parameters", valid_type=ParameterData, required=False)
 
@@ -209,13 +209,14 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.formula = ''
         
         # get kkr and voronoi codes from input
-        try:
-            test_and_get_codenode(self.inputs.kkr, 'kkr.kkr', use_exceptions=True)
-        except ValueError:
-            error = ("The code you provided for kkr does not "
-                     "use the plugin kkr.kkr")
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
+        if self.ctx.check_dos:
+            try:
+                test_and_get_codenode(self.inputs.kkr, 'kkr.kkr', use_exceptions=True)
+            except ValueError:
+                error = ("The code you provided for kkr does not "
+                         "use the plugin kkr.kkr")
+                self.ctx.errors.append(error)
+                self.control_end_wc(error)
         try:
             test_and_get_codenode(self.inputs.voronoi, 'kkr.voro', use_exceptions=True)
         except ValueError:

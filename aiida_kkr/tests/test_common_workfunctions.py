@@ -67,7 +67,7 @@ class Test_common_workfunctions():
         
     def test_update_params_wf(self):
         from aiida_kkr.tools.common_workfunctions import update_params_wf
-        from aiida_kkr.tools.kkr_params import kkrparams
+        from masci_tools.io.kkr_params import kkrparams
         from aiida.orm import DataFactory
         ParameterData = DataFactory('parameter')
         

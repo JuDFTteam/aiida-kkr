@@ -1,3 +1,7 @@
+"""
+Here we define the fixtures for the tests
+"""
+
 import pytest
 from aiida.utils.fixtures import fixture_manager
 
@@ -11,9 +15,16 @@ def fresh_aiida_env(aiida_env):
     yield
     aiida_env.reset_db()
 
-'''
-#usage
-def test_my_stuff(fresh_aiida_env):
-   # run a test
-   print('test_my_stuf works')
-'''
+
+# for computers and codes
+@pytest.fixture(scope='session')
+def computers_and_codes(aiida_env):
+    pass
+
+# for previous data
+@pytest.fixture(scope='session')
+def import_data(aiida_env):
+    from aiida.orm.importexport import import_data
+    for db_export_file in ['db_dump_kkrcalc.tar.gz', 'db_dump_kkrflex_create.tar.gz', 'db_dump_vorocalc.tar.gz']:
+        import_data('files/'+db_export_file)
+

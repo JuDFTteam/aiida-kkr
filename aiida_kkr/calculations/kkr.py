@@ -16,9 +16,9 @@ from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_structure,
                                                   check_2Dinput_consistency, update_params_wf,
                                                   vca_check)
-from aiida_kkr.tools.common_functions import get_alat_from_bravais, get_Ang2aBohr
+from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
 from aiida_kkr.tools.tools_kkrimp import make_scoef 
-from aiida_kkr.tools.kkr_params import __kkr_default_params__
+from masci_tools.io.kkr_params import __kkr_default_params__
 
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')

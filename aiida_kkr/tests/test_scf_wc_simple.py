@@ -2,6 +2,13 @@
 
 import pytest
 
+# some global settings
+
+voro_codename = 'voronoi'
+kkr_codename = 'KKRhost'
+computername = 'localhost'
+queuename = ''
+
 # helper function
 def print_clean_inouts(node):
     from pprint import pprint
@@ -34,14 +41,61 @@ class Test_scf_workflow():
         """
         from aiida.orm import Code, load_node, DataFactory
         from aiida.work import run
-        from aiida_kkr.tools.kkr_params import kkrparams
+        from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
         from pprint import pprint
         from numpy import array
        
         ParameterData = DataFactory('parameter')
         StructureData = DataFactory('structure')
-       
+
+        from aiida.orm.implementation.django.code import Code
+        from aiida.orm.computers import Computer
+        from aiida.orm.querybuilder import QueryBuilder
+
+        qb = QueryBuilder()
+        qb.append(Computer, tag='computer')
+        all_computers = qb.get_results_dict()
+        computer_found_in_db = False
+        if len(all_computers)>0:
+            for icomp in range(len(all_computers)):
+                c = all_computers[icomp].get('computer').get('*')
+                if c.get_name() == computername:
+                    computer_found_in_db = True
+                    comp = Computer.from_backend_entity(c)
+        if not computer_found_in_db:
+            comp = Computer(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir='/temp/ruess/aiida_run_iff734/')
+            comp.set_default_mpiprocs_per_machine(4)
+            comp.store()
+            print 'computer stored now cofigure'
+            comp.configure()
+        else:
+            print 'found computer in database'
+
+        from aiida.common.exceptions import NotExistent
+        try:
+            code = Code.get_from_string(voro_codename+'@'+computername)
+        except NotExistent as exception:
+            code = Code()
+            code.label = voro_codename
+            code.description = ''
+            code.set_remote_computer_exec((comp, '/Users/ruess/sourcecodes/aiida/codes_localhost/voronoi.exe'))
+            code.set_input_plugin_name('kkr.voro')
+            code.set_prepend_text('ln -s /Users/ruess/sourcecodes/aiida/codes_localhost/ElementDataBase .')
+            code.store()
+        try:
+            code = Code.get_from_string(kkr_codename+'@'+computername)
+        except NotExistent as exception:
+            code = Code()
+            code.label = kkr_codename
+            code.description = ''
+            code.set_remote_computer_exec((comp, '/Users/ruess/sourcecodes/aiida/codes_localhost/kkr.x'))
+            code.set_input_plugin_name('kkr.kkr')
+            code.store()
+            print 'stored kkr code in database'
+            print 
+
+        # create structure
         alat = 6.83 # in a_Bohr
         abohr = 0.52917721067 # conversion factor to Angstroem units
         # bravais vectors
@@ -61,9 +115,9 @@ class Test_scf_workflow():
         wfd['check_dos'] = False 
         wfd['kkr_runmax'] = 5
         wfd['nsteps'] = 50 
-        wfd['queue_name'] = ''
+        wfd['queue_name'] = queuename
         wfd['resources']['num_machines'] = 1 
-        wfd['use_mpi'] = False #True
+        wfd['use_mpi'] = True
        
         wfd['num_rerun'] = 2
         wfd['natom_in_cls_min'] = 20
@@ -71,30 +125,37 @@ class Test_scf_workflow():
         KKRscf_wf_parameters = ParameterData(dict=wfd)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
-        VoroCode = Code.get_from_string('voronoi@my_mac')
-        KKRCode = Code.get_from_string('KKRcode@my_mac')
+        VoroCode = Code.get_from_string(voro_codename+'@'+computername)
+        KKRCode = Code.get_from_string(kkr_codename+'@'+computername)
        
         # Finally we use the kkrparams class to prepare a valid set of KKR parameters that are stored as a ParameterData object for the use in aiida
         ParaNode = ParameterData(dict=kkrparams(LMAX=2, RMAX=7, GMAX=65, NSPIN=1, RCLUSTZ=1.9).get_dict())
        
         label = 'KKR-scf for Cu bulk'
         descr = 'KKR self-consistency workflow for Cu bulk'
-        try:
-          out = run(kkr_scf_wc, structure=Cu, calc_parameters=ParaNode, voronoi=VoroCode, 
-                    kkr=KKRCode, wf_parameters=KKRscf_wf_parameters, _label=label, _description=descr)
-        except:
-          print 'some Error occured in run of kkr_scf_wc'
-       
+
+        # create process builder to set parameters
+        builder = kkr_scf_wc.get_builder()
+        builder.calc_parameters = ParaNode
+        builder.voronoi = VoroCode
+        builder.kkr = KKRCode
+        builder.structure = Cu
+        builder.wf_parameters = KKRscf_wf_parameters
+        builder.label = label
+        builder.description = descr
+
+        # now run calculation
+        from aiida.work.launch import run, submit
+        out = run(builder)
        
         # load node of workflow
         print out
-        n = load_node(out[1])
+        n = out['output_kkr_scf_wc_ParameterResults']
        
         print '\noutputs of workflow\n-------------------------------------------------'
         pprint(n.get_outputs_dict())
        
         # get output dictionary
-        n = n.get_outputs()[-1]
         out = n.get_dict()
         print '\n\noutput dictionary:\n-------------------------------------------------'
         pprint(out)

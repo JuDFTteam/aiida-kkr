@@ -6,7 +6,7 @@ and some helper methods to do so with AiiDA
 
 from aiida.orm import Code, DataFactory
 from aiida.work.workchain import WorkChain, ToContext, while_
-from aiida_kkr.tools.kkr_params import kkrparams
+from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from aiida.common.datastructures import calc_states

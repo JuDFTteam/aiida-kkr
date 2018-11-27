@@ -7,17 +7,16 @@ some helper methods to do so with AiiDA
 
 from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, while_, if_, ToContext
-from aiida.work.launch import submit
 from aiida.work import workfunction as wf
 from aiida.common.datastructures import calc_states
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida_kkr.tools.kkr_params import kkrparams
+from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, get_inputs_kkr,
                                                   get_parent_paranode, update_params_wf)
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.dos import kkr_dos_wc
-from aiida_kkr.tools.common_functions import get_Ry2eV, get_ef_from_potfile
+from masci_tools.io.common_functions import get_Ry2eV, get_ef_from_potfile
 from numpy import array, where, ones
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
@@ -810,7 +809,7 @@ class kkr_scf_wc(WorkChain):
 
         # run the KKR calculation
         self.report('INFO: doing calculation')
-        kkr_run = submit(KkrProcess, **inputs)
+        kkr_run = self.submit(KkrProcess, **inputs)
 
         return ToContext(kkr=kkr_run, last_calc=kkr_run)
 
@@ -1268,7 +1267,7 @@ class kkr_scf_wc(WorkChain):
             remote = self.ctx.last_calc.out.remote_folder
             wf_label= ' final DOS calculation'
             wf_desc = ' subworkflow of a DOS calculation'
-            future = submit(kkr_dos_wc, kkr=code, remote_data=remote, wf_parameters=wfdospara_node, label=wf_label, description=wf_desc)
+            future = self.submit(kkr_dos_wc, kkr=code, remote_data=remote, wf_parameters=wfdospara_node, label=wf_label, description=wf_desc)
 
             return ToContext(doscal=future)
 

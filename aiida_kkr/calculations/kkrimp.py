@@ -8,11 +8,11 @@ from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError, UniquenessError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.orm import DataFactory
-from aiida_kkr.tools.kkr_params import kkrparams
+from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.tools.tools_kkrimp import modify_potential
 from aiida_kkr.tools.tools_kkrimp import make_scoef
-from aiida_kkr.tools.common_functions import search_string
+from masci_tools.io.common_functions import search_string
 from aiida_kkr.calculations.voro import VoronoiCalculation
 import os
 from numpy import array, sqrt, sum, where

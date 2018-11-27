@@ -7,7 +7,7 @@ and some helper methods to do so with AiiDA
 from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, ToContext, if_
 from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida_kkr.tools.kkr_params import kkrparams
+from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, neworder_potential_wf
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
