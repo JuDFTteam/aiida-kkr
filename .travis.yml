@@ -29,6 +29,7 @@ install:
     - pip install -e git+https://github.com/aiidateam/aiida_core@develop#egg=aiida-core[testing]
     - pip install -e git+https://github.com/JuDFTteam/masci-tools@master#egg=masci-tools
     - pip install -e .
+    - pip install codecov
 
 env:
     - TEST_TYPE="unittests"
@@ -37,7 +38,7 @@ script:
     - cd ./aiida_kkr/tests/ && ./run_all.sh
 
 after_success:
-    - coveralls
+    - codecov
 
 git:
   depth: 3
