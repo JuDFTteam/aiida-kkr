@@ -1,6 +1,6 @@
 [![Documentation Status](https://readthedocs.org/projects/aiida-kkr/badge/?version=latest)](https://aiida-kkr.readthedocs.io/en/latest/?badge=latest)
-[![Build Status](https://travis-ci.org/JuDFTteam/aiida-kkr.svg?branch=develop)](https://travis-ci.org/JuDFTteam/aiida-kkr)
-[![codecov](https://codecov.io/gh/JuDFTteam/aiida-kkr/branch/develop/graph/badge.svg)](https://codecov.io/gh/JuDFTteam/aiida-kkr)
+[![Build Status](https://travis-ci.org/JuDFTteam/aiida-kkr.svg?branch=master)](https://travis-ci.org/JuDFTteam/aiida-kkr)
+[![codecov](https://codecov.io/gh/JuDFTteam/aiida-kkr/branch/master/graph/badge.svg)](https://codecov.io/gh/JuDFTteam/aiida-kkr)
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
 [![GitHub version](https://badge.fury.io/gh/JuDFTteam%2Faiida-kkr.svg)](https://badge.fury.io/gh/JuDFTteam%2Faiida-kkr)
 [![PyPI version](https://badge.fury.io/py/aiida-kkr.svg)](https://badge.fury.io/py/aiida-kkr)
