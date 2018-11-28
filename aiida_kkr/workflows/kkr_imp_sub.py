@@ -126,6 +126,7 @@ class kkr_imp_sub_wc(WorkChain):
         spec.input("kkrimp", valid_type=Code, required=True) 
         spec.input("host_imp_startpot", valid_type=SinglefileData, required=True)
         spec.input("GF_remote_data", valid_type=RemoteData, required=True)
+        spec.input("kkrimp_remote", valid_type=RemoteData, required=False)
         spec.input("impurity_info", valid_type=ParameterData, required=False)
         spec.input("options_parameters", valid_type=ParameterData, required=False,
                        default=ParameterData(dict=cls._options_default))
@@ -334,10 +335,14 @@ class kkr_imp_sub_wc(WorkChain):
                 test_and_get_codenode(inputs.kkr, 'kkr.kkrimp', use_exceptions=True)
             except ValueError:
                 inputs_ok = False
-                return self.exit_codes.ERROR_INVALID_INPUT_KKRIMP        
+                return self.exit_codes.ERROR_INVALID_INPUT_KKRIMP   
+                
+        if 'kkrimp_remote' in inputs:
+            self.ctx.start_from_imp_remote = True
+            self.ctx.last_remote = inputs.kkrimp_remote
                 
         # set params and remote folder to input 
-        self.ctx.last_remote = inputs.GF_remote_data
+        #self.ctx.last_remote = inputs.GF_remote_data
            
         # set starting potential
         self.ctx.last_pot = inputs.host_imp_startpot
@@ -440,7 +445,7 @@ class kkr_imp_sub_wc(WorkChain):
                     if 'structure' in self.inputs:
                         self.ctx.voronoi.out.last_voronoi_remote
                     else:
-                        self.ctx.last_remote = self.inputs.remote_data
+                        self.ctx.last_remote = self.inputs.kkrimp_remote
                 # check if last_remote has finally been set and abort if this is not the case
                 self.report("INFO: last_remote is still None? {}".format(self.ctx.last_remote is None))
                 if self.ctx.last_remote is None:
@@ -671,23 +676,32 @@ class kkr_imp_sub_wc(WorkChain):
         params = self.ctx.last_params
         host_GF = self.inputs.GF_remote_data
         imp_pot = self.ctx.last_pot
+        last_remote = self.ctx.last_remote
         
         options = {"max_wallclock_seconds": self.ctx.walltime_sec,
                    "resources": self.ctx.resources,
                    "queue_name" : self.ctx.queue}
         if self.ctx.custom_scheduler_commands:
             options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
-        if 'impurity_info' in self.inputs:
-            self.report('INFO: using impurity_info node as input for kkrimp calculation')
-            imp_info = self.inputs.impurity_info
-            label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_attr('Zimp'))
-            description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
-            inputs = get_inputs_kkrimp(code, options, label, description, params, not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, imp_pot=imp_pot)
-        else:
-            self.report('INFO: getting inpurity_info node from previous GF calculation')
-            label = 'KKRimp calculation step {} (IMIX={}, GF_remote: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, host_GF.pk)
-            description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
-            inputs = get_inputs_kkrimp(code, options, label, description, params, not self.ctx.use_mpi, host_GF=host_GF, imp_pot=imp_pot)
+        
+        if last_remote is None:
+            if 'impurity_info' in self.inputs:
+                self.report('INFO: using impurity_info node as input for kkrimp calculation')
+                imp_info = self.inputs.impurity_info
+                label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_attr('Zimp'))
+                description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
+                inputs = get_inputs_kkrimp(code, options, label, description, params, not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, imp_pot=imp_pot)
+            else:
+                self.report('INFO: getting inpurity_info node from previous GF calculation')
+                label = 'KKRimp calculation step {} (IMIX={}, GF_remote: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, host_GF.pk)
+                description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
+                inputs = get_inputs_kkrimp(code, options, label, description, params, not self.ctx.use_mpi, host_GF=host_GF, imp_pot=imp_pot)
+        elif last_remote is not None:
+            # fix to get Zimp properly
+            self.report('INFO: using RemoteData from previous kkrimp calculation as input')
+            label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, None)
+            description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)   
+            inputs = get_inputs_kkrimp(code, options, label, description, params, not self.ctx.use_mpi, host_GF=host_GF, kkrimp_remote=last_remote)
         
         # run the KKR calculation
         self.report('INFO: doing calculation')
@@ -711,6 +725,8 @@ class kkr_imp_sub_wc(WorkChain):
             self.ctx.kkrimp_step_success = False
             self.report('ERROR: {}', self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED)
             return self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED
+            
+        self.report("INFO: kkrimp_step_success: {}".format(self.ctx.kkrimp_step_success))
 
         # get potential from last calculation
         retrieved_path = self.ctx.kkr.out.retrieved.get_abs_path() # retrieved path
@@ -724,19 +740,23 @@ class kkr_imp_sub_wc(WorkChain):
             found_last_calc_output = True
         except:
             found_last_calc_output = False
+
         self.report("INFO: found_last_calc_output: {}".format(found_last_calc_output))
         
         # try yo extract remote folder
         try:
-            if self.convergence_on_track():
-                self.ctx.last_remote = self.ctx.kkr.out.remote_folder
-            else: 
-                self.ctx.last_remote = self.inputs.remote_data
+            self.ctx.last_remote = self.ctx.kkr.out.remote_folder
+           # elif 'kkrimp_remote' in self.inputs: 
+           #     self.ctx.last_remote = self.inputs.kkrimp_remote
+            #else:
+            #    self.ctx.last_remote = None
+                #self.ctx.kkrimp_step_success = False                
+                #else:
+                #    self.ctx.last_remote = self.inputs.GF_remote_data
         except:
             self.ctx.last_remote = None
             self.ctx.kkrimp_step_success = False
 
-        self.report("INFO: kkrimp_step_success: {}".format(self.ctx.kkrimp_step_success))
         self.report("INFO: last_remote: {}".format(self.ctx.last_remote))
 
         if self.ctx.kkrimp_step_success and found_last_calc_output:
