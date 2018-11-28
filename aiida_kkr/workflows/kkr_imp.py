@@ -499,17 +499,26 @@ class kkr_imp_wc(WorkChain):
         
         self.report('INFO: creating output nodes for the KKR impurity workflow ...')
         
-        outputnode_dict = {}
-        outputnode_dict['workflow_name'] = self.__class__.__name__
-        outputnode_dict['workflow_version'] = self._workflowversion
         last_calc_pk = self.ctx.kkrimp_scf_sub.out.calculation_info.get_attr('last_calc_nodeinfo')['pk']
         last_calc_output_params = load_node(last_calc_pk).out.output_parameters
         last_calc_info = self.ctx.kkrimp_scf_sub.out.calculation_info
+        res_voro_info = self.ctx.last_voro_calc.out.results_vorostart_wc
+        outputnode_dict = {}
+        outputnode_dict['workflow_name'] = self.__class__.__name__
+        outputnode_dict['workflow_version'] = self._workflowversion
         if self.ctx.do_gf_calc:
             outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk, 'auxiliary_voronoi': self.ctx.last_voro_calc.pk,
                                                     'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}  
+            outputnode_dict['gf_wc_success'] = self.ctx.gf_writeout.out.calculation_info.get_attr('successful')
         else:
-            outputnode_dict['used_subworkflows'] = {'auxiliary_voronoi': self.ctx.last_voro_calc.pk, 'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}                 
+            outputnode_dict['used_subworkflows'] = {'auxiliary_voronoi': self.ctx.last_voro_calc.pk, 'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}  
+        outputnode_dict['successful'] = last_calc_info.get_attr('convergence_reached')
+        outputnode_dict['number_of_rms_steps'] = len(last_calc_info.get_attr('convergence_values_all_steps'))
+        #outputnode_dict['convergence_values_all_steps'] = last_calc_info.get_attr('convergence_values_all_steps')
+        outputnode_dict['impurity_info'] = self.inputs.impurity_info
+        outputnode_dict['voro_wc_success'] = res_voro_info.get_attr('successful')
+        outputnode_dict['kkrimp_wc_success'] = last_calc_info.get_attr('successful')    
+        outputnode_dict['last_calculation_pk'] = last_calc_pk
         outputnode_t = ParameterData(dict=outputnode_dict)
         outputnode_t.label = 'kkrimp_wc_inform'
         outputnode_t.description = 'Contains information for workflow'

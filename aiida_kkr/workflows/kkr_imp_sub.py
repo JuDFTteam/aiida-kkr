@@ -712,8 +712,6 @@ class kkr_imp_sub_wc(WorkChain):
             self.report('ERROR: {}', self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED)
             return self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED
 
-        self.report("INFO: kkrimp_step_success: {}".format(self.ctx.kkrimp_step_success))
-
         # get potential from last calculation
         retrieved_path = self.ctx.kkr.out.retrieved.get_abs_path() # retrieved path
         pot_path = retrieved_path+'/path/out_potential'
@@ -738,6 +736,7 @@ class kkr_imp_sub_wc(WorkChain):
             self.ctx.last_remote = None
             self.ctx.kkrimp_step_success = False
 
+        self.report("INFO: kkrimp_step_success: {}".format(self.ctx.kkrimp_step_success))
         self.report("INFO: last_remote: {}".format(self.ctx.last_remote))
 
         if self.ctx.kkrimp_step_success and found_last_calc_output:
