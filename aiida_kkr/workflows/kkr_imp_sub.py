@@ -162,11 +162,11 @@ class kkr_imp_sub_wc(WorkChain):
             message="ERROR: Maximal number of KKR restarts reached. Exiting now!")
         spec.exit_code(127, 'ERROR_SETTING_LAST_REMOTE',
             message="ERROR: Last_remote could not be set to a previous succesful calculation")
-        spec.exit_code(127, 'ERROR_MISSING_PARAMS',
+        spec.exit_code(128, 'ERROR_MISSING_PARAMS',
             message="ERROR: There are still missing calculation parameters")
-        spec.exit_code(128, 'ERROR_PARAMETER_UPDATE',
+        spec.exit_code(129, 'ERROR_PARAMETER_UPDATE',
             message="ERROR: Parameters could not be updated")
-        spec.exit_code(129, 'ERROR_LAST_CALC_NOT_FINISHED',
+        spec.exit_code(130, 'ERROR_LAST_CALC_NOT_FINISHED',
             message="ERROR: Last calculation is not in finished state")
         
         
@@ -434,7 +434,10 @@ class kkr_imp_sub_wc(WorkChain):
                 for icalc in range(len(self.ctx.calcs))[::-1]:
                     self.report("INFO: last calc success? {} {}".format(icalc, self.ctx.KKR_steps_stats['success'][icalc]))
                     if self.ctx.KKR_steps_stats['success'][icalc]:
-                        self.ctx.last_remote = self.ctx.calcs[icalc].out.remote_folder
+                        if self.ctx.KKR_steps_stats['last_rms'][icalc] < self.ctx.KKR_steps_stats['first_rms'][icalc]:
+                            self.ctx.last_remote = self.ctx.calcs[icalc].out.remote_folder
+                        else:
+                            self.ctx.last_remote = None
                         break # exit loop if last_remote was found successfully
                     else:
                         self.ctx.last_remote = None
@@ -442,10 +445,9 @@ class kkr_imp_sub_wc(WorkChain):
                 # or remote data from input (depending on the inputs)
                 self.report("INFO: Last_remote is None? {} {}".format(self.ctx.last_remote is None, 'structure' in self.inputs))
                 if self.ctx.last_remote is None:
-                    if 'structure' in self.inputs:
-                        self.ctx.voronoi.out.last_voronoi_remote
-                    else:
+                    if 'kkrimp_remote' in self.inputs:
                         self.ctx.last_remote = self.inputs.kkrimp_remote
+                        self.report('INFO: no successful and converging calculation to take RemoteData from. Reuse RemoteData from input instead.')                    
                 # check if last_remote has finally been set and abort if this is not the case
                 self.report("INFO: last_remote is still None? {}".format(self.ctx.last_remote is None))
                 if self.ctx.last_remote is None:
@@ -459,7 +461,7 @@ class kkr_imp_sub_wc(WorkChain):
                 last_mixing_scheme = 0
 
             # TODO: problem with convergence on track has to be solved, just set as true for testing
-            convergence_on_track = True
+            #convergence_on_track = True
             if convergence_on_track:
                 last_rms = self.ctx.last_rms_all[-1]
                 if last_rms < self.ctx.threshold_aggressive_mixing and last_mixing_scheme == 0:
@@ -740,7 +742,6 @@ class kkr_imp_sub_wc(WorkChain):
             found_last_calc_output = True
         except:
             found_last_calc_output = False
-
         self.report("INFO: found_last_calc_output: {}".format(found_last_calc_output))
         
         # try yo extract remote folder
