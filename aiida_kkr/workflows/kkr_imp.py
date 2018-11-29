@@ -127,7 +127,7 @@ class kkr_imp_wc(WorkChain):
         spec.input("vorocode", valid_type=Code, required=True) 
         spec.input("kkrimpcode", valid_type=Code, required=True)
         spec.input("impurity_info", valid_type=ParameterData, required=True)
-        spec.input("kkrcode", valid_type=Code, required=False)
+        spec.input("kkrcode", valid_type=Code, required=True)
         spec.input("remote_converged_host", valid_type=RemoteData, required=False)
         spec.input("gf_remote", valid_type=RemoteData, required=False)
         spec.input("options_parameters", valid_type=ParameterData, required=False)

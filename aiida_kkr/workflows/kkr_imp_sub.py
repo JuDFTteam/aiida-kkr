@@ -16,7 +16,7 @@ from numpy import array
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
+__version__ = "0.3"
 __contributors__ = u"Fabian Bertoldo"
 
 #TODO: work on return results function
@@ -124,8 +124,8 @@ class kkr_imp_sub_wc(WorkChain):
         
         # Define the inputs of the workflow
         spec.input("kkrimp", valid_type=Code, required=True) 
-        spec.input("host_imp_startpot", valid_type=SinglefileData, required=True)
-        spec.input("GF_remote_data", valid_type=RemoteData, required=True)
+        spec.input("host_imp_startpot", valid_type=SinglefileData, required=False)
+        spec.input("GF_remote_data", valid_type=RemoteData, required=False)
         spec.input("kkrimp_remote", valid_type=RemoteData, required=False)
         spec.input("impurity_info", valid_type=ParameterData, required=False)
         spec.input("options_parameters", valid_type=ParameterData, required=False,
@@ -144,8 +144,10 @@ class kkr_imp_sub_wc(WorkChain):
             cls.return_results)
             
         # exit codes 
-        spec.exit_code(121, 'ERROR_NO_HOST_IMP_POT', 
-            message="ERROR: No host-impurity potential found in the inputs")
+        spec.exit_code(121, 'ERROR_HOST_IMP_POT_GF', 
+            message="ERROR: Not both host-impurity potential and GF remote "
+                    "found in the inputs. Provide either both of them or a "
+                    "RemoteData from a previous kkrimp calculation.")
         spec.exit_code(122, 'ERROR_INVALID_INPUT_KKRIMP',
             message="ERROR: The code you provided for KKRimp does not "
                     "use the plugin kkr.kkrimp")
@@ -326,9 +328,10 @@ class kkr_imp_sub_wc(WorkChain):
         inputs = self.inputs
         inputs_ok = True
 
-        if not 'host_imp_startpot' in inputs:
-            inputs_ok = False
-            return self.exit_codes.ERROR_NO_HOST_IMP_POT
+        if not 'kkrimp_remote' in inputs:
+            if not ('host_imp_startpot' in inputs and 'GF_remote_data' in inputs):
+                inputs_ok = False
+                return self.exit_codes.ERROR_HOST_IMP_POT_GF
 
         if 'kkr' in inputs:
             try:
@@ -345,7 +348,8 @@ class kkr_imp_sub_wc(WorkChain):
         #self.ctx.last_remote = inputs.GF_remote_data
            
         # set starting potential
-        self.ctx.last_pot = inputs.host_imp_startpot
+        if 'host_imp_startpot' in inputs:
+            self.ctx.last_pot = inputs.host_imp_startpot
         
         # TBD!!!
         if  'wf_parameters' in inputs:
