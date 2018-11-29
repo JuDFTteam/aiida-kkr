@@ -119,6 +119,22 @@ class kkr_startpot_wc(WorkChain):
             cls.return_results
         )
 
+        # definition of exit codes if the workflow needs to be terminated
+        spec.exit_code(201, 'ERROR_INVALID_KKRCODE',
+          message='The code you provided for kkr does not use the plugin kkr.kkr')
+        spec.exit_code(202, 'ERROR_INVALID_VORONOICODE',
+          message='The code you provided for voronoi does not use the plugin kkr.voro')
+        spec.exit_code(203, 'ERROR_VORONOI_FAILED',
+          message='Voronoi calculation unsuccessful. Check inputs')
+        spec.exit_code(204, 'ERROR_VORONOI_PARSING_FAILED',
+          message='Voronoi calculation unsuccessful. Check inputs.')
+        spec.exit_code(205, 'ERROR_VORONOI_INVALID_RADII',
+          message='Voronoi calculation unsuccessful. Structure inconsistent. Maybe you need empty spheres?')
+        spec.exit_code(206, 'ERROR_DOSRUN_FAILED',
+          message='DOS run unsuccessful. Check inputs.')
+        spec.exit_code(207, 'ERROR_CORE_STATES_IN_CONTOUR',
+          message='ERROR: contour contains core states!!!')
+
        
     def start(self):
         """
@@ -213,18 +229,11 @@ class kkr_startpot_wc(WorkChain):
             try:
                 test_and_get_codenode(self.inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
-                error = ("The code you provided for kkr does not "
-                         "use the plugin kkr.kkr")
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+                return self.exit_code.ERROR_INVALID_KKRCODE
         try:
             test_and_get_codenode(self.inputs.voronoi, 'kkr.voro', use_exceptions=True)
         except ValueError:
-            error = ("The code you provided for voronoi does not "
-                     "use the plugin kkr.voro")
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
-            
+            return self.exit_code.ERROR_INVALID_VORONOICODE
             
        
     def run_voronoi(self):
@@ -383,17 +392,14 @@ class kkr_startpot_wc(WorkChain):
         if calc_state != calc_states.FINISHED:
             self.report("ERROR: Voronoi calculation not in FINISHED state")
             self.ctx.voro_ok = False
-            self.control_end_wc("Voronoi calculation unsuccessful. Check inputs.")
-            
+            return self.exit_code.ERROR_VORONOI_FAILED
             
         # check if parser returned some error
         voro_parser_errors = self.ctx.voro_calc.res.parser_errors
         if voro_parser_errors != []:
             self.report("ERROR: Voronoi Parser returned Error(s): {}".format(voro_parser_errors))
             self.ctx.voro_ok = False
-            error = "Voronoi calculation unsuccessful. Check inputs."
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
+            return self.exit_code.ERROR_VORONOI_PARSING_FAILED
         
         # check self.ctx.nclsmin condition
         clsinfo = self.ctx.voro_calc.res.cluster_info_group
@@ -417,9 +423,7 @@ class kkr_startpot_wc(WorkChain):
         if r_ratio1>=100. or r_ratio2>=100.:
             self.report("ERROR: radii information inconsistent: Rout/dis_NN={}, RMT0/Rout={}".format(r_ratio1, r_ratio2))
             self.ctx.voro_ok = False
-            error = "Voronoi calculation unsuccessful. Structure inconsistent. Maybe you need empty spheres?"
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
+            return self.exit_code.ERROR_VORONOI_INVALID_RADII
 
         # fix emin/emax
         # remember: efermi, emin and emax are in internal units (Ry) but delta_e is in eV!
@@ -508,21 +512,15 @@ class kkr_startpot_wc(WorkChain):
                 if not dos_outdict['successful']:
                     self.report("ERROR: DOS workflow unsuccessful")
                     self.ctx.doscheck_ok = False
-                    error = "DOS run unsuccessful. Check inputs."
-                    self.ctx.errors.append(error)
-                    self.control_end_wc(error)
+                    return self.exit_code.ERROR_DOSRUN_FAILED
                     
                 if dos_outdict['list_of_errors'] != []:
                     self.report("ERROR: DOS wf output contains errors: {}".format(dos_outdict['list_of_errors']))
                     self.ctx.doscheck_ok = False
-                    error = "DOS run unsuccessful. Check inputs."
-                    self.ctx.errors.append(error)
-                    self.control_end_wc(error)
+                    return self.exit_code.ERROR_DOSRUN_FAILED
             except AttributeError:
                 self.ctx.doscheck_ok = False
-                error = "DOS run unsuccessful. Check inputs."
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+                return self.exit_code.ERROR_DOSRUN_FAILED
                 
             # check for negative DOS
             try:
@@ -536,9 +534,7 @@ class kkr_startpot_wc(WorkChain):
                 if len(ener) != nspin*natom:
                     self.report("ERROR: DOS output shape does not fit nspin, natom information: len(energies)={}, natom={}, nspin={}".format(len(ener), natom, nspin))
                     self.ctx.doscheck_ok = False
-                    error = "DOS run inconsistent. Check inputs."
-                    self.ctx.errors.append(error)
-                    self.control_end_wc(error)
+                    return self.exit_code.ERROR_DOSRUN_FAILED
                     
                 # deal with snpin==1 or 2 cases and check negtive DOS
                 for iatom in range(natom/nspin):
@@ -585,8 +581,7 @@ class kkr_startpot_wc(WorkChain):
                     self.ctx.dos_check_fail_reason = 'core state in contour'
                     # TODO maybe some logic to automatically deal with this issue?
                     # for now stop if this case occurs
-                    self.ctx.errors.append(error)
-                    self.control_end_wc(error)
+                    return self.exit_code.ERROR_CORE_STATES_IN_CONTOUR
                 elif abs(ecore_max-emin) < self.ctx.min_dist_core_states:
                     error = "ERROR: core states too close to energy contour start!!!"
                     self.report(error)
@@ -604,18 +599,6 @@ class kkr_startpot_wc(WorkChain):
             self.ctx.doscheck_ok = True
         else:
             self.ctx.doscheck_ok = False
-        
-        
-    def control_end_wc(self, errormsg):
-        """
-        Controled way to shutdown the workchain. will initalize the output nodes
-        """
-        self.report('ERROR: shutting workchain down in a controlled way.\n')
-        self.ctx.successful = False
-        self.ctx.abort = True
-        self.report(errormsg)
-        self.return_results()
-        #self.abort(errormsg)
         
         
     def return_results(self):

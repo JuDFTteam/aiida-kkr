@@ -97,12 +97,15 @@ class kkr_flex_wc(WorkChain):
             message="ERROR: the code you provided for kkr does not use the plugin kkr.kkr")
         spec.exit_code(103, 'ERROR_INVALID_INPUT_REMOTE_DATA',
             message="ERROR: No remote_data was provided as Input")
+        spec.exit_code(104, 'ERROR_INVALID_CALC_PARAMETERS', 
+            message='ERROR: calc_parameters given are not consistent! Hint: did you give an unknown keyword?')
+        spec.exit_code(105, 'ERROR_CALC_PARAMETERS_INCOMPLETE', 
+            message='ERROR: calc_parameters misses keys')
 
         # specify the outputs
         #spec.output('remote_folder', valid_type=RemoteData)
         spec.output('calculation_info', valid_type=ParameterData)
         spec.output('GF_host_remote', valid_type=RemoteData)
-
 
 
     def start(self):
@@ -228,9 +231,7 @@ class kkr_flex_wc(WorkChain):
             for key, val in input_dict.iteritems():
                 para_check.set_value(key, val, silent=True)
         except:
-            error = 'ERROR: calc_parameters given are not consistent! Hint: did you give an unknown keyword?'
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
+            return self.exit_code.ERROR_INVALID_CALC_PARAMETERS
     
         # step 2: check if all mandatory keys are there
         label = ''
@@ -245,9 +246,9 @@ class kkr_flex_wc(WorkChain):
                     kkrdefaults_updated.append(key_default)
                     missing_list.remove(key_default)
             if len(missing_list)>0:
-                error = 'ERROR: calc_parameters misses keys: {}'.format(missing_list)
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+                self.report('ERROR: calc_parameters misses keys: {}'.format(missing_list))
+                return self.exit_code.ERROR_CALC_PARAMETERS_INCOMPLETE
+
             else:
                 self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
                 label = 'add_defaults_'
@@ -357,15 +358,4 @@ class kkr_flex_wc(WorkChain):
             
         self.report("INFO: done with KKRFLEX GF writeout workflow!\n")
 #        self.report("Successful run: {}".format(has_flexrun))
-        
-        
-    def control_end_wc(self, errormsg):
-        """
-        Controled way to shutdown the workchain. will initalize the output nodes
-        """
-        self.report('ERROR: shutting workchain down in a controlled way.\n')
-        self.ctx.successful = False
-        self.ctx.abort = True
-        self.report(errormsg)
-        self.return_results()
-        #self.abort(errormsg)
+

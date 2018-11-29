@@ -102,6 +102,13 @@ class kkr_dos_wc(WorkChain):
             #  collect results and store DOS output as ArrayData node (dos, lmdos, dos.interpolate, ...)
             cls.return_results
         )
+
+        # definition of exit code in case something goes wrong in this workflow
+        spec.exit_code(161, 'ERROR_NO_INPUT_REMOTE_DATA', 'No remote_data was provided as Input')
+        spec.exit_code(162, 'ERROR_KKRCODE_NOT_CORRECT', 'The code you provided for kkr does not use the plugin kkr.kkr')
+        spec.exit_code(163, 'ERROR_CALC_PARAMETERS_INVALID', 'calc_parameters given are not consistent! Hint: did you give an unknown keyword?')
+        spec.exit_code(164, 'ERROR_CALC_PARAMETERS_INCOMPLETE', 'calc_parameters not complete')
+        spec.exit_code(165, 'ERROR_DOS_PARAMS_INVALID', 'dos_params given in wf_params are not valid')
         
         
     def start(self):
@@ -112,9 +119,6 @@ class kkr_dos_wc(WorkChain):
                     ''.format(self._workflowversion))
 
         ####### init    #######
-
-        # internal para /control para
-        self.ctx.abort = False
 
         # input para
         wf_dict = self.inputs.wf_parameters.get_dict()
@@ -154,7 +158,7 @@ class kkr_dos_wc(WorkChain):
         self.ctx.successful = True
         self.ctx.errors = []
         self.ctx.formula = ''
-        
+
         
     def validate_input(self):
         """
@@ -166,10 +170,8 @@ class kkr_dos_wc(WorkChain):
         if 'remote_data' in inputs:
             input_ok = True
         else:
-            error = 'ERROR: No remote_data was provided as Input'
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
             input_ok = False
+            return self.exit_code.ERROR_NO_INPUT_REMOTE_DATA
         
         # extract correct remote folder of last calculation if input remote_folder node is not from KkrCalculation but kkr_scf_wc workflow
         input_remote = self.inputs.remote_data
@@ -194,11 +196,8 @@ class kkr_dos_wc(WorkChain):
             try:
                 test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
-                error = ("The code you provided for kkr does not "
-                         "use the plugin kkr.kkr")
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
                 input_ok = False
+                return self.exit_code.ERROR_KKRCODE_NOT_CORRECT
         
         # set self.ctx.input_params_KKR
         self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
@@ -220,9 +219,7 @@ class kkr_dos_wc(WorkChain):
             for key, val in input_dict.iteritems():
                 para_check.set_value(key, val, silent=True)
         except:
-            error = 'ERROR: calc_parameters given are not consistent! Hint: did you give an unknown keyword?'
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
+            return self.exit_code.ERROR_CALC_PARAMETERS_INVALID
             
         # step 2: check if all mandatory keys are there
         label = ''
@@ -237,9 +234,8 @@ class kkr_dos_wc(WorkChain):
                     kkrdefaults_updated.append(key_default)
                     missing_list.remove(key_default)
             if len(missing_list)>0:
-                error = 'ERROR: calc_parameters misses keys: {}'.format(missing_list)
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+                self.report('ERROR: calc_parameters misses keys: {}'.format(missing_list))
+                return self.exit_code.ERROR_CALC_PARAMETERS_INCOMPLETE
             else:
                 self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
                 label = 'add_defaults_'
@@ -267,9 +263,7 @@ class kkr_dos_wc(WorkChain):
                 # set params
                 para_check.set_value(key, val, silent=True)
         except:
-            error = 'ERROR: dos_params given in wf_params are not valid!'
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
+            return self.exit_code.ERROR_DOS_PARAMS_INVALID
         
         updatenode = ParameterData(dict=para_check.get_dict())
         updatenode.label = label+'KKRparam_DOS'
@@ -366,18 +360,6 @@ class kkr_dos_wc(WorkChain):
             self.out(link_name, node)
             
         self.report("INFO: done with DOS workflow!\n")
-            
-        
-    def control_end_wc(self, errormsg):
-        """
-        Controled way to shutdown the workchain. will initalize the output nodes
-        """
-        self.report('ERROR: shutting workchain down in a controlled way.\n')
-        self.ctx.successful = False
-        self.ctx.abort = True
-        self.report(errormsg)
-        self.return_results()
-        self.abort(errormsg)
     
     
 def parse_dosfiles(dospath):
