@@ -441,19 +441,20 @@ class kkr_imp_sub_wc(WorkChain):
                         break # exit loop if last_remote was found successfully
                     else:
                         self.ctx.last_remote = None
-                # if no previous calculation was succesful take voronoi output 
-                # or remote data from input (depending on the inputs)
                 self.report("INFO: Last_remote is None? {} {}".format(self.ctx.last_remote is None, 'structure' in self.inputs))
                 if self.ctx.last_remote is None:
                     if 'kkrimp_remote' in self.inputs:
                         self.ctx.last_remote = self.inputs.kkrimp_remote
-                        self.report('INFO: no successful and converging calculation to take RemoteData from. Reuse RemoteData from input instead.')                    
+                        self.report('INFO: no successful and converging calculation to take RemoteData from. Reuse RemoteData from input instead.') 
+                    elif 'impurity_info' in self.inputs or 'GF_remote_data' in self.inputs:
+                        self.ctx.last_remote = None
                 # check if last_remote has finally been set and abort if this is not the case
                 self.report("INFO: last_remote is still None? {}".format(self.ctx.last_remote is None))
-                if self.ctx.last_remote is None:
-                    error = 'ERROR: last_remote could not be set to a previous succesful calculation'
-                    self.ctx.errors.append(error)
-                    return self.exit_codes.ERROR_SETTING_LAST_REMOTE
+                self.report("INFO: restart next calculation run from initial inputs")
+#                if self.ctx.last_remote is None:
+#                    error = 'ERROR: last_remote could not be set to a previous succesful calculation. Try restarting the workflow with different inputs'
+#                    self.ctx.errors.append(error)
+#                    return self.exit_codes.ERROR_SETTING_LAST_REMOTE
 
             # check if mixing strategy should be changed
             last_mixing_scheme = self.ctx.last_params.get_dict()['IMIX']

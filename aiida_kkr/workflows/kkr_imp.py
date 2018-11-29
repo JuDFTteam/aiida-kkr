@@ -522,6 +522,7 @@ class kkr_imp_wc(WorkChain):
         outputnode_t = ParameterData(dict=outputnode_dict)
         outputnode_t.label = 'kkrimp_wc_inform'
         outputnode_t.description = 'Contains information for workflow'
+        self.report('INFO: workflow_info node: {}'.format(outputnode_t.get_attrs()))
 
         self.out('workflow_info', outputnode_t)
         self.out('last_calc_output_parameters', last_calc_output_params)
