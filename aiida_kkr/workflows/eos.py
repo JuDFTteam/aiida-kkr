@@ -6,16 +6,18 @@ some helper methods to do so with AiiDA
 """
 
 from aiida.orm import Code, DataFactory
-from aiida.work.workchain import WorkChain
-from aiida_kkr.calculations.kkr import KkrCalculation
-from aiida_kkr.calculations.voro import VoronoiCalculation
+from aiida.work.workchain import WorkChain, ToContext
 from aiida.orm.data.base import Float
 from aiida.work.workfunctions import workfunction as wf
+from aiida_kkr.calculations.kkr import KkrCalculation
+from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.tools.common_workfunctions import update_params_wf
 from aiida_kkr.tools.common_functions import get_Ry2eV
-from ase.eos import EquationOfState
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
+from masci_tools.io.kkr_params import kkrparams
+from ase.eos import EquationOfState
+from numpy import array, mean, std
 
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
@@ -126,7 +128,7 @@ class kkr_eos_wc(WorkChain):
             self.ctx.kkr = self.inputs.get('kkr')   #TODO: check if code is KKR code
             self.ctx.voro = self.inputs.get('voronoi') #TODO: check if code is voronoi code
             self.ctx.structure = self.inputs.get('structure')
-            self.ctx.calc_parameters = self.inputs.get('calc_prameters') # optional, TODO: needs to be filled with defaults if not present
+            self.ctx.calc_parameters = self.inputs.get('calc_parameters') # optional, TODO: needs to be filled with defaults if not present
         except:
             # in case of failure, exit workflow here
             return self.exit_codes.ERROR_INVALID_INPUT
@@ -184,12 +186,13 @@ class kkr_eos_wc(WorkChain):
         """
         check outout of vorostart workflow and create input for rest of calculations (rmtcore setting etc.)
         """
+        self.report('INFO: checking voronoi output')
         # get output of kkr_startpot
         out_wc = self.ctx.kkr_startpot
-        res = out_wc['results_vorostart_wc']
-        voro_params = out_wc['last_params_voronoi']
-        smallest_voro_remote = out_wc['last_voronoi_remote']
-        smallest_voro_results = out_wc['last_voronoi_results']
+        res = out_wc.out.results_vorostart_wc
+        voro_params = out_wc.out.last_params_voronoi
+        smallest_voro_remote = out_wc.out.last_voronoi_remote
+        smallest_voro_results = out_wc.out.last_voronoi_results
         vorostart_success = res.get_dict()['successful']
 
         if vorostart_success:
@@ -199,6 +202,7 @@ class kkr_eos_wc(WorkChain):
                 if 'rmt0' in rad_iatom.keys():
                     rmt.append(rad_iatom['rmt0'])
             rmtcore_min = array(rmt) * smallest_voro_results.get_dict().get('alat') # needs to be mutiplied by alat in atomic units!
+            self.report('INFO: extracted rmtcore_min')
         else:
             return self.error_code(222)
 
@@ -207,8 +211,11 @@ class kkr_eos_wc(WorkChain):
         voro_params_with_rmtcore.set_value('<RMTCORE>', rmtcore_min)
         voro_params_with_rmtcore_dict = voro_params_with_rmtcore.get_dict()
         voro_params_with_rmtcore = update_params_wf(voro_params, ParameterData(dict=voro_params_with_rmtcore_dict))
+        self.report('INFO: updated kkr_parameters inlcuding RMTCORE setting')
 
-        return ToContext(params_kkr_run=voro_params_with_rmtcore, smallest_voro_remote=smallest_voro_remote)
+        # store links to context
+        self.ctx.params_kkr_run=voro_params_with_rmtcore
+        self.ctx.smallest_voro_remote=smallest_voro_remote
 
 
     def run_kkr_steps(self):
@@ -216,6 +223,7 @@ class kkr_eos_wc(WorkChain):
         submit KKR calculations for all structures, skip vorostart step for smallest structure
         """
 
+        self.report('INFO: running kkr scf steps')
         # params for scf wfd
         wfd = kkr_scf_wc.get_wf_defaults()
         set_keys = []
@@ -230,29 +238,33 @@ class kkr_eos_wc(WorkChain):
                 wfd[key] = kkr_scf_settings[key]
 
         # used to collect all submitted calculations
-        calcs = []
+        calcs = {}
         
         # submit first calculation separately
-        future = submit(kkr_scf_wc, kkr=KKRCode, remote_data=self.ctx.smallest_voro_remote, 
-                        wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run)
-        calcs.append(future)
+        future = self.submit(kkr_scf_wc, kkr=self.ctx.kkr, remote_data=self.ctx.smallest_voro_remote, 
+                             wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run)
+        scale_fac = self.ctx.scale_factors[0]
+        calcs['kkr_{}_{}'.format(1, scale_fac)] = future
 
         # then also submit the rest of the calculations
-        for i in range(len()-1):
+        for i in range(len(self.ctx.scale_factors)-1):
             scale_fac = self.ctx.scale_factors[i+1]
             scaled_struc = self.ctx.scaled_structures[i+1]
             self.report('submit calc for scale fac= {} on {}'.format(scale_fac, scaled_struc.get_formula()))
             future = self.submit(kkr_scf_wc, structure=scaled_struc, kkr=self.ctx.kkr, voronoi=self.ctx.voro, 
                                  wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run)
-            calcs.append(future)
+            calcs['kkr_{}_{}'.format(i+2, scale_fac)] = future
 
-        return ToContext(kkr_scf_steps=calcs)
+        self.report('INFO: submitted calculations: {}'.format(calcs))
+
+        return ToContext(**calcs)
 
 
     def collect_data_and_fit(self):
         """
         collect output of KKR calculations and perform eos fitting to collect results
         """
+        self.report('INFO: collect kkr results and fit data')
         calcs = self.ctx.kkr_scf_steps
         calc_pks = [cid.pk for cid in calcs]
         etot = []
@@ -261,7 +273,7 @@ class kkr_eos_wc(WorkChain):
             n = load_node(pk)
             try:
                 d_result = n.out.output_kkr_scf_wc_ParameterResults.get_dict()
-                print pk, d_result[u'successful'], d_result[u'convergence_value']
+                self.report(pk, d_result[u'successful'], d_result[u'convergence_value'])
                 if d_result[u'successful']:
                     pk_last_calc = d_result['last_calc_nodeinfo']['pk']
                     n2 = load_node(pk_last_calc)
@@ -301,13 +313,18 @@ class kkr_eos_wc(WorkChain):
         self.report('{:16} {:8.3f} {:7.3f} {:7.3f}'.format('mean', mean(alldat[:,0]), mean(alldat[:,1]), mean(alldat[:,2])))
         self.report('{:16} {:8.3f} {:7.3f} {:7.3f}'.format('std', std(alldat[:,0]), std(alldat[:,1]), std(alldat[:,2])))
 
-        return ToContext(volumes=volumes, energies=energies, scalings=scalings, fitdata=fitdata)
+        # store results in context
+        self.ctx.volumes=volumes
+        self.ctx.energies=energies
+        self.ctx.scalings=scalings
+        self.ctx.fitdata=fitdata
 
 
     def return_results(self):
         """
         create output dictionary and run output node generation
         """
+        self.report('INFO: create output node')
         outdict = {}
         outdict['successful'] = self.ctx.successful
         outdict['sub_workflow_uuids'] = self.ctx.sub_wf_ids
