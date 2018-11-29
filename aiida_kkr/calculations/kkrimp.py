@@ -307,7 +307,7 @@ class KkrimpCalculation(JobCalculation):
             if imp_info is None:
                 raise InputValidationError("host_Greenfunction calculation does not have an input node impurity_info")
             found_impurity_inputnode = True
-            found_impurity_parent = True
+            found_host_parent = True
         except KeyError:
             imp_info = parent_calc.get_inputs_dict().get('impurity_info', None)
             if imp_info is None:
@@ -316,7 +316,7 @@ class KkrimpCalculation(JobCalculation):
         # if impurity input is seperate input, check if it is the same as 
         # the one from the parent calc (except for 'Zimp'). If that's not the 
         # case, raise an error
-        if found_impurity_inputnode and found_impurity_parent:
+        if found_impurity_inputnode and found_host_parent:
             if (imp_info_inputnode.get_attr('ilayer_center') == imp_info.get_attr('ilayer_center')
                 and imp_info_inputnode.get_attr('Rcut') == imp_info.get_attr('Rcut')):
                 check_consistency_imp_info = True

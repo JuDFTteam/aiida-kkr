@@ -350,6 +350,9 @@ class kkr_imp_sub_wc(WorkChain):
         # set starting potential
         if 'host_imp_startpot' in inputs:
             self.ctx.last_pot = inputs.host_imp_startpot
+            
+#        if 'impurity_info' in inputs:
+#            self.ctx.imp_info = inputs.impurity_info
         
         # TBD!!!
         if  'wf_parameters' in inputs:
@@ -697,18 +700,29 @@ class kkr_imp_sub_wc(WorkChain):
                 imp_info = self.inputs.impurity_info
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_attr('Zimp'))
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
-                inputs = get_inputs_kkrimp(code, options, label, description, params, not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, imp_pot=imp_pot)
+                inputs = get_inputs_kkrimp(code, options, label, description, params, 
+                                           not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, imp_pot=imp_pot)
             else:
-                self.report('INFO: getting inpurity_info node from previous GF calculation')
+                self.report('INFO: getting impurity_info node from previous GF calculation')
                 label = 'KKRimp calculation step {} (IMIX={}, GF_remote: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, host_GF.pk)
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
-                inputs = get_inputs_kkrimp(code, options, label, description, params, not self.ctx.use_mpi, host_GF=host_GF, imp_pot=imp_pot)
+                inputs = get_inputs_kkrimp(code, options, label, description, params, 
+                                           not self.ctx.use_mpi, host_GF=host_GF, imp_pot=imp_pot)
         elif last_remote is not None:
             # fix to get Zimp properly
-            self.report('INFO: using RemoteData from previous kkrimp calculation as input')
-            label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, None)
-            description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)   
-            inputs = get_inputs_kkrimp(code, options, label, description, params, not self.ctx.use_mpi, host_GF=host_GF, kkrimp_remote=last_remote)
+            if 'impurity_info' in self.inputs:
+                self.report('INFO: using RemoteData from previous kkrimp calculation and impurity_info node as input')
+                imp_info = self.inputs.impurity_info
+                label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_attr('Zimp'))
+                description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)   
+                inputs = get_inputs_kkrimp(code, options, label, description, params, 
+                                           not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, kkrimp_remote=last_remote)
+            else:
+                self.report('INFO: using RemoteData from previous kkrimp calculation as input')
+                label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, None)
+                description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)   
+                inputs = get_inputs_kkrimp(code, options, label, description, params, 
+                                           not self.ctx.use_mpi, host_GF=host_GF, kkrimp_remote=last_remote)
         
         # run the KKR calculation
         self.report('INFO: doing calculation')
