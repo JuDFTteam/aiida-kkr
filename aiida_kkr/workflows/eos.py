@@ -5,7 +5,7 @@ In this module you find the base workflow for a EOS calculation and
 some helper methods to do so with AiiDA
 """
 
-from aiida.orm import Code, DataFactory
+from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, ToContext
 from aiida.orm.data.base import Float
 from aiida.work.workfunctions import workfunction as wf
@@ -17,7 +17,7 @@ from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
 from masci_tools.io.kkr_params import kkrparams
 from ase.eos import EquationOfState
-from numpy import array, mean, std
+from numpy import array, mean, std, min
 
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
@@ -112,6 +112,12 @@ class kkr_eos_wc(WorkChain):
         # ToDo: improve error codes
         spec.exit_code(221, 'ERROR_INVALID_INPUT', 
             message="ERROR: inputs invalid")
+        spec.exit_code(222, 'ERROR_NOT_ENOUGH_SUCCESSFUL_CALCS',
+            message='ERROR: need at least 3 successful calculations')
+        spec.exit_code(223, 'ERROR_NSTEPS_TOO_SMALL',
+            message='ERROR: nsteps is smaller than 3, need at least three data points to do fitting')
+        spec.exit_code(224, 'ERROR_INVALID_FITFUN', 
+            message='given fitfunction name not valid')
 
 
     def start(self):
@@ -141,6 +147,13 @@ class kkr_eos_wc(WorkChain):
         self.ctx.return_gs_struc = self.ctx.wf_parameters.get('ground_state_structure') # boolean, return output structure or not
         self.ctx.sub_wf_ids = {}             # for uuids of sub workflows, stored as (name: uuid) in dict
         self.ctx.scaled_structures = []      # filled in prepare_strucs
+        self.ctx.fitnames = ['sj', 'taylor', 'murnaghan', 'birch', 'birchmurnaghan', 'pouriertarantola', 'vinet', 'antonschmidt', 'p3'] # list of allowed fits
+
+        # check input
+        if self.ctx.nsteps<3:
+            self.exit_codes.ERROR_NSTEPS_TOO_SMALL
+        if self.ctx.fitfunc_gs_out not in self.ctx.fitnames:
+            self.exit_codes.ERROR_INVALID_FITFUN
 
         # set scale_factors from scale_range and nsteps
         self.ctx.scale_factors = [] 
@@ -255,6 +268,11 @@ class kkr_eos_wc(WorkChain):
                                  wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run)
             calcs['kkr_{}_{}'.format(i+2, scale_fac)] = future
 
+        # save uuids of calculations to context
+        self.ctx.kkr_calc_uuids = []
+        for name, calc in calcs.iteritems():
+            self.ctx.kkr_calc_uuids.append(calc.uuid)
+
         self.report('INFO: submitted calculations: {}'.format(calcs))
 
         return ToContext(**calcs)
@@ -265,15 +283,14 @@ class kkr_eos_wc(WorkChain):
         collect output of KKR calculations and perform eos fitting to collect results
         """
         self.report('INFO: collect kkr results and fit data')
-        calcs = self.ctx.kkr_scf_steps
-        calc_pks = [cid.pk for cid in calcs]
+        calc_uuids = self.ctx.kkr_calc_uuids
         etot = []
-        for iic in range(len(calc_pks)):
-            pk = calc_pks[iic]
-            n = load_node(pk)
+        for iic in range(len(calc_uuids)):
+            uuid = calc_uuids[iic]
+            n = load_node(uuid)
             try:
                 d_result = n.out.output_kkr_scf_wc_ParameterResults.get_dict()
-                self.report(pk, d_result[u'successful'], d_result[u'convergence_value'])
+                self.report('INFO: extracting output of calculation {}: successful={}, rms={}'.format(uuid, d_result[u'successful'], d_result[u'convergence_value']))
                 if d_result[u'successful']:
                     pk_last_calc = d_result['last_calc_nodeinfo']['pk']
                     n2 = load_node(pk_last_calc)
@@ -284,14 +301,21 @@ class kkr_eos_wc(WorkChain):
                     v = scaled_struc.get_cell_volume()
                     etot.append([scale, ener, v, rms])
             except AttributeError:
-                print pk, False, n.is_finished, n.is_finished_ok
+                self.report('WARNING: calculation with uuid={} not succesful'.format(uuid))
+
                
         # collect calculation outcome
         etot = array(etot)
+        self.report('INFO: collected data from calculations= {}'.format(etot))
+        
+        # check if at least 3 points were successful (otherwise fit does not work)
+        if len(etot)<3:
+            return self.exit_codes.ERROR_NOT_ENOUGH_SUCCESSFUL_CALCS
+
         scalings = etot[:,0]
         rms = etot[:,-1]
         # convert to eV and per atom units
-        etot = etot/len(struc.sites) # per atom values
+        etot = etot/len(self.ctx.structure.sites) # per atom values
         etot[:,1] = etot[:,1] * get_Ry2eV() # convert energy from Ry to eV
         volumes, energies = etot[:,2], etot[:,1]-min(etot[:,1])
        
@@ -299,7 +323,7 @@ class kkr_eos_wc(WorkChain):
         self.report('INFO: output of fits:')
         self.report('{:18} {:8} {:7} {:7}'.format('fitfunc', 'v0', 'e0', 'B'))
         self.report('-----------------------------------------')
-        fitnames = ['sj', 'taylor', 'murnaghan', 'birch', 'birchmurnaghan', 'pouriertarantola', 'vinet', 'antonschmidt', 'p3']
+        fitnames = self.ctx.fitnames
         alldat = []
         fitdata = {}
         for fitfunc in fitnames:
@@ -317,6 +341,7 @@ class kkr_eos_wc(WorkChain):
         self.ctx.volumes=volumes
         self.ctx.energies=energies
         self.ctx.scalings=scalings
+        self.ctx.rms = rms
         self.ctx.fitdata=fitdata
 
 
@@ -338,17 +363,19 @@ class kkr_eos_wc(WorkChain):
         outdict['parameter_fits'] = self.ctx.fitdata
         if self.ctx.return_gs_struc:
             # final result: scaling factor for equilibium 
-            scale_fac0 = v0/struc.get_cell_volume()*len(struc.sites)
+            v0, e0, B = self.ctx.fitdata.get(self.ctx.fitfunc_gs_out)
+            scale_fac0 = v0/self.ctx.structure.get_cell_volume()*len(self.ctx.structure.sites)
             outdict['gs_scale_factor'] = scale_fac0
             outdict['gs_fitfunction'] = self.ctx.fitfunc_gs_out
             gs_structure = rescale(self.ctx.structure, Float(scale_fac0))
             gs_structure.label = 'ground_state_structure_{}'.format(gs_structure.get_formula())
             gs_structure.description = 'Ground state structure of {} after running eos workflow. Uses {} fit.'.format(gs_structure.get_formula(), self.ctx.fitfunc_gs_out)
-            outdict['gs_structure'] = gs_structure
+            outdict['gs_structure_uuid'] = gs_structure.uuid
 
         # create output nodes with links
-        for link_name, node in outdict.iteritems():
-            self.out(link_name, node)
+        self.out('eos_results', ParameterData(dict=outdict))
+        if self.ctx.return_gs_struc:
+            self.out('gs_structure', gs_structure)
 
 
 ### Helper functions and workfunctions ###
