@@ -145,7 +145,6 @@ class kkr_eos_wc(WorkChain):
         self.ctx.scale_range = self.ctx.wf_parameters.get('scale_range')
         self.ctx.fitfunc_gs_out = self.ctx.wf_parameters.get('fitfunction') # fitfunction used to get ground state structure
         self.ctx.return_gs_struc = self.ctx.wf_parameters.get('ground_state_structure') # boolean, return output structure or not
-        self.ctx.sub_wf_ids = {}             # for uuids of sub workflows, stored as (name: uuid) in dict
         self.ctx.scaled_structures = []      # filled in prepare_strucs
         self.ctx.fitnames = ['sj', 'taylor', 'murnaghan', 'birch', 'birchmurnaghan', 'pouriertarantola', 'vinet', 'antonschmidt', 'p3'] # list of allowed fits
 
@@ -191,6 +190,7 @@ class kkr_eos_wc(WorkChain):
                              wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.calc_parameters)
         
         self.report('INFO: running kkr_startpot workflow (pk= {})'.format(future.pk))
+        sub_workflow_uuids['kkr_startpot_{}'.format(self.ctx.scale_factors[0])] = future.uuid
 
         return ToContext(kkr_startpot=future)
 
@@ -258,6 +258,7 @@ class kkr_eos_wc(WorkChain):
                              wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run)
         scale_fac = self.ctx.scale_factors[0]
         calcs['kkr_{}_{}'.format(1, scale_fac)] = future
+        sub_workflow_uuids['kkr_scf_{}_{}'.format(1, scale_fac)] = future.uuid
 
         # then also submit the rest of the calculations
         for i in range(len(self.ctx.scale_factors)-1):
@@ -267,6 +268,7 @@ class kkr_eos_wc(WorkChain):
             future = self.submit(kkr_scf_wc, structure=scaled_struc, kkr=self.ctx.kkr, voronoi=self.ctx.voro, 
                                  wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run)
             calcs['kkr_{}_{}'.format(i+2, scale_fac)] = future
+            sub_workflow_uuids['kkr_scf_{}_{}'.format(i+2, scale_fac)] = future.uuid
 
         # save uuids of calculations to context
         self.ctx.kkr_calc_uuids = []
