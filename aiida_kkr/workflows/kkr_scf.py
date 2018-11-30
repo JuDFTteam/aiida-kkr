@@ -363,24 +363,24 @@ class kkr_scf_wc(WorkChain):
         if 'structure' in inputs:
             self.report('INFO: Found structure in input. Start with Voronoi calculation.')
             if not 'voronoi' in inputs:
-                return self.exit_code.ERROR_NO_VORONOI_CODE_GIVEN
+                return self.exit_codes.ERROR_NO_VORONOI_CODE_GIVEN
         elif 'remote_data' in inputs:
             self.report('INFO: Found remote_data in input. Continue calculation without running voronoi step.')
             run_voronoi = False
         else:
-            return self.exit_code.ERROR_NOT_ENOUGH_INPUTS
+            return self.exit_codes.ERROR_NOT_ENOUGH_INPUTS
 
         if 'voronoi' in inputs:
             try:
                 test_and_get_codenode(inputs.voronoi, 'kkr.voro', use_exceptions=True)
             except ValueError:
-                return self.exit_code.ERROR_INVALID_VORONOI_CODE
+                return self.exit_codes.ERROR_INVALID_VORONOI_CODE
 
         if 'kkr' in inputs:
             try:
                 test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
-                return self.exit_code.ERROR_INVALID_KKR_CODE
+                return self.exit_codes.ERROR_INVALID_KKR_CODE
 
         # set params and remote folder to input if voronoi step is skipped
         if not run_voronoi:
@@ -397,7 +397,7 @@ class kkr_scf_wc(WorkChain):
                 try: # next try to extract parameter from previous kkr_scf_wc output
                     parent_params = inputs.remote_data.inp.last_RemoteData.inp.calc_parameters
                 except AttributeError:
-                    return self.exit_code.ERROR_NO_PARENT_PARAMS_FOUND
+                    return self.exit_codes.ERROR_NO_PARENT_PARAMS_FOUND
             if  'calc_parameters' in inputs:
                 self.ctx.last_params = inputs.calc_parameters
                 # TODO: check last_params consistency against parent_params
@@ -524,7 +524,7 @@ class kkr_scf_wc(WorkChain):
 
         # abort calculation if something failed in voro_start step
         if not voro_step_ok:
-            return self.exit_code.ERROR_KKR_STARTPOT_FAILED
+            return self.exit_codes.ERROR_KKR_STARTPOT_FAILED
 
         self.report("INFO: done checking voronoi output")
 
@@ -544,6 +544,7 @@ class kkr_scf_wc(WorkChain):
         if not self.ctx.voro_step_success:
             stopreason = 'voronoi step unsucessful'
             do_kkr_step = False
+            return do_kkr_step
 
         # check if previous calculation reached convergence criterion
         if self.ctx.kkr_converged:
@@ -558,7 +559,9 @@ class kkr_scf_wc(WorkChain):
         # check if previous calculation is in SUBMISSIONFAILED state
         if self.ctx.loop_count>1 and self.ctx.last_calc.get_state() == calc_states.SUBMISSIONFAILED:
             self.report('ERROR: last KKRcalc (pk={}) in SUBMISSIONFAILED state!\nstopping now'.format(self.ctx.last_calc.pk))
-            return self.exit_code.ERROR_CALC_SUBMISSION_FAILED
+            do_kkr_step = False
+            #return self.exit_codes.ERROR_CALC_SUBMISSION_FAILED
+            return do_kkr_step
 
         # next check only needed if another iteration should be done after validating convergence etc. (previous checks)
         if do_kkr_step:
@@ -566,7 +569,10 @@ class kkr_scf_wc(WorkChain):
             if self.ctx.loop_count <= self.ctx.max_number_runs:
                 do_kkr_step = do_kkr_step & True
             else:
-                return self.exit_code.ERROR_MAX_KKR_RESTARTS_REACHED
+                do_kkr_step = False
+                # TODO do this differently, return of exit code needs to be done outside of while loop!
+                #return self.exit_codes.ERROR_MAX_KKR_RESTARTS_REACHED
+                return do_kkr_step
 
         self.report("INFO: done checking condition for kkr step (result={})".format(do_kkr_step))
 
@@ -617,7 +623,7 @@ class kkr_scf_wc(WorkChain):
                 # check if last_remote has finally been set and abort if this is not the case
                 self.report("INFO: last_remote is still None? {}".format(self.ctx.last_remote is None))
                 if self.ctx.last_remote is None:
-                    return self.exit_code.ERROR_LAST_REMOTE_NOT_FOUND
+                    return self.exit_codes.ERROR_LAST_REMOTE_NOT_FOUND
 
             # check if mixing strategy should be changed
             last_mixing_scheme = self.ctx.last_params.get_dict()['IMIX']
@@ -672,7 +678,7 @@ class kkr_scf_wc(WorkChain):
                         kkrdefaults_updated.append(key_default)
                 if len(kkrdefaults_updated)>0:
                     self.report('ERROR: calc_parameters misses keys: {}'.format(missing_list))
-                    return self.exit_code.ERROR_CALC_PARAMTERS_INCOMPLETE
+                    return self.exit_codes.ERROR_CALC_PARAMTERS_INCOMPLETE
                 else:
                     self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
 
@@ -784,7 +790,7 @@ class kkr_scf_wc(WorkChain):
                 for key, val in new_params.iteritems():
                     para_check.set_value(key, val, silent=True)
             except:
-                return self.exit_code.ERROR_PARAM_UPDATE_FAILED
+                return self.exit_codes.ERROR_PARAM_UPDATE_FAILED
 
             # step 3:
             self.report("INFO: update parameters to: {}".format(para_check.get_set_values()))
@@ -1198,7 +1204,7 @@ class kkr_scf_wc(WorkChain):
         Checks input parameter consistency and aborts wf if check fails.
         """
         if params is None:
-            return self.exit_code.ERROR_NO_CALC_PARAMETERS_GIVEN
+            return self.exit_codes.ERROR_NO_CALC_PARAMETERS_GIVEN
         else:
             input_dict = params.get_dict()
             if is_voronoi:
@@ -1211,7 +1217,7 @@ class kkr_scf_wc(WorkChain):
                 for key, val in input_dict.iteritems():
                     para_check.set_value(key, val, silent=True)
             except:
-                return self.exit_code.ERROR_CALC_PARAMTERS_INCONSISTENT
+                return self.exit_codes.ERROR_CALC_PARAMTERS_INCONSISTENT
 
             # step 2: check if all mandatory keys are there
             missing_list = para_check.get_missing_keys(use_aiida=True)
@@ -1222,7 +1228,7 @@ class kkr_scf_wc(WorkChain):
                         all_defaults = False
                 if not all_defaults:
                     self.report('ERROR: calc_parameters given are not consistent! Missing mandatory keys: {}'.format(missing_list))
-                    return self.exit_code.ERROR_CALC_PARAMETERS_INCOMPLETE
+                    return self.exit_codes.ERROR_CALC_PARAMETERS_INCOMPLETE
 
 
     def get_dos(self):
@@ -1287,15 +1293,15 @@ class kkr_scf_wc(WorkChain):
             if not dos_outdict['successful']:
                 self.report("ERROR: DOS workflow unsuccessful")
                 self.ctx.dos_ok = False
-                return self.exit_code.ERROR_DOS_RUN_UNSUCCESFUL
+                return self.exit_codes.ERROR_DOS_RUN_UNSUCCESFUL
 
             if dos_outdict['list_of_errors'] != []:
                 self.report("ERROR: DOS wf output contains errors: {}".format(dos_outdict['list_of_errors']))
                 self.ctx.dos_ok = False
-                return self.exit_code.ERROR_DOS_RUN_UNSUCCESFUL
+                return self.exit_codes.ERROR_DOS_RUN_UNSUCCESFUL
         except AttributeError:
             self.ctx.dos_ok = False
-            return self.exit_code.ERROR_DOS_RUN_UNSUCCESFUL
+            return self.exit_codes.ERROR_DOS_RUN_UNSUCCESFUL
 
         # check for negative DOS
         try:
@@ -1309,7 +1315,7 @@ class kkr_scf_wc(WorkChain):
             if len(ener) != nspin*natom:
                 self.report("ERROR: DOS output shape does not fit nspin, natom information: len(energies)={}, natom={}, nspin={}".format(len(ener), natom, nspin))
                 self.ctx.doscheck_ok = False
-                return self.exit_code.ERROR_DOS_RUN_UNSUCCESFUL
+                return self.exit_codes.ERROR_DOS_RUN_UNSUCCESFUL
 
             # deal with snpin==1 or 2 cases and check negtive DOS
             for iatom in range(natom/nspin):

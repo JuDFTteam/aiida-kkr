@@ -229,11 +229,11 @@ class kkr_startpot_wc(WorkChain):
             try:
                 test_and_get_codenode(self.inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
-                return self.exit_code.ERROR_INVALID_KKRCODE
+                return self.exit_codes.ERROR_INVALID_KKRCODE
         try:
             test_and_get_codenode(self.inputs.voronoi, 'kkr.voro', use_exceptions=True)
         except ValueError:
-            return self.exit_code.ERROR_INVALID_VORONOICODE
+            return self.exit_codes.ERROR_INVALID_VORONOICODE
             
        
     def run_voronoi(self):
@@ -392,14 +392,14 @@ class kkr_startpot_wc(WorkChain):
         if calc_state != calc_states.FINISHED:
             self.report("ERROR: Voronoi calculation not in FINISHED state")
             self.ctx.voro_ok = False
-            return self.exit_code.ERROR_VORONOI_FAILED
+            return self.exit_codes.ERROR_VORONOI_FAILED
             
         # check if parser returned some error
         voro_parser_errors = self.ctx.voro_calc.res.parser_errors
         if voro_parser_errors != []:
             self.report("ERROR: Voronoi Parser returned Error(s): {}".format(voro_parser_errors))
             self.ctx.voro_ok = False
-            return self.exit_code.ERROR_VORONOI_PARSING_FAILED
+            return self.exit_codes.ERROR_VORONOI_PARSING_FAILED
         
         # check self.ctx.nclsmin condition
         clsinfo = self.ctx.voro_calc.res.cluster_info_group
@@ -423,7 +423,7 @@ class kkr_startpot_wc(WorkChain):
         if r_ratio1>=100. or r_ratio2>=100.:
             self.report("ERROR: radii information inconsistent: Rout/dis_NN={}, RMT0/Rout={}".format(r_ratio1, r_ratio2))
             self.ctx.voro_ok = False
-            return self.exit_code.ERROR_VORONOI_INVALID_RADII
+            return self.exit_codes.ERROR_VORONOI_INVALID_RADII
 
         # fix emin/emax
         # remember: efermi, emin and emax are in internal units (Ry) but delta_e is in eV!
@@ -512,15 +512,15 @@ class kkr_startpot_wc(WorkChain):
                 if not dos_outdict['successful']:
                     self.report("ERROR: DOS workflow unsuccessful")
                     self.ctx.doscheck_ok = False
-                    return self.exit_code.ERROR_DOSRUN_FAILED
+                    return self.exit_codes.ERROR_DOSRUN_FAILED
                     
                 if dos_outdict['list_of_errors'] != []:
                     self.report("ERROR: DOS wf output contains errors: {}".format(dos_outdict['list_of_errors']))
                     self.ctx.doscheck_ok = False
-                    return self.exit_code.ERROR_DOSRUN_FAILED
+                    return self.exit_codes.ERROR_DOSRUN_FAILED
             except AttributeError:
                 self.ctx.doscheck_ok = False
-                return self.exit_code.ERROR_DOSRUN_FAILED
+                return self.exit_codes.ERROR_DOSRUN_FAILED
                 
             # check for negative DOS
             try:
@@ -534,7 +534,7 @@ class kkr_startpot_wc(WorkChain):
                 if len(ener) != nspin*natom:
                     self.report("ERROR: DOS output shape does not fit nspin, natom information: len(energies)={}, natom={}, nspin={}".format(len(ener), natom, nspin))
                     self.ctx.doscheck_ok = False
-                    return self.exit_code.ERROR_DOSRUN_FAILED
+                    return self.exit_codes.ERROR_DOSRUN_FAILED
                     
                 # deal with snpin==1 or 2 cases and check negtive DOS
                 for iatom in range(natom/nspin):
@@ -581,7 +581,7 @@ class kkr_startpot_wc(WorkChain):
                     self.ctx.dos_check_fail_reason = 'core state in contour'
                     # TODO maybe some logic to automatically deal with this issue?
                     # for now stop if this case occurs
-                    return self.exit_code.ERROR_CORE_STATES_IN_CONTOUR
+                    return self.exit_codes.ERROR_CORE_STATES_IN_CONTOUR
                 elif abs(ecore_max-emin) < self.ctx.min_dist_core_states:
                     error = "ERROR: core states too close to energy contour start!!!"
                     self.report(error)

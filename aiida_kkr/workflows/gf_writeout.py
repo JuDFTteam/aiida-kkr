@@ -231,7 +231,7 @@ class kkr_flex_wc(WorkChain):
             for key, val in input_dict.iteritems():
                 para_check.set_value(key, val, silent=True)
         except:
-            return self.exit_code.ERROR_INVALID_CALC_PARAMETERS
+            return self.exit_codes.ERROR_INVALID_CALC_PARAMETERS
     
         # step 2: check if all mandatory keys are there
         label = ''
@@ -247,7 +247,7 @@ class kkr_flex_wc(WorkChain):
                     missing_list.remove(key_default)
             if len(missing_list)>0:
                 self.report('ERROR: calc_parameters misses keys: {}'.format(missing_list))
-                return self.exit_code.ERROR_CALC_PARAMETERS_INCOMPLETE
+                return self.exit_codes.ERROR_CALC_PARAMETERS_INCOMPLETE
 
             else:
                 self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))

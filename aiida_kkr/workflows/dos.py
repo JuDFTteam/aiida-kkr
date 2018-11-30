@@ -171,7 +171,7 @@ class kkr_dos_wc(WorkChain):
             input_ok = True
         else:
             input_ok = False
-            return self.exit_code.ERROR_NO_INPUT_REMOTE_DATA
+            return self.exit_codes.ERROR_NO_INPUT_REMOTE_DATA
         
         # extract correct remote folder of last calculation if input remote_folder node is not from KkrCalculation but kkr_scf_wc workflow
         input_remote = self.inputs.remote_data
@@ -197,7 +197,7 @@ class kkr_dos_wc(WorkChain):
                 test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
                 input_ok = False
-                return self.exit_code.ERROR_KKRCODE_NOT_CORRECT
+                return self.exit_codes.ERROR_KKRCODE_NOT_CORRECT
         
         # set self.ctx.input_params_KKR
         self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
@@ -219,7 +219,7 @@ class kkr_dos_wc(WorkChain):
             for key, val in input_dict.iteritems():
                 para_check.set_value(key, val, silent=True)
         except:
-            return self.exit_code.ERROR_CALC_PARAMETERS_INVALID
+            return self.exit_codes.ERROR_CALC_PARAMETERS_INVALID
             
         # step 2: check if all mandatory keys are there
         label = ''
@@ -235,7 +235,7 @@ class kkr_dos_wc(WorkChain):
                     missing_list.remove(key_default)
             if len(missing_list)>0:
                 self.report('ERROR: calc_parameters misses keys: {}'.format(missing_list))
-                return self.exit_code.ERROR_CALC_PARAMETERS_INCOMPLETE
+                return self.exit_codes.ERROR_CALC_PARAMETERS_INCOMPLETE
             else:
                 self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
                 label = 'add_defaults_'
@@ -263,7 +263,7 @@ class kkr_dos_wc(WorkChain):
                 # set params
                 para_check.set_value(key, val, silent=True)
         except:
-            return self.exit_code.ERROR_DOS_PARAMS_INVALID
+            return self.exit_codes.ERROR_DOS_PARAMS_INVALID
         
         updatenode = ParameterData(dict=para_check.get_dict())
         updatenode.label = label+'KKRparam_DOS'
