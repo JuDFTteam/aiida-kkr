@@ -23,7 +23,7 @@ from numpy import array, mean, std, min
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1"
+__version__ = "0.2"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -64,6 +64,8 @@ class kkr_eos_wc(WorkChain):
                    'settings_kkr_startpot': kkr_startpot_wc.get_wf_defaults(), # settings for kkr_startpot behavior
                    'settings_kkr_scf': kkr_scf_wc.get_wf_defaults()            # settings for kkr_scf behavior
                    }
+    # change _wf_default of kkr_scf to deactivate DOS runs
+    _wf_default['settings_kkr_scf']['check_dos'] = False
 
     @classmethod
     def get_wf_defaults(self):
