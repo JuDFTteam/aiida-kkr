@@ -317,7 +317,7 @@ class kkr_eos_wc(WorkChain):
         # convert to eV and per atom units
         etot = etot/len(self.ctx.structure.sites) # per atom values
         etot[:,1] = etot[:,1] * get_Ry2eV() # convert energy from Ry to eV
-        volumes, energies = etot[:,2], etot[:,1]-min(etot[:,1])
+        volumes, energies = etot[:,2], etot[:,1]
        
         # do multiple fits to data
         self.report('INFO: output of fits:')
