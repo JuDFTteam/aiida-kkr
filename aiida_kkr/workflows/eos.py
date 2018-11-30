@@ -17,13 +17,13 @@ from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
 from masci_tools.io.kkr_params import kkrparams
 from ase.eos import EquationOfState
-from numpy import array, mean, std, min
+from numpy import array, mean, std, min, sort
 
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
+__version__ = "0.3"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -276,7 +276,8 @@ class kkr_eos_wc(WorkChain):
 
         # save uuids of calculations to context
         self.ctx.kkr_calc_uuids = []
-        for name, calc in calcs.iteritems():
+        for name in sort(calcs.keys()): # sorting important to have correct assignment of scaling and structure info later on
+            calc = calcs[name]
             self.ctx.kkr_calc_uuids.append(calc.uuid)
 
         self.report('INFO: submitted calculations: {}'.format(calcs))
@@ -378,11 +379,10 @@ class kkr_eos_wc(WorkChain):
             gs_structure.description = 'Ground state structure of {} after running eos workflow. Uses {} fit.'.format(gs_structure.get_formula(), self.ctx.fitfunc_gs_out)
             outdict['gs_structure_uuid'] = gs_structure.uuid
 
-        # create output nodes, use pseudo workfunction to ensure connectivity of nodes
+        # create output nodes
+        outnodes = {'eos_results': kwargs['eos_results']}
         if self.ctx.return_gs_struc:
-            outnodes = create_eos_result_nodes(eos_results=ParameterData(dict=outdict), gs_structure=gs_structure)
-        else:
-            outnodes = create_eos_result_nodes(eos_results=ParameterData(dict=outdict))
+            outnodes['gs_structure'] = kwargs['gs_structure']
         
         for link_name, node in outnodes.iteritems():
             self.out(link_name, node)
@@ -426,14 +426,4 @@ def rescale(inp_structure, scale):
     """
 
     return rescale_no_wf(inp_structure, scale)
-
-@wf
-def create_eos_result_nodes(**kwargs):
-    """ pseudo workfunction to draw correct output of eos workflow """
-    outnodes = {'eos_results': kwargs['eos_results']}
-
-    if 'gs_structure' in kwargs.keys():
-        outnodes['gs_structure'] = kwargs['gs_structure']
-
-    return outnodes
 
