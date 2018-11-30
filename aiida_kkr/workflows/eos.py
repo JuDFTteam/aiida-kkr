@@ -191,7 +191,7 @@ class kkr_eos_wc(WorkChain):
                              wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.calc_parameters)
         
         self.report('INFO: running kkr_startpot workflow (pk= {})'.format(future.pk))
-        self.ctx.sub_wf_ids['kkr_startpot_{}'.format(self.ctx.scale_factors[0])] = future.uuid
+        self.ctx.sub_wf_ids['kkr_startpot_1'] = future.uuid
 
         return ToContext(kkr_startpot=future)
 
@@ -216,7 +216,7 @@ class kkr_eos_wc(WorkChain):
                 if 'rmt0' in rad_iatom.keys():
                     rmt.append(rad_iatom['rmt0'])
             rmtcore_min = array(rmt) * smallest_voro_results.get_dict().get('alat') # needs to be mutiplied by alat in atomic units!
-            self.report('INFO: extracted rmtcore_min')
+            self.report('INFO: extracted rmtcore_min ({})'.format(rmtcore_min))
         else:
             return self.error_code(222)
 
@@ -225,7 +225,7 @@ class kkr_eos_wc(WorkChain):
         voro_params_with_rmtcore.set_value('<RMTCORE>', rmtcore_min)
         voro_params_with_rmtcore_dict = voro_params_with_rmtcore.get_dict()
         voro_params_with_rmtcore = update_params_wf(voro_params, ParameterData(dict=voro_params_with_rmtcore_dict))
-        self.report('INFO: updated kkr_parameters inlcuding RMTCORE setting')
+        self.report('INFO: updated kkr_parameters inlcuding RMTCORE setting (uuid={})'.format(voro_params_with_rmtcore.uuid))
 
         # store links to context
         self.ctx.params_kkr_run=voro_params_with_rmtcore
@@ -255,11 +255,12 @@ class kkr_eos_wc(WorkChain):
         calcs = {}
         
         # submit first calculation separately
+        self.report('submit calc for scale fac= {} on {}'.format(self.ctx.scale_factors[0], self.ctx.scaled_structures[0].get_formula()))
         future = self.submit(kkr_scf_wc, kkr=self.ctx.kkr, remote_data=self.ctx.smallest_voro_remote, 
                              wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run)
         scale_fac = self.ctx.scale_factors[0]
         calcs['kkr_{}_{}'.format(1, scale_fac)] = future
-        self.ctx.sub_wf_ids['kkr_scf_{}_{}'.format(1, scale_fac)] = future.uuid
+        self.ctx.sub_wf_ids['kkr_scf_1'] = future.uuid
 
         # then also submit the rest of the calculations
         for i in range(len(self.ctx.scale_factors)-1):
@@ -269,7 +270,7 @@ class kkr_eos_wc(WorkChain):
             future = self.submit(kkr_scf_wc, structure=scaled_struc, kkr=self.ctx.kkr, voronoi=self.ctx.voro, 
                                  wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run)
             calcs['kkr_{}_{}'.format(i+2, scale_fac)] = future
-            self.ctx.sub_wf_ids['kkr_scf_{}_{}'.format(i+2, scale_fac)] = future.uuid
+            self.ctx.sub_wf_ids['kkr_scf_{}'.format(i+2)] = future.uuid
 
         # save uuids of calculations to context
         self.ctx.kkr_calc_uuids = []
