@@ -376,16 +376,19 @@ class kkr_eos_wc(WorkChain):
             gs_structure.description = 'Ground state structure of {} after running eos workflow. Uses {} fit.'.format(gs_structure.get_formula(), self.ctx.fitfunc_gs_out)
             outdict['gs_structure_uuid'] = gs_structure.uuid
 
-        # create output nodes with links
-        self.out('eos_results', ParameterData(dict=outdict))
+        # create output nodes, use pseudo workfunction to ensure connectivity of nodes
         if self.ctx.return_gs_struc:
-            self.out('gs_structure', gs_structure)
+            outnodes = create_eos_result_nodes(eos_results=ParameterData(dict=outdict), gs_structure=gs_structure)
+        else:
+            outnodes = create_eos_result_nodes(eos_results=ParameterData(dict=outdict))
+        
+        for link_name, node in outnodes.iteritems():
+            self.out(link_name, node)
 
 
 ### Helper functions and workfunctions ###
 
     
-# copied from aiida_fleur.tools.StructureData_util
 def rescale_no_wf(structure, scale):
     """
     Rescales a crystal structure. DOES NOT keep the provanence in the database.
@@ -395,6 +398,8 @@ def rescale_no_wf(structure, scale):
 
     :returns: New StrcutureData node with rescalled structure, which is linked to input Structure
               and None if inp_structure was not a StructureData
+
+    copied and modified from aiida_fleur.tools.StructureData_util
     """
 
     the_ase = structure.get_ase()
@@ -404,7 +409,6 @@ def rescale_no_wf(structure, scale):
 
     return rescaled_structure
 
-# copied from aiida_fleur.tools.StructureData_util
 @wf
 def rescale(inp_structure, scale):
     """
@@ -415,6 +419,19 @@ def rescale(inp_structure, scale):
 
     :returns: New StrcutureData node with rescalled structure, which is linked to input Structure
               and None if inp_structure was not a StructureData
+
+    copied and modified from aiida_fleur.tools.StructureData_util
     """
 
     return rescale_no_wf(inp_structure, scale)
+
+@wf
+def create_eos_result_nodes(**kwargs):
+    """ pseudo workfunction to draw correct output of eos workflow """
+    outnodes = {'eos_results': kwargs['eos_results']}
+
+    if 'gs_structure' in kwargs.keys():
+        outnodes['gs_structure'] = kwargs['gs_structure']
+
+    return outnodes
+
