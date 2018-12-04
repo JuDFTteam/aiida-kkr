@@ -24,7 +24,7 @@ from numpy import where
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6"
+__version__ = "0.7"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -60,7 +60,7 @@ class kkr_startpot_wc(WorkChain):
                                    "tempr": 200, # K         # DOS params: temperature
                                    "emin": -1, # Ry          # DOS params: start of energy contour
                                    "emax": 1,  # Ry          # DOS params: end of energy contour
-                                   "kmesh": [50, 50, 50]},   # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
+                                   "kmesh": [30, 30, 30]},   # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
                    'num_rerun' : 4,                          # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
                    'fac_cls_increase' : 1.3, # alat          # factor by which the screening cluster is increased each iteration (up to num_rerun times)
                    'r_cls' : 1.3,            # alat          # default cluster radius, is increased iteratively

@@ -7,7 +7,7 @@ some helper methods to do so with AiiDA
 
 from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, ToContext
-from aiida.orm.data.base import Float
+from aiida.orm.data.base import Float, Bool
 from aiida.work.workfunctions import workfunction as wf
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
@@ -23,7 +23,7 @@ from numpy import array, mean, std, min, sort
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.4"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -60,6 +60,7 @@ class kkr_eos_wc(WorkChain):
     _wf_default = {'scale_range' : [0.94, 1.06],    # range around volume of starting structure which eos is computed
                    'nsteps': 7,                     # number of calculations around 
                    'ground_state_structure': True,  # create and return a structure which has the ground state volume determined by the fit used
+                   'use_primitive_structure': True, # use seekpath to get primitive structure after scaling to reduce computational time
                    'fitfunction': 'birchmurnaghan', # fitfunction used to determine ground state volume (see ase.eos.EquationOfState class for details)
                    'settings_kkr_startpot': kkr_startpot_wc.get_wf_defaults(), # settings for kkr_startpot behavior
                    'settings_kkr_scf': kkr_scf_wc.get_wf_defaults()            # settings for kkr_scf behavior
@@ -147,6 +148,7 @@ class kkr_eos_wc(WorkChain):
         self.ctx.scale_range = self.ctx.wf_parameters.get('scale_range')
         self.ctx.fitfunc_gs_out = self.ctx.wf_parameters.get('fitfunction') # fitfunction used to get ground state structure
         self.ctx.return_gs_struc = self.ctx.wf_parameters.get('ground_state_structure') # boolean, return output structure or not
+        self.ctx.use_primitive_structure = self.ctx.wf_parameters.get('use_primitive_structure')
         self.ctx.scaled_structures = []      # filled in prepare_strucs
         self.ctx.fitnames = ['sj', 'taylor', 'murnaghan', 'birch', 'birchmurnaghan', 'pouriertarantola', 'vinet', 'antonschmidt', 'p3'] # list of allowed fits
         self.ctx.sub_wf_ids = {} # filled with workflow uuids
@@ -170,6 +172,8 @@ class kkr_eos_wc(WorkChain):
         """
         for scale_fac in self.ctx.scale_factors:
             scaled_structure = rescale(self.ctx.structure, Float(scale_fac))
+            if self.ctx.use_primitive_structure:
+                scaled_structure = get_primitive_structure(scaled_structure, Bool(False))
             self.ctx.scaled_structures.append(scaled_structure)
 
 
@@ -375,6 +379,8 @@ class kkr_eos_wc(WorkChain):
             outdict['gs_scale_factor'] = scale_fac0
             outdict['gs_fitfunction'] = self.ctx.fitfunc_gs_out
             gs_structure = rescale(self.ctx.structure, Float(scale_fac0))
+            if self.ctx.use_primitive_structure:
+                conv_structure, explicit_kpoints, parameters, gs_structure = get_primitive_structure(gs_structure, Bool(True))
             gs_structure.label = 'ground_state_structure_{}'.format(gs_structure.get_formula())
             gs_structure.description = 'Ground state structure of {} after running eos workflow. Uses {} fit.'.format(gs_structure.get_formula(), self.ctx.fitfunc_gs_out)
             outdict['gs_structure_uuid'] = gs_structure.uuid
@@ -390,7 +396,6 @@ class kkr_eos_wc(WorkChain):
 
 ### Helper functions and workfunctions ###
 
-    
 def rescale_no_wf(structure, scale):
     """
     Rescales a crystal structure. DOES NOT keep the provanence in the database.
@@ -426,4 +431,22 @@ def rescale(inp_structure, scale):
     """
 
     return rescale_no_wf(inp_structure, scale)
+
+
+@wf
+def get_primitive_structure(structure, return_all):
+    """
+    calls get_explicit_kpoints_path which gives primitive structure
+    auxiliary workfunction to keep provenance
+    """
+    from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
+    output = get_explicit_kpoints_path(structure)
+    conv_structure = output['conv_structure']
+    explicit_kpoints = output['explicit_kpoints']
+    parameters = output['parameters']
+    primitive_structure = output['primitive_structure']
+    if return_all:
+        return conv_structure, explicit_kpoints, parameters, primitive_structure
+    else:
+        return primitive_structure
 
