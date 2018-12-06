@@ -6,16 +6,16 @@ some helper methods to do so with AiiDA
 """
 
 from aiida.orm import Code, DataFactory, load_node
-from aiida.work.workchain import WorkChain, ToContext
 from aiida.orm.data.base import Float, Bool
+from aiida.work.workchain import WorkChain, ToContext
 from aiida.work.workfunctions import workfunction as wf
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.tools.common_workfunctions import update_params_wf
-from aiida_kkr.tools.common_functions import get_Ry2eV
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
 from masci_tools.io.kkr_params import kkrparams
+from masci_tools.io.common_functions import get_Ry2eV
 from ase.eos import EquationOfState
 from numpy import array, mean, std, min, sort
 
