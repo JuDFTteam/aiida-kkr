@@ -23,7 +23,7 @@ from numpy import array, mean, std, min, sort
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5"
+__version__ = "0.6"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -354,6 +354,8 @@ class kkr_eos_wc(WorkChain):
         self.ctx.scalings=scalings
         self.ctx.rms = rms
         self.ctx.fitdata=fitdata
+        self.ctx.fit_mean_values={'<v0>':mean(alldat[:,0]), '<e0>':mean(alldat[:,1]), '<B>':mean(alldat[:,2])}
+        self.ctx.fit_std_values={'s_v0':std(alldat[:,0]), 's_e0':std(alldat[:,1]), 's_B':std(alldat[:,2])}
 
 
     def return_results(self):
@@ -372,6 +374,8 @@ class kkr_eos_wc(WorkChain):
         outdict['scalings'] = self.ctx.scalings
         outdict['rms'] = self.ctx.rms
         outdict['parameter_fits'] = self.ctx.fitdata
+        outdict['fits_mean'] = self.ctx.fit_mean_values
+        outdict['fits_std'] = self.ctx.fit_std_values
         if self.ctx.return_gs_struc:
             # final result: scaling factor for equilibium 
             v0, e0, B = self.ctx.fitdata.get(self.ctx.fitfunc_gs_out)
@@ -388,7 +392,7 @@ class kkr_eos_wc(WorkChain):
             outdict['gs_structure_uuid'] = gs_structure.uuid
 
         # create output nodes in dict with link names
-        outnodes = {'eos_results': outdict}
+        outnodes = {'eos_results': ParameterData(dict=outdict)}
         if self.ctx.return_gs_struc:
             outnodes['gs_structure'] = gs_structure
             if self.ctx.use_primitive_structure:
