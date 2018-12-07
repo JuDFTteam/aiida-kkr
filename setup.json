@@ -19,9 +19,10 @@
     "reentry_register": true,
     "install_requires": [
         "aiida-core >= 1.0.0a4",
+        "masci-tools",
+        "seekpath",
         "pgtest",
         "pytest-cov >= 2.5.0",
-        "masci-tools",
         "sphinx",
         "sphinx_rtd_theme"
     ],

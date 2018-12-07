@@ -23,7 +23,7 @@ from numpy import array, mean, std, min, sort
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4"
+__version__ = "0.5"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -380,15 +380,19 @@ class kkr_eos_wc(WorkChain):
             outdict['gs_fitfunction'] = self.ctx.fitfunc_gs_out
             gs_structure = rescale(self.ctx.structure, Float(scale_fac0))
             if self.ctx.use_primitive_structure:
-                conv_structure, explicit_kpoints, parameters, gs_structure = get_primitive_structure(gs_structure, Bool(True))
+                tmpdict = get_primitive_structure(gs_structure, Bool(True))
+                conv_structure, explicit_kpoints, parameters, gs_structure = tmpdict['conv_structure'], tmpdict['explicit_kpoints'], tmpdict['parameters'], tmpdict['primitive_structure']
             gs_structure.label = 'ground_state_structure_{}'.format(gs_structure.get_formula())
             gs_structure.description = 'Ground state structure of {} after running eos workflow. Uses {} fit.'.format(gs_structure.get_formula(), self.ctx.fitfunc_gs_out)
             outdict['gs_structure_uuid'] = gs_structure.uuid
 
         # create output nodes
-        outnodes = {'eos_results': kwargs['eos_results']}
+        outnodes = {'eos_results': eos_results}
         if self.ctx.return_gs_struc:
-            outnodes['gs_structure'] = kwargs['gs_structure']
+            outnodes['gs_structure'] = gs_structure
+            if self.ctx.use_primitive_structure:
+                outnodes['explicit_kpoints'] = explicit_kpoints
+                outnodes['parameters'] = parameters
         
         for link_name, node in outnodes.iteritems():
             self.out(link_name, node)
@@ -446,7 +450,7 @@ def get_primitive_structure(structure, return_all):
     parameters = output['parameters']
     primitive_structure = output['primitive_structure']
     if return_all:
-        return conv_structure, explicit_kpoints, parameters, primitive_structure
+        return {'conv_structure':conv_structure, 'explicit_kpoints':explicit_kpoints, 'parameters':parameters, 'primitive_structure':primitive_structure}
     else:
         return primitive_structure
 
