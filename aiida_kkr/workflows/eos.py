@@ -224,7 +224,7 @@ class kkr_eos_wc(WorkChain):
             rmtcore_min = array(rmt) * smallest_voro_results.get_dict().get('alat') # needs to be mutiplied by alat in atomic units!
             self.report('INFO: extracted rmtcore_min ({})'.format(rmtcore_min))
         else:
-            return self.error_code(222)
+            return self.exit_codes.ERROR_NOT_ENOUGH_SUCCESSFUL_CALCS
 
         # update parameter node with rmtcore setting
         voro_params_with_rmtcore = kkrparams(**voro_params.get_dict())
@@ -326,7 +326,7 @@ class kkr_eos_wc(WorkChain):
         scalings = etot[:,0]
         rms = etot[:,-1]
         # convert to eV and per atom units
-        etot = etot/len(self.ctx.structure.sites) # per atom values
+        etot = etot/len(scaled_struc.sites) # per atom values
         etot[:,1] = etot[:,1] * get_Ry2eV() # convert energy from Ry to eV
         volumes, energies = etot[:,2], etot[:,1]
        
