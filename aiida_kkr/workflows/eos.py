@@ -382,18 +382,19 @@ class kkr_eos_wc(WorkChain):
             if self.ctx.use_primitive_structure:
                 tmpdict = get_primitive_structure(gs_structure, Bool(True))
                 conv_structure, explicit_kpoints, parameters, gs_structure = tmpdict['conv_structure'], tmpdict['explicit_kpoints'], tmpdict['parameters'], tmpdict['primitive_structure']
+                outdict['gs_kpoints_seekpath_params_uuid'] = parameters.uuid
             gs_structure.label = 'ground_state_structure_{}'.format(gs_structure.get_formula())
             gs_structure.description = 'Ground state structure of {} after running eos workflow. Uses {} fit.'.format(gs_structure.get_formula(), self.ctx.fitfunc_gs_out)
             outdict['gs_structure_uuid'] = gs_structure.uuid
 
-        # create output nodes
-        outnodes = {'eos_results': eos_results}
+        # create output nodes in dict with link names
+        outnodes = {'eos_results': outdict}
         if self.ctx.return_gs_struc:
             outnodes['gs_structure'] = gs_structure
             if self.ctx.use_primitive_structure:
                 outnodes['explicit_kpoints'] = explicit_kpoints
                 outnodes['parameters'] = parameters
-        
+        # set out nodes and corresponding link names
         for link_name, node in outnodes.iteritems():
             self.out(link_name, node)
 
