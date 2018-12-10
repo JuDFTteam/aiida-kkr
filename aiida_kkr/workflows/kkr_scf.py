@@ -22,7 +22,7 @@ from numpy import array, where, ones
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6"
+__version__ = "0.7"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -970,10 +970,10 @@ class kkr_scf_wc(WorkChain):
             last_rms = self.ctx.last_rms_all[-1]
             last_neutr = abs(self.ctx.last_neutr_all[-1])
             # use this trick to avoid division by zero
-            if last_neutr == 0:
-                last_neutr = 10**-16
-            if last_rms == 0:
-                last_rms = 10**-16
+            if first_neutr == 0:
+                first_neutr = 10**-16
+            if first_rms == 0:
+                first_rms = 10**-16
             r, n = last_rms/first_rms, last_neutr/first_neutr
             self.report("INFO convergence check: first/last rms {}, {}; first/last neutrality {}, {}".format(first_rms, last_rms, first_neutr, last_neutr))
             if r < 1 and n < 1:
