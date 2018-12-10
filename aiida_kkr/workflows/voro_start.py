@@ -21,10 +21,10 @@ from numpy import where
 
 
 
-__copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
+__copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7"
+__version__ = "0.8"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -66,9 +66,9 @@ class kkr_startpot_wc(WorkChain):
                    'r_cls' : 1.3,            # alat          # default cluster radius, is increased iteratively
                    'natom_in_cls_min' : 79,                  # minimum number of atoms in screening cluster
                    'delta_e_min' : 1., # eV                  # minimal distance in DOS contour to emin and emax in eV
-                   'threshold_dos_zero' : 10**-3, #states/eV # 
+                   'threshold_dos_zero' : 10**-2, #states/eV # 
                    'check_dos': True,                        # logical to determine if DOS is computed and checked
-                   'delta_e_min_core_states' : 1.0 # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
+                   'delta_e_min_core_states' : 0.2 # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
                 }
                    
     _wf_label = ''
@@ -521,6 +521,9 @@ class kkr_startpot_wc(WorkChain):
             except AttributeError:
                 self.ctx.doscheck_ok = False
                 return self.exit_codes.ERROR_DOSRUN_FAILED
+
+            # needed for checks
+            emin = self.ctx.voro_calc.res.emin
                 
             # check for negative DOS
             try:
@@ -557,7 +560,7 @@ class kkr_startpot_wc(WorkChain):
                 for iatom in range(natom/nspin):
                     for ispin in range(nspin):
                         x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
-                        xrel = abs(x-(self.ctx.dos_params_dict['emin']-self.ctx.efermi)*Ry2eV)
+                        xrel = abs(x-(emin-self.ctx.efermi)*Ry2eV)
                         mask_emin = where(xrel==xrel.min())
                         ymin = abs(y[mask_emin])
                         if ymin > self.ctx.threshold_dos_zero:
@@ -568,7 +571,6 @@ class kkr_startpot_wc(WorkChain):
                 dos_ok = False
             
             # check for position of core states
-            emin = self.ctx.voro_calc.res.emin
             ecore_all = self.ctx.voro_calc.res.core_states_group.get('energy_highest_lying_core_state_per_atom')
             ecore_max = max(ecore_all)
             self.report("INFO: emin= {} Ry".format(emin))
