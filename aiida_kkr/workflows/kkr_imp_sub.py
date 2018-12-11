@@ -798,8 +798,10 @@ class kkr_imp_sub_wc(WorkChain):
         self.report("INFO: last_rms_all: {}".format(self.ctx.last_rms_all))
         
         # turn off initial magnetization once one step was successful (update_kkr_params) used in
-        if self.ctx.mag_init and self.ctx.kkrimp_step_success:
+        if self.ctx.mag_init and self.convergence_on_track(): # and self.ctx.kkrimp_step_success:
             self.ctx.mag_init_step_success = True
+        else:
+            self.ctx.mag_init_step_success = False
 
         # store some statistics used to print table in the end of the report
         self.ctx.KKR_steps_stats['success'].append(self.ctx.kkr_step_success)
