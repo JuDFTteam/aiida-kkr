@@ -142,6 +142,20 @@ class kkr_eos_wc(WorkChain):
             # in case of failure, exit workflow here
             return self.exit_codes.ERROR_INVALID_INPUT
 
+        # add label and description if not given (contains structure name)
+        if self.label is None:
+            self.label = self._wf_label.format(self.ctx.structure.get_formula())
+        if self.description is None:
+            self.description = self._wf_description.format(self.ctx.structure.get_formula())
+        if self.ctx.wf_parameters['settings_kkr_startpot'].get('_label', None) is None:
+            self.ctx.wf_parameters['settings_kkr_startpot']['_label'] = self.label+'_kkr_startpot_{}'.format(self.ctx.structure.get_formula())
+        if self.ctx.wf_parameters['settings_kkr_startpot'].get('_description', None) is None:
+            self.ctx.wf_parameters['settings_kkr_startpot']['_description'] = self.description+' kkr_startpot step for {}'.format(self.ctx.structure.get_formula())
+        if self.ctx.wf_parameters['settings_kkr_scf'].get('label', None) is None:
+            self.ctx.wf_parameters['settings_kkr_scf']['label'] = self.label+'_kkr_scf_{}'.format(self.ctx.structure.get_formula())
+        if self.ctx.wf_parameters['settings_kkr_scf'].get('description', None) is None:
+            self.ctx.wf_parameters['settings_kkr_scf']['description'] = self.description+' kkr_scf step for {}'.format(self.ctx.structure.get_formula())
+
         # initialize some other things used to collect results etc.
         self.ctx.successful = True
         self.ctx.nsteps = self.ctx.wf_parameters.get('nsteps')
