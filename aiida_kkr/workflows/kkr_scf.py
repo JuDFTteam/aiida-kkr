@@ -22,7 +22,7 @@ from numpy import array, where, ones
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7"
+__version__ = "0.8"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -758,10 +758,11 @@ class kkr_scf_wc(WorkChain):
                     self.ctx.hfield = self._wf_default['hfield']
                 xinipol = self.ctx.xinit
                 if xinipol is None:
+                    # find structure to determine needed length on xinipol
                     if 'structure' in self.inputs:
                         struc = self.inputs.structure
                     else:
-                        struc, voro_parent = KkrCalculation.find_parent_structure(self.ctx.last_remote)
+                        struc, voro_parent = VoronoiCalculation.find_parent_structure(self.ctx.last_remote)
                     natom = len(struc.sites)
                     xinipol = ones(natom)
                 new_params['LINIPOL'] = True
@@ -772,7 +773,7 @@ class kkr_scf_wc(WorkChain):
                 new_params['HFIELD'] = 0.0
             elif not self.ctx.mag_init:
                 self.report("INFO: mag_init is False. Overwrite 'HFIELD' to '0.0' and 'LINIPOL' to 'False'.")
-                # reset mag init to avoid resinitializing
+                # reset mag init to avoid reinitializing
                 new_params['HFIELD'] = 0.0
                 new_params['LINIPOL'] = False
                 
