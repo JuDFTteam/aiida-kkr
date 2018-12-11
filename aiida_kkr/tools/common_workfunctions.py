@@ -103,7 +103,14 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
         return node
     else:
         for key in kwargs:
-            if kwargs[key] != inp_params[key]:
+            # check if value of 'key' should be set (either because it differs from old para node or because it was not set at all)
+            update_value = False
+            if key in inp_params.keys():
+                if kwargs[key] != inp_params[key]:
+                    update_value = True
+            else:
+                update_value = True
+            if update_value:
                 params.set_value(key, kwargs[key], silent=True)
                 changed_params[key] = kwargs[key]
                 
@@ -268,7 +275,7 @@ def get_inputs_voronoi(code, structure, options, label='', description='', param
     return VoronoiProcess, inputs
     
     
-def get_inputs_kkrimp(code, options, label='', description='', parameters=None, serial=False, imp_info=None, host_GF=None, imp_pot=None):
+def get_inputs_kkrimp(code, options, label='', description='', parameters=None, serial=False, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None):
     """
     Get the input for a kkrimp calc.
     Wrapper for KkrimpProcess setting structure, code, options, label, description etc.
@@ -281,12 +288,12 @@ def get_inputs_kkrimp(code, options, label='', description='', parameters=None, 
         
     # then reuse common inputs setter 
     inputs = get_inputs_common(KkrimpProcess, code, None, None, options, label,
-                               description, parameters, serial, imp_info, host_GF, imp_pot)
+                               description, parameters, serial, imp_info, host_GF, imp_pot, kkrimp_remote)
 
     return inputs
     
     
-def get_inputs_common(process, code, remote, structure, options, label, description, params, serial, imp_info=None, host_GF=None, imp_pot=None):
+def get_inputs_common(process, code, remote, structure, options, label, description, params, serial, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None):
     """
     Base function common in get_inputs_* functions for different codes
     """
@@ -356,6 +363,9 @@ def get_inputs_common(process, code, remote, structure, options, label, descript
         
     if imp_pot is not None:
         inputs.impurity_potential = imp_pot
+        
+    if kkrimp_remote is not None:
+        inputs.parent_calc_folder = kkrimp_remote
 
     return inputs
 

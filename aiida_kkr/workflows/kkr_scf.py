@@ -22,7 +22,7 @@ from numpy import array, where, ones
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6"
+__version__ = "0.8"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -176,6 +176,38 @@ class kkr_scf_wc(WorkChain):
             # finalize calculation and create output nodes
             cls.return_results
         )
+
+        # definition of exit codes if the workflow needs to be terminated
+        spec.exit_code(221, 'ERROR_NO_PARENT_PARAMS_FOUND',
+          message='Unable to extract parent paremeter node of input remote folder')
+        spec.exit_code(222, 'ERROR_INVALID_KKR_CODE',
+          message='The code you provided for kkr does not use the plugin kkr.kkr')
+        spec.exit_code(223, 'ERROR_INVALID_VORONOI_CODE',
+          message='The code you provided for voronoi does not use the plugin kkr.voro')
+        spec.exit_code(224, 'ERROR_NO_VORONOI_CODE_GIVEN',
+          message='ERROR: StructureData was provided, but no voronoi code was provided')
+        spec.exit_code(225, 'ERROR_NOT_ENOUGH_INPUTS',
+          message='ERROR: No StructureData nor remote_data was provided as Input')
+        spec.exit_code(226, 'ERROR_KKR_STARTPOT_FAILED',
+          message='ERROR: kkr_startpot_wc step failed!')
+        spec.exit_code(227, 'ERROR_DOS_RUN_UNSUCCESFUL',
+          message='DOS run unsuccessful. Check inputs.')
+        spec.exit_code(228, 'ERROR_CALC_PARAMETERS_INCOMPLETE',
+          message='ERROR: calc_parameters given are not consistent! Missing mandatory keys')
+        spec.exit_code(229, 'ERROR_CALC_PARAMTERS_INCONSISTENT',
+          message='ERROR: calc_parameters given are not consistent! Hint: did you give an unknown keyword?')
+        spec.exit_code(230, 'ERROR_NO_CALC_PARAMETERS_GIVEN',
+          message='ERROR: calc_parameters not given as input but are needed!')
+        spec.exit_code(231, 'ERROR_PARAM_UPDATE_FAILED',
+          message='ERROR: parameter update unsuccessful: some key, value pair not valid!')
+        spec.exit_code(232, 'ERROR_CALC_PARAMTERS_INCOMPLETE',
+          message='ERROR: calc_parameters misses keys')
+        spec.exit_code(233, 'ERROR_LAST_REMOTE_NOT_FOUND',
+          message='ERROR: last_remote could not be set to a previous succesful calculation')
+        spec.exit_code(234, 'ERROR_MAX_KKR_RESTARTS_REACHED',
+          message='ERROR: maximal number of KKR restarts reached. Exiting now!')
+        spec.exit_code(235, 'ERROR_CALC_SUBMISSION_FAILED',
+          message='ERROR: last KKRcalc in SUBMISSIONFAILED state')
 
 
     def start(self):
@@ -331,32 +363,24 @@ class kkr_scf_wc(WorkChain):
         if 'structure' in inputs:
             self.report('INFO: Found structure in input. Start with Voronoi calculation.')
             if not 'voronoi' in inputs:
-                error = 'ERROR: StructureData was provided, but no voronoi code was provided'
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+                return self.exit_codes.ERROR_NO_VORONOI_CODE_GIVEN
         elif 'remote_data' in inputs:
             self.report('INFO: Found remote_data in input. Continue calculation without running voronoi step.')
             run_voronoi = False
         else:
-            error = 'ERROR: No StructureData nor remote_data was provided as Input'
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
+            return self.exit_codes.ERROR_NOT_ENOUGH_INPUTS
 
         if 'voronoi' in inputs:
             try:
                 test_and_get_codenode(inputs.voronoi, 'kkr.voro', use_exceptions=True)
             except ValueError:
-                error = ("The code you provided for voronoi does not "
-                         "use the plugin kkr.voro")
-                self.control_end_wc(error)
+                return self.exit_codes.ERROR_INVALID_VORONOI_CODE
 
         if 'kkr' in inputs:
             try:
                 test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
-                error = ("The code you provided for kkr does not "
-                         "use the plugin kkr.kkr")
-                self.control_end_wc(error)
+                return self.exit_codes.ERROR_INVALID_KKR_CODE
 
         # set params and remote folder to input if voronoi step is skipped
         if not run_voronoi:
@@ -373,8 +397,7 @@ class kkr_scf_wc(WorkChain):
                 try: # next try to extract parameter from previous kkr_scf_wc output
                     parent_params = inputs.remote_data.inp.last_RemoteData.inp.calc_parameters
                 except AttributeError:
-                    error = ("Unable to extract parent paremeter node of input remote folder")
-                    self.control_end_wc(error)
+                    return self.exit_codes.ERROR_NO_PARENT_PARAMS_FOUND
             if  'calc_parameters' in inputs:
                 self.ctx.last_params = inputs.calc_parameters
                 # TODO: check last_params consistency against parent_params
@@ -501,9 +524,7 @@ class kkr_scf_wc(WorkChain):
 
         # abort calculation if something failed in voro_start step
         if not voro_step_ok:
-            error = 'ERROR: kkr_startpot_wc step failed!'
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
+            return self.exit_codes.ERROR_KKR_STARTPOT_FAILED
 
         self.report("INFO: done checking voronoi output")
 
@@ -523,6 +544,7 @@ class kkr_scf_wc(WorkChain):
         if not self.ctx.voro_step_success:
             stopreason = 'voronoi step unsucessful'
             do_kkr_step = False
+            return do_kkr_step
 
         # check if previous calculation reached convergence criterion
         if self.ctx.kkr_converged:
@@ -536,9 +558,10 @@ class kkr_scf_wc(WorkChain):
             
         # check if previous calculation is in SUBMISSIONFAILED state
         if self.ctx.loop_count>1 and self.ctx.last_calc.get_state() == calc_states.SUBMISSIONFAILED:
-            error = 'ERROR: last KKRcalc (pk={}) in SUBMISSIONFAILED state!\nstopping now'.format(self.ctx.last_calc.pk)
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
+            self.report('ERROR: last KKRcalc (pk={}) in SUBMISSIONFAILED state!\nstopping now'.format(self.ctx.last_calc.pk))
+            do_kkr_step = False
+            #return self.exit_codes.ERROR_CALC_SUBMISSION_FAILED
+            return do_kkr_step
 
         # next check only needed if another iteration should be done after validating convergence etc. (previous checks)
         if do_kkr_step:
@@ -546,9 +569,10 @@ class kkr_scf_wc(WorkChain):
             if self.ctx.loop_count <= self.ctx.max_number_runs:
                 do_kkr_step = do_kkr_step & True
             else:
-                error = 'ERROR: maximal number of KKR restarts reached. Exiting now!'
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+                do_kkr_step = False
+                # TODO do this differently, return of exit code needs to be done outside of while loop!
+                #return self.exit_codes.ERROR_MAX_KKR_RESTARTS_REACHED
+                return do_kkr_step
 
         self.report("INFO: done checking condition for kkr step (result={})".format(do_kkr_step))
 
@@ -599,10 +623,7 @@ class kkr_scf_wc(WorkChain):
                 # check if last_remote has finally been set and abort if this is not the case
                 self.report("INFO: last_remote is still None? {}".format(self.ctx.last_remote is None))
                 if self.ctx.last_remote is None:
-                    error = 'ERROR: last_remote could not be set to a previous succesful calculation'
-                    self.ctx.errors.append(error)
-                    self.control_end_wc(error)
-
+                    return self.exit_codes.ERROR_LAST_REMOTE_NOT_FOUND
 
             # check if mixing strategy should be changed
             last_mixing_scheme = self.ctx.last_params.get_dict()['IMIX']
@@ -656,9 +677,8 @@ class kkr_scf_wc(WorkChain):
                         new_params[key_default] = kkrdefaults.get(key_default)
                         kkrdefaults_updated.append(key_default)
                 if len(kkrdefaults_updated)>0:
-                    error = 'ERROR: calc_parameters misses keys: {}'.format(missing_list)
-                    self.ctx.errors.append(error)
-                    self.control_end_wc(error)
+                    self.report('ERROR: calc_parameters misses keys: {}'.format(missing_list))
+                    return self.exit_codes.ERROR_CALC_PARAMTERS_INCOMPLETE
                 else:
                     self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
 
@@ -738,10 +758,11 @@ class kkr_scf_wc(WorkChain):
                     self.ctx.hfield = self._wf_default['hfield']
                 xinipol = self.ctx.xinit
                 if xinipol is None:
+                    # find structure to determine needed length on xinipol
                     if 'structure' in self.inputs:
                         struc = self.inputs.structure
                     else:
-                        struc, voro_parent = KkrCalculation.find_parent_structure(self.ctx.last_remote)
+                        struc, voro_parent = VoronoiCalculation.find_parent_structure(self.ctx.last_remote)
                     natom = len(struc.sites)
                     xinipol = ones(natom)
                 new_params['LINIPOL'] = True
@@ -752,7 +773,7 @@ class kkr_scf_wc(WorkChain):
                 new_params['HFIELD'] = 0.0
             elif not self.ctx.mag_init:
                 self.report("INFO: mag_init is False. Overwrite 'HFIELD' to '0.0' and 'LINIPOL' to 'False'.")
-                # reset mag init to avoid resinitializing
+                # reset mag init to avoid reinitializing
                 new_params['HFIELD'] = 0.0
                 new_params['LINIPOL'] = False
                 
@@ -770,9 +791,7 @@ class kkr_scf_wc(WorkChain):
                 for key, val in new_params.iteritems():
                     para_check.set_value(key, val, silent=True)
             except:
-                error = 'ERROR: parameter update unsuccessful: some key, value pair not valid!'
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+                return self.exit_codes.ERROR_PARAM_UPDATE_FAILED
 
             # step 3:
             self.report("INFO: update parameters to: {}".format(para_check.get_set_values()))
@@ -952,10 +971,10 @@ class kkr_scf_wc(WorkChain):
             last_rms = self.ctx.last_rms_all[-1]
             last_neutr = abs(self.ctx.last_neutr_all[-1])
             # use this trick to avoid division by zero
-            if last_neutr == 0:
-                last_neutr = 10**-16
-            if last_rms == 0:
-                last_rms = 10**-16
+            if first_neutr == 0:
+                first_neutr = 10**-16
+            if first_rms == 0:
+                first_rms = 10**-16
             r, n = last_rms/first_rms, last_neutr/first_neutr
             self.report("INFO convergence check: first/last rms {}, {}; first/last neutrality {}, {}".format(first_rms, last_rms, first_neutr, last_neutr))
             if r < 1 and n < 1:
@@ -1181,27 +1200,12 @@ class kkr_scf_wc(WorkChain):
         self.report("\nINFO: done with kkr_scf workflow!\n")
 
 
-    def control_end_wc(self, errormsg):
-        """
-        Controled way to shutdown the workchain. will initalize the output nodes
-        """
-        self.report('ERROR: shutting workchain down in a controlled way.\n')
-        self.ctx.successful = False
-        self.ctx.abort = True
-        self.report(errormsg) # because return_results still fails somewhen
-        self.return_results()
-        #self.abort_nowait(errormsg)
-        #self.abort(errormsg)
-
-
     def check_input_params(self, params, is_voronoi=False):
         """
         Checks input parameter consistency and aborts wf if check fails.
         """
         if params is None:
-            error = 'ERROR: calc_parameters not given as input but are needed!'
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
+            return self.exit_codes.ERROR_NO_CALC_PARAMETERS_GIVEN
         else:
             input_dict = params.get_dict()
             if is_voronoi:
@@ -1214,9 +1218,7 @@ class kkr_scf_wc(WorkChain):
                 for key, val in input_dict.iteritems():
                     para_check.set_value(key, val, silent=True)
             except:
-                error = 'ERROR: calc_parameters given are not consistent! Hint: did you give an unknown keyword?'
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+                return self.exit_codes.ERROR_CALC_PARAMTERS_INCONSISTENT
 
             # step 2: check if all mandatory keys are there
             missing_list = para_check.get_missing_keys(use_aiida=True)
@@ -1226,9 +1228,8 @@ class kkr_scf_wc(WorkChain):
                     if key not in kkrparams.get_KKRcalc_parameter_defaults()[0]:
                         all_defaults = False
                 if not all_defaults:
-                    error = 'ERROR: calc_parameters given are not consistent! Missing mandatory keys: {}'.format(missing_list)
-                    self.ctx.errors.append(error)
-                    self.control_end_wc(error)
+                    self.report('ERROR: calc_parameters given are not consistent! Missing mandatory keys: {}'.format(missing_list))
+                    return self.exit_codes.ERROR_CALC_PARAMETERS_INCOMPLETE
 
 
     def get_dos(self):
@@ -1293,21 +1294,15 @@ class kkr_scf_wc(WorkChain):
             if not dos_outdict['successful']:
                 self.report("ERROR: DOS workflow unsuccessful")
                 self.ctx.dos_ok = False
-                error = "DOS run unsuccessful. Check inputs."
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+                return self.exit_codes.ERROR_DOS_RUN_UNSUCCESFUL
 
             if dos_outdict['list_of_errors'] != []:
                 self.report("ERROR: DOS wf output contains errors: {}".format(dos_outdict['list_of_errors']))
                 self.ctx.dos_ok = False
-                error = "DOS run unsuccessful. Check inputs."
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+                return self.exit_codes.ERROR_DOS_RUN_UNSUCCESFUL
         except AttributeError:
             self.ctx.dos_ok = False
-            error = "DOS run unsuccessful. Check inputs."
-            self.ctx.errors.append(error)
-            self.control_end_wc(error)
+            return self.exit_codes.ERROR_DOS_RUN_UNSUCCESFUL
 
         # check for negative DOS
         try:
@@ -1321,9 +1316,7 @@ class kkr_scf_wc(WorkChain):
             if len(ener) != nspin*natom:
                 self.report("ERROR: DOS output shape does not fit nspin, natom information: len(energies)={}, natom={}, nspin={}".format(len(ener), natom, nspin))
                 self.ctx.doscheck_ok = False
-                error = "DOS run inconsistent. Check inputs."
-                self.ctx.errors.append(error)
-                self.control_end_wc(error)
+                return self.exit_codes.ERROR_DOS_RUN_UNSUCCESFUL
 
             # deal with snpin==1 or 2 cases and check negtive DOS
             for iatom in range(natom/nspin):

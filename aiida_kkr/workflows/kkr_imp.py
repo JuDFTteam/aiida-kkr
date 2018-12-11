@@ -6,6 +6,7 @@ and some helper methods to do so with AiiDA
 
 from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, ToContext, if_
+from aiida.work.workfunctions import workfunction as wf
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, neworder_potential_wf
@@ -126,7 +127,7 @@ class kkr_imp_wc(WorkChain):
         spec.input("vorocode", valid_type=Code, required=True) 
         spec.input("kkrimpcode", valid_type=Code, required=True)
         spec.input("impurity_info", valid_type=ParameterData, required=True)
-        spec.input("kkrcode", valid_type=Code, required=False)
+        spec.input("kkrcode", valid_type=Code, required=True)
         spec.input("remote_converged_host", valid_type=RemoteData, required=False)
         spec.input("gf_remote", valid_type=RemoteData, required=False)
         spec.input("options_parameters", valid_type=ParameterData, required=False)
@@ -499,20 +500,30 @@ class kkr_imp_wc(WorkChain):
         
         self.report('INFO: creating output nodes for the KKR impurity workflow ...')
         
-        outputnode_dict = {}
-        outputnode_dict['workflow_name'] = self.__class__.__name__
-        outputnode_dict['workflow_version'] = self._workflowversion
         last_calc_pk = self.ctx.kkrimp_scf_sub.out.calculation_info.get_attr('last_calc_nodeinfo')['pk']
         last_calc_output_params = load_node(last_calc_pk).out.output_parameters
         last_calc_info = self.ctx.kkrimp_scf_sub.out.calculation_info
+        res_voro_info = self.ctx.last_voro_calc.out.results_vorostart_wc
+        outputnode_dict = {}
+        outputnode_dict['workflow_name'] = self.__class__.__name__
+        outputnode_dict['workflow_version'] = self._workflowversion
         if self.ctx.do_gf_calc:
             outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk, 'auxiliary_voronoi': self.ctx.last_voro_calc.pk,
                                                     'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}  
+            outputnode_dict['gf_wc_success'] = self.ctx.gf_writeout.out.calculation_info.get_attr('successful')
         else:
-            outputnode_dict['used_subworkflows'] = {'auxiliary_voronoi': self.ctx.last_voro_calc.pk, 'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}                 
+            outputnode_dict['used_subworkflows'] = {'auxiliary_voronoi': self.ctx.last_voro_calc.pk, 'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}  
+        outputnode_dict['converged'] = last_calc_info.get_attr('convergence_reached')
+        outputnode_dict['number_of_rms_steps'] = len(last_calc_info.get_attr('convergence_values_all_steps'))
+        outputnode_dict['convergence_values_all_steps'] = last_calc_info.get_attr('convergence_values_all_steps')
+        outputnode_dict['impurity_info'] = self.inputs.impurity_info.get_attrs()
+        outputnode_dict['voro_wc_success'] = res_voro_info.get_attr('successful')
+        outputnode_dict['kkrimp_wc_success'] = last_calc_info.get_attr('successful')    
+        outputnode_dict['last_calculation_pk'] = last_calc_pk
         outputnode_t = ParameterData(dict=outputnode_dict)
         outputnode_t.label = 'kkrimp_wc_inform'
         outputnode_t.description = 'Contains information for workflow'
+        self.report('INFO: workflow_info node: {}'.format(outputnode_t.get_attrs()))
 
         self.out('workflow_info', outputnode_t)
         self.out('last_calc_output_parameters', last_calc_output_params)
@@ -525,7 +536,7 @@ class kkr_imp_wc(WorkChain):
                     '|------------------------------------------------------------------------------------------------------------------|')
             
         
-        
+@wf     
 def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at center only!
     from aiida.common.constants import elements as PeriodicTableElements
     _atomic_numbers = {data['symbol']: num for num, data in PeriodicTableElements.iteritems()}
