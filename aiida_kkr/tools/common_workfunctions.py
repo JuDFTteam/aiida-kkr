@@ -103,7 +103,14 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
         return node
     else:
         for key in kwargs:
-            if kwargs[key] != inp_params[key]:
+            # check if value of 'key' should be set (either because it differs from old para node or because it was not set at all)
+            update_value = False
+            if key in inp_params.keys():
+                if kwargs[key] != inp_params[key]:
+                    update_value = True
+            else:
+                update_value = True
+            if update_value:
                 params.set_value(key, kwargs[key], silent=True)
                 changed_params[key] = kwargs[key]
                 
