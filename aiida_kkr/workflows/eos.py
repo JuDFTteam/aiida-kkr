@@ -143,18 +143,18 @@ class kkr_eos_wc(WorkChain):
             return self.exit_codes.ERROR_INVALID_INPUT
 
         # add label and description if not given (contains structure name)
-        if self.label is None:
-            self.label = self._wf_label.format(self.ctx.structure.get_formula())
-        if self.description is None:
-            self.description = self._wf_description.format(self.ctx.structure.get_formula())
+        #if self.label is None:
+        self.ctx.label = self._wf_label.format(self.ctx.structure.get_formula())
+        #if self.description is None:
+        self.ctx.description = self._wf_description.format(self.ctx.structure.get_formula())
         if self.ctx.wf_parameters['settings_kkr_startpot'].get('_label', None) is None:
-            self.ctx.wf_parameters['settings_kkr_startpot']['_label'] = self.label+'_kkr_startpot_{}'.format(self.ctx.structure.get_formula())
+            self.ctx.wf_parameters['settings_kkr_startpot']['_label'] = self.ctx.label+'_kkr_startpot_{}'.format(self.ctx.structure.get_formula())
         if self.ctx.wf_parameters['settings_kkr_startpot'].get('_description', None) is None:
-            self.ctx.wf_parameters['settings_kkr_startpot']['_description'] = self.description+' kkr_startpot step for {}'.format(self.ctx.structure.get_formula())
+            self.ctx.wf_parameters['settings_kkr_startpot']['_description'] = self.ctx.description+' kkr_startpot step for {}'.format(self.ctx.structure.get_formula())
         if self.ctx.wf_parameters['settings_kkr_scf'].get('label', None) is None:
-            self.ctx.wf_parameters['settings_kkr_scf']['label'] = self.label+'_kkr_scf_{}'.format(self.ctx.structure.get_formula())
+            self.ctx.wf_parameters['settings_kkr_scf']['label'] = self.ctx.label+'_kkr_scf_{}'.format(self.ctx.structure.get_formula())
         if self.ctx.wf_parameters['settings_kkr_scf'].get('description', None) is None:
-            self.ctx.wf_parameters['settings_kkr_scf']['description'] = self.description+' kkr_scf step for {}'.format(self.ctx.structure.get_formula())
+            self.ctx.wf_parameters['settings_kkr_scf']['description'] = self.ctx.description+' kkr_scf step for {}'.format(self.ctx.structure.get_formula())
 
         # initialize some other things used to collect results etc.
         self.ctx.successful = True
@@ -390,6 +390,8 @@ class kkr_eos_wc(WorkChain):
         outdict['parameter_fits'] = self.ctx.fitdata
         outdict['fits_mean'] = self.ctx.fit_mean_values
         outdict['fits_std'] = self.ctx.fit_std_values
+        outdict['formula'] = self.ctx.structure.get_formula()
+        outdict['label'] = self.ctx.label
         if self.ctx.return_gs_struc:
             # final result: scaling factor for equilibium 
             v0, e0, B = self.ctx.fitdata.get(self.ctx.fitfunc_gs_out)
