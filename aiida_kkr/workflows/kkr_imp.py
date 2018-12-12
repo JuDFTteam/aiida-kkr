@@ -439,7 +439,10 @@ class kkr_imp_wc(WorkChain):
             replacelist_pot2 = [[0,0]]
         else:
             replacelist_pot2 = [[0,0],[1,1]]
-        neworder_pot1 = [int(i) for i in np.loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]    
+        try:
+            neworder_pot1 = [int(i) for i in np.loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1] 
+        except:
+            neworder_pot1 = [int(np.loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[3]-1)]
         
         settings_label = 'startpot_KKRimp for imp_info node {}'.format(imp_info.pk)
         settings_description = 'starting potential for impurity info: {}'.format(imp_info)
