@@ -273,14 +273,20 @@ class plot_kkr():
 
             
         if only is None:
-            if label not in kwargs.keys(): label='rms'
+            if 'label' not in kwargs.keys():
+                label='rms'
+            else:
+                label=kwargs.pop('label')
             plot(rms, '-xb', label=label)
             ax1 = gca()
             ylabel('rms', color='b')
             xlabel('iteration')
             twinx()
             if logscale: neutr = abs(array(neutr))
-            if label not in kwargs.keys(): label='charge neutrality'
+            if 'label' not in kwargs.keys():
+                label='charge neutrality'
+            else:
+                label=kwargs.pop('label')
             plot(neutr,'-or', label=label)
             ax2 = gca()
             ylabel('charge neutrality', color='r')
@@ -568,7 +574,10 @@ class plot_kkr():
         if 'logscale' in kwargs.keys(): logscale = kwargs.pop('logscale')
         only = None
         if 'only' in kwargs.keys(): only = kwargs.pop('only')
-        if 'label' in kwargs.keys(): label = kwargs.pop('label')
+        if 'label' in kwargs.keys():
+            label = kwargs.pop('label')
+        else:
+            label = None
     
         # extract rms from calculations and plot
     
@@ -584,7 +593,7 @@ class plot_kkr():
     def plot_kkr_eos(self, node, **kwargs):
         """TODO docstring"""
         from numpy import sort
-        from matplotlib.pyplot import figure, subplot, title, xlabel
+        from matplotlib.pyplot import figure, subplot, title, xlabel, legend
         from aiida_kkr.workflows.voro_start import kkr_startpot_wc
         
         strucplot = True
@@ -596,11 +605,14 @@ class plot_kkr():
     
         outdict = node.get_outputs_dict()
         fig_open = False
+        plotted_kkr_scf = False
+        plotted_kkr_start = False
         for key in sort(outdict.keys()):
             tmp = outdict[key]
             try:
                 if tmp.process_label == u'kkr_startpot_wc':
                     self.plot_kkr_single_node(tmp, silent=True, noshow=True, strucplot=False) # startpot workflow
+                    plotted_kkr_start = True
             except:
                 # do nothing if node in outputs is not startpot workflow
                 pass
@@ -609,15 +621,22 @@ class plot_kkr():
                     if not fig_open:
                         figure()
                         fig_open = True
+                    if 'label' in kwargs.keys(): label=kwargs.pop('label')
                     subplot(2,1,1)
-                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='rms', noshow=True, **kwargs) # scf workflow, rms only
+                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='rms', noshow=True, label=tmp.pk, **kwargs) # scf workflow, rms only
                     xlabel('') # remove overlapping x label in upper plot
+                    legend()
                     subplot(2,1,2)
-                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, **kwargs) # scf workflow for charge neutrality only 
+                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, label=tmp.pk, **kwargs) # scf workflow for charge neutrality only 
                     title('')# remove duplicated plot title of lower plot
+                    legend()
+                    plotted_kkr_scf = True
             except:
                 # do nothing if node in outputs is not scf workflow
                 pass
+
+        if not (plotted_kkr_scf or plotted_kkr_start):
+            print 'found no startpot or kkrstart data to plot'
 
 
 # some tests
