@@ -5,26 +5,70 @@ class plot_kkr():
 
     def __init__(self, nodes, **kwargs):
         if type(nodes)==list:
+            from matplotlib.pyplot import show
+        
+            # load database if not done already
+            from aiida import load_dbenv, is_dbenv_loaded
+            if not is_dbenv_loaded():
+                load_dbenv()
+
             node_groups = self.group_nodes(nodes)
             for groupname in node_groups.keys():
-                self.plot_group(node_group[groupname], **kwargs)
+                print '\n=================================================================='
+                print 'Group of nodes: {}\n'.format(groupname)
+                # some settings for groups
+                if 'noshow' in kwargs.keys(): noshow = kwargs.pop('noshow') # this is now removed from kwargs
+                noshow = True # always overwrite noshow settings
+                if 'only' in kwargs.keys(): only = kwargs.pop('only') # this is now removed from kwargs
+
+                # now plot groups one after the other
+                self.plot_group(groupname, node_groups, noshow=noshow, nofig=True, **kwargs)
+
+            # finally show all plots
+            show()
         else:
             self.plot_kkr_single_node(nodes, **kwargs)
 
     ### main wrapper functions ###
+    def group_nodes(self, nodes):
+        """ TODO docstring"""
+        groups_dict = {}
+
+        for node in nodes:
+            node = self.get_node(node)
+            nodeclass = self.classify_and_plot_node(node, return_name_only=True)
+            if nodeclass not in groups_dict.keys():
+                groups_dict[nodeclass] = []
+            groups_dict[nodeclass].append(node)
+
+        return groups_dict
+
+    def plot_group(self, groupname, nodesgroups, **kwargs):
+        """ TODO docstring"""
+        from matplotlib.pyplot import figure, subplot, title, xlabel, legend
+        nodeslist = nodesgroups[groupname]
+        # take out label from kwargs since it is overwritten
+        if 'label' in kwargs.keys(): label = kwargs.pop('label')
+        # open a single new figure for each plot here
+        if groupname in ['kkr', 'scf']: figure()
+        for node in nodeslist:
+            # open new figure for each plot in these groups
+            if groupname in ['eos', 'dos', 'startpot', 'voro']: figure()
+            if groupname in ['kkr', 'scf']:
+                subplot(2,1,1)
+                self.plot_kkr_single_node(node, only='rms', label=node.pk, **kwargs)
+                xlabel('') # remove overlapping x label in upper plot
+                legend()
+                subplot(2,1,2)
+                self.plot_kkr_single_node(node, only='neutr', label=node.pk, **kwargs)
+                title('')# remove duplicated plot title of lower plot
+                legend()
+            else:
+                self.plot_kkr_single_node(node, **kwargs)
+            print '\n------------------------------------------------------------------\n'
 
     def plot_kkr_single_node(self, node, **kwargs):
         """ TODO docstring"""
-        
-        # load database if not done already
-        from aiida import load_dbenv, is_dbenv_loaded
-        if not is_dbenv_loaded():
-            load_dbenv()
-            
-        # import things
-        from pprint import pprint
-        from aiida.orm.node import Node
-        from aiida.orm import load_node, DataFactory, WorkCalculation, Calculation
         
         # determine if some output is printed to stdout
         silent = False
@@ -34,6 +78,73 @@ class plot_kkr():
         if 'noshow' in kwargs.keys():
             noshow = kwargs.pop('noshow') # this is now removed from kwargs
             
+        node = self.get_node(node)
+    
+        # print input and output nodes
+        if not silent: self.print_clean_inouts(node)
+        
+        # classify node and call plotting function
+        self.classify_and_plot_node(node, **kwargs)
+    
+        if not noshow:
+            from matplotlib.pyplot import show
+            show()
+
+    def classify_and_plot_node(self, node, return_name_only=False, **kwargs):
+        """ ...  """
+        # import things
+        from pprint import pprint
+        from aiida.orm import DataFactory, WorkCalculation, Calculation
+        
+        # basic aiida nodes
+        if isinstance(node, DataFactory('structure')):
+            if return_name_only: return 'struc'
+            self.plot_struc(node)
+        elif isinstance(node, DataFactory('parameter')):
+            if return_name_only: return 'para'
+            print 'node dict:'
+            pprint(node.get_dict())
+        elif isinstance(node, DataFactory('remote')):
+            if return_name_only: return 'remote'
+            print 'computer name:', node.get_computer_name()
+            print 'remote path:', node.get_remote_path()
+        elif isinstance(node, DataFactory('folder')):
+            if return_name_only: return 'folder'
+            print 'abs path:'
+            pprint(node.get_abs_path())
+            print 'folder content:'
+            pprint(node.get_folder_list())
+        # workflows
+        elif node.process_label == u'kkr_dos_wc':
+            if return_name_only: return 'dos'
+            self.plot_kkr_dos(node, **kwargs)
+        elif node.process_label == u'kkr_startpot_wc':
+            if return_name_only: return 'startpot'
+            self.plot_kkr_startpot(node, **kwargs)
+        elif node.process_label == u'kkr_scf_wc':
+            if return_name_only: return 'scf'
+            self.plot_kkr_scf(node, **kwargs)
+        elif node.process_label == u'kkr_eos_wc':
+            if return_name_only: return 'eos'
+            self.plot_kkr_eos(node, **kwargs)
+        # calculations
+        elif node.process_label == u'KkrCalculation':
+            if return_name_only: return 'kkr'
+            self.plot_kkr_calc(node, **kwargs)
+        elif node.process_label == u'VoronoiCalculation':
+            if return_name_only: return 'voro'
+            self.plot_voro_calc(node, **kwargs)
+        elif node.process_label == u'KkrimpCalculation':
+            if return_name_only: return 'kkrimp'
+            self.plot_kkrimp_calc(node, **kwargs)
+        else:
+            raise TypeError("input node neither a `Calculation` nor a `WorkCalculation` (i.e. workflow): {}".format(type(node)))
+    
+    ### helper functions (structure plot, rms plot, dos plot, data extraction ...) ###
+
+    def get_node(self, node):
+        from aiida.orm import load_node
+        from aiida.orm.node import Node
         # load node if pk or uuid is given
         if type(node)==int:
             node = load_node(node)
@@ -43,50 +154,7 @@ class plot_kkr():
             pass
         else:
             raise TypeError("input node should either be the nodes pk (int), it's uuid (str) or the node itself (aiida.orm.Node)")
-    
-        # print input and output nodes
-        if not silent: self.print_clean_inouts(node)
-        
-        # classify node and call plotting function
-        
-        # basic aiida nodes
-        if isinstance(node, DataFactory('structure')):
-            self.plot_struc(node)
-        elif isinstance(node, DataFactory('parameter')):
-            print 'node dict:'
-            pprint(node.get_dict())
-        elif isinstance(node, DataFactory('remote')):
-            print 'computer name:', node.get_computer_name()
-            print 'remote path:', node.get_remote_path()
-        elif isinstance(node, DataFactory('folder')):
-            print 'abs path:'
-            pprint(node.get_abs_path())
-            print 'folder content:'
-            pprint(node.get_folder_list())
-        # workflows
-        elif node.process_label == u'kkr_dos_wc':
-            self.plot_kkr_dos(node, **kwargs)
-        elif node.process_label == u'kkr_startpot_wc':
-            self.plot_kkr_startpot(node, **kwargs)
-        elif node.process_label == u'kkr_scf_wc':
-            self.plot_kkr_scf(node, **kwargs)
-        elif node.process_label == u'kkr_eos_wc':
-            self.plot_kkr_eos(node, **kwargs)
-        # calculations
-        elif node.process_label == u'KkrCalculation':
-            self.plot_kkr_calc(node, **kwargs)
-        elif node.process_label == u'VoronoiCalculation':
-            self.plot_voro_calc(node, **kwargs)
-        elif node.process_label == u'KkrimpCalculation':
-            self.plot_kkrimp_calc(node, **kwargs)
-        else:
-            raise TypeError("input node neither a `Calculation` nor a `WorkCalculation` (i.e. workflow): {}".format(type(node)))
-    
-        if not noshow:
-            from matplotlib.pyplot import show
-            show()
-    
-        ### helper functions (structure plot, rms plot, dos plot, data extraction ...) ###
+        return node
     
     def print_clean_inouts(self, node):
         from pprint import pprint
@@ -202,15 +270,18 @@ class plot_kkr():
         from matplotlib.pylab import figure, plot, twinx, xlabel, ylabel, legend, subplots_adjust, title, gca
         
         if not nofig: figure()
+
             
         if only is None:
-            plot(rms, '-xb', label='rms')
+            if label not in kwargs.keys(): label='rms'
+            plot(rms, '-xb', label=label)
             ax1 = gca()
             ylabel('rms', color='b')
             xlabel('iteration')
             twinx()
             if logscale: neutr = abs(array(neutr))
-            plot(neutr,'-or', label='charge neutrality')
+            if label not in kwargs.keys(): label='charge neutrality'
+            plot(neutr,'-or', label=label)
             ax2 = gca()
             ylabel('charge neutrality', color='r')
             if logscale:
@@ -237,7 +308,7 @@ class plot_kkr():
         title(ptitle)
         subplots_adjust(right=0.85)
     
-    def get_rms_kkrcalc(self, node):
+    def get_rms_kkrcalc(self, node, title=None):
         """TODO docstring"""
         from plumpy import ProcessState
         from masci_tools.io.common_functions import search_string
@@ -305,12 +376,12 @@ class plot_kkr():
                     efermi.append(tmpval)
         else:
             print 'no rms extracted'
-        
+
         return rms, neutr, etot, efermi, ptitle
     
     
     
-        ### calculations ###
+    ### calculations ###
     
     def plot_kkr_calc(self, node, **kwargs):
         """TODO docstring"""
@@ -322,14 +393,20 @@ class plot_kkr():
         if 'strucplot' in kwargs.keys(): strucplot = kwargs.pop('strucplot')
         logscale = True
         if 'logscale' in kwargs.keys(): logscale = kwargs.pop('logscale')
+        only = None
+        if 'only' in kwargs.keys(): only = kwargs.pop('only')
             
         # plot structure
         if strucplot:
-            plot_struc(node)
+            self.plot_struc(node)
             
+        if 'label' in kwargs.keys(): 
+            label = kwargs.pop('label')
+        else:
+            label = None
         rms, neutr, etot, efermi, ptitle = self.get_rms_kkrcalc(node)
     
-        self.rmsplot(rms, neutr, nofig, ptitle, logscale)
+        self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
     
     
     def plot_voro_calc(self, node, **kwargs):
@@ -351,7 +428,7 @@ class plot_kkr():
         pass
     
     
-        ### workflows ###
+    ### workflows ###
     
     
     def plot_kkr_dos(self, node, **kwargs):
@@ -491,11 +568,12 @@ class plot_kkr():
         if 'logscale' in kwargs.keys(): logscale = kwargs.pop('logscale')
         only = None
         if 'only' in kwargs.keys(): only = kwargs.pop('only')
+        if 'label' in kwargs.keys(): label = kwargs.pop('label')
     
         # extract rms from calculations and plot
     
         if len(rms)>0:
-            self.rmsplot(rms, neutr, nofig, ptitle, logscale, only)
+            self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
             tmpsum = 0
             if len(niter_calcs)>1:
                 for i in niter_calcs:
@@ -554,3 +632,7 @@ class plot_kkr():
 #plot_kkr(31819, silent=False, marker='o', interpol=False, strucplot=False) # dos workflow
 #plot_kkr(34157, strucplot=False) # kkr_scf
 #plot_kkr(31494, silent=False) # eos  workflow
+
+#plot_kkr([31517,31517,31815,31521,29116,34157,34157,31817, 31817], silent=True) # parameter
+#plot_kkr([32958, 32958], silet=True, strucplot=False)
+#plot_kkr([34157,34157], silet=True, strucplot=False)
