@@ -56,11 +56,11 @@ class plot_kkr():
             if groupname in ['eos', 'dos', 'startpot', 'voro']: figure()
             if groupname in ['kkr', 'scf']:
                 subplot(2,1,1)
-                self.plot_kkr_single_node(node, only='rms', label=node.pk, **kwargs)
+                self.plot_kkr_single_node(node, only='rms', label='pk= {}'.format(node.pk), **kwargs)
                 xlabel('') # remove overlapping x label in upper plot
                 legend()
                 subplot(2,1,2)
-                self.plot_kkr_single_node(node, only='neutr', label=node.pk, **kwargs)
+                self.plot_kkr_single_node(node, only='neutr', label='pk= {}'.format(node.pk), **kwargs)
                 title('')# remove duplicated plot title of lower plot
                 legend()
             else:
@@ -623,11 +623,11 @@ class plot_kkr():
                         fig_open = True
                     if 'label' in kwargs.keys(): label=kwargs.pop('label')
                     subplot(2,1,1)
-                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='rms', noshow=True, label=tmp.pk, **kwargs) # scf workflow, rms only
+                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='rms', noshow=True, label='pk= {}'.format(tmp.pk), **kwargs) # scf workflow, rms only
                     xlabel('') # remove overlapping x label in upper plot
                     legend()
                     subplot(2,1,2)
-                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, label=tmp.pk, **kwargs) # scf workflow for charge neutrality only 
+                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, label='pk= {}'.format(tmp.pk), **kwargs) # scf workflow for charge neutrality only 
                     title('')# remove duplicated plot title of lower plot
                     legend()
                     plotted_kkr_scf = True
