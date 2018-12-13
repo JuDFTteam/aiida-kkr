@@ -524,6 +524,7 @@ class plot_kkr():
                 if tmp.process_label == u'kkr_startpot_wc':
                     self.plot_kkr_single_node(tmp, silent=True, noshow=True, strucplot=False) # startpot workflow
             except:
+                # do nothing if node in outputs is not startpot workflow
                 pass
             try:
                 if tmp.process_label == u'kkr_scf_wc':
@@ -531,12 +532,13 @@ class plot_kkr():
                         figure()
                         fig_open = True
                     subplot(2,1,1)
-                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='rms', noshow=True, **kwargs) # startpot workflow
-                    xlabel('')
+                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='rms', noshow=True, **kwargs) # scf workflow, rms only
+                    xlabel('') # remove overlapping x label in upper plot
                     subplot(2,1,2)
-                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, **kwargs) # startpot workflow   
-                    title('') 
+                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, **kwargs) # scf workflow for charge neutrality only 
+                    title('')# remove duplicated plot title of lower plot
             except:
+                # do nothing if node in outputs is not scf workflow
                 pass
 
 
