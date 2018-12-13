@@ -442,7 +442,7 @@ class plot_kkr():
         from aiida_kkr.calculations.voro import VoronoiCalculation
         
         # extract all options that should not be passed on to plot function
-        interpol, all_atoms, l_channels = False, False, True
+        interpol, all_atoms, l_channels = True, False, True
         if 'interpol' in kwargs.keys(): interpol = kwargs.pop('interpol')
         if 'all_atoms' in kwargs.keys(): all_atoms = kwargs.pop('all_atoms')
         if 'l_channels' in kwargs.keys(): l_channels = kwargs.pop('l_channels') 
@@ -496,7 +496,7 @@ class plot_kkr():
             d_int = None
             
         # extract all options that should not be passed on to plot function
-        interpol, all_atoms, l_channels = False, False, True
+        interpol, all_atoms, l_channels = True, False, True
         if 'interpol' in kwargs.keys(): interpol = kwargs.pop('interpol')
         if 'all_atoms' in kwargs.keys(): all_atoms = kwargs.pop('all_atoms')
         if 'l_channels' in kwargs.keys(): l_channels = kwargs.pop('l_channels') 
