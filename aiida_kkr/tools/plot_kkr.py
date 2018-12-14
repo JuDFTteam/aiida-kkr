@@ -1,7 +1,48 @@
+# -*- coding: utf-8 -*-
+"""
+contains plot_kkr class for node visualization
+"""
+
+__copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
+                 "IAS-1/PGI-1, Germany. All rights reserved.")
+__license__ = "MIT license, see LICENSE.txt file"
+__version__ = "0.2"
+__contributors__ = ("Philipp Rüßmann")
 
 
 class plot_kkr():
-    """ TODO docstring"""
+    """
+    Class grouping all functionality to plot typical nodes (calculations, workflows, ...) of the aiida-kkr plugin.
+
+    :param nodes: 
+
+    optional arguments:
+    
+    :param silent: : print information about input node including inputs and outputs (default: False)
+    :type silent: bool
+    :param strucplot: plot structure using ase’s view function (default: True)
+    :type strucplot: bool
+    :param interpol: use interpolated data for DOS plots (default: True)
+    :type interpol: bool
+    :param all_atoms: plot all atoms in DOS plots (default: False, i.e. plot total DOS only)
+    :type all_atoms: bool
+    :param l_channels: plot l-channels in addition to total DOS (default: True)
+    :type l_channels: bool
+    :param logscale: plot rms and charge neutrality curves on a log-scale (default: True)
+    :type locscale: bool
+
+    additional keyword arguments are passed onto the plotting function which allows, for example,
+    to change the markers used in a DOS plot to crosses via `marker='x'`
+
+    :usage:
+
+    plot_kkr(nodes, **kwargs)
+
+    where nodes is a node identifier (the node itself, it's pk or uuid).
+
+    :note:
+        If nodes is a list of nodes then the plots are grouped together if possible.
+    """
 
     def __init__(self, nodes, **kwargs):
         if type(nodes)==list:
@@ -31,7 +72,7 @@ class plot_kkr():
 
     ### main wrapper functions ###
     def group_nodes(self, nodes):
-        """ TODO docstring"""
+        """Go through list of nodes and group them together."""
         groups_dict = {}
 
         for node in nodes:
@@ -44,7 +85,7 @@ class plot_kkr():
         return groups_dict
 
     def plot_group(self, groupname, nodesgroups, **kwargs):
-        """ TODO docstring"""
+        """Visualize all nodes of one group."""
         from matplotlib.pyplot import figure, subplot, title, xlabel, legend
         nodeslist = nodesgroups[groupname]
         # take out label from kwargs since it is overwritten
@@ -91,7 +132,7 @@ class plot_kkr():
             show()
 
     def classify_and_plot_node(self, node, return_name_only=False, **kwargs):
-        """ ...  """
+        """Find class of the node and call plotting function."""
         # import things
         from pprint import pprint
         from aiida.orm import DataFactory, WorkCalculation, Calculation
@@ -143,6 +184,7 @@ class plot_kkr():
     ### helper functions (structure plot, rms plot, dos plot, data extraction ...) ###
 
     def get_node(self, node):
+        """Get node from pk or uuid"""
         from aiida.orm import load_node
         from aiida.orm.node import Node
         # load node if pk or uuid is given
@@ -157,6 +199,7 @@ class plot_kkr():
         return node
     
     def print_clean_inouts(self, node):
+        """print inputs and outputs of nodes without showing 'CALL' and 'CREATE' links in workflows."""
         from pprint import pprint
         # extract inputs and outputs
         inputs = node.get_inputs_dict()
@@ -201,7 +244,7 @@ class plot_kkr():
         view(ase_atoms, **kwargs)
     
     def dosplot(self, d, struc, nofig, all_atoms, l_channels, **kwargs):
-        """TOTO docstring"""
+        """plot dos from xydata node"""
         from numpy import array, sum
         from matplotlib.pyplot import plot, xlabel, ylabel, gca, figure, legend
         import matplotlib as mpl
@@ -265,7 +308,7 @@ class plot_kkr():
         legend()
     
     def rmsplot(self, rms, neutr, nofig, ptitle, logscale, only=None, **kwargs):
-        """TODO docstring"""
+        """plot rms and charge neutrality"""
         from numpy import array
         from matplotlib.pylab import figure, plot, twinx, xlabel, ylabel, legend, subplots_adjust, title, gca
         
@@ -315,7 +358,7 @@ class plot_kkr():
         subplots_adjust(right=0.85)
     
     def get_rms_kkrcalc(self, node, title=None):
-        """TODO docstring"""
+        """extract rms etc from kkr calculation. Works for both finished and still running calculations."""
         from plumpy import ProcessState
         from masci_tools.io.common_functions import search_string
         
@@ -390,7 +433,7 @@ class plot_kkr():
     ### calculations ###
     
     def plot_kkr_calc(self, node, **kwargs):
-        """TODO docstring"""
+        """plot things for a kkr calculation node"""
         
         # extract options from kwargs
         nofig = False
@@ -416,7 +459,7 @@ class plot_kkr():
     
     
     def plot_voro_calc(self, node, **kwargs):
-        """TODO docstring"""
+        """plot things for a voro calculation node"""
         
         strucplot = True
         if 'strucplot' in kwargs.keys(): strucplot = kwargs.pop('strucplot')
@@ -430,6 +473,7 @@ class plot_kkr():
     
     
     def plot_kkrimp_calc(self, node, **kwargs):
+        """plot things from a kkrimp calculation node"""
         print 'not implemented yet'
         pass
     
@@ -438,7 +482,7 @@ class plot_kkr():
     
     
     def plot_kkr_dos(self, node, **kwargs):
-        """TODO: docstring"""
+        """plot outputs of a kkr_dos_wc workflow"""
         from aiida_kkr.calculations.voro import VoronoiCalculation
         
         # extract all options that should not be passed on to plot function
@@ -465,7 +509,7 @@ class plot_kkr():
     
     
     def plot_kkr_startpot(self, node, **kwargs):
-        """TODO docstring"""
+        """plot output of kkr_startpot_wc workflow"""
         from aiida_kkr.calculations.voro import VoronoiCalculation
         from matplotlib.pyplot import axvline, legend, title
         from masci_tools.io.common_functions import get_Ry2eV
@@ -530,7 +574,7 @@ class plot_kkr():
     
     
     def plot_kkr_scf(self, node, **kwargs):
-        """TODO docstring"""
+        """plot outputs of a kkr_scf_wc workflow"""
         from aiida_kkr.calculations.kkr import KkrCalculation
         from numpy import sort
         from matplotlib.pyplot import axvline
@@ -591,7 +635,7 @@ class plot_kkr():
     
     
     def plot_kkr_eos(self, node, **kwargs):
-        """TODO docstring"""
+        """plot outputs of a kkr_eos workflow"""
         from numpy import sort
         from matplotlib.pyplot import figure, subplot, title, xlabel, legend
         from aiida_kkr.workflows.voro_start import kkr_startpot_wc
@@ -638,20 +682,3 @@ class plot_kkr():
         if not (plotted_kkr_scf or plotted_kkr_start):
             print 'found no startpot or kkrstart data to plot'
 
-
-# some tests
-
-#plot_kkr(29116) # structure
-#plot_kkr(31521, silent=True) # remote
-#plot_kkr(31815, silent=True) # folder
-#plot_kkr(31817, silent=True) # parameter
-#plot_kkr(31520, silent=False) # voro
-#plot_kkr(32958, silent=False, strucplot=False) # kkr, scf run
-#plot_kkr(31517, silent=True, strucplot=False) # startpot workflow
-#plot_kkr(31819, silent=False, marker='o', interpol=False, strucplot=False) # dos workflow
-#plot_kkr(34157, strucplot=False) # kkr_scf
-#plot_kkr(31494, silent=False) # eos  workflow
-
-#plot_kkr([31517,31517,31815,31521,29116,34157,34157,31817, 31817], silent=True) # parameter
-#plot_kkr([32958, 32958], silet=True, strucplot=False)
-#plot_kkr([34157,34157], silet=True, strucplot=False)
