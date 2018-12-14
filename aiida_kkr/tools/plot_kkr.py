@@ -14,11 +14,11 @@ class plot_kkr():
     """
     Class grouping all functionality to plot typical nodes (calculations, workflows, ...) of the aiida-kkr plugin.
 
-    :param nodes: 
+    :param nodes: node identifier which is to be visualized
 
     optional arguments:
     
-    :param silent: : print information about input node including inputs and outputs (default: False)
+    :param silent: print information about input node including inputs and outputs (default: False)
     :type silent: bool
     :param strucplot: plot structure using ase’s view function (default: True)
     :type strucplot: bool
@@ -34,11 +34,9 @@ class plot_kkr():
     additional keyword arguments are passed onto the plotting function which allows, for example,
     to change the markers used in a DOS plot to crosses via `marker='x'`
 
-    :usage:
+    :usage: plot_kkr(nodes, **kwargs)
 
-    plot_kkr(nodes, **kwargs)
-
-    where nodes is a node identifier (the node itself, it's pk or uuid).
+    where nodes is a node identifier (the node itself, it's pk or uuid) or a list of node identifiers.
 
     :note:
         If nodes is a list of nodes then the plots are grouped together if possible.
@@ -86,7 +84,7 @@ class plot_kkr():
 
     def plot_group(self, groupname, nodesgroups, **kwargs):
         """Visualize all nodes of one group."""
-        from matplotlib.pyplot import figure, subplot, title, xlabel, legend
+        from matplotlib.pyplot import figure, subplot, title, xlabel, legend, title
         nodeslist = nodesgroups[groupname]
         # take out label from kwargs since it is overwritten
         if 'label' in kwargs.keys(): label = kwargs.pop('label')
@@ -99,11 +97,12 @@ class plot_kkr():
                 subplot(2,1,1)
                 self.plot_kkr_single_node(node, only='rms', label='pk= {}'.format(node.pk), **kwargs)
                 xlabel('') # remove overlapping x label in upper plot
-                legend()
+                legend(fontsize='x-small')
+                title('')
                 subplot(2,1,2)
                 self.plot_kkr_single_node(node, only='neutr', label='pk= {}'.format(node.pk), **kwargs)
                 title('')# remove duplicated plot title of lower plot
-                legend()
+                legend(fontsize='x-small')
             else:
                 self.plot_kkr_single_node(node, **kwargs)
             print '\n------------------------------------------------------------------\n'
@@ -305,7 +304,7 @@ class plot_kkr():
                     plot(xplt, yplt, label=yladd, **kwargs)
                     xlabel(xlbl)
                     ylabel(ylbl)
-        legend()
+        legend(fontsize='x-small')
     
     def rmsplot(self, rms, neutr, nofig, ptitle, logscale, only=None, **kwargs):
         """plot rms and charge neutrality"""
@@ -568,7 +567,7 @@ class plot_kkr():
         axvline((ecore_max[0]-ef_Ry)*get_Ry2eV(), color='b', ls='--', label='ecore_max')
         if len(ecore_max)>1:
             [axvline((i-ef_Ry)*get_Ry2eV(), color='b', ls='--') for i in ecore_max[1:]]
-        legend(loc=3)
+        legend(loc=3, fontsize='x-small')
         
         title(struc.get_formula())
     
@@ -624,11 +623,10 @@ class plot_kkr():
             label = None
     
         # extract rms from calculations and plot
-    
         if len(rms)>0:
             self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
             tmpsum = 0
-            if len(niter_calcs)>1:
+            if not nofig and len(niter_calcs)>1:
                 for i in niter_calcs:
                     tmpsum+=i
                     axvline(tmpsum, color='k', ls=':')
@@ -667,13 +665,13 @@ class plot_kkr():
                         fig_open = True
                     if 'label' in kwargs.keys(): label=kwargs.pop('label')
                     subplot(2,1,1)
-                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='rms', noshow=True, label='pk= {}'.format(tmp.pk), **kwargs) # scf workflow, rms only
+                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='rms', noshow=True, label='pk={}'.format(tmp.pk), **kwargs) # scf workflow, rms only
                     xlabel('') # remove overlapping x label in upper plot
-                    legend()
+                    legend(loc=3, fontsize='x-small', ncol=2)
                     subplot(2,1,2)
-                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, label='pk= {}'.format(tmp.pk), **kwargs) # scf workflow for charge neutrality only 
+                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, label='pk={}'.format(tmp.pk), **kwargs) # scf workflow for charge neutrality only 
                     title('')# remove duplicated plot title of lower plot
-                    legend()
+                    legend(loc=3, fontsize='x-small', ncol=2)
                     plotted_kkr_scf = True
             except:
                 # do nothing if node in outputs is not scf workflow

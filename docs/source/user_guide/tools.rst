@@ -24,6 +24,7 @@ Usage example::
    plot_kkr([999999, 999998, 'xxxx-xxxxx', load_node(999999)])
 
 The behavior of ``plot_kkr`` can be controled using keyword arguments::
+
    plot_kkr(99999, strucplot=False) # do not call ase`s view function to visualize structure
    plot_kkr(99999, silent=True) # plots only (no printout of inputs/outputs to node)
 
@@ -43,90 +44,87 @@ Other keyword arguments are passed onto plotting functions, e.g. to modify line 
 Examples
 ^^^^^^^^
 
+Plot structure node
+"""""""""""""""""""
+
 .. figure:: ../images/plot_kkr_structure.png
-   :width: 400px
-   :align: left
+   :width: 200px
+   :align: center
    :figclass: align-center
    
-   Visualize a structure node (also happens as sub-parts of workflows that have a structure as input if ``strucplot`` is not set to ``False``).
+   Visualize a structure node (also happens as sub-parts of workflows that have a structure as input if ``strucplot`` is not set to ``False``). Shown is a screenshot of the ouput produced by ase's ``view``.
 
-   .. code-block:: python
 
-     plot_kkr(<-id-of-structure-node>)
-
+Plot output of a KKR calculation   
+""""""""""""""""""""""""""""""""
 
 .. figure:: ../images/plot_kkr_kkrcalc.png
-   :width: 400px
-   :align: left
-   :figclass: align-center
-   
-   Visualize the output of a ``Kkrcalculation``.
+    :width: 500px
+    :align: center
+    :figclass: align-center
+    
+    Visualize the output of a ``KkrCalculation``.
 
-   .. code-block:: python
 
-     plot_kkr(<-id-of-kkr_calc-node>)
-
+Plot output of ``kkr_dos_wc`` workflow
+""""""""""""""""""""""""""""""""""""""
 
 .. figure:: ../images/plot_kkr_dos.png
-   :width: 400px
-   :align: left
+   :width: 500px
+   :align: center
    :figclass: align-center
    
    Visualize the output of a ``kkr_dos_wc`` workflow.
 
-   .. code-block:: python
 
-     plot_kkr(<-id-of-kkr_dos_wc-node>)
-
+Plot output of ``kkr_startpot_wc`` workflow
+"""""""""""""""""""""""""""""""""""""""""""
 
 .. figure:: ../images/plot_kkr_startpot.png
-   :width: 400px
-   :align: left
+   :width: 500px
+   :align: center
    :figclass: align-center
    
-   Visualize the output of a ``kkr_startpot_wc`` workflow.
+   Visualize the output of a ``kkr_startpot_wc`` workflow. The starting DOS is shown and the vertical lines indicate the position of the highest core states, the start of the ernergy contour and the Fermi level.
 
-   .. code-block:: python
 
-     plot_kkr(<-id-of-kkr_startpot_wc-node>)
 
+Plot output of ``kkr_scf_wc`` workflow
+""""""""""""""""""""""""""""""""""""""
 
 .. figure:: ../images/plot_kkr_scf.png
-   :width: 400px
-   :align: left
+   :width: 500px
+   :align: center
    :figclass: align-center
    
-   Visualize the output of a ``kkr_scf_wc`` workflow.
+   Visualize the output of an unfinished ``kkr_scf_wc`` workflow. The vertical lines indicate where individual calculations have started and ended.
 
-   .. code-block:: python
 
-     plot_kkr(<-id-of-kkr_scf_wc-node>)
-
+Plot output of ``kkr_eos_wc`` workflow
+""""""""""""""""""""""""""""""""""""""
 
 .. figure:: ../images/plot_kkr_eos.png                                         
-      :width: 400px                                                               
-   :align: left
-   :figclass: align-center                                                     
+   :width: 800px
+   :align: center
+   :figclass: align-center
    
-   Visualize the output of a ``kkr_eos_wc`` workflow.                          
-
-   .. code-block:: python                                                      
-
-     plot_kkr(<-id-of-kkr_eos_wc-node>)  
+   Visualize the output of a ``kkr_eos_wc`` workflow.
 
 
-.. figure:: ../images/plot_kkr_multi_kkrscf.png                                         
-      :width: 400px                                                               
-   :align: left
-   :figclass: align-center                                                     
+Plot multiple KKR calculations at once in the same plot
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+.. code-block:: python
+
+   plot_kkr([34157,31962, 31974], silet=True, strucplot=False, logscale=False)
+
+
+.. figure:: ../images/plot_kkr_multi_kkrscf.png
+   :width: 500px                                                               
+   :align: center
+   :figclass: align-center
    
    Visualize the output of multiple ``kkr_scf_wc`` workflows without plotting structure.
-
-   .. code-block:: python                                                      
-
-     plot_kkr([<-id-of-kkr_scf_wc-node1>, <-id-of-kkr_scf_wc-node2>], strucplot=False, silent=True)
-
-
 
 
 
