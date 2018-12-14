@@ -43,13 +43,14 @@ class plot_kkr():
     """
 
     def __init__(self, nodes, **kwargs):
+        
+        # load database if not done already
+        from aiida import load_dbenv, is_dbenv_loaded
+        if not is_dbenv_loaded():
+            load_dbenv()
+
         if type(nodes)==list:
             from matplotlib.pyplot import show
-        
-            # load database if not done already
-            from aiida import load_dbenv, is_dbenv_loaded
-            if not is_dbenv_loaded():
-                load_dbenv()
 
             node_groups = self.group_nodes(nodes)
             for groupname in node_groups.keys():
