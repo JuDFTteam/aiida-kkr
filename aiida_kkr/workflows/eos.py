@@ -161,6 +161,7 @@ class kkr_eos_wc(WorkChain):
         # initialize some other things used to collect results etc.
         self.ctx.successful = True
         self.ctx.warnings = []
+        self.ctx.rms_threshold = self.ctx.wf_parameters['settings_kkr_scf'].get('convergence_criterion', 10**-7)
         self.ctx.nsteps = self.ctx.wf_parameters.get('nsteps')
         self.ctx.scale_range = self.ctx.wf_parameters.get('scale_range')
         self.ctx.fitfunc_gs_out = self.ctx.wf_parameters.get('fitfunction') # fitfunction used to get ground state structure
@@ -330,9 +331,15 @@ class kkr_eos_wc(WorkChain):
                     rms = d_result[u'convergence_value']
                     scaled_struc = self.ctx.scaled_structures[iic]
                     v = scaled_struc.get_cell_volume()
-                    etot.append([scale, ener, v, rms])
+                    if rms<=self.ctx.rms_threshold: # only take those calculations which 
+                        etot.append([scale, ener, v, rms])
+                        warn = 'rms of calculation with uuid={} not low enough ({} > {})'.format(uuid, rms, self.ctx.rms_threshold)
+                        self.report('WARNING: {}'.format(warn))
+                        self.ctx.warnings.append(warn)
             except AttributeError:
-                self.report('WARNING: calculation with uuid={} not succesful'.format(uuid))
+                warn = 'calculation with uuid={} not successful'.format(uuid)
+                self.report('WARNING: {}'.format(warn))
+                self.ctx.warnings.append(warn)
 
                
         # collect calculation outcome
