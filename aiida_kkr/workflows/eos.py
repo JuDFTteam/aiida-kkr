@@ -62,19 +62,19 @@ class kkr_eos_wc(WorkChain):
                    'ground_state_structure': True,  # create and return a structure which has the ground state volume determined by the fit used
                    'use_primitive_structure': True, # use seekpath to get primitive structure after scaling to reduce computational time
                    'fitfunction': 'birchmurnaghan', # fitfunction used to determine ground state volume (see ase.eos.EquationOfState class for details)
-                   'settings_kkr_startpot': kkr_startpot_wc.get_wf_defaults(), # settings for kkr_startpot behavior
-                   'settings_kkr_scf': kkr_scf_wc.get_wf_defaults()            # settings for kkr_scf behavior
+                   'settings_kkr_startpot': kkr_startpot_wc.get_wf_defaults(silent=True), # settings for kkr_startpot behavior
+                   'settings_kkr_scf': kkr_scf_wc.get_wf_defaults(silent=True)            # settings for kkr_scf behavior
                    }
     # change _wf_default of kkr_scf to deactivate DOS runs
     _wf_default['settings_kkr_scf']['check_dos'] = False
 
     @classmethod
-    def get_wf_defaults(self):
+    def get_wf_defaults(self, silent=False):
         """
         Print and return _wf_defaults dictionary. Can be used to easily create set of wf_parameters.
         returns _wf_defaults, _options_default
         """
-        print('Version of workflow: {}'.format(self._workflowversion))
+        if not silent: print('Version of workflow: {}'.format(self._workflowversion))
         return self._wf_default, self._options_default
 
 
@@ -199,7 +199,7 @@ class kkr_eos_wc(WorkChain):
         """
         run vorostart workflow for smallest structure to determine rmtcore setting for all others
         """
-        wfd = kkr_startpot_wc.get_wf_defaults()
+        wfd = kkr_startpot_wc.get_wf_defaults(silent=True)
         set_keys = []
         # first set options
         for key in self.ctx.wf_options.keys():
@@ -266,7 +266,7 @@ class kkr_eos_wc(WorkChain):
 
         self.report('INFO: running kkr scf steps')
         # params for scf wfd
-        wfd = kkr_scf_wc.get_wf_defaults()
+        wfd = kkr_scf_wc.get_wf_defaults(silent=True)
         set_keys = []
         # first set options
         for key in self.ctx.wf_options.keys():

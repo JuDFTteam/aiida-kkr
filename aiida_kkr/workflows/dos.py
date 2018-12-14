@@ -69,12 +69,12 @@ class kkr_dos_wc(WorkChain):
              
     # intended to guide user interactively in setting up a valid wf_params node
     @classmethod
-    def get_wf_defaults(self):
+    def get_wf_defaults(self, silent=False):
         """
         Print and return _wf_defaults dictionary. Can be used to easily create set of wf_parameters.
         returns _wf_defaults
         """
-        print('Version of workflow: {}'.format(self._workflowversion))
+        if not silent: print('Version of workflow: {}'.format(self._workflowversion))
         return self._wf_default
 
     @classmethod

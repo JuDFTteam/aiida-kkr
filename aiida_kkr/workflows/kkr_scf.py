@@ -114,19 +114,19 @@ class kkr_scf_wc(WorkChain):
                    'retreive_dos_data_scf_run' : False,       # add DOS to testopts and retrieve dos.atom files in each scf run
                    }
     # set these keys from defaults in kkr_startpot workflow since they are only passed onto that workflow
-    for key, value in kkr_startpot_wc.get_wf_defaults().iteritems():
+    for key, value in kkr_startpot_wc.get_wf_defaults(silent=True).iteritems():
         if key in ['dos_params', 'fac_cls_increase', 'r_cls', 'natom_in_cls_min', 'delta_e_min', 'threshold_dos_zero', 'check_dos']:
             _wf_default[key] = value
 
 
     # intended to guide user interactively in setting up a valid wf_params node
     @classmethod
-    def get_wf_defaults(self):
+    def get_wf_defaults(self, silent=False):
         """
         Print and return _wf_defaults dictionary. Can be used to easily create set of wf_parameters.
         returns _wf_defaults
         """
-        print('Version of workflow: {}'.format(self._workflowversion))
+        if not silent: print('Version of workflow: {}'.format(self._workflowversion))
         return self._wf_default
 
 
@@ -468,7 +468,7 @@ class kkr_scf_wc(WorkChain):
         self.check_input_params(params, is_voronoi=True)
 
         # set parameters of voro_start sub workflow
-        sub_wf_params_dict = kkr_startpot_wc.get_wf_defaults()
+        sub_wf_params_dict = kkr_startpot_wc.get_wf_defaults(silent=True)
         label, description = "voro_start_default_params", "workflow parameters for voro_start"
         if 'wf_parameters' in self.inputs:
             wf_params_input = self.inputs.wf_parameters.get_dict()

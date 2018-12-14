@@ -66,7 +66,7 @@ class kkr_startpot_wc(WorkChain):
                    'delta_e_min_core_states' : 0.2 # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
                 }
     # add defaults of dos_params since they are passed onto that workflow
-    for key, value in kkr_dos_wc.get_wf_defaults().iteritems():
+    for key, value in kkr_dos_wc.get_wf_defaults(silent=True).iteritems():
         if key == 'dos_params':
             _wf_default[key] = value
                    
@@ -77,12 +77,12 @@ class kkr_startpot_wc(WorkChain):
 
     # intended to guide user interactively in setting up a valid wf_params node
     @classmethod
-    def get_wf_defaults(self):
+    def get_wf_defaults(self, silent=False):
         """
         Print and return _wf_defaults dictionary. Can be used to easily create set of wf_parameters.
         returns _wf_defaults
         """
-        print('Version of workflow: {}'.format(self._workflowversion))
+        if not silent: print('Version of workflow: {}'.format(self._workflowversion))
         return self._wf_default
     
     @classmethod
