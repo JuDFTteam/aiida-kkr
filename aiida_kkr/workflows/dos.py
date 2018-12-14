@@ -29,7 +29,7 @@ from aiida.common.exceptions import InputValidationError
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4"
+__version__ = "0.5"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -61,10 +61,10 @@ class kkr_dos_wc(WorkChain):
                    'use_mpi' : False,                        # execute KKR with mpi or without
                    'custom_scheduler_commands' : '',         # some additional scheduler commands 
                    'dos_params' : {"nepts": 61,              # DOS params: number of points in contour
-                                   "tempr": 200,             # DOS params: temperature
-                                   "emin": -1,               # DOS params: start of energy contour
-                                   "emax": 1,                # DOS params: end of energy contour
-                                   "kmesh": [50, 50, 50]}    # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
+                                   "tempr": 200, # K         # DOS params: temperature
+                                   "emin": -1, # Ry          # DOS params: start of energy contour
+                                   "emax": 1,  # Ry          # DOS params: end of energy contour
+                                   "kmesh": [30, 30, 30]}    # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
                    }
              
     # intended to guide user interactively in setting up a valid wf_params node

@@ -24,7 +24,7 @@ from numpy import where
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.8"
+__version__ = "0.9"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -56,11 +56,6 @@ class kkr_startpot_wc(WorkChain):
                    'walltime_sec' : 60*60,                   # walltime after which the job gets killed (gets parsed to KKR)
                    'use_mpi' : False,                        # execute KKR with mpi or without
                    'custom_scheduler_commands' : '',         # some additional scheduler commands 
-                   'dos_params' : {"nepts": 61,              # DOS params: number of points in contour
-                                   "tempr": 200, # K         # DOS params: temperature
-                                   "emin": -1, # Ry          # DOS params: start of energy contour
-                                   "emax": 1,  # Ry          # DOS params: end of energy contour
-                                   "kmesh": [30, 30, 30]},   # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
                    'num_rerun' : 4,                          # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
                    'fac_cls_increase' : 1.3, # alat          # factor by which the screening cluster is increased each iteration (up to num_rerun times)
                    'r_cls' : 1.3,            # alat          # default cluster radius, is increased iteratively
@@ -70,6 +65,10 @@ class kkr_startpot_wc(WorkChain):
                    'check_dos': True,                        # logical to determine if DOS is computed and checked
                    'delta_e_min_core_states' : 0.2 # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
                 }
+    # add defaults of dos_params since they are passed onto that workflow
+    for key, value in kkr_dos_wc.get_wf_defaults().iteritems():
+        if key == 'dos_params':
+            _wf_default[key] = value
                    
     _wf_label = ''
     _wf_description = ''
