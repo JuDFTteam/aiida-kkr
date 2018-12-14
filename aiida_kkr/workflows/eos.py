@@ -121,6 +121,8 @@ class kkr_eos_wc(WorkChain):
             message='ERROR: nsteps is smaller than 3, need at least three data points to do fitting')
         spec.exit_code(224, 'ERROR_INVALID_FITFUN', 
             message='given fitfunction name not valid')
+        spec.exit_code(225, 'ERROR_VOROSTART_NOT_SUCCESSFUL',
+            message='ERROR: kkr_startpot was not successful. Check you inputs.')
 
 
     def start(self):
@@ -158,6 +160,7 @@ class kkr_eos_wc(WorkChain):
 
         # initialize some other things used to collect results etc.
         self.ctx.successful = True
+        self.ctx.warnings = []
         self.ctx.nsteps = self.ctx.wf_parameters.get('nsteps')
         self.ctx.scale_range = self.ctx.wf_parameters.get('scale_range')
         self.ctx.fitfunc_gs_out = self.ctx.wf_parameters.get('fitfunction') # fitfunction used to get ground state structure
@@ -223,11 +226,14 @@ class kkr_eos_wc(WorkChain):
         self.report('INFO: checking voronoi output')
         # get output of kkr_startpot
         out_wc = self.ctx.kkr_startpot
-        res = out_wc.out.results_vorostart_wc
-        voro_params = out_wc.out.last_params_voronoi
-        smallest_voro_remote = out_wc.out.last_voronoi_remote
-        smallest_voro_results = out_wc.out.last_voronoi_results
-        vorostart_success = res.get_dict()['successful']
+        try:
+            res = out_wc.out.results_vorostart_wc
+            voro_params = out_wc.out.last_params_voronoi
+            smallest_voro_remote = out_wc.out.last_voronoi_remote
+            smallest_voro_results = out_wc.out.last_voronoi_results
+            vorostart_success = res.get_dict()['successful']
+        except AttributeError:
+            vorostart_success = False
 
         if vorostart_success:
             rmt = []
@@ -238,7 +244,7 @@ class kkr_eos_wc(WorkChain):
             rmtcore_min = array(rmt) * smallest_voro_results.get_dict().get('alat') # needs to be mutiplied by alat in atomic units!
             self.report('INFO: extracted rmtcore_min ({})'.format(rmtcore_min))
         else:
-            return self.exit_codes.ERROR_NOT_ENOUGH_SUCCESSFUL_CALCS
+            return self.exit_codes.ERROR_VOROSTART_NOT_SUCCESSFUL
 
         # update parameter node with rmtcore setting
         voro_params_with_rmtcore = kkrparams(**voro_params.get_dict())
@@ -352,11 +358,16 @@ class kkr_eos_wc(WorkChain):
         alldat = []
         fitdata = {}
         for fitfunc in fitnames:
-            eos = EquationOfState(volumes, energies, eos=fitfunc)
-            v0, e0, B = eos.fit()
-            fitdata[fitfunc] = [v0, e0, B]
-            alldat.append([v0, e0, B])
-            self.report('{:16} {:8.3f} {:7.3f} {:7.3f}'.format(fitfunc, v0, e0, B))
+            try:
+                eos = EquationOfState(volumes, energies, eos=fitfunc)
+                v0, e0, B = eos.fit()
+                fitdata[fitfunc] = [v0, e0, B]
+                alldat.append([v0, e0, B])
+                self.report('{:16} {:8.3f} {:7.3f} {:7.3f}'.format(fitfunc, v0, e0, B))
+            except RuntimeError:
+               self.ctx.warnings.append('fit unsuccessful for {} function'.format(fitfunc))
+               if fitfunc == self.ctx.fitfunc_gs_out:
+                   self.ctx.successful = False
         alldat = array(alldat)
         self.report('-----------------------------------------')
         self.report('{:16} {:8.3f} {:7.3f} {:7.3f}'.format('mean', mean(alldat[:,0]), mean(alldat[:,1]), mean(alldat[:,2])))
@@ -379,6 +390,7 @@ class kkr_eos_wc(WorkChain):
         self.report('INFO: create output node')
         outdict = {}
         outdict['successful'] = self.ctx.successful
+        outdict['warnings'] = self.ctx.warnings
         outdict['sub_workflow_uuids'] = self.ctx.sub_wf_ids
         outdict['nsteps_input'] = self.ctx.nsteps
         outdict['scale_range_input'] = self.ctx.scale_range
@@ -392,7 +404,7 @@ class kkr_eos_wc(WorkChain):
         outdict['fits_std'] = self.ctx.fit_std_values
         outdict['formula'] = self.ctx.structure.get_formula()
         outdict['label'] = self.ctx.label
-        if self.ctx.return_gs_struc:
+        if self.ctx.successful and self.ctx.return_gs_struc:
             # final result: scaling factor for equilibium 
             v0, e0, B = self.ctx.fitdata.get(self.ctx.fitfunc_gs_out)
             scale_fac0 = v0/self.ctx.structure.get_cell_volume()*len(self.ctx.structure.sites)
