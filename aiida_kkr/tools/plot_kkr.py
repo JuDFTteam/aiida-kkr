@@ -363,6 +363,7 @@ class plot_kkr():
         from masci_tools.io.common_functions import search_string
         
         rms, neutr, etot, efermi = [], [], [], []
+        ptitle = ''
             
         if node.process_state == ProcessState.FINISHED:
             o = node.out.output_parameters.get_dict()
@@ -384,8 +385,6 @@ class plot_kkr():
             comp = c.get_computer()
             authinfo = comp.get_authinfo(c.get_user())
             transport = authinfo.get_transport()
-            
-            ptitle = ''
     
             # now get contents of out_kkr using remote call of 'cat'
             with transport as open_transport:

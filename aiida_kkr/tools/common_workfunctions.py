@@ -524,7 +524,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     else:
         params = kkrparams(params_type='voronoi')
     
-    # for KKR calculation set EMIN automatically from parent_calc (ausways in res.emin of voronoi and kkr)
+    # for KKR calculation set EMIN automatically from parent_calc (always in res.emin of voronoi and kkr) if not provided in input node
     if ('EMIN' not in input_dict.keys() or input_dict['EMIN'] is None) and parent_calc is not None:
         print('Overwriting EMIN with value from parent calculation')
         if isinstance(parent_calc, VoronoiCalculation):
