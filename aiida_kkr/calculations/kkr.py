@@ -388,7 +388,7 @@ class KkrCalculation(JobCalculation):
         
         # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
-        natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
+        natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
         
 
         #################

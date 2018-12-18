@@ -333,6 +333,7 @@ class kkr_eos_wc(WorkChain):
                     v = scaled_struc.get_cell_volume()
                     if rms<=self.ctx.rms_threshold: # only take those calculations which 
                         etot.append([scale, ener, v, rms])
+                    else:
                         warn = 'rms of calculation with uuid={} not low enough ({} > {})'.format(uuid, rms, self.ctx.rms_threshold)
                         self.report('WARNING: {}'.format(warn))
                         self.ctx.warnings.append(warn)

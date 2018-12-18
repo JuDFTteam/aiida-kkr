@@ -203,7 +203,7 @@ class VoronoiCalculation(JobCalculation):
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
         try:
             use_alat_input = parameters.get_dict().get('use_input_alat', False)
-            natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename, isvoronoi=True, vca_structure=vca_structure, use_input_alat=use_alat_input)
+            natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_filename, isvoronoi=True, vca_structure=vca_structure, use_input_alat=use_alat_input)
         except ValueError as e:
             raise InputValidationError("Input ParameterData not consistent: {}".format(e))
             

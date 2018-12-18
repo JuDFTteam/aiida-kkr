@@ -6,7 +6,7 @@ contains plot_kkr class for node visualization
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
+__version__ = "0.3"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -42,7 +42,7 @@ class plot_kkr():
         If nodes is a list of nodes then the plots are grouped together if possible.
     """
 
-    def __init__(self, nodes, **kwargs):
+    def __init__(self, nodes=None, **kwargs):
         
         # load database if not done already
         from aiida import load_dbenv, is_dbenv_loaded
@@ -66,7 +66,7 @@ class plot_kkr():
 
             # finally show all plots
             show()
-        else:
+        elif nodes is not None:
             self.plot_kkr_single_node(nodes, **kwargs)
 
     ### main wrapper functions ###
@@ -92,6 +92,7 @@ class plot_kkr():
         # open a single new figure for each plot here
         if groupname in ['kkr', 'scf']: figure()
         for node in nodeslist:
+            print groupname
             # open new figure for each plot in these groups
             if groupname in ['eos', 'dos', 'startpot', 'voro']: figure()
             if groupname in ['kkr', 'scf']:
@@ -501,8 +502,6 @@ class plot_kkr():
         # extract structure (neede in dosplot to extract number of atoms and number of spins)
         struc, voro_parent = VoronoiCalculation.find_parent_structure(node.inp.remote_data)
             
-        print d, struc
-        
         # do dos plot after data was extracted
         self.dosplot(d, struc, nofig, all_atoms, l_channels, **kwargs)
     
@@ -515,6 +514,9 @@ class plot_kkr():
         
         strucplot = True
         if 'strucplot' in kwargs.keys(): strucplot = kwargs.pop('strucplot')
+        
+        silent = False
+        if 'silent' in kwargs.keys(): silent = kwargs.pop('silent')
             
         # plot structure
         if strucplot:
@@ -523,9 +525,10 @@ class plot_kkr():
         # extract structure (neede in dosplot to extract number of atoms and number of spins)
         struc, voro_parent = VoronoiCalculation.find_parent_structure(node)
             
-        # print results
-        print 'results:'
-        self.plot_kkr_single_node(node.out.results_vorostart_wc, noshow=True, silent=True)
+        if not silent:
+            # print results
+            print 'results:'
+            self.plot_kkr_single_node(node.out.results_vorostart_wc, noshow=True, silent=True)
         
         # plot starting DOS
     
@@ -561,22 +564,23 @@ class plot_kkr():
         emin_Ry = params_dict.get('emin')
         ef_Ry = emin_Ry - params_dict.get('emin_minus_efermi_Ry')
         ecore_max = params_dict.get('core_states_group').get('energy_highest_lying_core_state_per_atom', [])
-        
-        axvline(0, color='k', ls='--', label='EF')
-        axvline(emin, color='r', ls='--', label='emin')
-        axvline((ecore_max[0]-ef_Ry)*get_Ry2eV(), color='b', ls='--', label='ecore_max')
-        if len(ecore_max)>1:
-            [axvline((i-ef_Ry)*get_Ry2eV(), color='b', ls='--') for i in ecore_max[1:]]
-        legend(loc=3, fontsize='x-small')
-        
-        title(struc.get_formula())
+
+        if d is not None:
+            axvline(0, color='k', ls='--', label='EF')
+            axvline(emin, color='r', ls='--', label='emin')
+            axvline((ecore_max[0]-ef_Ry)*get_Ry2eV(), color='b', ls='--', label='ecore_max')
+            if len(ecore_max)>1:
+                [axvline((i-ef_Ry)*get_Ry2eV(), color='b', ls='--') for i in ecore_max[1:]]
+            legend(loc=3, fontsize='x-small')
+            
+            title(struc.get_formula())
     
     
     def plot_kkr_scf(self, node, **kwargs):
         """plot outputs of a kkr_scf_wc workflow"""
         from aiida_kkr.calculations.kkr import KkrCalculation
         from numpy import sort
-        from matplotlib.pyplot import axvline
+        from matplotlib.pyplot import axvline, axhline
         
         # structure plot only if structure is in inputs
         try:
@@ -598,6 +602,7 @@ class plot_kkr():
             out_dict = node.out.output_kkr_scf_wc_ParameterResults.get_dict()
             neutr = out_dict['charge_neutrality_all_steps']
             rms = out_dict['convergence_values_all_steps']
+            rms_goal = node.inp.wf_parameters.get_dict().get('convergence_criterion')
         except: 
             # deal with unfinished workflow
             rms, neutr, etot, efermi = [], [], [], []
@@ -625,6 +630,7 @@ class plot_kkr():
         # extract rms from calculations and plot
         if len(rms)>0:
             self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
+            if only == 'rms': axhline(rms_goal, color='grey', ls='--')
             tmpsum = 0
             if not nofig and len(niter_calcs)>1:
                 for i in niter_calcs:
@@ -634,9 +640,11 @@ class plot_kkr():
     
     def plot_kkr_eos(self, node, **kwargs):
         """plot outputs of a kkr_eos workflow"""
-        from numpy import sort
-        from matplotlib.pyplot import figure, subplot, title, xlabel, legend
+        from numpy import sort, array, where
+        from matplotlib.pyplot import figure, subplot, title, xlabel, legend, axvline, plot, annotate
+        from aiida.orm import load_node
         from aiida_kkr.workflows.voro_start import kkr_startpot_wc
+        from ase.eos import EquationOfState
         
         strucplot = True
         if 'strucplot' in kwargs.keys(): strucplot = kwargs.pop('strucplot')
@@ -644,39 +652,108 @@ class plot_kkr():
         # plot structure
         if strucplot:
             self.plot_struc(node)
+
+        # remove unused things from kwargs
+        if 'label' in kwargs.keys(): label=kwargs.pop('label')
+        if 'noshow' in kwargs.keys(): kwargs.pop('noshow')
+        if 'only' in kwargs.keys(): kwargs.pop('only')
+        if 'nofig' in kwargs.keys(): kwargs.pop('nofig')
+        if 'strucplot' in kwargs.keys(): kwargs.pop('strucplot')
+        silent = False
+        if 'silent' in kwargs.keys(): silent = kwargs.pop('silent')
     
+        # plot convergence behavior
         outdict = node.get_outputs_dict()
+        try:
+            results = node.out.eos_results
+        except:
+            silent = True
+
+        if not silent:
+            print 'results:'
+            self.plot_kkr_single_node(results)
+
         fig_open = False
         plotted_kkr_scf = False
         plotted_kkr_start = False
         for key in sort(outdict.keys()):
-            tmp = outdict[key]
+            tmpnode = outdict[key]
             try:
-                if tmp.process_label == u'kkr_startpot_wc':
-                    self.plot_kkr_single_node(tmp, silent=True, noshow=True, strucplot=False) # startpot workflow
-                    plotted_kkr_start = True
+                tmplabel = tmpnode.process_label
             except:
-                # do nothing if node in outputs is not startpot workflow
-                pass
-            try:
-                if tmp.process_label == u'kkr_scf_wc':
-                    if not fig_open:
-                        figure()
-                        fig_open = True
-                    if 'label' in kwargs.keys(): label=kwargs.pop('label')
-                    subplot(2,1,1)
-                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='rms', noshow=True, label='pk={}'.format(tmp.pk), **kwargs) # scf workflow, rms only
-                    xlabel('') # remove overlapping x label in upper plot
-                    legend(loc=3, fontsize='x-small', ncol=2)
-                    subplot(2,1,2)
-                    self.plot_kkr_single_node(tmp, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, label='pk={}'.format(tmp.pk), **kwargs) # scf workflow for charge neutrality only 
-                    title('')# remove duplicated plot title of lower plot
-                    legend(loc=3, fontsize='x-small', ncol=2)
-                    plotted_kkr_scf = True
-            except:
-                # do nothing if node in outputs is not scf workflow
-                pass
+                tmplabel = None
+            if tmplabel == u'kkr_startpot_wc':
+                self.plot_kkr_startpot(tmpnode, strucplot=False, silent=True, **kwargs)
+                plotted_kkr_start = True
+            elif tmplabel == u'kkr_scf_wc':
+                if not fig_open:
+                    figure()
+                    fig_open = True
+                # plot rms
+                subplot(2,1,1)
+                self.plot_kkr_scf(tmpnode, silent=True, strucplot=False, nofig=True, only='rms', noshow=True, label='pk={}'.format(tmpnode.pk), **kwargs) # scf workflow, rms only
+                xlabel('') # remove overlapping x label in upper plot
+                legend(loc=3, fontsize='x-small', ncol=2)
+                # plot charge neutrality
+                subplot(2,1,2)
+                self.plot_kkr_scf(tmpnode, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, label='pk={}'.format(tmpnode.pk), **kwargs) # scf workflow, rms only
+                title('')# remove duplicated plot title of lower plot
+                legend(loc=3, fontsize='x-small', ncol=2)
+                plotted_kkr_scf = True
 
         if not (plotted_kkr_scf or plotted_kkr_start):
             print 'found no startpot or kkrstart data to plot'
 
+        # plot eos results
+        try:
+            # exctract data
+            e = array(node.out.eos_results.get_dict().get('energies', []))
+            v = array(node.out.eos_results.get_dict().get('volumes', []))
+            fitfunc_gs = node.out.eos_results.get_dict().get('gs_fitfunction')
+            # now fit and plot
+            figure()
+            try:
+                eos = EquationOfState(v, e, eos=fitfunc_gs)
+                v0, e0, B = eos.fit()
+                eos.plot()
+                axvline(v0, color='k', ls='--')
+            except:
+                plot(v, e, 'o')
+
+            # add calculation pks to data points
+            scalings_all = array(node.out.eos_results.get_dict().get('scale_factors_all'))
+            scalings = node.out.eos_results.get_dict().get('scalings')
+            names = sort([name for name in node.out.eos_results.get_dict().get('sub_workflow_uuids').keys() if 'kkr_scf' in name])
+            pks = array([load_node(node.out.eos_results.get_dict().get('sub_workflow_uuids')[name]).pk for name in names])
+            mask = []
+            for i in range(len(pks)):
+                s = scalings[i]
+                m = where(scalings_all==s)
+                pk = pks[m][0]
+                ie = e[m][0]
+                iv = v[m][0]
+                annotate(s='pk={}'.format(pk), xy=(iv,ie))
+
+            # investigate fit quality by fitting without first/last datapoint 
+            if len(e)>4:
+               
+                eos = EquationOfState(v[1:-1], e[1:-1], eos=fitfunc_gs)
+                v01, e01, B1 = eos.fit()
+               
+                # take out smallest data point
+                eos = EquationOfState(v[1:], e[1:], eos=fitfunc_gs)
+                v01, e01, B1 = eos.fit()
+           
+                print '# relative differences to full fit: V0, E0, B (without smallest volume)'
+                print '{} {} {}'.format(abs(1-v01/v0), abs(1-e01/e0), abs(1-B1/B))
+               
+                if len(e)>5:
+                    # also take out largest volume
+                    eos = EquationOfState(v[1:-1], e[1:-1], eos=fitfunc_gs)
+                    v02, e02, B2 = eos.fit()
+           
+                    print '\n# V0, E0, B (without smallest and largest volume)'
+                    print '{} {} {}'.format(abs(1-v02/v0), abs(1-e02/e0), abs(1-B2/B))
+        except:
+            pass # do nothing if no eos data there
+       

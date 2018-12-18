@@ -406,6 +406,9 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     from masci_tools.io.kkr_params import kkrparams
     from masci_tools.io.common_functions import get_Ang2aBohr, get_alat_from_bravais
     from aiida_kkr.calculations.voro import VoronoiCalculation
+
+    # initialize list of warnings
+    warnings = []
     
     #list of globally used constants
     a_to_bohr = get_Ang2aBohr()
@@ -424,6 +427,9 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
         alat = alat_input
     else:
         alat = get_alat_from_bravais(bravais, is3D=structure.pbc[2])
+        wmess = 'found alat in input parameters, this will trigger scaling of RMAX, GMAX and RCLUSTZ!'
+        print('WARNING: '+wmess)
+        warnings.append(wmess)
     bravais = bravais/alat
     
     sites = structure.sites
@@ -482,7 +488,9 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
         mask_replace_Bi_Pb = where(charges==83)
         if len(mask_replace_Bi_Pb[0])>0:
             charges[mask_replace_Bi_Pb] = 82
-            print('WARNING: Bi potential not available, using Pb instead!!!')
+            wmess = 'Bi potential not available, using Pb instead!!!'
+            print('WARNING: '+wmess)
+            warnings.append(wmess)
         
 
     ######################################
@@ -494,28 +502,40 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     # remove special keys that are used for special cases but are not part of the KKR parameter set
     for key in _ignored_keys:
         if input_dict.get(key) is not None:
-            print('WARNING: automatically removing value of key', key)
+            wmess = 'automatically removing value of key {}'.format(key)
+            print('WARNING: '+wmess)
+            warnings.append(wmess)
             input_dict.pop(key)
     
     # get rid of structure related inputs that are overwritten from structure input
     for key in ['BRAVAIS', 'ALATBASIS', 'NAEZ', '<ZATOM>', '<RBASIS>', 'CARTESIAN']:
         if input_dict.get(key) is not None:
-            print('WARNING: automatically removing value of key', key)
+            wmess = 'automatically removing value of key {}'.format(key)
+            print('WARNING: '+wmess)
+            warnings.append(wmess)
             input_dict.pop(key)
                 
     # automatically rescale RMAX, GMAX, RCLUSTZ, RCLUSTXY which are scaled with the lattice constant
     if alat_input is not None:
         if input_dict.get('RMAX') is not None:
-            print('rescale RMAX', alat_input/alat)
+            wmess = 'rescale RMAX: {}'.format(alat_input/alat)
+            print('WARNING: '+wmess)
+            warnings.append(wmess)
             input_dict['RMAX'] = input_dict['RMAX']*alat_input/alat
         if input_dict.get('GMAX') is not None:
-            print('rescale GMAX', 1/(alat_input/alat))
+            wmess='rescale GMAX: {}'.format(1/(alat_input/alat))
+            print('WARNING: '+wmess)
+            warnings.append(wmess)
             input_dict['GMAX'] = input_dict['GMAX']*1/(alat_input/alat)
         if input_dict.get('RCLUSTZ') is not None:
-            print('rescale RCLUSTZ', alat_input/alat)
+            wmess='rescale RCLUSTZ: {}'.format(alat_input/alat)
+            print('WARNING: '+wmess)
+            warnings.append(wmess)
             input_dict['RCLUSTZ'] = input_dict['RCLUSTZ']*alat_input/alat
         if input_dict.get('RCLUSTXY') is not None:
-            print('rescale RCLUSTXY', alat_input/alat)
+            wmess='rescale RCLUSTXY: {}'.format(alat_input/alat)
+            print('WARNING: '+wmess)
+            warnings.append(wmess)
             input_dict['RCLUSTXY'] = input_dict['RCLUSTXY']*alat_input/alat
     
     # empty kkrparams instance (contains formatting info etc.)
@@ -526,7 +546,9 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     
     # for KKR calculation set EMIN automatically from parent_calc (always in res.emin of voronoi and kkr) if not provided in input node
     if ('EMIN' not in input_dict.keys() or input_dict['EMIN'] is None) and parent_calc is not None:
-        print('Overwriting EMIN with value from parent calculation')
+        wmess='Overwriting EMIN with value from parent calculation'
+        print('WARNING: '+wmess)
+        warnings.append(wmess)
         if isinstance(parent_calc, VoronoiCalculation):
             emin = parent_calc.res.emin
         else:
@@ -573,7 +595,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     if 'NEWSOSOL' in params.get_value('RUNOPT'):
         newsosol = True
     
-    return natyp, nspin, newsosol
+    return natyp, nspin, newsosol, warnings
     
     
 def check_2Dinput_consistency(structure, parameters):
@@ -884,62 +906,3 @@ def vca_check(structure, parameters):
             vca_structure = True
             
     return vca_structure
-    
- 
-'''
-if __name__=='__main__':
-    from aiida import is_dbenv_loaded, load_dbenv
-    if not is_dbenv_loaded():
-        load_dbenv()
-    
-    p = kkrparams(params_type='kkr')
-    
-    # automatically read keywords from inpucard
-    p.read_keywords_from_inputcard(inputcard='/Users/ruess/sourcecodes/aiida/development/calc_import_test/inputcard')
-    
-    # extract structure
-    success, struc = structure_from_params(p)
-    
-    print(success, struc)
-    print(struc.kinds)
-    for site in struc.sites:
-        print(site)
-        
-    p1 = kkrparams()
-    p2 = kkrparams()
-    
-    for key in p.get_dict().keys():
-        p1.set_value(key, p.get_value(key), silent=True)
-        p2.set_value(key, p.get_value(key), silent=True)
-        
-    print('create new inputcard')
-    generate_inputcard_from_structure(p1, struc, '/Users/ruess/sourcecodes/aiida/development/calc_import_test/inputcard_test', use_input_alat=True)
-    print('create new inputcard2')
-    generate_inputcard_from_structure(p2, struc, '/Users/ruess/sourcecodes/aiida/development/calc_import_test/inputcard_test2', use_input_alat=False)
-    
-    #"""
-    from aiida_kkr.calculations.voro import VoronoiCalculation
-    from aiida.orm import Code#, load_node
-    
-    ParameterData = DataFactory('parameter')
-    ParaNode = ParameterData(dict=p.values)
-    
-    VoroCalc = VoronoiCalculation()
-    VoroCalc.label = 'Voronoi start potential'
-    VoroCalc.set_withmpi(False)
-    VoroCalc.set_resources({"num_machines" : 1})
-    VoroCalc.set_max_wallclock_seconds(300)
-    VoroCalc.set_computer('my_mac')
-    VoroCalc.use_structure(struc)
-    # use voronoi code for this calculation
-    code = Code.get_from_string('voronoi@my_mac')
-    VoroCalc.use_code(code)
-    VoroCalc.use_parameters(ParaNode)
-    
-    calc = VoroCalc
-    calc.store_all()
-    print("created calculation; calc=Calculation(uuid='{}') # ID={}".format(calc.uuid, calc.dbnode.pk))
-    calc.submit()
-    print("submitted calculation; calc=Calculation(uuid='{}') # ID={}".format(calc.uuid, calc.dbnode.pk))
-    #"""
-'''
