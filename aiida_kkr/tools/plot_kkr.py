@@ -386,6 +386,8 @@ class plot_kkr():
             comp = c.get_computer()
             authinfo = comp.get_authinfo(c.get_user())
             transport = authinfo.get_transport()
+
+            out_kkr = ''
     
             # now get contents of out_kkr using remote call of 'cat'
             with transport as open_transport:
@@ -604,6 +606,7 @@ class plot_kkr():
             rms = out_dict['convergence_values_all_steps']
             rms_goal = node.inp.wf_parameters.get_dict().get('convergence_criterion')
         except: 
+            rms_goal = None
             # deal with unfinished workflow
             rms, neutr, etot, efermi = [], [], [], []
             outdict = node.get_outputs_dict()
@@ -630,7 +633,7 @@ class plot_kkr():
         # extract rms from calculations and plot
         if len(rms)>0:
             self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
-            if only == 'rms': axhline(rms_goal, color='grey', ls='--')
+            if only == 'rms' and rms_goal is not None: axhline(rms_goal, color='grey', ls='--')
             tmpsum = 0
             if not nofig and len(niter_calcs)>1:
                 for i in niter_calcs:
