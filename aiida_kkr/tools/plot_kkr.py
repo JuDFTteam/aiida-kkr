@@ -229,6 +229,10 @@ class plot_kkr():
         pprint(inputs)
         print '\noutputs:'
         pprint(outputs)
+        try:
+            print '\nexit status: {} ({})'.format(node.exit_status, node.exit_message)
+        except:
+            pass
         print # empty line at the end
     
     def plot_struc(self, node, **kwargs):
@@ -533,15 +537,22 @@ class plot_kkr():
             self.plot_kkr_single_node(node.out.results_vorostart_wc, noshow=True, silent=True)
         
         # plot starting DOS
-    
-        try:
-            d = node.out.last_doscal_dosdata
-        except:
-            d = None
-        try:
-            d_int = node.out.last_doscal_dosdata_interpol
-        except:
-            d_int = None
+
+        # follow links until DOS data has been found
+        d = None
+        d_int = None
+        for key, val in node.get_outputs_dict().iteritems():
+            if key=='last_doscal_dosdata':
+                d = val
+            elif key=='last_doscal_dosdata_interpol':
+                d_int = val
+            elif 'CALL' in key:
+                if val.process_label=='kkr_dos_wc':
+                    for k2, v2 in val.get_outputs_dict().iteritems():
+                        if k2=='dos_data':
+                            d = v2
+                        elif k2=='dos_data_interpol':
+                            d_int = v2
             
         # extract all options that should not be passed on to plot function
         interpol, all_atoms, l_channels = True, False, True
@@ -561,19 +572,26 @@ class plot_kkr():
         # now add lines for emin, core states, EF
     
         # extract data for dos and energy contour plotting
-        params_dict = node.out.last_voronoi_results.get_dict()
-        emin = params_dict.get('emin_minus_efermi')
-        emin_Ry = params_dict.get('emin')
-        ef_Ry = emin_Ry - params_dict.get('emin_minus_efermi_Ry')
-        ecore_max = params_dict.get('core_states_group').get('energy_highest_lying_core_state_per_atom', [])
+        if 'last_voronoi_results' in node.get_outputs_dict().keys():
+            params_dict = node.out.last_voronoi_results.get_dict()
+        else:
+            params_dict = {}
+        emin = params_dict.get('emin_minus_efermi', None)
+        emin_Ry = params_dict.get('emin', None)
+        if emin is not None and params_dict!={}:
+            ef_Ry = emin_Ry - params_dict.get('emin_minus_efermi_Ry')
+        else:
+            ef_Ry = None
+        if params_dict!={}: ecore_max = params_dict.get('core_states_group').get('energy_highest_lying_core_state_per_atom', [])
 
         if d is not None:
             axvline(0, color='k', ls='--', label='EF')
-            axvline(emin, color='r', ls='--', label='emin')
-            axvline((ecore_max[0]-ef_Ry)*get_Ry2eV(), color='b', ls='--', label='ecore_max')
-            if len(ecore_max)>1:
-                [axvline((i-ef_Ry)*get_Ry2eV(), color='b', ls='--') for i in ecore_max[1:]]
-            legend(loc=3, fontsize='x-small')
+            if emin is not None: axvline(emin, color='r', ls='--', label='emin')
+            if ef_Ry is not None and len(ecore_max)>0:
+                axvline((ecore_max[0]-ef_Ry)*get_Ry2eV(), color='b', ls='--', label='ecore_max')
+                if len(ecore_max)>1:
+                    [axvline((i-ef_Ry)*get_Ry2eV(), color='b', ls='--') for i in ecore_max[1:]]
+            if emin is not None: legend(loc=3, fontsize='x-small')
             
             title(struc.get_formula())
     
