@@ -30,7 +30,7 @@ KpointsData = DataFactory('array.kpoints')
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7"
+__version__ = "0.8"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -367,11 +367,15 @@ class KkrCalculation(JobCalculation):
             if NPOL is None or NPOL>0.:
                 change_values.append(['NPOL', 0])
             if change_values != []:
-                new_params = {'nodename': 'changed_params_qdos', 'nodedesc': 'Changed parameters to mathc qdos mode. Changed values: {}'.format(change_values)}
+                new_params = {}
+                #{'nodename': 'changed_params_qdos', 'nodedesc': 'Changed parameters to mathc qdos mode. Changed values: {}'.format(change_values)}
+                for key, val in parameters.get_dict().iteritems():
+                    new_params[key] = val
                 for key, val in change_values:
                     new_params[key] = val
                 new_params_node = ParameterData(dict=new_params)
-                parameters = update_params_wf(parameters, new_params_node)
+                #parameters = update_params_wf(parameters, new_params_node)
+                parameters = new_params_node
             # write qvec.dat file
             kpath_array = kpath.get_kpoints()
             # convert automatically to internal units
