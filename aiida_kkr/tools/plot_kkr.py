@@ -486,28 +486,39 @@ class plot_kkr():
         if len(rms)>1:
             self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
 
-        # try to plot qdos data if calculation was bandstructure run
+        # try to plot dos and qdos data if calculation was bandstructure or DOS run
         from os import listdir
         from numpy import loadtxt
         from masci_tools.vis.kkr_plot_bandstruc_qdos import dispersionplot
-        from matplotlib.pyplot import show, figure
+        from masci_tools.vis.kkr_plot_dos import dosplot
+        from matplotlib.pyplot import show, figure, title
+
         retpath = node.out.retrieved.get_abs_path('')
+        has_dos = 'dos.atom1' in listdir(retpath)
         has_qvec = 'qvec.dat' in listdir(retpath)
-        has_qdos = 'qdos.01.1.dat' in listdir(retpath)
+
+        # remove already automatically set things from kwargs
+        if 'ptitle' in kwargs.keys(): 
+            ptitle = kwargs.pop('ptitle')
+        else:
+            ptitle = 'pk= {}'.format(node.pk)
+        if 'newfig' in kwargs.keys(): kwargs.pop('newfig')
+
+        # qdos
         if has_qvec:
+            has_qdos = 'qdos.01.1.dat' in listdir(retpath)
             if has_qdos:
                 ne = len(set(loadtxt(retpath+'/qdos.01.1.dat')[:,0]))
                 if ne>1:
-                    # remove already automatically set things from kwargs
-                    if 'ptitle' in kwargs.keys(): 
-                        ptitle = kwargs.pop('ptitle')
-                    else:
-                        ptitle = 'pk= {}'.format(node.pk)
-                    if 'newfig' in kwargs.keys(): kwargs.pop('newfig')
                     dispersionplot(retpath, newfig=True, ptitle=ptitle, **kwargs)
-                    show()
     
-    
+        # dos
+        if has_dos:
+            figure()
+            dosplot(retpath, **kwargs)
+            title(ptitle)
+
+
     def plot_voro_calc(self, node, **kwargs):
         """plot things for a voro calculation node"""
         
