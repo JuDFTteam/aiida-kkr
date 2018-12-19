@@ -488,10 +488,10 @@ class plot_kkr():
 
         # try to plot dos and qdos data if calculation was bandstructure or DOS run
         from os import listdir
-        from numpy import loadtxt
+        from numpy import loadtxt, array, where
         from masci_tools.vis.kkr_plot_bandstruc_qdos import dispersionplot
         from masci_tools.vis.kkr_plot_dos import dosplot
-        from matplotlib.pyplot import show, figure, title
+        from matplotlib.pyplot import show, figure, title, xticks, xlabel, axvline
 
         retpath = node.out.retrieved.get_abs_path('')
         has_dos = 'dos.atom1' in listdir(retpath)
@@ -511,6 +511,18 @@ class plot_kkr():
                 ne = len(set(loadtxt(retpath+'/qdos.01.1.dat')[:,0]))
                 if ne>1:
                     dispersionplot(retpath, newfig=True, ptitle=ptitle, **kwargs)
+                    # add plot labels
+                    ilbl = node.inp.kpoints.get_attr('label_numbers')
+                    slbl = node.inp.kpoints.get_attr('labels')
+                    ilbl = array(ilbl)
+                    slbl = array(slbl)
+                    m_overlap = where(abs(ilbl[1:]-ilbl[:-1])== 1)
+                    if len(m_overlap[0])>0:
+                        for i in m_overlap[0]:
+                            slbl[i+1] = '\n'+slbl[i+1]
+                    xticks(ilbl, slbl)
+                    xlabel('')
+                    [axvline(i, color='grey', ls=':') for i in ilbl]
     
         # dos
         if has_dos:
