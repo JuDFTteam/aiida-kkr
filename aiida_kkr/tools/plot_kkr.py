@@ -126,7 +126,7 @@ class plot_kkr():
         if not silent: self.print_clean_inouts(node)
         
         # classify node and call plotting function
-        self.classify_and_plot_node(node, **kwargs)
+        self.classify_and_plot_node(node, silent=silent, **kwargs)
     
         if not noshow:
             from matplotlib.pyplot import show
