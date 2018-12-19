@@ -450,6 +450,15 @@ class plot_kkr():
         if 'logscale' in kwargs.keys(): logscale = kwargs.pop('logscale')
         only = None
         if 'only' in kwargs.keys(): only = kwargs.pop('only')
+        silent = False
+        if 'silent' in kwargs.keys(): silent = kwargs.pop('silent')
+
+        #print output
+        if not silent:
+            from pprint import pprint
+            print 'results dict:'
+            if 'output_parameters' in node.get_outputs_dict():
+                pprint(node.get_outputs_dict().get('output_parameters').get_dict())
             
         # plot structure
         if strucplot:
