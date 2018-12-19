@@ -459,9 +459,35 @@ class plot_kkr():
             label = kwargs.pop('label')
         else:
             label = None
-        rms, neutr, etot, efermi, ptitle = self.get_rms_kkrcalc(node)
+        try:
+            rms, neutr, etot, efermi, ptitle = self.get_rms_kkrcalc(node)
+        except KeyError:
+            # this happens in case of qdos run
+            rms = []
     
-        self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
+        if len(rms)>1:
+            self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
+
+        # try to plot qdos data if calculation was bandstructure run
+        from os import listdir
+        from numpy import loadtxt
+        from masci_tools.vis.kkr_plot_bandstruc_qdos import dispersionplot
+        from matplotlib.pyplot import show, figure
+        retpath = node.out.retrieved.get_abs_path('')
+        has_qvec = 'qvec.dat' in listdir(retpath)
+        has_qdos = 'qdos.01.1.dat' in listdir(retpath)
+        if has_qvec:
+            if has_qdos:
+                ne = len(set(loadtxt(retpath+'/qdos.01.1.dat')[:,0]))
+                if ne>1:
+                    # remove already automatically set things from kwargs
+                    if 'ptitle' in kwargs.keys(): 
+                        ptitle = kwargs.pop('ptitle')
+                    else:
+                        ptitle = 'pk= {}'.format(node.pk)
+                    if 'newfig' in kwargs.keys(): kwargs.pop('newfig')
+                    dispersionplot(retpath, newfig=True, ptitle=ptitle, **kwargs)
+                    show()
     
     
     def plot_voro_calc(self, node, **kwargs):
