@@ -456,9 +456,18 @@ class plot_kkr():
         #print output
         if not silent:
             from pprint import pprint
-            print 'results dict:'
+            print 'results dict (entries with `...` have been removed for this writeout for the sake of shortness):'
             if 'output_parameters' in node.get_outputs_dict():
-                pprint(node.get_outputs_dict().get('output_parameters').get_dict())
+                results_dict = node.get_outputs_dict().get('output_parameters').get_dict()
+                # remove symmetry descriptions from resuts dict before writting output
+                if 'symmetries_group' in results_dict.keys(): results_dict['symmetries_group']['symmetry_description'] = '...'
+                if 'convergence_group' in results_dict.keys():
+                    results_dict['convergence_group']['charge_neutrality_all_iterations'] = '...'
+                    results_dict['convergence_group']['dos_at_fermi_energy_all_iterations'] = '...'
+                    results_dict['convergence_group']['fermi_energy_all_iterations'] = '...'
+                    results_dict['convergence_group']['rms_all_iterations'] = '...'
+                    results_dict['convergence_group']['total_energy_Ry_all_iterations'] = '...'
+                pprint(results_dict)
             
         # plot structure
         if strucplot:
