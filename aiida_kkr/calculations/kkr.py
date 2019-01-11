@@ -448,7 +448,7 @@ class KkrCalculation(JobCalculation):
                 with open(potcopy_info[0]) as file:
                     # change potential and copy list
                     local_copy_list.remove(potcopy_info)
-                    pot_new_name = tempfolder.get_abs_path(self._POTENTIAL+'_new_ef')
+                    pot_new_name = outfolderpath+'/potential_new_ef'
                     local_copy_list.append((pot_new_name, self._POTENTIAL))
                     
                     # change potential

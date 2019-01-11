@@ -329,8 +329,8 @@ class kkrimp_parser_functions():
         magtot = sum(spinmom)
         
         return spinmom_vec, spinmom_vec_all, magtot
-    
-    
+        
+        
     def _extract_timings(self, outfile):
         """
         Extract timings for the different parts in the KKRimp code
@@ -547,7 +547,6 @@ class kkrimp_parser_functions():
         except:
             msg = "Error parsing output of KKRimp: nspin/natom"
             msg_list.append(msg)            
-            
             
         tmp_dict = {} # used to group magnetism info (spin and orbital moments)
         try:
