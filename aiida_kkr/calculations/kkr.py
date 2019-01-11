@@ -445,14 +445,14 @@ class KkrCalculation(JobCalculation):
                 print('local copy list before change: {}'.format(local_copy_list))
                 print("found 'ef_set' in parameters: change EF of potential to this value")
                 potcopy_info = [i for i in local_copy_list if i[1]==self._POTENTIAL][0]
-                with open(potcopy_info[0]) as file:
-                    # change potential and copy list
+                with open(potcopy_info[0]) as potfile:
+                    # remove previous output potential from copy list
                     local_copy_list.remove(potcopy_info)
-                    pot_new_name = outfolderpath+'/potential_new_ef'
-                    local_copy_list.append((pot_new_name, self._POTENTIAL))
+                    # create potential here by readin in old potential and overwriting with changed Fermi energy
+                    pot_new_name = tempfolder.get_abs_path(self._POTENTIAL)
                     
                     # change potential
-                    txt = file.readlines()
+                    txt = potfile.readlines()
                     potstart = []
                     for iline in range(len(txt)):
                         line = txt[iline]
