@@ -288,7 +288,7 @@ class kkr_flex_wc(WorkChain):
                 ef_shift = self.ctx.ef_shift #set new E_F in eV
                 # calculate new Fermi energy in Ry
                 ef_new = (ef_old + ef_shift/get_Ry2eV())       
-                print('ef_old + ef_shift = ef_new: {} eV + {} eV = {} eV'.format(ef_old*get_Ry2eV(), ef_shift, ef_new*get_Ry2eV()))
+                self.report('INFO: ef_old + ef_shift = ef_new: {} eV + {} eV = {} eV'.format(ef_old*get_Ry2eV(), ef_shift, ef_new*get_Ry2eV()))
                 para_check = update_params_wf(para_check, ParameterData(dict={'ef_set':ef_new}))
         self.report(para_check.get_dict())
         
