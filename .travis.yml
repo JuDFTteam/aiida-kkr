@@ -7,13 +7,13 @@ notifications:
 services:
 - postgresql
 - rabbitmq
-apt: # copied from wannier90's travis.yml
+addons:
+  postgresql: '9.5'
+  apt: # copied from wannier90's travis.yml
     packages:
       - gfortran
       - libblas-dev
       - liblapack-dev
-addons:
-  postgresql: '9.5'
 cache: pip
 before_install:
 - openssl aes-256-cbc -K $encrypted_6bf0778859c5_key -iv $encrypted_6bf0778859c5_iv
@@ -41,7 +41,7 @@ script:
 - chmod 400 ~/.ssh/id_rsa
 - echo "iffgit.fz-juelich.de,134.94.161.83 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH2UDrT0bZP+WmJGGbtLPtFyC5FgQgOM1XvVJ6u5XBJrYMnKNVb9jAttL+k8VvDgcK6b3dFJnvt7eiXtG/hnqCo=" >> ~/.ssh/known_hosts
 - git clone --depth 1 gitlab@iffgit.fz-juelich.de:kkr/jukkr.git
-- ls; pwd
+- ls; pwd; which gfortran
 - cd jukkr/
 # build voronoi code
 - ./install.py --program=voronoi --compiler=gfortran --parallelization=serial
