@@ -55,10 +55,10 @@ script:
 #- cd ..
 #
 # Now run all tests
+- cd ./aiida_kkr/tests/ && ./run_all.sh
 allow_failures:
-  - cd ./aiida_kkr/tests/ #&& ./run_all.sh
-  - pytest -v --cov=aiida_kkr
-  - cd ../../
+  - pytest -s --cov-report=term-missing --cov=aiida_kkr -k Test_dos_workflow
+  - pytest -s --cov-report=term-missing --cov=aiida_kkr -k Test_gf_writeout_workflow
 # (needs allow failure so that after_success is executed)
 after_success:
 - codecov
