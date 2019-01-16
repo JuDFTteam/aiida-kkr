@@ -7,6 +7,11 @@ notifications:
 services:
 - postgresql
 - rabbitmq
+apt: # copied from wannier90's travis.yml
+    packages:
+      - gfortran
+      - libblas-dev
+      - liblapack-dev
 addons:
   postgresql: '9.5'
 cache: pip
@@ -28,6 +33,10 @@ env:
 - TEST_TYPE="unittests"
 script:
 - cd ./aiida_kkr/tests/ && ./run_all.sh
+- mkdir -m 700 ~/.ssh/
+- mv id_rsa_travis ~/.ssh/id_rsa 
+- chmod 400 ~/.ssh/id_rsa
+- git clone gitlab@iffgit.fz-juelich.de:kkr/jukkr.git
 after_success:
 - codecov
 git:
