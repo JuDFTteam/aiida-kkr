@@ -33,9 +33,11 @@ env:
 - TEST_TYPE="unittests"
 script:
 - cd ./aiida_kkr/tests/ && ./run_all.sh
-- mkdir -m 700 ~/.ssh/
+- cd ../../
+#- mkdir -m 700 ~/.ssh/
 - mv id_rsa_travis ~/.ssh/id_rsa 
 - chmod 400 ~/.ssh/id_rsa
+- echo "iffgit.fz-juelich.de,134.94.161.83 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH2UDrT0bZP+WmJGGbtLPtFyC5FgQgOM1XvVJ6u5XBJrYMnKNVb9jAttL+k8VvDgcK6b3dFJnvt7eiXtG/hnqCo=" >> ~/.ssh/known_hosts
 - git clone gitlab@iffgit.fz-juelich.de:kkr/jukkr.git
 after_success:
 - codecov
