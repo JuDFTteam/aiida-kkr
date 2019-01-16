@@ -32,11 +32,7 @@ install:
 env:
 - TEST_TYPE="unittests"
 script:
-# run tests without running KKR codes
-- cd ./aiida_kkr/tests/ && ./run_all.sh
-- cd ../../
-#
-# Now clone JuKKR repository and build codes
+# Clone JuKKR repository and build codes
 - mv id_rsa_travis ~/.ssh/id_rsa 
 - chmod 400 ~/.ssh/id_rsa
 - echo "iffgit.fz-juelich.de,134.94.161.83 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH2UDrT0bZP+WmJGGbtLPtFyC5FgQgOM1XvVJ6u5XBJrYMnKNVb9jAttL+k8VvDgcK6b3dFJnvt7eiXtG/hnqCo=" >> ~/.ssh/known_hosts
@@ -58,11 +54,12 @@ script:
 #- cd build/ && make && cp kkrflex.exe ../
 #- cd ..
 #
-# Now run tests that need the code to be executed (for the moment choose only those where kkrcode alone is sufficient)
+# Now run all tests
 allow_failures:
-  - cd ../aiida_kkr/tests/
-  - pytest -s --cov-report=html --cov=aiida_kkr -k Test_dos_workflow
-  - pytest -s --cov-report=html --cov=aiida_kkr -k Test_gf_writeout_workflow
+  - cd ./aiida_kkr/tests/ #&& ./run_all.sh
+  - pytest -v --cov=aiida_kkr
+  - cd ../../
+# (needs allow failure so that after_success is executed)
 after_success:
 - codecov
 git:
