@@ -7,8 +7,8 @@ import pytest
 kkr_codename = 'KKRhost'
 computername = 'localhost'
 queuename = ''
-workdir = '/temp/ruess/aiida_run_iff734/'
-codelocation = '/Users/ruess/sourcecodes/aiida/codes_localhost'
+workdir = '/home/travis/build/JuDFTteam/aiida-kkr/jukkr/work'
+codelocation = '/home/travis/build/JuDFTteam/aiida-kkr/'
 
 # tests
 @pytest.mark.usefixtures("aiida_env")
@@ -46,7 +46,7 @@ class Test_gf_writeout_workflow():
                     comp = Computer.from_backend_entity(c)
         # if it is not there create a new one
         if not computer_found_in_db:
-            comp = Computer(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir='/temp/ruess/aiida_run_iff734/')
+            comp = Computer(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir=workdir)
             comp.set_default_mpiprocs_per_machine(4)
             comp.store()
             print 'computer stored now cofigure'
@@ -62,7 +62,7 @@ class Test_gf_writeout_workflow():
             code = Code()
             code.label = kkr_codename
             code.description = ''
-            code.set_remote_computer_exec((comp, '/Users/ruess/sourcecodes/aiida/codes_localhost/kkr.x'))
+            code.set_remote_computer_exec((comp, codelocation+'/kkr.x'))
             code.set_input_plugin_name('kkr.kkr')
             code.store()
 

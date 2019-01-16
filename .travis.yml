@@ -44,21 +44,24 @@ script:
 - ls; pwd; which gfortran
 - cd jukkr/
 # build voronoi code
-- ./install.py --program=voronoi --compiler=gfortran --parallelization=serial
-- cd build/ && make && cp voronoi.exe ../
-- cd ..
+# cannot build with gfortran at the moment
+#- ./install.py --program=voronoi --compiler=gfortran --parallelization=serial
+#- cd build/ && make && cp voronoi.exe ../
+#- cd ..
 # build kkrhost code
 - ./install.py --program=kkrhost --compiler=gfortran --parallelization=serial
 - cd build/ && make && cp kkr.x ../
 - cd ..
 # build kkrimp code
-- ./install.py --program=kkrimp --compiler=gfortran --parallelization=serial
-- cd build/ && make && cp kkrflex.exe ../
-- cd ..
+# cannot build with gfortran at the moment
+#- ./install.py --program=kkrimp --compiler=gfortran --parallelization=serial
+#- cd build/ && make && cp kkrflex.exe ../
+#- cd ..
 #
-# Now run tests that need the code to be executed
-- cd ..
-# ... to come
+# Now run tests that need the code to be executed (for the moment choose only those where kkrcode alone is sufficient)
+- cd ../aiida_kkr/tests/
+- pytest -s --cov-report=html --cov=aiida_kkr -k Test_dos_workflow
+- pytest -s --cov-report=html --cov=aiida_kkr -k Test_gf_writeout_workflow
 after_success:
 - codecov
 git:
