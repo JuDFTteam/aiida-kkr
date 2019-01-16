@@ -7,6 +7,8 @@ import pytest
 kkrimp_codename = 'KKRimp'
 computername = 'localhost'
 queuename = ''
+workdir = '/temp/ruess/aiida_run_iff734/'
+codelocation = '/Users/ruess/sourcecodes/aiida/codes_localhost'
 
 # tests
 @pytest.mark.usefixtures("aiida_env")

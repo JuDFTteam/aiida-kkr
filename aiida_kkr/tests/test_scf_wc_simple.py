@@ -8,6 +8,8 @@ voro_codename = 'voronoi'
 kkr_codename = 'KKRhost'
 computername = 'localhost'
 queuename = ''
+workdir = '/temp/ruess/aiida_run_iff734/'
+codelocation = '/Users/ruess/sourcecodes/aiida/codes_localhost'
 
 # helper function
 def print_clean_inouts(node):
@@ -64,7 +66,7 @@ class Test_scf_workflow():
                     computer_found_in_db = True
                     comp = Computer.from_backend_entity(c)
         if not computer_found_in_db:
-            comp = Computer(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir='/temp/ruess/aiida_run_iff734/')
+            comp = Computer(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir=workdir)
             comp.set_default_mpiprocs_per_machine(4)
             comp.store()
             print 'computer stored now cofigure'
@@ -79,9 +81,9 @@ class Test_scf_workflow():
             code = Code()
             code.label = voro_codename
             code.description = ''
-            code.set_remote_computer_exec((comp, '/Users/ruess/sourcecodes/aiida/codes_localhost/voronoi.exe'))
+            code.set_remote_computer_exec((comp, codelocation+'/voronoi.exe'))
             code.set_input_plugin_name('kkr.voro')
-            code.set_prepend_text('ln -s /Users/ruess/sourcecodes/aiida/codes_localhost/ElementDataBase .')
+            code.set_prepend_text('ln -s '+codelocation+'/ElementDataBase .')
             code.store()
         try:
             code = Code.get_from_string(kkr_codename+'@'+computername)
@@ -89,7 +91,7 @@ class Test_scf_workflow():
             code = Code()
             code.label = kkr_codename
             code.description = ''
-            code.set_remote_computer_exec((comp, '/Users/ruess/sourcecodes/aiida/codes_localhost/kkr.x'))
+            code.set_remote_computer_exec((comp, codelocation+'/kkr.x'))
             code.set_input_plugin_name('kkr.kkr')
             code.store()
             print 'stored kkr code in database'
