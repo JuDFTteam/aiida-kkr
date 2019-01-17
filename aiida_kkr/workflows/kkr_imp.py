@@ -550,7 +550,12 @@ def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at ce
         sname = site.kind_name
         kind = struc.get_kind(sname)
         pos = site.position
-        zatom = _atomic_numbers[kind.get_symbols_string()]
+        # intermediate fix to avoid crash for old structures with vacuum:'{H0.00X1.00}'
+        # use atom kind='X' in the future for new structures
+        if kind.get_symbols_string()=='{H0.00X1.00}':
+            zatom = 0
+        else:
+            zatom = _atomic_numbers[kind.get_symbols_string()]
         if isite == imp_info.get_dict().get('ilayer_center'):
             zatom = imp_info.get_dict().get('Zimp')[0]
         symbol = PeriodicTableElements.get(zatom).get('symbol')
