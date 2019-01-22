@@ -491,7 +491,7 @@ class KkrimpCalculation(JobCalculation):
             params_kkrimp.set_multiple_values(NCOLL=0, SPINORBIT=0, CALCORBITALMOMENT=0, TESTFLAG=[])
         # special settings
         runopts = params_host.get_value('RUNOPT')
-        if 'SIMULASA' in runopts or (params_kkrimp.get_value('NCOLL')>0 and params_kkrimp.get_value('INS')>0):
+        if 'SIMULASA' in runopts or (params_kkrimp.get_value('NCOLL')>0 and params_kkrimp.get_value('INS')=0):
             params_kkrimp.set_value('RUNFLAG', ['SIMULASA'])
         else:
             params_kkrimp.set_value('RUNFLAG', [])
