@@ -435,6 +435,8 @@ class kkr_imp_wc(WorkChain):
         potname_converged = 'potential'
         potname_impvorostart = 'output.pot'
         potname_imp = 'potential_imp'
+        
+        # TODO: implement for general i_layer_center
         if nspin < 2:
             replacelist_pot2 = [[0,0]]
         else:

@@ -28,6 +28,7 @@ __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.2"
 __contributors__ = ("Philipp Rüßmann")
 
+#TODO: implement 'ilayer_center' consistency check
 
 class KkrimpCalculation(JobCalculation):
     """
@@ -317,8 +318,8 @@ class KkrimpCalculation(JobCalculation):
         # the one from the parent calc (except for 'Zimp'). If that's not the 
         # case, raise an error
         if found_impurity_inputnode and found_host_parent:
-            if (imp_info_inputnode.get_attr('ilayer_center') == imp_info.get_attr('ilayer_center')
-                and imp_info_inputnode.get_attr('Rcut') == imp_info.get_attr('Rcut')):
+            #TODO: implement also 'ilayer_center' check
+            if imp_info_inputnode.get_attr('Rcut') == imp_info.get_attr('Rcut'):
                 check_consistency_imp_info = True
                 try:
                     if (imp_info_inputnode.get_attr('hcut') == imp_info.get_attr('hcut')
