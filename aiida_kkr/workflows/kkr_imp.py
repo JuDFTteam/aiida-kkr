@@ -431,16 +431,17 @@ class kkr_imp_wc(WorkChain):
         voro_calc_remote = self.ctx.last_voro_calc.out.last_voronoi_remote
         imp_info = self.inputs.impurity_info
         
+        ilayer_cent = imp_info.get_attr('ilayer_center')
+        
         # prepare settings dict
         potname_converged = 'potential'
         potname_impvorostart = 'output.pot'
         potname_imp = 'potential_imp'
         
-        # TODO: implement for general i_layer_center
         if nspin < 2:
-            replacelist_pot2 = [[0,0]]
+            replacelist_pot2 = [[0,ilayer_cent]]
         else:
-            replacelist_pot2 = [[0,0],[1,1]]
+            replacelist_pot2 = [[0,2*ilayer_cent],[1,2*ilayer_cent+1]]           
         try:
             neworder_pot1 = [int(i) for i in np.loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1] 
         except:
