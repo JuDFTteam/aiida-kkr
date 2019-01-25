@@ -303,7 +303,8 @@ class kkr_flex_wc(WorkChain):
                 para_check = update_params_wf(para_check, ParameterData(dict={'EMIN': self.ctx.dos_params_dict['emin'], 
                                                                               'EMAX': self.ctx.dos_params_dict['emax'],
                                                                               'NPT2': self.ctx.dos_params_dict['nepts'], 
-                                                                              'NPOL': 0, 'NPT1': 0, 'NPT3': 0}))
+                                                                              'NPOL': 0, 'NPT1': 0, 'NPT3': 0,
+                                                                              'BZDIVIDE': self.ctx.dos_params_dict['kmesh']}))
         self.report(para_check.get_dict())
         
         #construct the final param node containing all of the params   
