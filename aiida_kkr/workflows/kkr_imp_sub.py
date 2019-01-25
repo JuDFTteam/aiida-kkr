@@ -86,6 +86,7 @@ class kkr_imp_sub_wc(WorkChain):
                    'calc_orbmom' : False,                     # defines of orbital moments will be calculated and written out
                    'spinorbit' : False,                       # SOC calculation (True/False)
                    'newsol' : False,                           # new SOC solver is applied
+                   'dos_run': False,                          # specify if DOS should be calculated (!KKRFLEXFILES with energy contour necessary as GF_remote_data!)
                    'mesh_params': { 'NPAN_LOG': 8,
                                     'NPAN_EQ': 5,
                                     'NCHEB': 7}
@@ -256,6 +257,9 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.spinorbit = wf_dict.get('spinorbit', self._wf_default['spinorbit'])
         self.ctx.newsol = wf_dict.get('newsol', self._wf_default['newsol']) 
         self.ctx.mesh_params = wf_dict.get('mesh_params', self._wf_default['mesh_params'])
+        
+        # DOS
+        self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
 
         
         self.report('INFO: use the following parameter:\n'
@@ -566,6 +570,11 @@ class kkr_imp_sub_wc(WorkChain):
             new_params['NSPIN'] = nspin
             new_params['INS'] = self.ctx.spherical
             
+            # add ldos runoption if dos_run = True
+            if self.ctx.dos_run:
+                new_params['RUNFLAG'] = ['ldos']
+                new_params['SCFSTEPS'] = 1
+                
             # add newsosol
             if self.ctx.newsol:
                 new_params['TESTFLAG'] = ['tmatnew']

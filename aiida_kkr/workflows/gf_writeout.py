@@ -60,7 +60,13 @@ class kkr_flex_wc(WorkChain):
                         'custom_scheduler_commands' : '',         # some additional scheduler commands 
                         'use_mpi' : False}                        # execute KKR with mpi or without
                         
-    _wf_default = {'ef_shift': 0.                                   # set costum absolute E_F (in eV)
+    _wf_default = {'ef_shift': 0. ,                                  # set costum absolute E_F (in eV)
+                   'dos_params': {'nepts': 61,                       # DOS params: number of points in contour
+                                  'tempr': 200, # K                  # DOS params: temperature
+                                  'emin': -1, # Ry                   # DOS params: start of energy contour
+                                  'emax': 1,  # Ry                   # DOS params: end of energy contour
+                                  'kmesh': [10, 10, 10]},            # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
+                   'dos_run': False
                    }
 
     @classmethod
@@ -134,7 +140,6 @@ class kkr_flex_wc(WorkChain):
             if wf_dict == {}:
                 wf_dict = self._wf_default
                 self.report('INFO: using default wf parameters')
-            self.ctx.ef_shift = wf_dict.get('ef_shift', self._wf_default['ef_shift'])
     
         if options_dict == {}:
             options_dict = self._options_default
@@ -148,6 +153,10 @@ class kkr_flex_wc(WorkChain):
         self.ctx.walltime_sec = options_dict.get('walltime_sec', self._options_default['walltime_sec'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
+        
+        self.ctx.ef_shift = wf_dict.get('ef_shift', self._wf_default['ef_shift'])
+        self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
+        self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
 
         self.ctx.description_wf = self.inputs.get('description', self._wf_description)
         self.ctx.label_wf = self.inputs.get('label', self._wf_label)
@@ -290,6 +299,11 @@ class kkr_flex_wc(WorkChain):
                 ef_new = (ef_old + ef_shift/get_Ry2eV())       
                 self.report('INFO: ef_old + ef_shift = ef_new: {} eV + {} eV = {} eV'.format(ef_old*get_Ry2eV(), ef_shift, ef_new*get_Ry2eV()))
                 para_check = update_params_wf(para_check, ParameterData(dict={'ef_set':ef_new}))
+            if self.ctx.dos_run:
+                para_check = update_params_wf(para_check, ParameterData(dict={'EMIN': self.ctx.dos_params_dict['emin'], 
+                                                                              'EMAX': self.ctx.dos_params_dict['emax'],
+                                                                              'NPT2': self.ctx.dos_params_dict['nepts'], 
+                                                                              'NPOL': 0, 'NPT1': 0, 'NPT3': 0}))
         self.report(para_check.get_dict())
         
         #construct the final param node containing all of the params   
