@@ -5,9 +5,10 @@ and some helper methods to do so with AiiDA
 """
 
 from aiida.orm import Code, DataFactory
+from aiida.orm.data.base import Float
 from aiida.work.workchain import WorkChain, ToContext, while_
 from masci_tools.io.kkr_params import kkrparams
-from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp
+from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from aiida.common.datastructures import calc_states
 from numpy import array
@@ -704,6 +705,12 @@ class kkr_imp_sub_wc(WorkChain):
             options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
         
         if last_remote is None:
+            # make sure no core states are in energy contour
+            # extract emin from output of GF host calculation
+            GF_out_params = host_GF.inp.remote_folder.out.output_parameters
+            emin = GF_out_params.get_dict().get('energy_contour_group').get('emin')
+            # then use this value to get rid of all core states that are lower than emin (return the same input potential if no states have been removed
+            imp_pot = kick_out_corestates_wf(imp_pot, Float(emin))
             if 'impurity_info' in self.inputs:
                 self.report('INFO: using impurity_info node as input for kkrimp calculation')
                 imp_info = self.inputs.impurity_info
