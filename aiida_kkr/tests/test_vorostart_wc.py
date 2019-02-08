@@ -1,14 +1,7 @@
 #!/usr/bin/env python
 
 import pytest
-
-# some global settings
-
-voro_codename = 'voronoi'
-computername = 'localhost'
-queuename = ''
-workdir = '/temp/ruess/aiida_run_iff734/'
-codelocation = '/Users/ruess/sourcecodes/aiida/codes_localhost'
+from dbsetup import *
 
 # tests
 @pytest.mark.usefixtures("aiida_env")
@@ -31,40 +24,8 @@ class Test_vorostart_workflow():
         ParameterData = DataFactory('parameter')
         StructureData = DataFactory('structure')
 
-        # create or read computer and code
-        # first check if computer exists already in database
-        qb = QueryBuilder()
-        qb.append(Computer, tag='computer')
-        all_computers = qb.get_results_dict()
-        computer_found_in_db = False
-        if len(all_computers)>0:
-            for icomp in range(len(all_computers)):
-                c = all_computers[icomp].get('computer').get('*')
-                if c.get_name() == computername:
-                    computer_found_in_db = True
-                    comp = Computer.from_backend_entity(c)
-        # if it is not there create a new one
-        if not computer_found_in_db:
-            comp = Computer(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir='/temp/ruess/aiida_run_iff734/')
-            comp.set_default_mpiprocs_per_machine(4)
-            comp.store()
-            print 'computer stored now cofigure'
-            comp.configure()
-        else:
-            print 'found computer in database'
-
-        # then get code from database or create a new code
-        from aiida.common.exceptions import NotExistent
-        try:
-            code = Code.get_from_string(voro_codename+'@'+computername)
-        except NotExistent as exception:
-            code = Code()
-            code.label = voro_codename
-            code.description = ''
-            code.set_remote_computer_exec((comp, '/Users/ruess/sourcecodes/aiida/codes_localhost/voronoi.exe'))
-            code.set_input_plugin_name('kkr.voro')
-            code.set_prepend_text('ln -s /Users/ruess/sourcecodes/aiida/codes_localhost/ElementDataBase .')
-            code.store()
+        # prepare computer and code (needed so that 
+        prepare_code(voro_codename, codelocation, computername, workdir)
 
         # Then set up the structure
         alat = 6.83 # in a_Bohr

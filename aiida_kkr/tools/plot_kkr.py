@@ -467,6 +467,9 @@ class plot_kkr():
                     results_dict['convergence_group']['fermi_energy_all_iterations'] = '...'
                     results_dict['convergence_group']['rms_all_iterations'] = '...'
                     results_dict['convergence_group']['total_energy_Ry_all_iterations'] = '...'
+                    results_dict['convergence_group']['spin_moment_per_atom_all_iterations'] = '...'
+                    results_dict['convergence_group']['orbital_moment_per_atom_all_iterations'] = '...'
+                    results_dict['convergence_group']['total_spin_moment_all_iterations'] = '...'
                 pprint(results_dict)
             
         # plot structure

@@ -1,14 +1,7 @@
 #!/usr/bin/env python
 
 import pytest
-
-# some global settings
-
-kkr_codename = 'KKRhost'
-computername = 'localhost'
-queuename = ''
-workdir = '/home/travis/build/JuDFTteam/aiida-kkr/jukkr/work'
-codelocation = '/home/travis/build/JuDFTteam/aiida-kkr/'
+from dbsetup import *
 
 # tests
 @pytest.mark.usefixtures("aiida_env")
@@ -22,8 +15,6 @@ class Test_gf_writeout_workflow():
         simple Cu noSOC, FP, lmax2 full example using scf workflow
         """
         from aiida.orm import Code, load_node, DataFactory
-        from aiida.orm.computers import Computer
-        from aiida.orm.querybuilder import QueryBuilder
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
         from numpy import array
@@ -32,46 +23,14 @@ class Test_gf_writeout_workflow():
         ParameterData = DataFactory('parameter')
         StructureData = DataFactory('structure')
 
-        # create or read computer and code
-        # first check if computer exists already in database
-        qb = QueryBuilder()
-        qb.append(Computer, tag='computer')
-        all_computers = qb.get_results_dict()
-        computer_found_in_db = False
-        if len(all_computers)>0:
-            for icomp in range(len(all_computers)):
-                c = all_computers[icomp].get('computer').get('*')
-                if c.get_name() == computername:
-                    computer_found_in_db = True
-                    comp = Computer.from_backend_entity(c)
-        # if it is not there create a new one
-        if not computer_found_in_db:
-            comp = Computer(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir=workdir)
-            comp.set_default_mpiprocs_per_machine(4)
-            comp.store()
-            print 'computer stored now cofigure'
-            comp.configure()
-        else:
-            print 'found computer in database'
-
-        # then get code from database or create a new code
-        from aiida.common.exceptions import NotExistent
-        try:
-            code = Code.get_from_string(kkr_codename+'@'+computername)
-        except NotExistent as exception:
-            code = Code()
-            code.label = kkr_codename
-            code.description = ''
-            code.set_remote_computer_exec((comp, codelocation+'/kkr.x'))
-            code.set_input_plugin_name('kkr.kkr')
-            code.store()
-
+        # prepare computer and code (needed so that 
+        prepare_code(kkr_codename, codelocation, computername, workdir)
        
         # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
-        wfd =kkr_flex_wc.get_wf_defaults()
-        wfd['queue_name'] = queuename
-        wfd['use_mpi'] = True
-        options = ParameterData(dict=wfd)
+        options, wfd =kkr_flex_wc.get_wf_defaults()
+        options['queue_name'] = queuename
+        options['use_mpi'] = True
+        options = ParameterData(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         KKRCode = Code.get_from_string(kkr_codename+'@'+computername)

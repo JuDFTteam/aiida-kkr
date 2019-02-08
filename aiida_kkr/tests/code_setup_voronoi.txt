@@ -1,7 +1,0 @@
-voronoi
-
-False
-kkr.voro
-my_mac
-/Users/ruess/sourcecodes/voronoi/voronoi.exe
-ln -s /Users/ruess/sourcecodes/voronoi/ElementDataBase .

@@ -16,14 +16,16 @@ addons:
       - liblapack-dev
 cache: pip
 before_install:
+# this decripts the ssh key needed to download the KKR code
 - openssl aes-256-cbc -K $encrypted_6bf0778859c5_key -iv $encrypted_6bf0778859c5_iv
   -in id_rsa_travis.enc -out id_rsa_travis -d
+# Now we install the needed dependencies
 - sudo apt-get install locate
 - sudo service postgresql stop
 - sudo apt-get remove postgresql
 - sudo apt-get install postgresql-9.5
 - sudo updatedb
-install:
+install: # python installations
 - pip install -U pip wheel setuptools
 - pip install -e git+https://github.com/aiidateam/aiida_core@develop#egg=aiida-core[testing]
 - pip install -e git+https://github.com/JuDFTteam/masci-tools@master#egg=masci-tools
@@ -33,27 +35,12 @@ env:
 - TEST_TYPE="unittests"
 script:
 # Clone JuKKR repository and build codes
-- mv id_rsa_travis ~/.ssh/id_rsa 
+# place the key where it is expected and make sure the connection works passwordless
+- mv id_rsa_travis ~/.ssh/id_rsa
 - chmod 400 ~/.ssh/id_rsa
 - echo "iffgit.fz-juelich.de,134.94.161.83 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH2UDrT0bZP+WmJGGbtLPtFyC5FgQgOM1XvVJ6u5XBJrYMnKNVb9jAttL+k8VvDgcK6b3dFJnvt7eiXtG/hnqCo=" >> ~/.ssh/known_hosts
-- git clone --depth 1 gitlab@iffgit.fz-juelich.de:kkr/jukkr.git
-- ls; pwd; which gfortran
-- cd jukkr/
-# build voronoi code
-# cannot build with gfortran at the moment
-#- ./install.py --program=voronoi --compiler=gfortran --parallelization=serial
-#- cd build/ && make && cp voronoi.exe ../
-#- cd ..
-# build kkrhost code
-- ./install.py --program=kkrhost --compiler=gfortran --parallelization=serial
-- cd build/ && make && cp kkr.x ../
-- cd ..
-# build kkrimp code
-# cannot build with gfortran at the moment
-#- ./install.py --program=kkrimp --compiler=gfortran --parallelization=serial
-#- cd build/ && make && cp kkrflex.exe ../
-#- cd ..
-#
+# clone the code and install
+- ./jukkr_installation.sh
 # Now run all tests
 - pwd; cd ../aiida_kkr/tests/ && ./run_all.sh
 allow_failures:
