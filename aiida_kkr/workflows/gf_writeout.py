@@ -140,6 +140,9 @@ class kkr_flex_wc(WorkChain):
             if wf_dict == {}:
                 wf_dict = self._wf_default
                 self.report('INFO: using default wf parameters')
+	else:
+	    wf_dict=self._wf_default
+	    self.report('INFO: using default wf parameters')
     
         if options_dict == {}:
             options_dict = self._options_default
