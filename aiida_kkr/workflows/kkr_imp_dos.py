@@ -5,7 +5,7 @@ In this module you find the base workflow for a impurity DOS calculation and
 some helper methods to do so with AiiDA
 """
 
-from aiida.orm import Code, DataFactory
+from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import if_, ToContext, WorkChain
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
@@ -251,9 +251,18 @@ class kkr_imp_dos_wc(WorkChain):
         options = self.ctx.options_params_dict
         kkrimpcode = self.inputs.kkrimpcode
         gf_writeout_wf = self.ctx.gf_writeout
+        gf_writeout_calc = load_node(self.ctx.gf_writeout.out.calculation_info.get_attr('pk_flexcalc'))
         gf_writeout_remote = gf_writeout_wf.out.GF_host_remote
         impurity_pot = self.inputs.host_imp_pot
         imps = self.ctx.imp_info
+        
+        nspin = gf_writeout_calc.out.output_parameters.get_attr('nspin')
+        self.report('nspin: {}'.format(nspin))
+        self.ctx.kkrimp_params_dict = ParameterData(dict={'nspin': nspin, 
+                                                          'nsteps': self.ctx.nsteps, 
+                                                          'kkr_runmax': self.ctx.kkr_runmax, 'non_spherical': self.ctx.non_spherical, 
+                                                          'spinorbit': self.ctx.spinorbit, 'newsol': self.ctx.newsol,
+                                                          'dosrun': True})
         kkrimp_params = self.ctx.kkrimp_params_dict
         
         label_imp = 'KKRimp DOS (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {}'.format(
