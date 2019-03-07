@@ -56,8 +56,6 @@ class kkr_imp_dos_wc(WorkChain):
                                   'emin': -1, # Ry                   # DOS params: start of energy contour
                                   'emax': 1,  # Ry                   # DOS params: end of energy contour
                                   'kmesh': [30, 30, 30]},            # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
-                   'kkr_runmax': 1,                         # Maximum number of kkr jobs/starts (defauld iterations per start)
-                   'nsteps': 1,                             # number of iterations done per KKR calculation
                    'non_spherical': 1,                      # use non-spherical parts of the potential (0 if you don't want that)
                    'born_iter': 2,                          # number of Born iterations for the non-spherical calculation
                    'init_pos' : None,                       # position in unit cell where magnetic field is applied [default (None) means apply to all]
@@ -109,6 +107,8 @@ class kkr_imp_dos_wc(WorkChain):
 
         # specify the outputs
         spec.output('workflow_info', valid_type=ParameterData)
+        spec.output('last_calc_output_parameters', valid_type=ParameterData)
+        spec.output('last_calc_info', valid_type=ParameterData)
         
         
     def start(self):
@@ -145,7 +145,6 @@ class kkr_imp_dos_wc(WorkChain):
         
         # set workflow parameters for the KKR imputrity calculations
         self.ctx.ef_shift = wf_dict.get('ef_shift', self._wf_default['ef_shift'])
-        #self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
         self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
         
         # set workflow parameters for the KKR impurity calculation
@@ -287,8 +286,13 @@ class kkr_imp_dos_wc(WorkChain):
         """
         
         self.report('INFO: creating output nodes for the KKR imp DOS workflow ...')
+
+        last_calc_pk = self.ctx.kkrimp_dos.out.calculation_info.get_attr('last_calc_nodeinfo')['pk']
+        last_calc_output_params = load_node(last_calc_pk).out.output_parameters        
+        last_calc_info = self.ctx.kkrimp_dos.out.calculation_info
         
         outputnode_dict = {}
+        outputnode_dict['impurity_info'] = self.ctx.imp_info.get_attrs()
         outputnode_dict['workflow_name'] = self.__class__.__name__
         outputnode_dict['workflow_version'] = self._workflowversion
         outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk, 
@@ -300,11 +304,13 @@ class kkr_imp_dos_wc(WorkChain):
         self.report('INFO: workflow_info node: {}'.format(outputnode_t.get_attrs()))
 
         self.out('workflow_info', outputnode_t)
+        self.out('last_calc_output_parameters', last_calc_output_params)
+        self.out('last_calc_info', last_calc_info)
         
-        self.report('INFO: created output nodes for the KKR imp DOS workflow.')      
+        self.report('INFO: created output nodes for KKR imp DOS workflow.')      
         self.report('\n'
                     '|------------------------------------------------------------------------------------------------------------------|\n'
-                    '|-------------------------------------| Done with the KKR impurity workflow! |-------------------------------------|\n'
+                    '|-------------------------------------| Done with the KKR imp DOS workflow! |--------------------------------------|\n'
                     '|------------------------------------------------------------------------------------------------------------------|')
 
             
