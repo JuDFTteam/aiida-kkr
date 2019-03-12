@@ -6,7 +6,7 @@ contains plot_kkr class for node visualization
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.4"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -240,10 +240,25 @@ class plot_kkr():
         from ase.visualize import view
         from aiida_kkr.calculations.voro import VoronoiCalculation
         from aiida.orm import DataFactory
-        if not isinstance(node, DataFactory('structure')):
+        StructureData = DataFactory('structure')
+        if not isinstance(node, StructureData):
             structure, voro_parent = VoronoiCalculation.find_parent_structure(node)
         else:
             structure = node
+        # check if empty sphere need to be removed for plotting (ase structgure cannot be constructed for alloys or vacancies)
+        if structure.has_vacancies():
+            print "structure has vacancies, need to remove empty sites for plotting"
+            stmp = StructureData(cell=structure.cell)
+            for site in structure.sites:
+                k = structure.get_kind(site.kind_name)
+                pos = site.position
+                if not k.has_vacancies():
+                    stmp.append_atom(position=pos, symbols=k.symbol)
+                else:
+                    print "removing atom", site
+            stmp.set_pbc(structure.pbc)
+            structure = stmp
+        # now construct ase object and use ase's viewer
         ase_atoms = structure.get_ase()
         print "plotting structure using ase's `view`"
         view(ase_atoms, **kwargs)
