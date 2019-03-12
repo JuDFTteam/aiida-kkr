@@ -16,7 +16,8 @@ __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.1"
 __contributors__ = u"Fabian Bertoldo"
 
-#TODO: 
+#TODO: improve workflow output node structure
+#TODO: generalise search for imp_info and conv_host from startpot
     
 
 ParameterData = DataFactory('parameter')  
@@ -153,11 +154,11 @@ class kkr_imp_dos_wc(WorkChain):
         self.ctx.non_spherical = wf_dict.get('non_spherical', self._wf_default['non_spherical'])
         self.ctx.spinorbit = wf_dict.get('spinorbit', self._wf_default['spinorbit'])
         self.ctx.newsol = wf_dict.get('newsol', self._wf_default['newsol'])
-        self.ctx.kkrimp_params_dict = ParameterData(dict={#'nspin': self.ctx.nspin, 
-                                                          'nsteps': self.ctx.nsteps, 
-                                                          'kkr_runmax': self.ctx.kkr_runmax, 'non_spherical': self.ctx.non_spherical, 
-                                                          'spinorbit': self.ctx.spinorbit, 'newsol': self.ctx.newsol,
-                                                          'dosrun': True})
+        #self.ctx.kkrimp_params_dict = ParameterData(dict={#'nspin': self.ctx.nspin, 
+        #                                                  'nsteps': self.ctx.nsteps, 
+        #                                                  'kkr_runmax': self.ctx.kkr_runmax, 'non_spherical': self.ctx.non_spherical, 
+        #                                                  'spinorbit': self.ctx.spinorbit, 'newsol': self.ctx.newsol,
+        #                                                  'dosrun': True})
 
         # set workflow label and description
         self.ctx.description_wf = self.inputs.get('description', self._wf_description)
@@ -261,7 +262,7 @@ class kkr_imp_dos_wc(WorkChain):
                                                           'nsteps': self.ctx.nsteps, 
                                                           'kkr_runmax': self.ctx.kkr_runmax, 'non_spherical': self.ctx.non_spherical, 
                                                           'spinorbit': self.ctx.spinorbit, 'newsol': self.ctx.newsol,
-                                                          'dosrun': True})
+                                                          'dos_run': True})
         kkrimp_params = self.ctx.kkrimp_params_dict
         
         label_imp = 'KKRimp DOS (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {}'.format(
