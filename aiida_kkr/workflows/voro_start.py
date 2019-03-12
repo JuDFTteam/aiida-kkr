@@ -40,6 +40,7 @@ class kkr_startpot_wc(WorkChain):
     Starts from a structure together with a KKR parameter node.
 
     :param wf_parameters: (ParameterData), Workchain specifications
+    :param options: (ParameterData), specifications for the computer
     :param structure: (StructureData), aiida structure node to begin 
         calculation from (needs to contain vacancies, if KKR needs empty spheres)
     :param kkr: (Code)
@@ -51,20 +52,21 @@ class kkr_startpot_wc(WorkChain):
     """
 
     _workflowversion = __version__
-    _wf_default = {'queue_name' : '',                        # Queue name to submit jobs too
-                   'resources': {"num_machines": 1},         # resources to allowcate for the job
-                   'walltime_sec' : 60*60,                   # walltime after which the job gets killed (gets parsed to KKR)
-                   'use_mpi' : False,                        # execute KKR with mpi or without
-                   'custom_scheduler_commands' : '',         # some additional scheduler commands 
-                   'num_rerun' : 4,                          # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
+    _wf_default = {'num_rerun' : 4,                          # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
                    'fac_cls_increase' : 1.3, # alat          # factor by which the screening cluster is increased each iteration (up to num_rerun times)
                    'r_cls' : 1.3,            # alat          # default cluster radius, is increased iteratively
                    'natom_in_cls_min' : 79,                  # minimum number of atoms in screening cluster
                    'delta_e_min' : 1., # eV                  # minimal distance in DOS contour to emin and emax in eV
                    'threshold_dos_zero' : 10**-2, #states/eV # 
-                   'check_dos': True,                        # logical to determine if DOS is computed and checked
+                   'check_dos': False,                       # logical to determine if DOS is computed and checked
                    'delta_e_min_core_states' : 0.2 # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
-                }
+                   }
+    _options_default = {'queue_name' : '',                        # Queue name to submit jobs to
+                        'resources': {"num_machines": 1},         # resources to allowcate for the job
+                        'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)
+                        'use_mpi' : False,                        # execute KKR with mpi or without
+                        'custom_scheduler_commands' : '',         # some additional scheduler commands 
+                        }
     # add defaults of dos_params since they are passed onto that workflow
     for key, value in kkr_dos_wc.get_wf_defaults(silent=True).iteritems():
         if key == 'dos_params':
@@ -94,6 +96,8 @@ class kkr_startpot_wc(WorkChain):
         super(kkr_startpot_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
                    default=ParameterData(dict=cls._wf_default))
+        spec.input("options", valid_type=ParameterData, required=False,
+                   default=ParameterData(dict=cls._options_default))
         spec.input("structure", valid_type=StructureData, required=True)
         spec.input("kkr", valid_type=Code, required=False)
         spec.input("voronoi", valid_type=Code, required=True)
@@ -149,21 +153,27 @@ class kkr_startpot_wc(WorkChain):
 
         # input para
         wf_dict = self.inputs.wf_parameters.get_dict()
+        options_dict = self.inputs.options.get_dict()
 
         #TODO: check for completeness
         if wf_dict == {}:
             wf_dict = self._wf_default
             self.report('INFO: using default wf parameter')
+        if options_dict == {}:
+            options_dict = self._options_default
+            self.report('INFO: using default options')
 
-        # set values, or defaults
-        self.ctx.use_mpi = wf_dict.get('use_mpi', self._wf_default['use_mpi'])
-        self.ctx.resources = wf_dict.get('resources', self._wf_default['resources'])
-        self.ctx.walltime_sec = wf_dict.get('walltime_sec', self._wf_default['walltime_sec'])
-        self.ctx.queue = wf_dict.get('queue_name', self._wf_default['queue_name'])
-        self.ctx.custom_scheduler_commands = wf_dict.get('custom_scheduler_commands', self._wf_default['custom_scheduler_commands'])
+        # set values, or defaults for computer options
+        self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
+        self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
+        self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
+        self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
+        self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
         
+        # set DOS parameters
         self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
         
+        # set label and description of the workflow
         self.ctx.description_wf = self.inputs.get('_description', self._wf_description)
         self.ctx.label_wf = self.inputs.get('_label', self._wf_label)
         
@@ -477,7 +487,7 @@ class kkr_startpot_wc(WorkChain):
             # take subset of input and prepare parameter node for dos workflow
             wfdospara_dict = {'queue_name' : self.ctx.queue, 
                               'resources': self.ctx.resources,
-                              'walltime_sec' : self.ctx.walltime_sec,
+                              'max_wallclock_seconds' : self.ctx.walltime_sec,
                               'use_mpi' : self.ctx.use_mpi,
                               'custom_scheduler_commands' : self.ctx.custom_scheduler_commands,
                               'dos_params' : self.ctx.dos_params_dict}
