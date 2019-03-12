@@ -27,8 +27,8 @@ before_install:
 - sudo updatedb
 install: # python installations
 - pip install -U pip wheel setuptools
-- pip install -e git+https://github.com/aiidateam/aiida_core@develop#egg=aiida-core[testing]
-- pip install -e git+https://github.com/JuDFTteam/masci-tools@master#egg=masci-tools
+- pip install -e git+https://github.com/aiidateam/aiida_core.git@develop#egg=aiida-core[testing]
+- pip install -e git+https://github.com/JuDFTteam/masci-tools@master#egg=masci-tools.git
 - pip install -e .
 - pip install codecov
 env:
