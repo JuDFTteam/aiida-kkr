@@ -35,3 +35,7 @@ $ verdi calculation plugins  # should now show kkr.* entrypoints
 # Usage and Documentation
 
 See http://aiida-kkr.readthedocs.io for user's guide and API reference.
+
+# Contribting guide
+
+* 

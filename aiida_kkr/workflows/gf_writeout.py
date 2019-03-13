@@ -11,6 +11,7 @@ from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida.orm.calculation.job import JobCalculation
+from masci_tools.io.common_functions import get_Ry2eV
 from aiida.common.datastructures import calc_states
 from aiida.orm import WorkCalculation
 from aiida.common.exceptions import InputValidationError
@@ -20,9 +21,10 @@ from aiida.common.exceptions import InputValidationError
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1"
+__version__ = "0.2"
 __contributors__ = u"Fabian Bertoldo"
 
+# ToDo: add more default values to wf_parameters
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
@@ -37,6 +39,7 @@ class kkr_flex_wc(WorkChain):
     KKR starting from the RemoteData node of a previous calculation (either Voronoi or KKR).
 
     :param options_parameters: (ParameterData), Workchain specifications
+    :param wf_parameters: (ParameterData), Workflow parameters that deviate from previous KKR RemoteData
     :param remote_data: (RemoteData), mandatory; from a converged KKR calculation
     :param kkr: (Code), mandatory; KKR code running the flexfile writeout
     :param imp_info: ParameterData, mandatory: imp_info node specifying information 
@@ -56,6 +59,15 @@ class kkr_flex_wc(WorkChain):
                         'walltime_sec' : 60*60,                   # walltime after which the job gets killed (gets parsed to KKR)}
                         'custom_scheduler_commands' : '',         # some additional scheduler commands 
                         'use_mpi' : False}                        # execute KKR with mpi or without
+                        
+    _wf_default = {'ef_shift': 0. ,                                  # set costum absolute E_F (in eV)
+                   'dos_params': {'nepts': 61,                       # DOS params: number of points in contour
+                                  'tempr': 200, # K                  # DOS params: temperature
+                                  'emin': -1, # Ry                   # DOS params: start of energy contour
+                                  'emax': 1,  # Ry                   # DOS params: end of energy contour
+                                  'kmesh': [10, 10, 10]},            # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
+                   'dos_run': False
+                   }
 
     @classmethod
     def get_wf_defaults(self):
@@ -65,7 +77,7 @@ class kkr_flex_wc(WorkChain):
         """
     
         print('Version of workflow: {}'.format(self._workflowversion))
-        return self._options_default
+        return self._options_default, self._wf_default
 
     @classmethod
     def define(cls, spec):
@@ -79,6 +91,7 @@ class kkr_flex_wc(WorkChain):
         spec.input("kkr", valid_type=Code, required=True)     
         spec.input("options_parameters", valid_type=ParameterData, required=False,
                        default=ParameterData(dict=cls._options_default))
+        spec.input("wf_parameters", valid_type=ParameterData, required=False)
         spec.input("remote_data", valid_type=RemoteData, required=True)
         spec.input("imp_info", valid_type=ParameterData, required=True)
     
@@ -122,10 +135,19 @@ class kkr_flex_wc(WorkChain):
     
         # input both wf and options parameters
         options_dict = self.inputs.options_parameters.get_dict()
+        if 'wf_parameters' in self.inputs:
+            wf_dict = self.inputs.wf_parameters.get_dict()
+            if wf_dict == {}:
+                wf_dict = self._wf_default
+                self.report('INFO: using default wf parameters')
+	else:
+	    wf_dict=self._wf_default
+	    self.report('INFO: using default wf parameters')
     
         if options_dict == {}:
             options_dict = self._options_default
             self.report('INFO: using default options parameters')
+    
 
         # set values, or defaults
         # ToDo: arrange option assignment differently (look at scf.py from aiida-fleur)
@@ -134,6 +156,10 @@ class kkr_flex_wc(WorkChain):
         self.ctx.walltime_sec = options_dict.get('walltime_sec', self._options_default['walltime_sec'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
+        
+        self.ctx.ef_shift = wf_dict.get('ef_shift', self._wf_default['ef_shift'])
+        self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
+        self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
 
         self.ctx.description_wf = self.inputs.get('description', self._wf_description)
         self.ctx.label_wf = self.inputs.get('label', self._wf_label)
@@ -264,6 +290,25 @@ class kkr_flex_wc(WorkChain):
             
         self.report('INFO: RUNOPT set to: {}'.format(runopt))
         para_check = update_params_wf(self.ctx.input_params_KKR, ParameterData(dict={'RUNOPT':runopt}))
+        
+        if 'wf_parameters' in self.inputs:
+            if self.ctx.ef_shift != 0:
+                # extract old Fermi energy in Ry
+                remote_data_parent = self.inputs.remote_data
+                ef_old = remote_data_parent.inp.remote_folder.out.output_parameters.get_attr('fermi_energy')
+                # get Fermi energy shift in eV
+                ef_shift = self.ctx.ef_shift #set new E_F in eV
+                # calculate new Fermi energy in Ry
+                ef_new = (ef_old + ef_shift/get_Ry2eV())       
+                self.report('INFO: ef_old + ef_shift = ef_new: {} eV + {} eV = {} eV'.format(ef_old*get_Ry2eV(), ef_shift, ef_new*get_Ry2eV()))
+                para_check = update_params_wf(para_check, ParameterData(dict={'ef_set':ef_new}))
+            if self.ctx.dos_run:
+                para_check = update_params_wf(para_check, ParameterData(dict={'EMIN': self.ctx.dos_params_dict['emin'], 
+                                                                              'EMAX': self.ctx.dos_params_dict['emax'],
+                                                                              'NPT2': self.ctx.dos_params_dict['nepts'], 
+                                                                              'NPOL': 0, 'NPT1': 0, 'NPT3': 0,
+                                                                              'BZDIVIDE': self.ctx.dos_params_dict['kmesh']}))
+        self.report(para_check.get_dict())
         
         #construct the final param node containing all of the params   
         updatenode = ParameterData(dict=para_check.get_dict())

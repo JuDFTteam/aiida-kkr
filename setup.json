@@ -1,9 +1,9 @@
 {
     "name": "aiida-kkr",
-    "author": "Philipp Ruessmann, Jens Broeder",
+    "author": "Philipp Ruessmann, Jens Broeder, Fabian Bertoldo",
     "author_email": "p.ruessmann@fz-juelich.de",
     "description": "AiiDA plugin for the KKR code",
-    "url": "https://github.com/broeder-j/aiida-kkr",
+    "url": "https://github.com/JuDFTteam/aiida-kkr",
     "license": "MIT",
     "classifiers": [
         "License :: OSI Approved :: MIT License",
@@ -14,17 +14,17 @@
         "Topic :: Scientific/Engineering :: Physics",
         "Natural Language :: English"      
     ],
-    "version": "1.0.0",
-    "setup_requires": ["reentry"],
+    "version": "1.0.2",
     "reentry_register": true,
     "install_requires": [
-        "aiida-core >= 1.0.0a4",
+        "aiida-core == 1.0.0a4",
         "masci-tools",
         "seekpath",
         "pgtest",
         "pytest-cov >= 2.5.0",
         "sphinx",
-        "sphinx_rtd_theme"
+        "sphinx_rtd_theme",
+        "bumpversion"
     ],
     "entry_points": {
         "aiida.calculations": [

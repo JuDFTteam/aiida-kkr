@@ -5,9 +5,10 @@ and some helper methods to do so with AiiDA
 """
 
 from aiida.orm import Code, DataFactory
+from aiida.orm.data.base import Float
 from aiida.work.workchain import WorkChain, ToContext, while_
 from masci_tools.io.kkr_params import kkrparams
-from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp
+from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from aiida.common.datastructures import calc_states
 from numpy import array
@@ -86,6 +87,7 @@ class kkr_imp_sub_wc(WorkChain):
                    'calc_orbmom' : False,                     # defines of orbital moments will be calculated and written out
                    'spinorbit' : False,                       # SOC calculation (True/False)
                    'newsol' : False,                           # new SOC solver is applied
+                   'dos_run': False,                          # specify if DOS should be calculated (!KKRFLEXFILES with energy contour necessary as GF_remote_data!)
                    'mesh_params': { 'NPAN_LOG': 8,
                                     'NPAN_EQ': 5,
                                     'NCHEB': 7}
@@ -256,6 +258,9 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.spinorbit = wf_dict.get('spinorbit', self._wf_default['spinorbit'])
         self.ctx.newsol = wf_dict.get('newsol', self._wf_default['newsol']) 
         self.ctx.mesh_params = wf_dict.get('mesh_params', self._wf_default['mesh_params'])
+        
+        # DOS
+        self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
 
         
         self.report('INFO: use the following parameter:\n'
@@ -566,6 +571,11 @@ class kkr_imp_sub_wc(WorkChain):
             new_params['NSPIN'] = nspin
             new_params['INS'] = self.ctx.spherical
             
+            # add ldos runoption if dos_run = True
+            if self.ctx.dos_run:
+                new_params['RUNFLAG'] = ['ldos']
+                new_params['SCFSTEPS'] = 1
+                
             # add newsosol
             if self.ctx.newsol:
                 new_params['TESTFLAG'] = ['tmatnew']
@@ -695,6 +705,12 @@ class kkr_imp_sub_wc(WorkChain):
             options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
         
         if last_remote is None:
+            # make sure no core states are in energy contour
+            # extract emin from output of GF host calculation
+            GF_out_params = host_GF.inp.remote_folder.out.output_parameters
+            emin = GF_out_params.get_dict().get('energy_contour_group').get('emin')
+            # then use this value to get rid of all core states that are lower than emin (return the same input potential if no states have been removed
+            imp_pot = kick_out_corestates_wf(imp_pot, Float(emin))
             if 'impurity_info' in self.inputs:
                 self.report('INFO: using impurity_info node as input for kkrimp calculation')
                 imp_info = self.inputs.impurity_info
@@ -798,8 +814,10 @@ class kkr_imp_sub_wc(WorkChain):
         self.report("INFO: last_rms_all: {}".format(self.ctx.last_rms_all))
         
         # turn off initial magnetization once one step was successful (update_kkr_params) used in
-        if self.ctx.mag_init and self.ctx.kkrimp_step_success:
+        if self.ctx.mag_init and self.convergence_on_track(): # and self.ctx.kkrimp_step_success:
             self.ctx.mag_init_step_success = True
+        else:
+            self.ctx.mag_init_step_success = False
 
         # store some statistics used to print table in the end of the report
         self.ctx.KKR_steps_stats['success'].append(self.ctx.kkr_step_success)

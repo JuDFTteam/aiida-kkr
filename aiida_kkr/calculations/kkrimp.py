@@ -25,9 +25,10 @@ SinglefileData = DataFactory('singlefile')
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
+__version__ = "0.3"
 __contributors__ = ("Philipp Rüßmann")
 
+#TODO: implement 'ilayer_center' consistency check
 
 class KkrimpCalculation(JobCalculation):
     """
@@ -169,8 +170,9 @@ class KkrimpCalculation(JobCalculation):
         structure = tmp[10]
         
         # Prepare input files for KKRimp calculation
-        # 1. fill kkr params for KKRimp, write config file
-        self._extract_and_write_config(parent_calc_folder, params_host, parameters, tempfolder)
+        # 1. fill kkr params for KKRimp, write config file and eventually also kkrflex_llyfac file
+        host_file_path = kkrflex_file_paths[self._KKRFLEX_GREEN].split(self._KKRFLEX_GREEN)[0]
+        self._extract_and_write_config(parent_calc_folder, params_host, parameters, tempfolder, host_file_path)
         # 2. write shapefun from impurity info and host shapefun and copy imp. potential
         potfile = self._get_pot_and_shape(imp_info, shapefun_path, shapes, impurity_potential, parent_calc_folder, tempfolder, structure)
         # 3. change kkrflex_atominfo to match impurity case
@@ -317,8 +319,8 @@ class KkrimpCalculation(JobCalculation):
         # the one from the parent calc (except for 'Zimp'). If that's not the 
         # case, raise an error
         if found_impurity_inputnode and found_host_parent:
-            if (imp_info_inputnode.get_attr('ilayer_center') == imp_info.get_attr('ilayer_center')
-                and imp_info_inputnode.get_attr('Rcut') == imp_info.get_attr('Rcut')):
+            #TODO: implement also 'ilayer_center' check
+            if imp_info_inputnode.get_attr('Rcut') == imp_info.get_attr('Rcut'):
                 check_consistency_imp_info = True
                 try:
                     if (imp_info_inputnode.get_attr('hcut') == imp_info.get_attr('hcut')
@@ -456,9 +458,10 @@ class KkrimpCalculation(JobCalculation):
         return parameters, code, imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, impurity_potential, parent_calc_folder, structure
 
 
-    def _extract_and_write_config(self, parent_calc_folder, params_host, parameters, tempfolder):
+    def _extract_and_write_config(self, parent_calc_folder, params_host, parameters, tempfolder, kkrflex_file_path0):
         """
         fill kkr params for KKRimp and write config file
+        also writes kkrflex_llyfac file if Lloyd is used in the host system
         """
         # initialize kkrimp parameter set with default values
         params_kkrimp = kkrparams(params_type='kkrimp', NPAN_LOGPANELFAC=2, 
@@ -490,10 +493,28 @@ class KkrimpCalculation(JobCalculation):
             params_kkrimp.set_multiple_values(NCOLL=0, SPINORBIT=0, CALCORBITALMOMENT=0, TESTFLAG=[])
         # special settings
         runopts = params_host.get_value('RUNOPT')
-        if 'SIMULASA' in runopts or (params_kkrimp.get_value('NCOLL')>0 and params_kkrimp.get_value('INS')>0):
-            params_kkrimp.set_value('RUNFLAG', ['SIMULASA'])
+        if 'SIMULASA' in runopts or (params_kkrimp.get_value('NCOLL')>0 and params_kkrimp.get_value('INS')==0):
+            runflag = ['SIMULASA']
         else:
-            params_kkrimp.set_value('RUNFLAG', [])
+            runflag = []
+        # take care of LLYsimple (i.e. Lloyd in host system)
+        if 'LLOYD' in runopts:
+            # add runflag for imp code
+            runflag.append('LLYsimple')
+            # also extract renormalization factor and create kkrflex_llyfac file (contains one value only)
+            outfile = os.path.join(kkrflex_file_path0, 'output.000.txt')
+            llyfac_file = tempfolder.get_abs_path(self._KKRFLEX_LLYFAC)
+            with open(outfile) as f:
+                txt = f.readlines()
+                iline = search_string('RENORM_LLY: Renormalization factor of total charge', txt)
+                if iline>=0:
+                    llyfac = txt[iline].split()[-1]
+                    # now write kkrflex_llyfac to tempfolder where later on config file is also written
+                    with open(llyfac_file, 'w') as f2:
+                        f2.writelines([llyfac])
+
+        # now set runflags
+        params_kkrimp.set_value('RUNFLAG', runflag)
             
         # overwrite keys if found in parent_calc
         if parent_calc_folder is not None:
@@ -506,7 +527,7 @@ class KkrimpCalculation(JobCalculation):
                 self._check_key_setting_consistency(params_kkrimp, key, val)
                 params_kkrimp.set_value(key, val)
         
-        # overwrite from input parameters
+        # finally overwrite from input parameters
         if parameters is not None:
             for (key, val) in parameters.get_set_values():
                 self._check_key_setting_consistency(params_kkrimp, key, val)

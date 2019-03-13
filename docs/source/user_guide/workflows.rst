@@ -366,9 +366,10 @@ given host-impurity startpotential and converges it.
     
 Inputs:
     * ``kkrimp`` (*aiida.orm.Code*): KKRimpcode using the ``kkr.kkrimp`` plugin
-    * ``host_imp_startpot`` (*SinglefileData*): File containing the host impurity potential (potential file with the whole cluster with all host and impurity potentials)
-    * ``GF_remote_data`` (*RemoteData*): Output from a KKRflex calculation (can be extracted from the output of the GF writeout workflow)
-    * ``structure`` (*StructureData*, optional): Structure of the problem (not yet needed, needed later for the magnetic feature implementation)
+    * ``host_imp_startpot`` (*SinglefileData*, optional): File containing the host impurity potential (potential file with the whole cluster with all host and impurity potentials)
+    * ``GF_remote_data`` (*RemoteData*, optional): Output from a KKRflex calculation (can be extracted from the output of the GF writeout workflow)
+    * ``kkrimp_remote`` (*RemoteData*, optional): RemoteData output from previous kkrimp calculation (if given, ``host_imp_startpot`` is not needed as input)
+    * ``impurity_info`` (*ParameterData*, optional): Node containing information about the impurity cluster (has to be chosen consistently with ``imp_info`` from GF writeout step)
     * ``options_parameters`` (*ParameterData*, optional): Some general settings for the workflow (e.g. computer settings, queue, ...)
     * ``wf_parameters`` (*ParameterData*, optional) : Settings for the behavior of the workflow (e.g. convergence settings, physical properties, ...)
     * ``label`` (*str*, optional): Label of the workflow
@@ -462,6 +463,98 @@ Finally we run the workflow::
         GF_remote_data=GF_host_output_folder, wf_parameters=kkrimp_params)
     
     
+KKR impurity workflow
++++++++++++++++++++++
+
+This workflow performs a KKR impurity calculation starting from an ``impurity_info`` node
+as well as either from a coverged calculation remote for the host system (1) or from a
+GF writeout remote (2). In the two cases the following is done:
+
+    * (1): First, the host system will be converged using the ``kkr_scf`` workflow. Then, the GF will be calculated using the ``gf_writeout`` workflow before calculating the auxiliary startpotential of the impurity. Now, the total impurity-host startpotential will be generated and then converged using the ``kkr_imp_sub`` workflow.
+    * (2): In this case the two first steps from above will be skipped and the workflow starts by calculating the auxiliary startpotential.
+           
+.. note::
+    This workflow is different from the ``kkr_imp_sub`` workflow that only converges a given
+    impurity host potential. Here, the whole process of a KKR impurity calculation is done
+    automatically.
+    
+Inputs:
+    * ``kkrimpcode`` (*aiida.orm.Code*): KKRimpcode using the ``kkr.kkrimp`` plugin
+    * ``vorocode`` (*aiida.orm.Code*): Voronoi code using the ``kkr.voro`` plugin
+    * ``kkrcode`` (*aiida.orm.Code*): KKRhost code using the ``kkr.kkr`` plugin
+    * ``impurity_info`` (*ParameterData*): Node containing information about the impurity cluster
+    * ``remote_converged_host`` (*RemoteData*, optional): RemoteData of a converged host calculation if you want to start the workflow from scratch
+    * ``gf_remote`` (*RemoteData*, optional): RemoteData of a GF writeout step (if you want to skip the convergence of the host and the GF writeout step)
+    * ``options_parameters`` (*ParameterData*, optional): Some general settings for the workflow (e.g. computer settings, queue, ...)
+    * ``wf_parameters`` (*ParameterData*, optional) : Settings for the behavior of the workflow (e.g. convergence settings, physical properties, ...)
+    * ``voro_aux_parameters`` (*ParameterData*, optional): Settings for the usage of the ``kkr_startpot`` sub workflow needed for the auxiliary voronoi potentials
+    * ``label`` (*str*, optional): Label of the workflow
+    * ``description`` (*str*, optional): Longer description of the workflow    
+    
+Returns nodes:
+    * ``workflow_info`` (*ParameterData*): Node containing general information about the workflow
+    * ``last_calc_info`` (*ParameterData*): Node containing information about the last used calculation of the workflow
+    * ``last_calc_output_parameters`` (*ParameterData*): Node with all of the output parameters from the last calculation of the workflow
+    
+    
+Example Usage
+-------------
+
+We start by getting an installation of the codes::
+
+    from aiida.orm import Code
+    kkrimpcode = Code.get_from_string('KKRimpcode@my_mac')
+    kkrcode = Code.get_from_string('KKRcode@my_mac')
+    vorocode = Code.get_from_string('vorocode@my_mac')
+    
+Then, set up an appropriate ``impurity_info`` node for your calculation::
+
+     # set up impurity info node
+     imps = ParameterData(dict={'ilayer_center':0, 'Rcut':2, 'Zimp':[79.]})    
+    
+Next, load either a ``gf_writeout_remote`` or a ``converged_host_remote``::
+
+    from aiida.orm import load_node
+    gf_writeout_remote = load_node(<pid or uuid>)
+    converged_host_remote = load_node(<pid or uuid>)
+    
+Set up some more input parameter nodes for your workflow::
+
+    # node for general workflow options
+    options = ParameterData(dict={'use_mpi': False, 'walltime_sec' : 60*60*2,  
+                                  'resources':{'num_machines':1, 'num_mpiprocs_per_machine':1}})
+    # node for convergence behaviour of the workflow
+    kkrimp_params = ParameterData(dict={'nsteps': 99, 'convergence_criterion': 1*10**-8, 'strmix': 0.02, 
+                                        'threshold_aggressive_mixing': 8*10**-2, 'aggressive_mix': 3,
+                                        'aggrmix': 0.04, 'kkr_runmax': 5, 'calc_orbmom': False, 'spinorbit': False,
+                                        'newsol': False, 'mag_init': False, 'hfield': [0.05, 10],
+                                        'non_spherical': 1, 'nspin': 2})
+    # node for parameters needed for the auxiliary voronoi workflow
+    voro_aux_params = ParameterData(dict={'num_rerun' : 4, 'fac_cls_increase' : 1.5, 'check_dos': False, 
+                                          'lmax': 3, 'gmax': 65., 'rmax': 7., 'rclustz': 2.})
+    
+Finally, we run the workflow (for the two cases depicted above)::
+
+    from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
+    from aiida_kkr.workflows.voro_start import kkr_startpot_wc
+    from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
+    from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
+    from aiida_kkr.workflows.kkr_imp import kkr_imp_wc
+    from aiida.work.launch import run, submit
+    
+    # don't forget to set a label and description for your workflow
+    
+    # case (1)
+    wf_run = submit(kkr_imp_wc, label=label, description=description, vorocode=vorocode, kkrimpcode=kkrimpcode, 
+                    kkrcode=kkrcode, options_parameters=options, impurity_info=imps, wf_parameters=kkrimp_params, 
+                    voro_aux_parameters=voro_aux_params, gf_remote=gf_writeout_remote)
+    
+    # case (2)
+    wf_run = submit(kkr_imp_wc, label=label, description=description, vorocode=vorocode, kkrimpcode=kkrimpcode, 
+                    kkrcode=kkrcode, options_parameters=options, impurity_info=imps, wf_parameters=kkrimp_params, 
+                    voro_aux_parameters=voro_aux_params, remote_converged_host=converged_host_remote)    
+    
+    
 Equation of states
 ++++++++++++++++++
 
@@ -498,29 +591,6 @@ antiferromagnetic state. In case of noncollinear magnetism the full Jij tensor
 should be analyzed.
 
 
-Prepare KKRimp startup
-++++++++++++++++++++++
- 
-.. warning:: Not implemented yet!
-
-Possible inputs:
-    * ``impurity_info``: i.e. scoef cluster info and Zimp etc.
-    * ``reuse_host_GF``, optional: old kkrflex files that are reused in the same cluster for a different impurity (different Zimp)
-    * ``parent_kkr_calc``: needed if host GF has to be computed, also needed to extract host systems infos
-    * ``voro_code``: needed to get starting potential from ``impurity_info`` (i.e. Zimp)
-    * ``kkr_code``: needed if host GF has to be computed
-    
-Possible output nodes:
-    * ``output_parameters`` output node with dict containing infos of workflow run
-    * ``potential_imp`` single file data needed for impurity calculation
-
-Idea of the workflow:
-    #. check if host GF is reused and verify consistency of cluster info
-    #. run host GF generation if necessary
-    #. run voronoi step for impurity starting potential (needs to create auxiliary structure first)
-    #. use ``neworder_potential_wf`` workfunction to create single file data node
-
-
 KKRimp DOS
 ++++++++++
 
@@ -530,16 +600,6 @@ Idea:
     * create host GF for DOS contour if not given as input
     * run KKRimp step with dos settings
 
-
-KKRimp self-consistency
-+++++++++++++++++++++++
-
-.. warning:: Not implemented yet!
-
-Idea: 
-    #. Use KKRimp startup workflow first if no parent KKRimp calculation is given
-    #. run several steps of KKRimp until convergence
-    #. check impurity DOS
     
     
     

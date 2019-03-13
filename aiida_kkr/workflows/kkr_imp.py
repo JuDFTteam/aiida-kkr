@@ -431,15 +431,21 @@ class kkr_imp_wc(WorkChain):
         voro_calc_remote = self.ctx.last_voro_calc.out.last_voronoi_remote
         imp_info = self.inputs.impurity_info
         
+        ilayer_cent = imp_info.get_attr('ilayer_center')
+        
         # prepare settings dict
         potname_converged = 'potential'
         potname_impvorostart = 'output.pot'
         potname_imp = 'potential_imp'
+        
         if nspin < 2:
-            replacelist_pot2 = [[0,0]]
+            replacelist_pot2 = [[0,ilayer_cent]]
         else:
-            replacelist_pot2 = [[0,0],[1,1]]
-        neworder_pot1 = [int(i) for i in np.loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]    
+            replacelist_pot2 = [[0,2*ilayer_cent],[1,2*ilayer_cent+1]]           
+        try:
+            neworder_pot1 = [int(i) for i in np.loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1] 
+        except:
+            neworder_pot1 = [int(np.loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[3]-1)]
         
         settings_label = 'startpot_KKRimp for imp_info node {}'.format(imp_info.pk)
         settings_description = 'starting potential for impurity info: {}'.format(imp_info)
@@ -547,7 +553,12 @@ def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at ce
         sname = site.kind_name
         kind = struc.get_kind(sname)
         pos = site.position
-        zatom = _atomic_numbers[kind.get_symbols_string()]
+        # intermediate fix to avoid crash for old structures with vacuum:'{H0.00X1.00}'
+        # use atom kind='X' in the future for new structures
+        if kind.get_symbols_string()=='{H0.00X1.00}':
+            zatom = 0
+        else:
+            zatom = _atomic_numbers[kind.get_symbols_string()]
         if isite == imp_info.get_dict().get('ilayer_center'):
             zatom = imp_info.get_dict().get('Zimp')[0]
         symbol = PeriodicTableElements.get(zatom).get('symbol')

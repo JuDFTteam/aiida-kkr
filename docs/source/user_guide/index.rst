@@ -8,5 +8,6 @@ User's guide
     calculations
     workflows
     workfunctions
+    tools
 
 

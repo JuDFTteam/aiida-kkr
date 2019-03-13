@@ -22,7 +22,7 @@ from numpy import array, where, ones
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.8"
+__version__ = "0.9"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -79,6 +79,7 @@ class kkr_scf_wc(WorkChain):
     1. This workflow does not work with local codes!
     """
 
+
     _workflowversion = __version__
     _wf_default = {'kkr_runmax': 5,                           # Maximum number of kkr jobs/starts (defauld iterations per start)
                    'convergence_criterion' : 10**-8,          # Stop if charge denisty is converged below this value
@@ -87,12 +88,6 @@ class kkr_scf_wc(WorkChain):
                    'walltime_sec' : 60*60,                    # walltime after which the job gets killed (gets parsed to KKR)
                    'use_mpi' : False,                         # execute KKR with mpi or without
                    'custom_scheduler_commands' : '',          # some additional scheduler commands
-                   'check_dos' : True,                        # check starting DOS for inconsistencies
-                   'dos_params' : {'emax': 0.6,               # DOS params: maximum of enery contour
-                                   'emin': -1,                # DOS params: minimum of energy contour
-                                   'kmesh': [40, 40, 40],     # DOS params: kmesh for dos run (typically higher than for scf contour)
-                                   'nepts': 81,               # DOS params: number of energy points in DOS contour
-                                   'tempr': 200},             # DOS params: temperature
                    'mixreduce': 0.5,                          # reduce mixing factor by this factor if calculaito fails due to too large mixing
                    'threshold_aggressive_mixing': 8*10**-3,   # threshold after which agressive mixing is used
                    'strmix': 0.03,                            # mixing factor of simple mixing
@@ -113,26 +108,25 @@ class kkr_scf_wc(WorkChain):
                         'n3': 7,
                         'tempr': 600.0,
                         'kmesh': [30, 30, 30]},
-                   'delta_e_min' : 1.,                        # minimal distance in DOS contour to emin and emax in eV
-                   'threshold_dos_zero' : 10**-3, # states/eV # threshold after which DOS is considered to vanish (needed in DOS check)
                    'mag_init' : False,                        # initialize and converge magnetic calculation
                    'hfield' : 0.02, # Ry                      # external magnetic field used in initialization step
                    'init_pos' : None,                         # position in unit cell where magnetic field is applied [default (None) means apply to all]
                    'retreive_dos_data_scf_run' : False,       # add DOS to testopts and retrieve dos.atom files in each scf run
-                   # parameters passed on to vorostart 
-                   'fac_cls_increase' : 1.3,                  # factor by which the screening cluster is increased each iteration (up to num_rerun times)
-                   'r_cls' : 1.3, # alat                      # default cluster radius, is increased iteratively
-                   'natom_in_cls_min' : 79                    # minimum number of atoms in screening cluster
                    }
+    # set these keys from defaults in kkr_startpot workflow since they are only passed onto that workflow
+    for key, value in kkr_startpot_wc.get_wf_defaults(silent=True).iteritems():
+        if key in ['dos_params', 'fac_cls_increase', 'r_cls', 'natom_in_cls_min', 'delta_e_min', 'threshold_dos_zero', 'check_dos']:
+            _wf_default[key] = value
+
 
     # intended to guide user interactively in setting up a valid wf_params node
     @classmethod
-    def get_wf_defaults(self):
+    def get_wf_defaults(self, silent=False):
         """
         Print and return _wf_defaults dictionary. Can be used to easily create set of wf_parameters.
         returns _wf_defaults
         """
-        print('Version of workflow: {}'.format(self._workflowversion))
+        if not silent: print('Version of workflow: {}'.format(self._workflowversion))
         return self._wf_default
 
 
@@ -474,7 +468,7 @@ class kkr_scf_wc(WorkChain):
         self.check_input_params(params, is_voronoi=True)
 
         # set parameters of voro_start sub workflow
-        sub_wf_params_dict = kkr_startpot_wc.get_wf_defaults()
+        sub_wf_params_dict = kkr_startpot_wc.get_wf_defaults(silent=True)
         label, description = "voro_start_default_params", "workflow parameters for voro_start"
         if 'wf_parameters' in self.inputs:
             wf_params_input = self.inputs.wf_parameters.get_dict()

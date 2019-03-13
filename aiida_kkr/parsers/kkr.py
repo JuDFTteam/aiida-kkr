@@ -11,6 +11,7 @@ from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida.common.exceptions import InputValidationError
 from masci_tools.io.parsers.kkrparser_functions import parse_kkr_outputfile, check_error_category
 from masci_tools.io.common_functions import search_string
+#from masci_tools.io.kkr_params import split_kkr_options
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -142,6 +143,7 @@ class KkrParser(Parser):
             itmp = search_string('RUNOPT', txt)
             if itmp>=0:
                 runopts = [i.strip() for i in txt[itmp+1].split()]
+                #runopts = split_kkr_options(txt[itmp+1])
                 if 'qdos' in runopts:
                     skip_mode = True
         

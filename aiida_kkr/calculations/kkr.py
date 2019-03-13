@@ -30,7 +30,7 @@ KpointsData = DataFactory('array.kpoints')
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7"
+__version__ = "0.8"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -367,11 +367,15 @@ class KkrCalculation(JobCalculation):
             if NPOL is None or NPOL>0.:
                 change_values.append(['NPOL', 0])
             if change_values != []:
-                new_params = {'nodename': 'changed_params_qdos', 'nodedesc': 'Changed parameters to mathc qdos mode. Changed values: {}'.format(change_values)}
+                new_params = {}
+                #{'nodename': 'changed_params_qdos', 'nodedesc': 'Changed parameters to mathc qdos mode. Changed values: {}'.format(change_values)}
+                for key, val in parameters.get_dict().iteritems():
+                    new_params[key] = val
                 for key, val in change_values:
                     new_params[key] = val
                 new_params_node = ParameterData(dict=new_params)
-                parameters = update_params_wf(parameters, new_params_node)
+                #parameters = update_params_wf(parameters, new_params_node)
+                parameters = new_params_node
             # write qvec.dat file
             kpath_array = kpath.get_kpoints()
             # convert automatically to internal units
@@ -388,7 +392,7 @@ class KkrCalculation(JobCalculation):
         
         # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
-        natom, nspin, newsosol = generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
+        natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
         
 
         #################
@@ -441,14 +445,14 @@ class KkrCalculation(JobCalculation):
                 print('local copy list before change: {}'.format(local_copy_list))
                 print("found 'ef_set' in parameters: change EF of potential to this value")
                 potcopy_info = [i for i in local_copy_list if i[1]==self._POTENTIAL][0]
-                with open(potcopy_info[0]) as file:
-                    # change potential and copy list
+                with open(potcopy_info[0]) as potfile:
+                    # remove previous output potential from copy list
                     local_copy_list.remove(potcopy_info)
-                    pot_new_name = tempfolder.get_abs_path(self._POTENTIAL+'_new_ef')
-                    local_copy_list.append((pot_new_name, self._POTENTIAL))
+                    # create potential here by readin in old potential and overwriting with changed Fermi energy
+                    pot_new_name = tempfolder.get_abs_path(self._POTENTIAL)
                     
                     # change potential
-                    txt = file.readlines()
+                    txt = potfile.readlines()
                     potstart = []
                     for iline in range(len(txt)):
                         line = txt[iline]
