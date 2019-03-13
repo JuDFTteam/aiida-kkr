@@ -117,7 +117,7 @@ class kkr_flex_wc(WorkChain):
 
         # specify the outputs
         #spec.output('remote_folder', valid_type=RemoteData)
-        spec.output('calculation_info', valid_type=ParameterData)
+        spec.output('workflow_info', valid_type=ParameterData)
         spec.output('GF_host_remote', valid_type=RemoteData)
 
 
@@ -381,7 +381,7 @@ class kkr_flex_wc(WorkChain):
         # return the input remote_data folder as output node
         #self.out('remote_data', self.inputs.remote_data)
         # return ParameterData node containing information about previous calculation
-        self.out('calculation_info', outputnode)
+        self.out('workflow_info', outputnode)
         # return retrieved data from kkrflex calculation
         self.out('GF_host_remote', self.ctx.flexrun.out.remote_folder)
         
