@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools", "wheel", "aiida-core==1.0.0a4"]
+
+[tool.poetry]
+name = "aiida-kkr"
+version = "1.0.0"
+description = "AiiDA plugin for the KKR code"
+authors = ["Philipp Rüssmann <p.ruessmann@fz-juelich.de>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^2.7"
+aiida-core = "1.0.0a4"

@@ -1,6 +1,6 @@
 {
     "name": "aiida-kkr",
-    "author": "Philipp Ruessmann, Jens Broeder",
+    "author": "Philipp Ruessmann, Jens Broeder, Fabian Bertoldo",
     "author_email": "p.ruessmann@fz-juelich.de",
     "description": "AiiDA plugin for the KKR code",
     "url": "https://github.com/broeder-j/aiida-kkr",
@@ -15,10 +15,8 @@
         "Natural Language :: English"      
     ],
     "version": "1.0.0",
-    "setup_requires": ["reentry"],
     "reentry_register": true,
     "install_requires": [
-        "aiida-core >= 1.0.0a4",
         "masci-tools",
         "seekpath",
         "pgtest",
