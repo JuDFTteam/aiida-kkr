@@ -41,16 +41,17 @@ class kkr_check_mag_wc(WorkChain):
     """
 
     _workflowversion = "0.1.0"
-    _wf_default = {'queue_name' : '',                        # Queue name to submit jobs too
-                   'resources': {"num_machines": 1},         # resources to allowcate for the job
-                   'walltime_sec' : 60*60,                   # walltime after which the job gets killed (gets parsed to KKR)
-                   'mpirun' : False,                         # execute KKR with mpi or without
-                   'custom_scheduler_commands' : '',         # some additional scheduler commands 
-                   'dos_params' : {"nepts": 61,              # DOS params: number of points in contour
+    _wf_default = {'dos_params' : {"nepts": 61,              # DOS params: number of points in contour
                                    "tempr": 200,             # DOS params: temperature
                                    "emin": -1,               # DOS params: start of energy contour
                                    "emax": 1}                 # DOS params: end of energy contour
                    }
+    _options_default = {'queue_name' : '',                        # Queue name to submit jobs too
+                        'resources': {"num_machines": 1},         # resources to allowcate for the job
+                        'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)
+                        'use_mpi' : False,                        # execute KKR with mpi or without
+                        'custom_scheduler_commands' : ''          # some additional scheduler commands 
+                        }
 
     @classmethod
     def define(cls, spec):
@@ -61,6 +62,8 @@ class kkr_check_mag_wc(WorkChain):
         super(kkr_maginit_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
                    default=ParameterData(dict=cls._wf_default))
+        spec.input("options", valid_type=ParameterData, required=False,
+                   default=ParameterData(dict=cls._options_default))
         spec.input("remote_data", valid_type=RemoteData, required=False)
         spec.input("kkr", valid_type=Code, required=True)
 
@@ -80,6 +83,3 @@ class kkr_check_mag_wc(WorkChain):
                 cls.reset_inp_node),
             cls.return_results
         )
-
-
-    
