@@ -631,8 +631,8 @@ class kkr_startpot_wc(WorkChain):
         res_node_dict['list_of_errors'] = self.ctx.errors
         res_node_dict['use_mpi'] = self.ctx.use_mpi
         res_node_dict['resources'] = self.ctx.resources
-        res_node_dict['walltime_sec'] = self.ctx.walltime_sec
-        res_node_dict['queue'] = self.ctx.queue
+        res_node_dict['max_wallclock_seconds'] = self.ctx.walltime_sec
+        res_node_dict['queue_name'] = self.ctx.queue
         res_node_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
         res_node_dict['dos_params'] = self.ctx.dos_params_dict
         res_node_dict['description'] = self.ctx.description_wf

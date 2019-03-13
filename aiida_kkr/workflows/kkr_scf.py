@@ -1265,7 +1265,7 @@ class kkr_scf_wc(WorkChain):
             # take subset of input and prepare parameter node for dos workflow
             wfdospara_dict = {'queue_name' : self.ctx.queue,
                               'resources': self.ctx.resources,
-                              'walltime_sec' : self.ctx.walltime_sec,
+                              'max_wallclock_seconds' : self.ctx.walltime_sec,
                               'use_mpi' : self.ctx.use_mpi,
                               'custom_scheduler_commands' : self.ctx.custom_scheduler_commands,
                               'dos_params' : self.ctx.dos_params}

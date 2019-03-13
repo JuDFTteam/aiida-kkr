@@ -42,8 +42,8 @@ class kkr_flex_wc(WorkChain):
     :param wf_parameters: (ParameterData), Workflow parameters that deviate from previous KKR RemoteData
     :param remote_data: (RemoteData), mandatory; from a converged KKR calculation
     :param kkr: (Code), mandatory; KKR code running the flexfile writeout
-    :param imp_info: ParameterData, mandatory: imp_info node specifying information 
-                     of the impurities in the system
+    :param impurity_info: ParameterData, mandatory: node specifying information 
+                          of the impurities in the system
 
     :return result_kkr_flex_wc: (ParameterData), Information of workflow results
                                 like success, last result node, list with convergence behavior
@@ -56,7 +56,7 @@ class kkr_flex_wc(WorkChain):
 
     _options_default = {'queue_name' : '',                        # Queue name to submit jobs too
                         'resources': {"num_machines": 1},         # resources to allowcate for the job
-                        'walltime_sec' : 60*60,                   # walltime after which the job gets killed (gets parsed to KKR)}
+                        'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)}
                         'custom_scheduler_commands' : '',         # some additional scheduler commands 
                         'use_mpi' : False}                        # execute KKR with mpi or without
                         
@@ -77,7 +77,7 @@ class kkr_flex_wc(WorkChain):
         """
     
         print('Version of workflow: {}'.format(self._workflowversion))
-        return self._options_default, self._wf_default
+        return self._wf_default
 
     @classmethod
     def define(cls, spec):
@@ -89,11 +89,11 @@ class kkr_flex_wc(WorkChain):
         super(kkr_flex_wc, cls).define(spec)
         
         spec.input("kkr", valid_type=Code, required=True)     
-        spec.input("options_parameters", valid_type=ParameterData, required=False,
+        spec.input("options", valid_type=ParameterData, required=False,
                        default=ParameterData(dict=cls._options_default))
         spec.input("wf_parameters", valid_type=ParameterData, required=False)
         spec.input("remote_data", valid_type=RemoteData, required=True)
-        spec.input("imp_info", valid_type=ParameterData, required=True)
+        spec.input("impurity_info", valid_type=ParameterData, required=True)
     
         # Here the structure of the workflow is defined
         spec.outline(
@@ -105,7 +105,7 @@ class kkr_flex_wc(WorkChain):
 
         # ToDo: improve error codes
         spec.exit_code(101, 'ERROR_INVALID_INPUT_IMP_INFO', 
-            message="ERROR: the 'imp_info' input ParameterData node could not be used")
+            message="ERROR: the 'impurity_info' input ParameterData node could not be used")
         spec.exit_code(102, 'ERROR_INVALID_INPUT_KKR',
             message="ERROR: the code you provided for kkr does not use the plugin kkr.kkr")
         spec.exit_code(103, 'ERROR_INVALID_INPUT_REMOTE_DATA',
@@ -134,15 +134,15 @@ class kkr_flex_wc(WorkChain):
         self.ctx.abort = False
     
         # input both wf and options parameters
-        options_dict = self.inputs.options_parameters.get_dict()
+        options_dict = self.inputs.options.get_dict()
         if 'wf_parameters' in self.inputs:
             wf_dict = self.inputs.wf_parameters.get_dict()
             if wf_dict == {}:
                 wf_dict = self._wf_default
                 self.report('INFO: using default wf parameters')
-	else:
-	    wf_dict=self._wf_default
-	    self.report('INFO: using default wf parameters')
+        else:
+            wf_dict = self._wf_default
+            self.report('INFO: using default wf parameters')
     
         if options_dict == {}:
             options_dict = self._options_default
@@ -153,7 +153,7 @@ class kkr_flex_wc(WorkChain):
         # ToDo: arrange option assignment differently (look at scf.py from aiida-fleur)
         self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
-        self.ctx.walltime_sec = options_dict.get('walltime_sec', self._options_default['walltime_sec'])
+        self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
         
@@ -191,7 +191,7 @@ class kkr_flex_wc(WorkChain):
         inputs = self.inputs
         input_ok = True
         
-        if not 'imp_info' in inputs:
+        if not 'impurity_info' in inputs:
             input_ok = False
             return self.exit_codes.ERROR_INVALID_INPUT_IMP_INFO
     
@@ -330,7 +330,7 @@ class kkr_flex_wc(WorkChain):
         code = self.inputs.kkr
         remote = self.inputs.remote_data
         params = self.ctx.flex_kkrparams
-        imp_info = self.inputs.imp_info
+        imp_info = self.inputs.impurity_info
         options = {"max_wallclock_seconds": self.ctx.walltime_sec,
                    "resources": self.ctx.resources,
                    "queue_name": self.ctx.queue}
@@ -366,8 +366,8 @@ class kkr_flex_wc(WorkChain):
         outputnode_dict['workflow_version'] = self._workflowversion
         outputnode_dict['use_mpi'] = self.ctx.use_mpi
         outputnode_dict['resources'] = self.ctx.resources
-        outputnode_dict['walltime_sec'] = self.ctx.walltime_sec
-        outputnode_dict['queue'] = self.ctx.queue
+        outputnode_dict['max_wallclock_seconds'] = self.ctx.walltime_sec
+        outputnode_dict['queue_name'] = self.ctx.queue
         outputnode_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
         outputnode_dict['successful'] = self.ctx.successful
         outputnode_dict['pk_flexcalc'] = self.ctx.flexrun.pk

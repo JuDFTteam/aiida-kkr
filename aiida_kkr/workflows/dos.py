@@ -327,8 +327,8 @@ class kkr_dos_wc(WorkChain):
         outputnode_dict['workflow_version'] = self._workflowversion
         outputnode_dict['use_mpi'] = self.ctx.use_mpi
         outputnode_dict['resources'] = self.ctx.resources
-        outputnode_dict['walltime_sec'] = self.ctx.walltime_sec
-        outputnode_dict['queue'] = self.ctx.queue
+        outputnode_dict['max_wallclock_seconds'] = self.ctx.walltime_sec
+        outputnode_dict['queue_name'] = self.ctx.queue
         outputnode_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
         outputnode_dict['dos_params'] = self.ctx.dos_params_dict
         try:
