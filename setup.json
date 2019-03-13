@@ -14,7 +14,7 @@
         "Topic :: Scientific/Engineering :: Physics",
         "Natural Language :: English"      
     ],
-    "version": "1.0.0",
+    "version": "1.0.1-dev",
     "reentry_register": true,
     "install_requires": [
         "masci-tools",
