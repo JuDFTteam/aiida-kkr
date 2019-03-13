@@ -52,9 +52,9 @@ class kkr_eos_wc(WorkChain):
     # workflow options (computer settings)
     _options_default = {'queue_name' : '',                # Queue name to submit jobs too
                         'resources': {"num_machines": 1}, # resources to allocate for the job
-                        'walltime_sec' : 60*60,           # walltime in seconds after which the job gets killed (gets parsed to KKR)
-                        'use_mpi' : True,                  # execute KKR with mpi or without
-                        'custom_scheduler_commands' : '', # some additional scheduler commands (e.g. project numbers in job scripts, OpenMP settings, ...) 
+                        'max_wallclock_seconds' : 60*60,  # walltime in seconds after which the job gets killed (gets parsed to KKR)
+                        'use_mpi' : True,                 # execute KKR with mpi or without
+                        'custom_scheduler_commands' : ''  # some additional scheduler commands (e.g. project numbers in job scripts, OpenMP settings, ...) 
                        }
     # workflow settings
     _wf_default = {'scale_range' : [0.94, 1.06],    # range around volume of starting structure which eos is computed
@@ -211,8 +211,10 @@ class kkr_eos_wc(WorkChain):
             if key not in set_keys: # skip setting of options (done above already)
                 wfd[key] = vorostart_settings[key]
         scaled_struc = self.ctx.scaled_structures[0]
-        future = self.submit(kkr_startpot_wc, structure=scaled_struc, kkr=self.ctx.kkr, voronoi=self.ctx.voro, 
-                             wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.calc_parameters)
+        future = self.submit(kkr_startpot_wc, structure=scaled_struc, kkr=self.ctx.kkr, 
+                             voronoi=self.ctx.voro, wf_parameters=ParameterData(dict=wfd), 
+                             calc_parameters=self.ctx.calc_parameters, 
+                             options=self.ctx.wf_options)
         
         self.report('INFO: running kkr_startpot workflow (pk= {})'.format(future.pk))
         self.ctx.sub_wf_ids['kkr_startpot_1'] = future.uuid
@@ -284,7 +286,8 @@ class kkr_eos_wc(WorkChain):
         # submit first calculation separately
         self.report('submit calc for scale fac= {} on {}'.format(self.ctx.scale_factors[0], self.ctx.scaled_structures[0].get_formula()))
         future = self.submit(kkr_scf_wc, kkr=self.ctx.kkr, remote_data=self.ctx.smallest_voro_remote, 
-                             wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run)
+                             wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run,
+                             options=self.ctx.wf_options)
         scale_fac = self.ctx.scale_factors[0]
         calcs['kkr_{}_{}'.format(1, scale_fac)] = future
         self.ctx.sub_wf_ids['kkr_scf_1'] = future.uuid
@@ -295,7 +298,8 @@ class kkr_eos_wc(WorkChain):
             scaled_struc = self.ctx.scaled_structures[i+1]
             self.report('submit calc for scale fac= {} on {}'.format(scale_fac, scaled_struc.get_formula()))
             future = self.submit(kkr_scf_wc, structure=scaled_struc, kkr=self.ctx.kkr, voronoi=self.ctx.voro, 
-                                 wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run)
+                                 wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run,
+                                 options=self.ctx.wf_options)
             calcs['kkr_{}_{}'.format(i+2, scale_fac)] = future
             self.ctx.sub_wf_ids['kkr_scf_{}'.format(i+2)] = future.uuid
 
