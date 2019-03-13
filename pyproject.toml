@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 
 [tool.poetry]
 name = "aiida-kkr"
-version = "1.0.1-dev"
+version = "1.0.2-dev"
 description = "AiiDA plugin for the KKR code"
 authors = ["Philipp Rüssmann <p.ruessmann@fz-juelich.de>"]
 license = "MIT"
