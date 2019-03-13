@@ -3,7 +3,7 @@
     "author": "Philipp Ruessmann, Jens Broeder, Fabian Bertoldo",
     "author_email": "p.ruessmann@fz-juelich.de",
     "description": "AiiDA plugin for the KKR code",
-    "url": "https://github.com/broeder-j/aiida-kkr",
+    "url": "https://github.com/JuDFTteam/aiida-kkr",
     "license": "MIT",
     "classifiers": [
         "License :: OSI Approved :: MIT License",
@@ -22,7 +22,8 @@
         "pgtest",
         "pytest-cov >= 2.5.0",
         "sphinx",
-        "sphinx_rtd_theme"
+        "sphinx_rtd_theme",
+        "bumpversion"
     ],
     "entry_points": {
         "aiida.calculations": [
