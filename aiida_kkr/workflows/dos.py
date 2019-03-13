@@ -89,7 +89,7 @@ class kkr_dos_wc(WorkChain):
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
                    default=ParameterData(dict=cls._wf_default))
         spec.input("options", valid_type=ParameterData, required=False,
-                   default=ParameterData(dict=cls._wf_defautl))
+                   default=ParameterData(dict=cls._wf_default))
         spec.input("remote_data", valid_type=RemoteData, required=True)
         spec.input("kkr", valid_type=Code, required=True)
 
