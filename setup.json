@@ -24,6 +24,7 @@
         "pytest-cov >= 2.5.0",
         "sphinx",
         "sphinx_rtd_theme",
+        "ase",
         "bumpversion"
     ],
     "entry_points": {
