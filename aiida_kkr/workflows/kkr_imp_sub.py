@@ -6,7 +6,7 @@ and some helper methods to do so with AiiDA
 
 from aiida.orm import Code, DataFactory
 from aiida.orm.data.base import Float
-from aiida.work.workchain import WorkChain, ToContext, while_
+from aiida.work.workchain import WorkChain, ToContext, while_, if_
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
@@ -17,7 +17,7 @@ from numpy import array
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.4"
 __contributors__ = u"Fabian Bertoldo"
 
 #TODO: work on return results function
@@ -43,11 +43,11 @@ class kkr_imp_sub_wc(WorkChain):
     Workchain of a kkrimp self consistency calculation starting from the 
     host-impurity potential of the system. (Not the entire kkr_imp workflow!)
 
-    :param options_parameters: (ParameterData), Workchain specifications
+    :param options: (ParameterData), Workchain specifications
     :param wf_parameters: (ParameterData), specifications for the calculation
     :param host_imp_startpot: (RemoteData), mandatory; input host-impurity potential
     :param kkrimp: (Code), mandatory; KKRimp code converging the host-imp-potential
-    :param GF_remote_data: (RemoteData), mandatory; remote folder of a previous
+    :param remote_data: (RemoteData), mandatory; remote folder of a previous
                            kkrflex calculation containing the flexfiles ...
     :param impurity_info: (ParameterData), Parameter node with information
                           about the impurity cluster
@@ -64,7 +64,7 @@ class kkr_imp_sub_wc(WorkChain):
 
     _options_default = {'queue_name' : '',                        # Queue name to submit jobs too
                         'resources': {"num_machines": 1},         # resources to allowcate for the job
-                        'walltime_sec' : 60*60,                   # walltime after which the job gets killed (gets parsed to KKR)}
+                        'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)}
                         'custom_scheduler_commands' : '',         # some additional scheduler commands 
                         'use_mpi' : False}                        # execute KKR with mpi or without
                         
@@ -112,7 +112,7 @@ class kkr_imp_sub_wc(WorkChain):
         """
     
         print('Version of workflow: {}'.format(self._workflowversion))
-        return self._options_default, self._wf_default
+        return self._wf_default
         
 
         
@@ -127,10 +127,10 @@ class kkr_imp_sub_wc(WorkChain):
         # Define the inputs of the workflow
         spec.input("kkrimp", valid_type=Code, required=True) 
         spec.input("host_imp_startpot", valid_type=SinglefileData, required=False)
-        spec.input("GF_remote_data", valid_type=RemoteData, required=False)
+        spec.input("remote_data", valid_type=RemoteData, required=False)
         spec.input("kkrimp_remote", valid_type=RemoteData, required=False)
         spec.input("impurity_info", valid_type=ParameterData, required=False)
-        spec.input("options_parameters", valid_type=ParameterData, required=False,
+        spec.input("options", valid_type=ParameterData, required=False,
                        default=ParameterData(dict=cls._options_default))
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
                        default=ParameterData(dict=cls._wf_default))
@@ -138,12 +138,12 @@ class kkr_imp_sub_wc(WorkChain):
         # Here the structure of the workflow is defined
         spec.outline(
             cls.start,
-            cls.validate_input,
-            while_(cls.condition)(
-                cls.update_kkrimp_params,
-                cls.run_kkrimp,
-                cls.inspect_kkrimp),
-            cls.return_results)
+            if_(cls.validate_input)(
+                while_(cls.condition)(
+                    cls.update_kkrimp_params,
+                    cls.run_kkrimp,
+                    cls.inspect_kkrimp),
+                cls.return_results))
             
         # exit codes 
         spec.exit_code(121, 'ERROR_HOST_IMP_POT_GF', 
@@ -175,7 +175,7 @@ class kkr_imp_sub_wc(WorkChain):
         
         
         # Define the outputs of the workflow
-        spec.output('calculation_info', valid_type=ParameterData)
+        spec.output('workflow_info', valid_type=ParameterData)
         spec.output('host_imp_pot', valid_type=SinglefileData)
 
         
@@ -211,7 +211,7 @@ class kkr_imp_sub_wc(WorkChain):
 
         # input para
         wf_dict = self.inputs.wf_parameters.get_dict()
-        options_dict = self.inputs.options_parameters.get_dict()
+        options_dict = self.inputs.options.get_dict()
 
         if options_dict == {}:
             options_dict = self._options_default
@@ -224,7 +224,7 @@ class kkr_imp_sub_wc(WorkChain):
         # set option parameters from input, or defaults
         self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
-        self.ctx.walltime_sec = options_dict.get('walltime_sec', self._options_default['walltime_sec'])
+        self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
         
@@ -334,7 +334,7 @@ class kkr_imp_sub_wc(WorkChain):
         inputs_ok = True
 
         if not 'kkrimp_remote' in inputs:
-            if not ('host_imp_startpot' in inputs and 'GF_remote_data' in inputs):
+            if not ('host_imp_startpot' in inputs and 'remote_data' in inputs):
                 inputs_ok = False
                 return self.exit_codes.ERROR_HOST_IMP_POT_GF
 
@@ -367,7 +367,9 @@ class kkr_imp_sub_wc(WorkChain):
             self.report('ERROR: {}'.format(self.exit_codes.ERROR_NO_CALC_PARAMS))            
             return self.exit_codes.ERROR_NO_CALC_PARAMS 
             
-        self.report('INFO: validated input successfully: {}'.format(inputs_ok))   
+        self.report('INFO: validated input successfully: {}'.format(inputs_ok))  
+        
+        return inputs_ok
         
         
         
@@ -458,7 +460,7 @@ class kkr_imp_sub_wc(WorkChain):
                     if 'kkrimp_remote' in self.inputs:
                         self.ctx.last_remote = self.inputs.kkrimp_remote
                         self.report('INFO: no successful and converging calculation to take RemoteData from. Reuse RemoteData from input instead.') 
-                    elif 'impurity_info' in self.inputs or 'GF_remote_data' in self.inputs:
+                    elif 'impurity_info' in self.inputs or 'remote_data' in self.inputs:
                         self.ctx.last_remote = None
                 # check if last_remote has finally been set and abort if this is not the case
                 self.report("INFO: last_remote is still None? {}".format(self.ctx.last_remote is None))
@@ -694,7 +696,7 @@ class kkr_imp_sub_wc(WorkChain):
         description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
         code = self.inputs.kkrimp
         params = self.ctx.last_params
-        host_GF = self.inputs.GF_remote_data
+        host_GF = self.inputs.remote_data
         imp_pot = self.ctx.last_pot
         last_remote = self.ctx.last_remote
         
@@ -1004,7 +1006,7 @@ class kkr_imp_sub_wc(WorkChain):
         outputnode_t.label = 'kkr_scf_wc_results'
         outputnode_t.description = 'Contains results of workflow (e.g. workflow version number, info about success of wf, lis tof warnings that occured during execution, ...)'
 
-        self.out('calculation_info', outputnode_t)
+        self.out('workflow_info', outputnode_t)
         self.out('host_imp_pot', self.ctx.last_pot)
 
         # print results table for overview
