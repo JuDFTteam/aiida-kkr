@@ -43,7 +43,7 @@ script:
 # clone the code and install
 - cd aiida_kkr/tests && ./jukkr_installation.sh
 # Now run all tests
-- pwd && ./run_all.sh
+- travis_wait 30 ./run_all.sh
 allow_failures:
   # so far these fail because kkrimp does not work properly with gfortran
   - pytest -s --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_scf_workflow
