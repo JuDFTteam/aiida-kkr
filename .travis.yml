@@ -51,7 +51,7 @@ allow_failures:
 after_success:
 - codecov
 #deploy to pypi
-- cd ../../ && rm -rf aiida_kkr/tests/{submit_test/,__pycache__/,jukkr} pypi_credentials id_rsa_travis #remove test output before publishing
+- cd ../../ && rm -rf aiida_kkr/tests/{submit_test/,__pycache__/,jukkr} id_rsa_travis #remove test output before publishing
 - pip install poetry && poetry publish --build < pypi_credentials
 git:
   depth: 3
