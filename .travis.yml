@@ -45,8 +45,13 @@ script:
 # Now run all tests
 - pwd && ./run_all.sh
 allow_failures:
-  - pytest -s --cov-report=term-missing --cov=aiida_kkr -k Test_dos_workflow
-  - pytest -s --cov-report=term-missing --cov=aiida_kkr -k Test_gf_writeout_workflow
+  - pytest -s --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr -k Test_dos_workflow
+  - pytest -s --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr -k Test_gf_writeout_workflow
+  - pytest -s --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr -k Test_vorostart_workflow
+  - pytest -s --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr -k Test_scf_workflow
+  - pytest -s --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_scf_workflow
+  - pytest -s --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_full_workflow
+
 # (needs allow failure so that after_success is executed)
 after_success:
 - codecov

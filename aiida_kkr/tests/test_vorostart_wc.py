@@ -15,7 +15,6 @@ class Test_vorostart_workflow():
         simple Cu noSOC, FP, lmax2 full example using scf workflow
         """
         from aiida.orm import Code, load_node, DataFactory
-        from aiida.orm.computers import Computer
         from aiida.orm.querybuilder import QueryBuilder
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.voro_start import kkr_startpot_wc

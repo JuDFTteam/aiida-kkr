@@ -15,7 +15,6 @@ class Test_kkrimp_full_workflow():
         simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
         """
         from aiida.orm import Code, load_node, DataFactory
-        from aiida.orm.computers import Computer
         from aiida.orm.querybuilder import QueryBuilder
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.kkr_imp import kkr_imp_wc

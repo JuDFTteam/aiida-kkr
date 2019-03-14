@@ -44,7 +44,6 @@ class Test_scf_workflow():
         StructureData = DataFactory('structure')
 
         from aiida.orm.implementation.django.code import Code
-        from aiida.orm.computers import Computer
         from aiida.orm.querybuilder import QueryBuilder
 
         # prepare computer and code (needed so that 
