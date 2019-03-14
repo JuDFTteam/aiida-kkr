@@ -291,15 +291,15 @@ class kkr_imp_wc(WorkChain):
         
         if 'kkrimp' and 'voronoi' in inputs:
             try:
-                test_and_get_codenode(inputs.kkrimpcode, 'kkr.kkrimp', use_exceptions=True)
-                test_and_get_codenode(inputs.vorocode, 'kkr.voro', use_exceptions=True)
+                test_and_get_codenode(inputs.kkrimp, 'kkr.kkrimp', use_exceptions=True)
+                test_and_get_codenode(inputs.voronoi, 'kkr.voro', use_exceptions=True)
             except ValueError:
                 inputs_ok = False
                 self.report(self.exit_codes.ERROR_INVALID_INPUT_CODE)
                 return self.exit_codes.ERROR_INVALID_INPUT_CODE  
         elif 'kkr' in inputs:
             try:
-                test_and_get_codenode(inputs.kkrcode, 'kkr.kkr', use_exceptions=True)
+                test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
                 inputs_ok = False
                 self.report(self.exit_codes.ERROR_INVALID_INPUT_CODE)

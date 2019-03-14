@@ -47,7 +47,7 @@ class kkr_imp_dos_wc(WorkChain):
 
     _options_default = {'queue_name' : '',                        # Queue name to submit jobs too
                         'resources': {"num_machines": 1},         # resources to allocate for the job
-                        'walltime_sec' : 60*60,                   # walltime after which the job gets killed (gets parsed to KKR)}
+                        'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)}
                         'custom_scheduler_commands' : '',         # some additional scheduler commands 
                         'use_mpi' : False}                        # execute KKR with mpi or without
                         
@@ -73,7 +73,7 @@ class kkr_imp_dos_wc(WorkChain):
         """
     
         print('Version of workflow: {}'.format(self._workflowversion))
-        return self._options_default, self._wf_default   
+        return self._wf_default   
         
         
     @classmethod
@@ -85,8 +85,8 @@ class kkr_imp_dos_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_imp_dos_wc, cls).define(spec)
         
-        spec.input("kkrcode", valid_type=Code, required=True)  
-        spec.input("kkrimpcode", valid_type=Code, required=True)
+        spec.input("kkr", valid_type=Code, required=True)  
+        spec.input("kkrimp", valid_type=Code, required=True)
         spec.input("host_imp_pot", valid_type=SinglefileData, required=True)        
         spec.input("options", valid_type=ParameterData, required=False,
                        default=ParameterData(dict=cls._options_default))
@@ -137,11 +137,11 @@ class kkr_imp_dos_wc(WorkChain):
         # set values, or defaults
         self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
-        self.ctx.walltime_sec = options_dict.get('walltime_sec', self._options_default['walltime_sec'])
+        self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
         self.ctx.options_params_dict = ParameterData(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources, 
-                                                           'walltime_sec': self.ctx.walltime_sec, 'queue_name': self.ctx.queue, 
+                                                           'max_wallclock_seconds': self.ctx.walltime_sec, 'queue_name': self.ctx.queue, 
                                                            'custom_scheduler_commands': self.ctx.custom_scheduler_commands})
         
         # set workflow parameters for the KKR imputrity calculations
@@ -208,10 +208,14 @@ class kkr_imp_dos_wc(WorkChain):
 #                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inp.gf_remote
 #                except:
 #                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inp.remote_converged_host
-                self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inp.gf_remote.inp.remote_folder.inp.parent_calc_folder.inp.remote_folder.out.remote_folder
-                self.report('INFO: imported converged_host_remote (pk: {}) and '
-                            'impurity_info from database'.format(
-                            self.ctx.conv_host_remote.pk))
+                try:
+                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inp.remote_data_gf.inp.remote_folder.inp.parent_calc_folder.inp.remote_folder.out.remote_folder
+                    self.report('INFO: imported converged_host_remote (pk: {}) and '
+                                'impurity_info from database'.format(self.ctx.conv_host_remote.pk))
+                except:
+                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inp.gf_remote.inp.remote_folder.inp.parent_calc_folder.inp.remote_folder.out.remote_folder
+                    self.report('INFO: imported converged_host_remote (pk: {}) and '
+                                'impurity_info from database'.format(self.ctx.conv_host_remote.pk))
             
         self.report('INFO: validated input successfully: {}'.format(inputs_ok))  
         
@@ -224,7 +228,7 @@ class kkr_imp_dos_wc(WorkChain):
         """
         
         options = self.ctx.options_params_dict
-        kkrcode = self.inputs.kkrcode
+        kkrcode = self.inputs.kkr
         converged_host_remote = self.ctx.conv_host_remote
         imp_info = self.ctx.imp_info
         
@@ -234,8 +238,8 @@ class kkr_imp_dos_wc(WorkChain):
         description_gf = 'GF writeout step with energy contour for impurity DOS'
         
         future = self.submit(kkr_flex_wc, label=label_gf, description=description_gf, 
-                             kkr=kkrcode, options_parameters=options, 
-                             remote_data=converged_host_remote, imp_info=imp_info,
+                             kkr=kkrcode, options=options, 
+                             remote_data=converged_host_remote, impurity_info=imp_info,
                              wf_parameters=wf_params_gf)
         
         self.report('INFO: running GF writeout (pid: {})'.format(future.pk))
@@ -249,9 +253,9 @@ class kkr_imp_dos_wc(WorkChain):
         """
 
         options = self.ctx.options_params_dict
-        kkrimpcode = self.inputs.kkrimpcode
+        kkrimpcode = self.inputs.kkrimp
         gf_writeout_wf = self.ctx.gf_writeout
-        gf_writeout_calc = load_node(self.ctx.gf_writeout.out.calculation_info.get_attr('pk_flexcalc'))
+        gf_writeout_calc = load_node(self.ctx.gf_writeout.out.workflow_info.get_attr('pk_flexcalc'))
         gf_writeout_remote = gf_writeout_wf.out.GF_host_remote
         impurity_pot = self.inputs.host_imp_pot
         imps = self.ctx.imp_info
@@ -265,15 +269,15 @@ class kkr_imp_dos_wc(WorkChain):
                                                           'dos_run': True})
         kkrimp_params = self.ctx.kkrimp_params_dict
         
-        label_imp = 'KKRimp DOS (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {}'.format(
+        label_imp = 'KKRimp DOS (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {})'.format(
                     gf_writeout_wf.pk, impurity_pot.pk, imps.get_attr('Zimp'), imps.get_attr('ilayer_center'))
-        description_imp = 'KKRimp DOS run (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {}, R_cut: {}'.format(
+        description_imp = 'KKRimp DOS run (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {}, R_cut: {})'.format(
                     gf_writeout_wf.pk, impurity_pot.pk, imps.get_attr('Zimp'), imps.get_attr('ilayer_center'),
                     imps.get_attr('Rcut'))   
             
         future = self.submit(kkr_imp_sub_wc, label=label_imp, description=description_imp, 
-                             kkrimp=kkrimpcode, options_parameters=options, 
-                             wf_parameters=kkrimp_params, GF_remote_data=gf_writeout_remote, 
+                             kkrimp=kkrimpcode, options=options, 
+                             wf_parameters=kkrimp_params, remote_data_gf=gf_writeout_remote, 
                              host_imp_startpot=impurity_pot)
 
         self.report('INFO: running DOS step for impurity system (pid: {})'.format(future.pk))
@@ -288,9 +292,9 @@ class kkr_imp_dos_wc(WorkChain):
         
         self.report('INFO: creating output nodes for the KKR imp DOS workflow ...')
 
-        last_calc_pk = self.ctx.kkrimp_dos.out.calculation_info.get_attr('last_calc_nodeinfo')['pk']
+        last_calc_pk = self.ctx.kkrimp_dos.out.workflow_info.get_attr('last_calc_nodeinfo')['pk']
         last_calc_output_params = load_node(last_calc_pk).out.output_parameters        
-        last_calc_info = self.ctx.kkrimp_dos.out.calculation_info
+        last_calc_info = self.ctx.kkrimp_dos.out.workflow_info
         
         outputnode_dict = {}
         outputnode_dict['impurity_info'] = self.ctx.imp_info.get_attrs()

@@ -6,7 +6,7 @@ and some helper methods to do so with AiiDA
 
 from aiida.orm import Code, DataFactory
 from aiida.orm.data.base import Float
-from aiida.work.workchain import WorkChain, ToContext, while_
+from aiida.work.workchain import WorkChain, ToContext, while_, if_
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
@@ -138,12 +138,12 @@ class kkr_imp_sub_wc(WorkChain):
         # Here the structure of the workflow is defined
         spec.outline(
             cls.start,
-            cls.validate_input,
-            while_(cls.condition)(
-                cls.update_kkrimp_params,
-                cls.run_kkrimp,
-                cls.inspect_kkrimp),
-            cls.return_results)
+            if_(cls.validate_input)(
+                while_(cls.condition)(
+                    cls.update_kkrimp_params,
+                    cls.run_kkrimp,
+                    cls.inspect_kkrimp),
+                cls.return_results))
             
         # exit codes 
         spec.exit_code(121, 'ERROR_HOST_IMP_POT_GF', 
@@ -367,7 +367,9 @@ class kkr_imp_sub_wc(WorkChain):
             self.report('ERROR: {}'.format(self.exit_codes.ERROR_NO_CALC_PARAMS))            
             return self.exit_codes.ERROR_NO_CALC_PARAMS 
             
-        self.report('INFO: validated input successfully: {}'.format(inputs_ok))   
+        self.report('INFO: validated input successfully: {}'.format(inputs_ok))  
+        
+        return inputs_ok
         
         
         
