@@ -16,6 +16,9 @@ addons:
       - liblapack-dev
 cache: pip
 before_install:
+# this decripts the pypi_credentials file needed to publish to pypi after successful tests
+- openssl aes-256-cbc -K $encrypted_6bf0778859c5_key -iv $encrypted_6bf0778859c5_iv
+  -in pypi_credentials.enc -out pypi_credentials -d
 # this decripts the ssh key needed to download the KKR code
 - openssl aes-256-cbc -K $encrypted_6bf0778859c5_key -iv $encrypted_6bf0778859c5_iv
   -in id_rsa_travis.enc -out id_rsa_travis -d
