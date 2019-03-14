@@ -27,8 +27,6 @@ before_install:
 - sudo updatedb
 install: # python installations
 - pip install -U pip wheel setuptools
-- pip install -e git+https://github.com/aiidateam/aiida_core.git@develop#egg=aiida-core[testing]
-- pip install -e git+https://github.com/JuDFTteam/masci-tools@master#egg=masci-tools.git
 - pip install -e .
 - pip install codecov
 env:
@@ -49,5 +47,7 @@ allow_failures:
 # (needs allow failure so that after_success is executed)
 after_success:
 - codecov
+#deploy to pypi
+#- pip install poetry && poetry publish --build -u XXXXX -p XXXXXX
 git:
   depth: 3
