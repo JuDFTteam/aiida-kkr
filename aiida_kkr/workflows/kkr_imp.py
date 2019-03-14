@@ -93,11 +93,8 @@ class kkr_imp_wc(WorkChain):
                         'delta_e_min' : 1., # eV                   # minimal distance in DOS contour to emin and emax in eV
                         'threshold_dos_zero' : 10**-3,             #states/eV  
                         'check_dos': True,                         # logical to determine if DOS is computed and checked
-                        'delta_e_min_core_states' : 1.0,  # Ry     # minimal distance of start of energy contour to highest lying core state in Ry
-                        'lmax': 3,
-                        'gmax': 65.,
-                        'rmax': 7.,
-                        'rclustz': 2.5}
+                        'delta_e_min_core_states' : 1.0  # Ry     # minimal distance of start of energy contour to highest lying core state in Ry
+                        }
                                           
                                  
                                           
@@ -215,10 +212,6 @@ class kkr_imp_wc(WorkChain):
         self.ctx.voro_threshold_dos_zero = voro_aux_dict.get('threshold_dos_zero', self._voro_aux_default['threshold_dos_zero'])
         self.ctx.voro_check_dos = voro_aux_dict.get('check_dos', self._voro_aux_default['check_dos'])
         self.ctx.voro_delta_e_min_core_states = voro_aux_dict.get('delta_e_min_core_states', self._voro_aux_default['delta_e_min_core_states'])
-        self.ctx.voro_lmax = voro_aux_dict.get('lmax', self._voro_aux_default['lmax'])
-        self.ctx.voro_gmax = voro_aux_dict.get('gmax', self._voro_aux_default['gmax'])
-        self.ctx.voro_rmax = voro_aux_dict.get('rmax', self._voro_aux_default['rmax'])
-        self.ctx.voro_rclustz = voro_aux_dict.get('rclustz', self._voro_aux_default['rclustz'])
         # set up new parameter dict to pass to voronoi subworkflow later
         self.ctx.voro_params_dict = ParameterData(dict={'queue_name': self.ctx.queue, 'resources': self.ctx.resources, 'walltime_sec': self.ctx.walltime_sec, 
                                                         'use_mpi': self.ctx.use_mpi, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
@@ -356,7 +349,7 @@ class kkr_imp_wc(WorkChain):
         sub_description = 'GF writeout sub workflow for kkrimp_wc using converged host remote data (pid: {}) and impurity_info node (pid: {})'.format(converged_host_remote.pk, imp_info.pk)
 
         future = self.submit(kkr_flex_wc, label=sub_label, description=sub_description, kkr=kkrcode, options=options, 
-                             remote_data=converged_host_remote, imp_info=imp_info)
+                             remote_data=converged_host_remote, impurity_info=imp_info)
         
         self.report('INFO: running GF writeout (pid: {})'.format(future.pk))
         
@@ -386,8 +379,10 @@ class kkr_imp_wc(WorkChain):
             GF_host_calc = load_node(GF_host_calc_pk)
             converged_host_remote = GF_host_calc.inp.parent_calc_folder 
         # TODO: add other parameters from previous host calc
-        calc_params = ParameterData(dict=kkrparams(NSPIN=self.ctx.nspin, LMAX=self.ctx.voro_lmax, GMAX=self.ctx.voro_gmax, 
-                                                   RMAX=self.ctx.voro_rmax, RCLUSTZ=self.ctx.voro_rclustz).get_dict())
+        prev_kkrparams = converged_host_remote.inp.remote_folder.inp.parameters
+        #calc_params = ParameterData(dict=kkrparams(NSPIN=self.ctx.nspin, LMAX=self.ctx.voro_lmax, GMAX=self.ctx.voro_gmax, 
+        #                                           RMAX=self.ctx.voro_rmax, RCLUSTZ=self.ctx.voro_rclustz).get_dict())
+        calc_params = prev_kkrparams
         structure_host, voro_calc = VoronoiCalculation.find_parent_structure(converged_host_remote) 
         
         # for every impurity, generate a structure and launch the voronoi workflow
