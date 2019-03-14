@@ -38,9 +38,9 @@ script:
 - chmod 400 ~/.ssh/id_rsa
 - echo "iffgit.fz-juelich.de,134.94.161.83 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH2UDrT0bZP+WmJGGbtLPtFyC5FgQgOM1XvVJ6u5XBJrYMnKNVb9jAttL+k8VvDgcK6b3dFJnvt7eiXtG/hnqCo=" >> ~/.ssh/known_hosts
 # clone the code and install
-- ./jukkr_installation.sh
+- cd aiida_kkr/tests && ./jukkr_installation.sh
 # Now run all tests
-- pwd; cd ../aiida_kkr/tests/ && ./run_all.sh
+- pwd && ./run_all.sh
 allow_failures:
   - pytest -s --cov-report=term-missing --cov=aiida_kkr -k Test_dos_workflow
   - pytest -s --cov-report=term-missing --cov=aiida_kkr -k Test_gf_writeout_workflow
