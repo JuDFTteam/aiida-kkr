@@ -22,7 +22,7 @@ from numpy import array, where, ones
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9"
+__version__ = "0.9.1"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -54,6 +54,7 @@ class kkr_scf_wc(WorkChain):
     (2) Start from an existing Voronoi or KKR calculation, with a remoteData
 
     :param wf_parameters: (ParameterData), Workchain Spezifications
+    :param options: (ParameterData); specifications for the computer
     :param structure: (StructureData), Crystal structure
     :param calc_parameters: (ParameterData), Vornoi/Kkr Parameters
     :param remote_data: (RemoteData), from a KKR, or Vornoi calculation
@@ -69,8 +70,7 @@ class kkr_scf_wc(WorkChain):
 
     maximum input example:
     1. Code1, Code2, Structure, Parameters
-        wf_parameters: {
-                        'queue' : String,
+        wf_parameters: {'queue_name' : String,
                         'resources' : dict({"num_machines": int, "num_mpiprocs_per_machine" : int})
                         'walltime' : int}
     2. Code2, (remote-data), wf_parameters as in 1.
@@ -83,11 +83,6 @@ class kkr_scf_wc(WorkChain):
     _workflowversion = __version__
     _wf_default = {'kkr_runmax': 5,                           # Maximum number of kkr jobs/starts (defauld iterations per start)
                    'convergence_criterion' : 10**-8,          # Stop if charge denisty is converged below this value
-                   'queue_name' : '',                         # Queue name to submit jobs too
-                   'resources': {"num_machines": 1},          # resources to allowcate for the job
-                   'walltime_sec' : 60*60,                    # walltime after which the job gets killed (gets parsed to KKR)
-                   'use_mpi' : False,                         # execute KKR with mpi or without
-                   'custom_scheduler_commands' : '',          # some additional scheduler commands
                    'mixreduce': 0.5,                          # reduce mixing factor by this factor if calculaito fails due to too large mixing
                    'threshold_aggressive_mixing': 8*10**-3,   # threshold after which agressive mixing is used
                    'strmix': 0.03,                            # mixing factor of simple mixing
@@ -113,6 +108,12 @@ class kkr_scf_wc(WorkChain):
                    'init_pos' : None,                         # position in unit cell where magnetic field is applied [default (None) means apply to all]
                    'retreive_dos_data_scf_run' : False,       # add DOS to testopts and retrieve dos.atom files in each scf run
                    }
+    _options_default = {'queue_name' : '',                         # Queue name to submit jobs too
+                        'resources': {"num_machines": 1},          # resources to allowcate for the job
+                        'max_wallclock_seconds' : 60*60,           # walltime after which the job gets killed (gets parsed to KKR)
+                        'use_mpi' : False,                         # execute KKR with mpi or without
+                        'custom_scheduler_commands' : ''           # some additional scheduler commands
+                        }
     # set these keys from defaults in kkr_startpot workflow since they are only passed onto that workflow
     for key, value in kkr_startpot_wc.get_wf_defaults(silent=True).iteritems():
         if key in ['dos_params', 'fac_cls_increase', 'r_cls', 'natom_in_cls_min', 'delta_e_min', 'threshold_dos_zero', 'check_dos']:
@@ -138,6 +139,8 @@ class kkr_scf_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_scf_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
+                   default=ParameterData(dict=cls._wf_default))
+        spec.input("options", valid_type=ParameterData, required=False,
                    default=ParameterData(dict=cls._wf_default))
         spec.input("structure", valid_type=StructureData, required=False)
         spec.input("calc_parameters", valid_type=ParameterData, required=False)
@@ -237,18 +240,26 @@ class kkr_scf_wc(WorkChain):
 
         # input para
         wf_dict = self.inputs.wf_parameters.get_dict()
+        options_dict = self.inputs.options.get_dict()
 
         if wf_dict == {}:
             wf_dict = self._wf_default
             self.report('INFO: using default wf parameter')
+        if options_dict == {}:
+            options_dict = self._options_default
+            self.report('INFO: using default options')
 
         # set values from input, or defaults
-        self.ctx.use_mpi = wf_dict.get('use_mpi', self._wf_default['use_mpi'])
-        self.ctx.max_number_runs = wf_dict.get('kkr_runmax', self._wf_default['kkr_runmax'])
-        self.ctx.resources = wf_dict.get('resources', self._wf_default['resources'])
-        self.ctx.walltime_sec = wf_dict.get('walltime_sec', self._wf_default['walltime_sec'])
-        self.ctx.queue = wf_dict.get('queue_name', self._wf_default['queue_name'])
-        self.ctx.custom_scheduler_commands = wf_dict.get('custom_scheduler_commands', self._wf_default['custom_scheduler_commands'])
+        self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
+        self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
+        self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
+        self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
+        self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
+        self.ctx.options_params_dict = ParameterData(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources, 
+                                                           'max_wallclock_seconds': self.ctx.walltime_sec, 'queue_name': self.ctx.queue, 
+                                                           'custom_scheduler_commands': self.ctx.custom_scheduler_commands})
+        
+        # set label and description
         self.ctx.description_wf = self.inputs.get('description', 'Workflow for '
                                                   'a KKR scf calculation starting '
                                                   'either from a structure with '
@@ -256,6 +267,9 @@ class kkr_scf_wc(WorkChain):
                                                   'or a valid RemoteData node of '
                                                   'a previous calculation')
         self.ctx.label_wf = self.inputs.get('label', 'kkr_scf_wc')
+        
+        # set workflow parameters
+        self.ctx.max_number_runs = wf_dict.get('kkr_runmax', self._wf_default['kkr_runmax'])
         self.ctx.strmix = wf_dict.get('strmix', self._wf_default['strmix'])
         self.ctx.brymix = wf_dict.get('brymix', self._wf_default['brymix'])
         self.ctx.check_dos = wf_dict.get('check_dos', self._wf_default['check_dos'])
@@ -491,8 +505,9 @@ class kkr_scf_wc(WorkChain):
         wf_label= 'kkr_startpot (voronoi)'
         wf_desc = 'subworkflow to set up the input of a KKR calculation'
         future = self.submit(kkr_startpot_wc, kkr=kkrcode, voronoi=voronoicode,
-                        calc_parameters=params, wf_parameters=sub_wf_params,
-                        structure=structure, label=wf_label, description=wf_desc)
+                             calc_parameters=params, wf_parameters=sub_wf_params,
+                             structure=structure, label=wf_label, description=wf_desc,
+                             options=self.ctx.options_params_dict)
 
         return ToContext(voronoi=future, last_calc=future)
 
@@ -1250,7 +1265,7 @@ class kkr_scf_wc(WorkChain):
             # take subset of input and prepare parameter node for dos workflow
             wfdospara_dict = {'queue_name' : self.ctx.queue,
                               'resources': self.ctx.resources,
-                              'walltime_sec' : self.ctx.walltime_sec,
+                              'max_wallclock_seconds' : self.ctx.walltime_sec,
                               'use_mpi' : self.ctx.use_mpi,
                               'custom_scheduler_commands' : self.ctx.custom_scheduler_commands,
                               'dos_params' : self.ctx.dos_params}
@@ -1262,7 +1277,9 @@ class kkr_scf_wc(WorkChain):
             remote = self.ctx.last_calc.out.remote_folder
             wf_label= ' final DOS calculation'
             wf_desc = ' subworkflow of a DOS calculation'
-            future = self.submit(kkr_dos_wc, kkr=code, remote_data=remote, wf_parameters=wfdospara_node, label=wf_label, description=wf_desc)
+            future = self.submit(kkr_dos_wc, kkr=code, remote_data=remote,
+                                 wf_parameters=wfdospara_node, label=wf_label, 
+                                 description=wf_desc, options=self.ctx.options_params_dict)
 
             return ToContext(doscal=future)
 

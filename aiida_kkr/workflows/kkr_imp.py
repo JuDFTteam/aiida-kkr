@@ -18,7 +18,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
+__version__ = "0.3"
 __contributors__ = u"Fabian Bertoldo"
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -57,7 +57,7 @@ class kkr_imp_wc(WorkChain):
 
     _options_default = {'queue_name' : '',                                          # Queue name to submit jobs too
                         'resources': {"num_machines": 1},                           # resources to allowcate for the job
-                        'walltime_sec' : 60*60,                                     # walltime after which the job gets killed (gets parsed to KKR)}
+                        'max_wallclock_seconds' : 60*60,                            # walltime after which the job gets killed (gets parsed to KKR)}
                         'custom_scheduler_commands' : '',                           # some additional scheduler commands 
                         'use_mpi' : False}                                          # execute KKR with mpi or without
                         
@@ -124,13 +124,13 @@ class kkr_imp_wc(WorkChain):
         super(kkr_imp_wc, cls).define(spec)  
         
         # define the inputs of the workflow
-        spec.input("vorocode", valid_type=Code, required=True) 
-        spec.input("kkrimpcode", valid_type=Code, required=True)
+        spec.input("voronoi", valid_type=Code, required=True) 
+        spec.input("kkrimp", valid_type=Code, required=True)
         spec.input("impurity_info", valid_type=ParameterData, required=True)
-        spec.input("kkrcode", valid_type=Code, required=True)
-        spec.input("remote_converged_host", valid_type=RemoteData, required=False)
-        spec.input("gf_remote", valid_type=RemoteData, required=False)
-        spec.input("options_parameters", valid_type=ParameterData, required=False)
+        spec.input("kkr", valid_type=Code, required=True)
+        spec.input("remote_data_host", valid_type=RemoteData, required=False)
+        spec.input("remote_data_gf", valid_type=RemoteData, required=False)
+        spec.input("options", valid_type=ParameterData, required=False)
         spec.input("voro_aux_parameters", valid_type=ParameterData, required=False)
         spec.input("wf_parameters", valid_type=ParameterData, required=False)
         
@@ -175,8 +175,8 @@ class kkr_imp_wc(WorkChain):
                     ''.format(self._workflowversion))        
      
         # get input parameters
-        if 'options_parameters' in self.inputs:
-            options_dict = self.inputs.options_parameters.get_dict() 
+        if 'options' in self.inputs:
+            options_dict = self.inputs.options.get_dict() 
         else:
             options_dict = self._options_default
             self.report('INFO: using default options')
@@ -195,10 +195,10 @@ class kkr_imp_wc(WorkChain):
         # set option parameters from input, or defaults
         self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
-        self.ctx.walltime_sec = options_dict.get('walltime_sec', self._options_default['walltime_sec'])
+        self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
-        self.ctx.options_params_dict = ParameterData(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources, 'walltime_sec': self.ctx.walltime_sec,
+        self.ctx.options_params_dict = ParameterData(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources, 'max_wallclock_seconds': self.ctx.walltime_sec,
                                                            'queue_name': self.ctx.queue, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands})
 
         # set label and description of the workflow
@@ -289,17 +289,17 @@ class kkr_imp_wc(WorkChain):
         inputs = self.inputs
         inputs_ok = True
         
-        if 'kkrimpcode' and 'vorocode' in inputs:
+        if 'kkrimp' and 'voronoi' in inputs:
             try:
-                test_and_get_codenode(inputs.kkrimpcode, 'kkr.kkrimp', use_exceptions=True)
-                test_and_get_codenode(inputs.vorocode, 'kkr.voro', use_exceptions=True)
+                test_and_get_codenode(inputs.kkrimp, 'kkr.kkrimp', use_exceptions=True)
+                test_and_get_codenode(inputs.voronoi, 'kkr.voro', use_exceptions=True)
             except ValueError:
                 inputs_ok = False
                 self.report(self.exit_codes.ERROR_INVALID_INPUT_CODE)
                 return self.exit_codes.ERROR_INVALID_INPUT_CODE  
-        elif 'kkrcode' in inputs:
+        elif 'kkr' in inputs:
             try:
-                test_and_get_codenode(inputs.kkrcode, 'kkr.kkr', use_exceptions=True)
+                test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
                 inputs_ok = False
                 self.report(self.exit_codes.ERROR_INVALID_INPUT_CODE)
@@ -308,24 +308,24 @@ class kkr_imp_wc(WorkChain):
         if 'impurity_info' in inputs:
             self.report('INFO: found the following impurity info node in input: {}'.format(inputs.impurity_info.get_attrs()))      
             
-        if 'gf_remote' in inputs and 'remote_converged_host' in inputs:
+        if 'remote_data_gf' in inputs and 'remote_data_host' in inputs:
             self.report('INFO: both converged host remote (pid: {}) and GF writeout remote (pid: {}) found in input. '
                         'Converged host remote will not be used. Skip GF writeout step and '
-                        'start workflow with auxiliary voronoi calculations.' .format(inputs.remote_converged_host.pk, inputs.gf_remote.pk))
+                        'start workflow with auxiliary voronoi calculations.' .format(inputs.remote_data_host.pk, inputs.remote_data_gf.pk))
             do_gf_calc = False
-        elif 'remote_converged_host' in inputs:
+        elif 'remote_data_host' in inputs:
             self.report('INFO: found converged host remote (pid: {}) in input. '
-                        'Start workflow by calculating the host GF.'.format(inputs.remote_converged_host.pk))
-            if 'kkrcode' in inputs:
+                        'Start workflow by calculating the host GF.'.format(inputs.remote_data_host.pk))
+            if 'kkr' in inputs:
                 do_gf_calc = True
             else:
                 inputs_ok = False
                 self.report(self.exit_codes.ERROR_MISSING_KKRCODE)
                 return self.exit_codes.ERROR_MISSING_KKRCODE
-        elif 'gf_remote' in inputs:
+        elif 'remote_data_gf' in inputs:
             self.report('INFO: found remote_data node (pid: {}) from previous KKRFLEX calculation (pid: {}) in input. '
                         'Skip GF writeout step and start workflow by auxiliary voronoi calculations.'
-                        .format(inputs.gf_remote.pk, inputs.gf_remote.inp.remote_folder.pk))
+                        .format(inputs.remote_data_gf.pk, inputs.remote_data_gf.inp.remote_folder.pk))
             do_gf_calc = False
         else:
             inputs_ok = False
@@ -346,16 +346,16 @@ class kkr_imp_wc(WorkChain):
         """
         
         # collect inputs
-        kkrcode = self.inputs.kkrcode
+        kkrcode = self.inputs.kkr
         imp_info = self.inputs.impurity_info
-        converged_host_remote = self.inputs.remote_converged_host
+        converged_host_remote = self.inputs.remote_data_host
         options = self.ctx.options_params_dict
         
         # set label and description of the calc
         sub_label = 'GF writeout (conv. host pid: {}, imp_info pid: {})'.format(converged_host_remote.pk, imp_info.pk)
         sub_description = 'GF writeout sub workflow for kkrimp_wc using converged host remote data (pid: {}) and impurity_info node (pid: {})'.format(converged_host_remote.pk, imp_info.pk)
 
-        future = self.submit(kkr_flex_wc, label=sub_label, description=sub_description, kkr=kkrcode, options_parameters=options, 
+        future = self.submit(kkr_flex_wc, label=sub_label, description=sub_description, kkr=kkrcode, options=options, 
                              remote_data=converged_host_remote, imp_info=imp_info)
         
         self.report('INFO: running GF writeout (pid: {})'.format(future.pk))
@@ -370,20 +370,22 @@ class kkr_imp_wc(WorkChain):
         from the converged KKR host calculation
         """
         # TODO: generalize to multiple impurities
+        # TODO: get host parameters from previous KKRFLEX calc
         
         # collect inputs
-        vorocode = self.inputs.vorocode
-        kkrcode = self.inputs.kkrcode
+        vorocode = self.inputs.voronoi
+        kkrcode = self.inputs.kkr
         imp_info = self.inputs.impurity_info
         voro_params = self.ctx.voro_params_dict
         if self.ctx.do_gf_calc:
             self.report('INFO: get converged host remote from inputs to extract structure for Voronoi calculation')
-            converged_host_remote = self.inputs.remote_converged_host
+            converged_host_remote = self.inputs.remote_data_host
         else:
             self.report('INFO: get converged host remote from GF_host_calc and graph to extract structure for Voronoi calculation')
-            GF_host_calc_pk = self.inputs.gf_remote.inp.remote_folder.pk
+            GF_host_calc_pk = self.inputs.remote_data_gf.inp.remote_folder.pk
             GF_host_calc = load_node(GF_host_calc_pk)
             converged_host_remote = GF_host_calc.inp.parent_calc_folder 
+        # TODO: add other parameters from previous host calc
         calc_params = ParameterData(dict=kkrparams(NSPIN=self.ctx.nspin, LMAX=self.ctx.voro_lmax, GMAX=self.ctx.voro_gmax, 
                                                    RMAX=self.ctx.voro_rmax, RCLUSTZ=self.ctx.voro_rclustz).get_dict())
         structure_host, voro_calc = VoronoiCalculation.find_parent_structure(converged_host_remote) 
@@ -398,7 +400,8 @@ class kkr_imp_wc(WorkChain):
         sub_description += '{} in the host structure from pid: {}'.format(imp_info.get_attr('Zimp')[0], converged_host_remote.pk)
         
         future = self.submit(kkr_startpot_wc, label=sub_label, description=sub_description, structure=inter_struc,
-                             voronoi=vorocode, kkr=kkrcode, wf_parameters=voro_params, calc_parameters=calc_params)
+                             voronoi=vorocode, kkr=kkrcode, wf_parameters=voro_params, calc_parameters=calc_params,
+                             options=self.ctx.options_params_dict)
         
         tmp_calcname = 'voro_aux_{}'.format(1)    
         self.ctx.voro_calcs[tmp_calcname] = future    
@@ -419,12 +422,12 @@ class kkr_imp_wc(WorkChain):
         
         # collect all nodes necessary to construct the startpotential
         if self.ctx.do_gf_calc:
-            GF_host_calc_pk = self.ctx.gf_writeout.out.calculation_info.get_attr('pk_flexcalc')
+            GF_host_calc_pk = self.ctx.gf_writeout.out.workflow_info.get_attr('pk_flexcalc')
             self.report('GF_host_calc_pk: {}'.format(GF_host_calc_pk))
             GF_host_calc = load_node(GF_host_calc_pk)
-            converged_host_remote = self.inputs.remote_converged_host
+            converged_host_remote = self.inputs.remote_data_host
         else:
-            GF_host_calc_pk = self.inputs.gf_remote.inp.remote_folder.pk
+            GF_host_calc_pk = self.inputs.remote_data_gf.inp.remote_folder.pk
             self.report('GF_host_calc_pk: {}'.format(GF_host_calc_pk))
             GF_host_calc = load_node(GF_host_calc_pk)
             converged_host_remote = GF_host_calc.inp.parent_calc_folder            
@@ -473,7 +476,7 @@ class kkr_imp_wc(WorkChain):
         """
         
         # collect all necessary input nodes
-        kkrimpcode = self.inputs.kkrimpcode
+        kkrimpcode = self.inputs.kkrimp
         startpot = self.ctx.startpot_kkrimp
         kkrimp_params = self.ctx.kkrimp_params_dict
         options = self.ctx.options_params_dict
@@ -482,16 +485,16 @@ class kkr_imp_wc(WorkChain):
             self.report('INFO: get GF remote from gf_writeout sub wf (pid: {})'.format(self.ctx.gf_writeout.pk))
             gf_remote = self.ctx.gf_writeout.out.GF_host_remote
         else:
-            self.report('INFO: get GF remote from input node (pid: {})'.format(self.inputs.gf_remote.pk))
-            gf_remote = self.inputs.gf_remote
+            self.report('INFO: get GF remote from input node (pid: {})'.format(self.inputs.remote_data_gf.pk))
+            gf_remote = self.inputs.remote_data_gf
         
         # set label and description
         sub_label = 'kkrimp_sub scf wf (GF host remote: {}, imp_info: {})'.format(gf_remote.pk, self.inputs.impurity_info.pk)
         sub_description = 'convergence of the host-impurity potential (pk: {}) using GF remote (pk: {})'.format(startpot.pk, gf_remote.pk)
         
         future = self.submit(kkr_imp_sub_wc, label=sub_label, description=sub_description, 
-                             kkrimp=kkrimpcode, options_parameters=options, impurity_info=imp_info,
-                             host_imp_startpot=startpot, GF_remote_data=gf_remote, wf_parameters=kkrimp_params)
+                             kkrimp=kkrimpcode, options=options, impurity_info=imp_info,
+                             host_imp_startpot=startpot, remote_data=gf_remote, wf_parameters=kkrimp_params)
                
         self.report('INFO: running kkrimp_sub_wf (startpot: {}, GF_remote: {}, wf pid: {})'.format(startpot.pk, gf_remote.pk, future.pk))
 
@@ -506,9 +509,9 @@ class kkr_imp_wc(WorkChain):
         
         self.report('INFO: creating output nodes for the KKR impurity workflow ...')
         
-        last_calc_pk = self.ctx.kkrimp_scf_sub.out.calculation_info.get_attr('last_calc_nodeinfo')['pk']
+        last_calc_pk = self.ctx.kkrimp_scf_sub.out.workflow_info.get_attr('last_calc_nodeinfo')['pk']
         last_calc_output_params = load_node(last_calc_pk).out.output_parameters
-        last_calc_info = self.ctx.kkrimp_scf_sub.out.calculation_info
+        last_calc_info = self.ctx.kkrimp_scf_sub.out.workflow_info
         res_voro_info = self.ctx.last_voro_calc.out.results_vorostart_wc
         outputnode_dict = {}
         outputnode_dict['workflow_name'] = self.__class__.__name__
@@ -516,7 +519,7 @@ class kkr_imp_wc(WorkChain):
         if self.ctx.do_gf_calc:
             outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk, 'auxiliary_voronoi': self.ctx.last_voro_calc.pk,
                                                     'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}  
-            outputnode_dict['gf_wc_success'] = self.ctx.gf_writeout.out.calculation_info.get_attr('successful')
+            outputnode_dict['gf_wc_success'] = self.ctx.gf_writeout.out.workflow_info.get_attr('successful')
         else:
             outputnode_dict['used_subworkflows'] = {'auxiliary_voronoi': self.ctx.last_voro_calc.pk, 'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}  
         outputnode_dict['converged'] = last_calc_info.get_attr('convergence_reached')
