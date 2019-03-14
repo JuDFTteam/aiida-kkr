@@ -363,7 +363,6 @@ class kkr_imp_wc(WorkChain):
         from the converged KKR host calculation
         """
         # TODO: generalize to multiple impurities
-        # TODO: get host parameters from previous KKRFLEX calc
         
         # collect inputs
         vorocode = self.inputs.voronoi
@@ -378,10 +377,7 @@ class kkr_imp_wc(WorkChain):
             GF_host_calc_pk = self.inputs.remote_data_gf.inp.remote_folder.pk
             GF_host_calc = load_node(GF_host_calc_pk)
             converged_host_remote = GF_host_calc.inp.parent_calc_folder 
-        # TODO: add other parameters from previous host calc
         prev_kkrparams = converged_host_remote.inp.remote_folder.inp.parameters
-        #calc_params = ParameterData(dict=kkrparams(NSPIN=self.ctx.nspin, LMAX=self.ctx.voro_lmax, GMAX=self.ctx.voro_gmax, 
-        #                                           RMAX=self.ctx.voro_rmax, RCLUSTZ=self.ctx.voro_rclustz).get_dict())
         calc_params = prev_kkrparams
         structure_host, voro_calc = VoronoiCalculation.find_parent_structure(converged_host_remote) 
         
