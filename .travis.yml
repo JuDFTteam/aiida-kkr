@@ -16,9 +16,10 @@ addons:
       - liblapack-dev
 cache: pip
 before_install:
-# this decripts the ssh key needed to download the KKR code
-- openssl aes-256-cbc -K $encrypted_6bf0778859c5_key -iv $encrypted_6bf0778859c5_iv
-  -in id_rsa_travis.enc -out id_rsa_travis -d
+# this decripts the secrets tar ball
+- openssl aes-256-cbc -K $encrypted_6bf0778859c5_key -iv $encrypted_6bf0778859c5_iv -in secrets.tar.gz.enc -out secrets.tar.gz -d
+# now unpack the secrets (pypi_credentials and ssh key to download the KKR code
+- tar -zxvf secrets.tar.gz && rm secrets.tar.gz
 # Now we install the needed dependencies
 - sudo apt-get install locate
 - sudo service postgresql stop
@@ -27,6 +28,8 @@ before_install:
 - sudo updatedb
 install: # python installations
 - pip install -U pip wheel setuptools
+# at the moment need to install masci-tools manually since it is not uploaded to pypi yet
+- pip install -e git+https://github.com/JuDFTteam/masci-tools@master#egg=masci-tools.git
 - pip install -e .
 - pip install codecov
 env:
@@ -38,9 +41,9 @@ script:
 - chmod 400 ~/.ssh/id_rsa
 - echo "iffgit.fz-juelich.de,134.94.161.83 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH2UDrT0bZP+WmJGGbtLPtFyC5FgQgOM1XvVJ6u5XBJrYMnKNVb9jAttL+k8VvDgcK6b3dFJnvt7eiXtG/hnqCo=" >> ~/.ssh/known_hosts
 # clone the code and install
-- ./jukkr_installation.sh
+- cd aiida_kkr/tests && ./jukkr_installation.sh
 # Now run all tests
-- pwd; cd ../aiida_kkr/tests/ && ./run_all.sh
+- pwd && ./run_all.sh
 allow_failures:
   - pytest -s --cov-report=term-missing --cov=aiida_kkr -k Test_dos_workflow
   - pytest -s --cov-report=term-missing --cov=aiida_kkr -k Test_gf_writeout_workflow
@@ -48,6 +51,7 @@ allow_failures:
 after_success:
 - codecov
 #deploy to pypi
-#- pip install poetry && poetry publish --build -u XXXXX -p XXXXXX
+- cd ../../ && rm -rf aiida_kkr/tests/{submit_test/,__pycache__/,jukkr} id_rsa_travis #remove test output before publishing
+- pip install poetry && poetry publish --build < pypi_credentials
 git:
   depth: 3
