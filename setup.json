@@ -14,7 +14,7 @@
         "Topic :: Scientific/Engineering :: Physics",
         "Natural Language :: English"      
     ],
-    "version": "1.1.2-dev",
+    "version": "1.1.2",
     "reentry_register": true,
     "install_requires": [
         "aiida-core == 1.0.0a4",
