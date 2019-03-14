@@ -27,13 +27,12 @@ class Test_kkrimp_scf_workflow():
         prepare_code(kkrimp_codename, codelocation, computername, workdir)
 
 
-        options, wfd =kkr_imp_sub_wc.get_wf_defaults()
+        wfd =kkr_imp_sub_wc.get_wf_defaults()
        
         wfd['nsteps'] = 20
         wfd['strmix'] = 0.05
-        options['queue_name'] = queuename
-        options['use_mpi'] = True
        
+        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 60*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
         options = ParameterData(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
@@ -60,8 +59,8 @@ class Test_kkrimp_scf_workflow():
         builder.description = descr
         builder.label = label
         builder.kkrimp = KKRimpCode
-        builder.options_parameters = options
-        builder.GF_remote_data = GF_host_calc.out.remote_folder
+        builder.options = options
+        builder.remote_data = GF_host_calc.out.remote_folder
         builder.wf_parameters = ParameterData(dict=wfd)
         builder.host_imp_startpot = startpot_imp_sfd
        

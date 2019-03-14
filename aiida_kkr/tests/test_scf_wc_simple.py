@@ -70,14 +70,14 @@ class Test_scf_workflow():
         wfd['check_dos'] = False 
         wfd['kkr_runmax'] = 5
         wfd['nsteps'] = 50 
-        wfd['queue_name'] = queuename
-        wfd['resources']['num_machines'] = 1 
-        wfd['use_mpi'] = True
        
         wfd['num_rerun'] = 2
         wfd['natom_in_cls_min'] = 20
        
         KKRscf_wf_parameters = ParameterData(dict=wfd)
+
+        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 60*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
+        options = ParameterData(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         VoroCode = Code.get_from_string(voro_codename+'@'+computername)
@@ -96,6 +96,7 @@ class Test_scf_workflow():
         builder.kkr = KKRCode
         builder.structure = Cu
         builder.wf_parameters = KKRscf_wf_parameters
+        builder.options = options
         builder.label = label
         builder.description = descr
 

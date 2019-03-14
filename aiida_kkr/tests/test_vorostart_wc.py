@@ -42,9 +42,9 @@ class Test_vorostart_workflow():
         wfd['check_dos'] = False
         wfd['natom_in_cls_min'] = 20
         wfd['num_rerun'] = 2
-        wfd['queue_name'] = queuename
-        wfd['resources']['num_machines'] = 1
+        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 60*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
         params_vorostart = ParameterData(dict=wfd)
+        options = ParameterData(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         VoroCode = Code.get_from_string(voro_codename+'@'+computername)
@@ -60,10 +60,12 @@ class Test_vorostart_workflow():
         builder.voronoi = VoroCode
         builder.structure = Cu
         builder.wf_parameters = params_vorostart
+        builder.options = options
        
         # now run calculation
         from aiida.work.launch import run, submit
         out = run(builder)
+        print out
        
         # check output
         n = out['results_vorostart_wc']

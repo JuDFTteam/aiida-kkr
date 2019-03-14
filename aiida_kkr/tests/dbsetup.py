@@ -75,4 +75,6 @@ def prepare_code(codename, codelocation, computername, workdir):
         code.description = ''
         code.set_remote_computer_exec((comp, codelocation+execname))
         code.set_input_plugin_name(pluginname)
+        if codename == 'voronoi':
+            code.set_prepend_text('ln -s '+codelocation+'ElementDataBase .')
         code.store()

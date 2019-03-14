@@ -15,7 +15,7 @@ cd ..
 
 # build kkrhost code
 #./install.py --program=kkrhost --compiler=ifort --parallelization=serial
-./install.py --program=kkrhost --compiler=gfortran --parallelization=serial -d
+./install.py --program=kkrhost --compiler=gfortran --parallelization=serial
 cd build/ && make -j4 && cp kkr.x ../
 cd ..
 
