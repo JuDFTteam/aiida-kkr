@@ -13,7 +13,7 @@ from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1"
+__version__ = "0.2"
 __contributors__ = u"Fabian Bertoldo"
 
 #TODO: improve workflow output node structure

@@ -18,7 +18,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
+__version__ = "0.3"
 __contributors__ = u"Fabian Bertoldo"
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input

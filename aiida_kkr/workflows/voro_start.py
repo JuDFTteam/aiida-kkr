@@ -24,7 +24,7 @@ from numpy import where
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9"
+__version__ = "0.9.1"
 __contributors__ = u"Philipp Rüßmann"
 
 
