@@ -15,13 +15,13 @@ cd ..
 
 # build kkrhost code
 #./install.py --program=kkrhost --compiler=ifort --parallelization=serial
-./install.py --program=kkrhost --compiler=gfortran --parallelization=serial
-cd build/ && make -j4 && cp kkr.x ../
-cd ..
+#./install.py --program=kkrhost --compiler=gfortran --parallelization=serial
+#cd build/ && make -j4 && cp kkr.x ../
+#cd ..
 
 # build kkrimp code
 # cannot build with gfortran at the moment, needs fixing on jukkr side
 #./install.py --program=kkrimp --compiler=ifort --parallelization=serial
-./install.py --program=kkrimp --compiler=gfortran --parallelization=serial
-cd build/ && make -j4 && cp kkrflex.exe ../
-cd ..
+#./install.py --program=kkrimp --compiler=gfortran --parallelization=serial
+#cd build/ && make -j4 && cp kkrflex.exe ../
+#cd ..
