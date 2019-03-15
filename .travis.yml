@@ -1,3 +1,4 @@
+#rabbitMQ only works with trusty according to travis website
 dist: trusty
 language: python
 python: 2.7
@@ -9,7 +10,7 @@ services:
 - rabbitmq
 addons:
   postgresql: '9.5'
-  apt: # copied from wannier90's travis.yml
+  apt: # adapted from wannier90's travis.yml
     packages:
       - gfortran
       - libblas-dev
@@ -21,6 +22,7 @@ before_install:
 # now unpack the secrets (pypi_credentials and ssh key to download the KKR code
 - tar -zxvf secrets.tar.gz && rm secrets.tar.gz
 # Now we install the needed dependencies
+#- sudo apt-get update && sudo apt-get upgrade && sudo apt-get install software-properties-common -y && sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y && sudo apt-get update && sudo apt-get install gfortran-8 -y && sudo apt-get update
 - sudo apt-get install locate
 - sudo service postgresql stop
 - sudo apt-get remove postgresql
@@ -42,16 +44,26 @@ script:
 - echo "iffgit.fz-juelich.de,134.94.161.83 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH2UDrT0bZP+WmJGGbtLPtFyC5FgQgOM1XvVJ6u5XBJrYMnKNVb9jAttL+k8VvDgcK6b3dFJnvt7eiXtG/hnqCo=" >> ~/.ssh/known_hosts
 # clone the code and install
 - cd aiida_kkr/tests && ./jukkr_installation.sh
-# Now run all tests
-- pwd && ./run_all.sh
-allow_failures:
-  - pytest -s --cov-report=term-missing --cov=aiida_kkr -k Test_dos_workflow
-  - pytest -s --cov-report=term-missing --cov=aiida_kkr -k Test_gf_writeout_workflow
-# (needs allow failure so that after_success is executed)
+## First check if rabbitmq communication is working
+#- ./check_pika-rabbitmq.py | tee out_rmq_check
+#- ./verify_rmq_check.py
+# Then run all tests
+- ./run_all.sh
+#- travis_wait 30 ./run_all.sh
+matrix:
+  allow_failures: # (needs allow failure so that after_success is executed)
+    # these tests fail at the moment because gfortran is too old
+    - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_dos_workflow
+    - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_gf_writeout_workflow
+    - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_scf_workflow
+    # these are fail because gfortran compilation of kkrimp does not work
+    - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_scf_workflow
+    - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_full_workflow
+
 after_success:
 - codecov
-#deploy to pypi
+#deploy to pypi using poetry
 - cd ../../ && rm -rf aiida_kkr/tests/{submit_test/,__pycache__/,jukkr} id_rsa_travis #remove test output before publishing
-- pip install poetry && ./publish_to_pypi.sh
+- pip install poetry && ./publish_to_pypi.sh # publish_to_pypi script does poetry publish with autentification information
 git:
   depth: 3

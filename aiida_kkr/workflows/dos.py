@@ -45,6 +45,7 @@ class kkr_dos_wc(WorkChain):
     of a previous calculation (either Voronoi or KKR).
 
     :param wf_parameters: (ParameterData); Workchain specifications
+    :param options: (ParameterData); specifications for the computer
     :param remote_data: (RemoteData), mandatory; from a KKR or Vornoi calculation
     :param kkr: (Code), mandatory; KKR code running the dos calculation
 
@@ -55,17 +56,18 @@ class kkr_dos_wc(WorkChain):
     _workflowversion = __version__
     _wf_label = 'kkr_dos_wc'
     _wf_description = 'Workflow for a KKR dos calculation starting either from a structure with automatic voronoi calculation or a valid RemoteData node of a previous calculation.'
-    _wf_default = {'queue_name' : '',                        # Queue name to submit jobs too
-                   'resources': {"num_machines": 1},         # resources to allowcate for the job
-                   'walltime_sec' : 60*60,                   # walltime after which the job gets killed (gets parsed to KKR)
-                   'use_mpi' : False,                        # execute KKR with mpi or without
-                   'custom_scheduler_commands' : '',         # some additional scheduler commands 
-                   'dos_params' : {"nepts": 61,              # DOS params: number of points in contour
+    _wf_default = {'dos_params' : {"nepts": 61,              # DOS params: number of points in contour
                                    "tempr": 200, # K         # DOS params: temperature
                                    "emin": -1, # Ry          # DOS params: start of energy contour
                                    "emax": 1,  # Ry          # DOS params: end of energy contour
                                    "kmesh": [30, 30, 30]}    # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
                    }
+    _options_default = {'queue_name' : '',                        # Queue name to submit jobs too
+                        'resources': {"num_machines": 1},         # resources to allowcate for the job
+                        'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)
+                        'use_mpi' : False,                        # execute KKR with mpi or without
+                        'custom_scheduler_commands' : '',         # some additional scheduler commands 
+                        }
              
     # intended to guide user interactively in setting up a valid wf_params node
     @classmethod
@@ -85,6 +87,8 @@ class kkr_dos_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_dos_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
+                   default=ParameterData(dict=cls._wf_default))
+        spec.input("options", valid_type=ParameterData, required=False,
                    default=ParameterData(dict=cls._wf_default))
         spec.input("remote_data", valid_type=RemoteData, required=True)
         spec.input("kkr", valid_type=Code, required=True)
@@ -122,18 +126,22 @@ class kkr_dos_wc(WorkChain):
 
         # input para
         wf_dict = self.inputs.wf_parameters.get_dict()
+        options_dict = self.inputs.options.get_dict()
 
         #TODO: check for completeness
         if wf_dict == {}:
             wf_dict = self._wf_default
             self.report('INFO: using default wf parameter')
+        if options_dict == {}:
+            options_dict = self._options_default
+            self.report('INFO: using default options')
 
         # set values, or defaults
-        self.ctx.use_mpi = wf_dict.get('use_mpi', self._wf_default['use_mpi'])
-        self.ctx.resources = wf_dict.get('resources', self._wf_default['resources'])
-        self.ctx.walltime_sec = wf_dict.get('walltime_sec', self._wf_default['walltime_sec'])
-        self.ctx.queue = wf_dict.get('queue_name', self._wf_default['queue_name'])
-        self.ctx.custom_scheduler_commands = wf_dict.get('custom_scheduler_commands', self._wf_default['custom_scheduler_commands'])
+        self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
+        self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
+        self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
+        self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
+        self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
         
         self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
         self.ctx.dos_kkrparams = None # is set in set_params_dos
@@ -319,8 +327,8 @@ class kkr_dos_wc(WorkChain):
         outputnode_dict['workflow_version'] = self._workflowversion
         outputnode_dict['use_mpi'] = self.ctx.use_mpi
         outputnode_dict['resources'] = self.ctx.resources
-        outputnode_dict['walltime_sec'] = self.ctx.walltime_sec
-        outputnode_dict['queue'] = self.ctx.queue
+        outputnode_dict['max_wallclock_seconds'] = self.ctx.walltime_sec
+        outputnode_dict['queue_name'] = self.ctx.queue
         outputnode_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
         outputnode_dict['dos_params'] = self.ctx.dos_params_dict
         try:

@@ -9,6 +9,13 @@ class Test_gf_writeout_workflow():
     """
     Tests for the kkr_startpot workflow
     """
+    # make sure running the workflow exists after at most 4 minutes
+    import timeout_decorator
+    @timeout_decorator.timeout(240, use_signals=False)
+    def run_timeout(self, builder):
+        from aiida.work.launch import run
+        out = run(builder)
+        return out
     
     def test_kkrflex_writeout_wc(self):
         """
@@ -27,9 +34,8 @@ class Test_gf_writeout_workflow():
         prepare_code(kkr_codename, codelocation, computername, workdir)
        
         # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
-        options, wfd =kkr_flex_wc.get_wf_defaults()
-        options['queue_name'] = queuename
-        options['use_mpi'] = True
+        wfd =kkr_flex_wc.get_wf_defaults()
+        options = {'queue_name' : queuename, 'resources': {"num_machines": 1},'max_wallclock_seconds' : 5*60, 'custom_scheduler_commands' : '', 'use_mpi' : False}
         options = ParameterData(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
@@ -49,15 +55,14 @@ class Test_gf_writeout_workflow():
         builder.description = descr
         builder.label = label
         builder.kkr = KKRCode
-        builder.options_parameters = options
+        builder.options = options
         builder.remote_data = kkr_calc_remote
-        builder.imp_info = imp_info
+        builder.impurity_info = imp_info
        
         # now run calculation
-        from aiida.work.launch import run, submit
-        out = run(builder)
+        out = self.run_timeout(builder)
        
-        n = out['calculation_info']
+        n = out['workflow_info']
         n = n.get_dict()
        
         assert n.get('successful')
@@ -71,6 +76,7 @@ class Test_gf_writeout_workflow():
         kkrflex_path = kkrflex_retrieved.get_abs_path('')
         for name in 'tmat green atominfo intercell_cmoms intercell_ref'.split():
             assert 'kkrflex_'+name in os.listdir(kkrflex_path)
+
 
 #run test manually
 if __name__=='__main__':

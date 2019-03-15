@@ -9,13 +9,19 @@ class Test_vorostart_workflow():
     """
     Tests for the kkr_startpot workflow
     """
+    # make sure running the workflow exists after at most 5 minutes
+    import timeout_decorator
+    @timeout_decorator.timeout(300, use_signals=False)
+    def run_timeout(self, builder):
+        from aiida.work.launch import run
+        out = run(builder)
+        return out
     
     def test_vorostart_wc_Cu(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
         """
         from aiida.orm import Code, load_node, DataFactory
-        from aiida.orm.computers import Computer
         from aiida.orm.querybuilder import QueryBuilder
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.voro_start import kkr_startpot_wc
@@ -43,9 +49,9 @@ class Test_vorostart_workflow():
         wfd['check_dos'] = False
         wfd['natom_in_cls_min'] = 20
         wfd['num_rerun'] = 2
-        wfd['queue_name'] = queuename
-        wfd['resources']['num_machines'] = 1
+        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
         params_vorostart = ParameterData(dict=wfd)
+        options = ParameterData(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         VoroCode = Code.get_from_string(voro_codename+'@'+computername)
@@ -61,10 +67,11 @@ class Test_vorostart_workflow():
         builder.voronoi = VoroCode
         builder.structure = Cu
         builder.wf_parameters = params_vorostart
+        builder.options = options
        
         # now run calculation
-        from aiida.work.launch import run, submit
-        out = run(builder)
+        out = self.run_timeout(builder)
+        print out
        
         # check output
         n = out['results_vorostart_wc']

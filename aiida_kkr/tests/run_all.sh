@@ -2,6 +2,18 @@
 export AIIDA_PATH='.';
 mkdir -p '.aiida';
 #pytest -sv
-#pytest -v
-#pytest --cov-report=term-missing --cov=aiida_kkr --ignore=test_scf_wc_simple.py
-pytest --cov-report=term-missing --cov=aiida_kkr --ignore=test_scf_wc_simple.py --ignore=test_vorostart_wc.py --ignore=test_dos_wc.py --ignore=test_gf_writeout_wc.py --ignore=test_kkrimp_sub_wc.py --ignore=test_kkrimp_full_wc.py --ignore=jukkr
+
+# tests without running actual calculations
+pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=workflows --ignore=jukkr
+
+# test running full workflows, need compiled codes and execute them
+pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_vorostart_workflow
+
+# these tests fail at the moment because gfortran is too old
+#pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_dos_workflow
+#pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_gf_writeout_workflow
+#pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_scf_workflow
+
+# these are deactivated becaus gfortran compilation of kkrimp does not work
+#pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_scf_workflow
+#pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_full_workflow

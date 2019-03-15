@@ -22,6 +22,7 @@ class Test_kkrimp_calculation():
         """
         from aiida.orm import Code, load_node, DataFactory
         from masci_tools.io.kkr_params import kkrparams
+        from aiida_kkr.calculations.kkrimp import KkrimpCalculation
         ParameterData = DataFactory('parameter')
 
         # first load parent voronoi calculation       
@@ -44,33 +45,15 @@ class Test_kkrimp_calculation():
 
         # create new KKRimp calculation
         kkrimp_code = Code.get_from_string(codename)
+        options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
+        builder = KkrimpCalculation.get_builder()
+        builder.code = kkrimp_code
+        builder.host_Greenfunction_folder = GF_host_calc.out.remote_folder
+        builder.impurity_potential = startpot_imp_sfd
+        builder.options = options
+        builder.parameters = ParamsKKRimp
+        builder.submit_test()
 
-        calc = kkrimp_code.new_calc()
-        calc.set_resources({'num_machines':1, 'tot_num_mpiprocs':1})
-        calc.use_parameters(ParamsKKRimp)
-        calc.set_queue_name(queuename)
-        calc.use_host_Greenfunction_folder(GF_host_calc.out.remote_folder)
-        calc.use_impurity_potential(startpot_imp_sfd)
-       
-
-        # now store all nodes and submit calculation
-        #calc.store_all()
-        #calc.submit()
-        calc.submit_test()
-        """
-
-        # now wait for the calculation to finish
-        #wait_for_it(calc)
-
-        # finally check some output
-        print '\n\ncheck values ...\n-------------------------------------------------'
-       
-        test_ok = calc.get_state() == u'FINISHED'
-        print 'calculation state', calc.get_state(), 'OK?', test_ok
-        assert test_ok
-       
-        print '\ndone with checks\n'
-        """
  
 #run test manually
 if __name__=='__main__':
