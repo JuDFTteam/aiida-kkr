@@ -53,6 +53,7 @@ class Test_voronoi_calculation():
         """
         from aiida.orm import Code, load_node, DataFactory
         from masci_tools.io.kkr_params import kkrparams
+        from aiida_kkr.calculations.voro import VoronoiCalculation
        
         ParameterData = DataFactory('parameter')
         StructureData = DataFactory('structure')
@@ -75,49 +76,13 @@ class Test_voronoi_calculation():
 
         # load code from database and create new voronoi calculation
         code = Code.get_from_string(codename)
-       
-        voro_calc = code.new_calc()
-        voro_calc.set_resources({'num_machines':1, 'tot_num_mpiprocs':1})
-        voro_calc.use_structure(Cu)
-        voro_calc.use_parameters(ParaNode)
-        voro_calc.set_queue_name(queuename)
-       
-        #first run a submit-test
-        voro_calc.submit_test()
-        """
-       
-        # now store all nodes and submit calculation
-        #voro_calc.store_all()
-        #voro_calc.submit()
-
-        # now wait for the calculation to finish
-        #wait_for_it(voro_calc)
-
-        # finally check some output
-        print '\n\ncheck values ...\n-------------------------------------------------'
-       
-        test_ok = voro_calc.get_state() == u'FINISHED'
-        print 'calculation state', voro_calc.get_state(), 'OK?', test_ok
-        assert test_ok
-       
-        test_ok = voro_calc.res.parser_errors == []
-        print 'parser_errors', voro_calc.res.parser_errors, 'OK?', test_ok
-        assert test_ok
-       
-        test_ok = voro_calc.res.emin == -0.5
-        print 'emin', voro_calc.res.emin, 'OK?', test_ok
-        assert test_ok
-       
-        test_ok = voro_calc.res.start_from_jellium_potentials
-        print 'jellstart', voro_calc.res.start_from_jellium_potentials, 'OK?', test_ok
-        assert test_ok
-       
-        test_ok = voro_calc.res.radial_meshpoints == [484]
-        print 'radmesh', voro_calc.res.radial_meshpoints, 'OK?', test_ok
-        assert test_ok
-       
-        print '\ndone with checks\n'
-        """
+        options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
+        builder = VoronoiCalculation.get_builder()
+        builder.code = code
+        builder.options = options
+        builder.parameters = ParaNode
+        builder.structure = Cu
+        builder.submit_test()
     
     def test_vca_structure(self):
         """
