@@ -50,14 +50,15 @@ script:
 # Then run all tests
 - ./run_all.sh
 #- travis_wait 30 ./run_all.sh
-allow_failures: # (needs allow failure so that after_success is executed)
-  # these tests fail at the moment because gfortran is too old
-  - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_dos_workflow
-  - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_gf_writeout_workflow
-  - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_scf_workflow
-  # these are fail because gfortran compilation of kkrimp does not work
-  - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_scf_workflow
-  - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_full_workflow
+matrix:
+  allow_failures: # (needs allow failure so that after_success is executed)
+    # these tests fail at the moment because gfortran is too old
+    - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_dos_workflow
+    - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_gf_writeout_workflow
+    - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_scf_workflow
+    # these are fail because gfortran compilation of kkrimp does not work
+    - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_scf_workflow
+    - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_full_workflow
 
 after_success:
 - codecov
