@@ -9,9 +9,9 @@ services:
 - rabbitmq
 addons:
   postgresql: '9.5'
-  apt: # copied from wannier90's travis.yml
+  apt: # adapted from wannier90's travis.yml
     packages:
-      - gfortran-8
+      - gfortran-5
       - libblas-dev
       - liblapack-dev
 cache: pip
