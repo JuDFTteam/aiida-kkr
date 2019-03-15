@@ -26,7 +26,6 @@
         "sphinx_rtd_theme",
         "ase",
         "bumpversion",
-        "pika==1.0.0b1",
         "timeout_decorator"
     ],
     "entry_points": {
