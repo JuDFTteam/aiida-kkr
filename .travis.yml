@@ -22,7 +22,7 @@ before_install:
 # now unpack the secrets (pypi_credentials and ssh key to download the KKR code
 - tar -zxvf secrets.tar.gz && rm secrets.tar.gz
 # Now we install the needed dependencies
-- sudo apt-get update && apt-get upgrade && apt-get install software-properties-common -y && add-apt-repository ppa:ubuntu-toolchain-r/test -y && apt-get update && apt-get install gfortran-8 -y && sudo apt-get update
+- sudo apt-get update && sudo apt-get upgrade && sudo apt-get install software-properties-common -y && sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y && sudo apt-get update && sudo apt-get install gfortran-8 -y && sudo apt-get update
 - sudo apt-get install locate
 - sudo service postgresql stop
 - sudo apt-get remove postgresql
