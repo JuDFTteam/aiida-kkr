@@ -25,7 +25,9 @@
         "sphinx",
         "sphinx_rtd_theme",
         "ase",
-        "bumpversion"
+        "bumpversion",
+        "pika==1.0.0b1",
+        "timeout_decorator"
     ],
     "entry_points": {
         "aiida.calculations": [

@@ -1,4 +1,4 @@
-dist: xenial
+dist: trusty
 language: python
 python: 2.7
 notifications:
@@ -42,7 +42,10 @@ script:
 - echo "iffgit.fz-juelich.de,134.94.161.83 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH2UDrT0bZP+WmJGGbtLPtFyC5FgQgOM1XvVJ6u5XBJrYMnKNVb9jAttL+k8VvDgcK6b3dFJnvt7eiXtG/hnqCo=" >> ~/.ssh/known_hosts
 # clone the code and install
 - cd aiida_kkr/tests && ./jukkr_installation.sh
-# Now run all tests
+# First check if rabbitmq communication is working
+- ./check_pika-rabbitmq.py | tee out_rmq_check
+- ./verify_rmq_check.py
+# Then run all tests
 - ./run_all.sh
 #- travis_wait 30 ./run_all.sh
 allow_failures:
@@ -53,8 +56,8 @@ allow_failures:
 # (needs allow failure so that after_success is executed)
 after_success:
 - codecov
-#deploy to pypi
+#deploy to pypi using poetry
 - cd ../../ && rm -rf aiida_kkr/tests/{submit_test/,__pycache__/,jukkr} id_rsa_travis #remove test output before publishing
-- pip install poetry && ./publish_to_pypi.sh
+- pip install poetry && ./publish_to_pypi.sh # publish_to_pypi script does poetry publish with autentification information
 git:
   depth: 3
