@@ -28,13 +28,19 @@ class Test_scf_workflow():
     """
     Tests for the scf workfunction
     """
+    # make sure running the workflow exists after at most 5 minutes
+    import timeout_decorator
+    @timeout_decorator.timeout(300, use_signals=False)
+    def run_timeout(self, builder):
+        from aiida.work.launch import run
+        out = run(builder)
+        return out
     
     def test_scf_wc_Cu_simple(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
         """
         from aiida.orm import Code, load_node, DataFactory
-        from aiida.work import run
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
         from pprint import pprint
@@ -76,7 +82,7 @@ class Test_scf_workflow():
        
         KKRscf_wf_parameters = ParameterData(dict=wfd)
 
-        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 60*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
+        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
         options = ParameterData(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
@@ -101,8 +107,7 @@ class Test_scf_workflow():
         builder.description = descr
 
         # now run calculation
-        from aiida.work.launch import run, submit
-        out = run(builder)
+        out = self.run_timeout(builder)
        
         # load node of workflow
         print out

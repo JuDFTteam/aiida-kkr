@@ -9,6 +9,13 @@ class Test_kkrimp_scf_workflow():
     """
     Tests for the kkrimp_scf workflow
     """
+    # make sure running the workflow exists after at most 5 minutes
+    import timeout_decorator
+    @timeout_decorator.timeout(300, use_signals=False)
+    def run_timeout(self, builder):
+        from aiida.work.launch import run
+        out = run(builder)
+        return out
     
     def test_kkrimp_sub_wc(self):
         """
@@ -32,7 +39,7 @@ class Test_kkrimp_scf_workflow():
         wfd['nsteps'] = 20
         wfd['strmix'] = 0.05
        
-        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 60*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
+        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
         options = ParameterData(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
@@ -65,8 +72,7 @@ class Test_kkrimp_scf_workflow():
         builder.host_imp_startpot = startpot_imp_sfd
        
         # now run calculation
-        from aiida.work.launch import run, submit
-        out = run(builder)
+        out = self.run_timeout(builder)
        
         n = out['calculation_info']
         n = n.get_dict()

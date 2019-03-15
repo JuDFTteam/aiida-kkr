@@ -9,6 +9,13 @@ class Test_gf_writeout_workflow():
     """
     Tests for the kkr_startpot workflow
     """
+    # make sure running the workflow exists after at most 4 minutes
+    import timeout_decorator
+    @timeout_decorator.timeout(240, use_signals=False)
+    def run_timeout(self, builder):
+        from aiida.work.launch import run
+        out = run(builder)
+        return out
     
     def test_kkrflex_writeout_wc(self):
         """
@@ -28,7 +35,7 @@ class Test_gf_writeout_workflow():
        
         # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
         wfd =kkr_flex_wc.get_wf_defaults()
-        options = {'queue_name' : queuename, 'resources': {"num_machines": 1},'max_wallclock_seconds' : 60*60, 'custom_scheduler_commands' : '', 'use_mpi' : False}
+        options = {'queue_name' : queuename, 'resources': {"num_machines": 1},'max_wallclock_seconds' : 5*60, 'custom_scheduler_commands' : '', 'use_mpi' : False}
         options = ParameterData(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
@@ -53,8 +60,7 @@ class Test_gf_writeout_workflow():
         builder.impurity_info = imp_info
        
         # now run calculation
-        from aiida.work.launch import run, submit
-        out = run(builder)
+        out = self.run_timeout(builder)
        
         n = out['workflow_info']
         n = n.get_dict()

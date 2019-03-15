@@ -9,6 +9,13 @@ class Test_dos_workflow():
     """
     Tests for the kkr_startpot workflow
     """
+    # make sure running the workflow exists after at most 4 minutes
+    import timeout_decorator
+    @timeout_decorator.timeout(240, use_signals=False)
+    def run_timeout(self, builder):
+        from aiida.work.launch import run
+        out = run(builder)
+        return out
     
     def test_dos_wc_Cu(self):
         """
@@ -42,10 +49,10 @@ class Test_dos_workflow():
         wfd = kkr_dos_wc.get_wf_defaults()
         wfd['dos_params']['kmesh'] = [10, 10, 10]
         wfd['dos_params']['nepts'] = 10
-        wfd['queue_name'] = queuename
-        wfd['use_mpi'] = True
-       
         params_dos = ParameterData(dict=wfd)
+
+        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
+        options = ParameterData(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         KKRCode = Code.get_from_string(kkr_codename+'@'+computername)
@@ -63,11 +70,11 @@ class Test_dos_workflow():
         builder.label = label
         builder.kkr = KKRCode
         builder.wf_parameters = params_dos
+        builder.options = options
         builder.remote_data = kkr_calc_remote
        
         # now run calculation
-        from aiida.work.launch import run, submit
-        out = run(builder)
+        out = self.run_timeout(builder)
        
         # check outcome
         n = out['results_wf']

@@ -9,6 +9,13 @@ class Test_kkrimp_full_workflow():
     """
     Tests for the full kkrimp_scf workflow with GF writeout and voroaux steps
     """
+    # make sure running the workflow exists after at most 5 minutes
+    import timeout_decorator
+    @timeout_decorator.timeout(300, use_signals=False)
+    def run_timeout(self, builder):
+        from aiida.work.launch import run
+        out = run(builder)
+        return out
     
     def test_kkrimp_full_wc(self):
         """
@@ -32,7 +39,7 @@ class Test_kkrimp_full_workflow():
        
         wfd['nsteps'] = 20
         wfd['strmix'] = 0.05
-        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 60*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
+        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
         options = ParameterData(dict=options)
         voro_aux_settings['check_dos'] = False
         voro_aux_settings['dos_params']['kmesh'] = [10,10,10]
@@ -72,8 +79,7 @@ class Test_kkrimp_full_workflow():
         builder.remote_converged_host = kkr_calc_remote
        
         # now run calculation
-        from aiida.work.launch import run, submit
-        out = run(builder)
+        out = self.run_timeout(builder)
        
         # check outcome
         n = out['workflow_info']
