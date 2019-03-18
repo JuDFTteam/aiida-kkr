@@ -23,13 +23,19 @@ AiiDA plugin for the KKR codes plus workflows and utility.
 # Installation
 
 ```shell
-$ git clone https://github.com/JuDFTteam/aiida-kkr
+$ pip install aiida-kkr  # install latest version of aiida-kkr (published on pypi.org)
+$ reentry scan -r aiida  # update entry points, needed in order to find kkr.* entrypoints in aiida
 
-$ cd aiida-kkr
-$ pip install -e .  # also installs aiida, if missing (but not postgres)
-$ reentry scan -r aiida  
+# setupt aiida if this was not done already:
 $ verdi quicksetup  # better to set up a new profile
 $ verdi calculation plugins  # should now show kkr.* entrypoints
+```
+
+for developer version download the repository and install the downloaded version
+```shell
+$ git clone https://github.com/JuDFTteam/aiida-kkr.git
+$ pip install -e aiida-kkr
+$ reentry scan -r aiida
 ```
 
 # Usage and Documentation
@@ -38,4 +44,6 @@ See http://aiida-kkr.readthedocs.io for user's guide and API reference.
 
 # Contribting guide
 
-* 
+* Under construction ...
+* ...
+
