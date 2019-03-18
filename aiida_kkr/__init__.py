@@ -3,4 +3,4 @@ AiiDA KKR
 
 """
 
-__version__ = "1.1.4-dev"
+__version__ = "1.1.5-dev"
