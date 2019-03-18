@@ -4,6 +4,7 @@
     "author_email": "p.ruessmann@fz-juelich.de",
     "description": "AiiDA plugin for the KKR code",
     "url": "https://github.com/JuDFTteam/aiida-kkr",
+    "download_url": "https://github.com/JuDFTteam/aiida-kkr",
     "license": "MIT",
     "classifiers": [
         "License :: OSI Approved :: MIT License",
