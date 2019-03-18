@@ -64,6 +64,6 @@ after_success:
 - codecov
 #deploy to pypi using poetry
 - cd ../../ && rm -rf aiida_kkr/tests/{submit_test/,__pycache__/,jukkr} id_rsa_travis #remove test output before publishing
-- pip install poetry && ./publish_to_pypi.sh # publish_to_pypi script does poetry publish with autentification information
+- pip install twine && ./publish_to_pypi.sh # publish_to_pypi script does not use poetry publish anymore since entrypoints are then not set correctly, use python setuy.py && twine upload instead
 git:
   depth: 3
