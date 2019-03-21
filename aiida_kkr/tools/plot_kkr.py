@@ -2,6 +2,7 @@
 """
 contains plot_kkr class for node visualization
 """
+from __future__ import print_function
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -54,8 +55,8 @@ class plot_kkr():
 
             node_groups = self.group_nodes(nodes)
             for groupname in node_groups.keys():
-                print '\n=================================================================='
-                print 'Group of nodes: {}\n'.format(groupname)
+                print('\n==================================================================')
+                print('Group of nodes: {}\n'.format(groupname))
                 # some settings for groups
                 if 'noshow' in kwargs.keys(): noshow = kwargs.pop('noshow') # this is now removed from kwargs
                 noshow = True # always overwrite noshow settings
@@ -92,7 +93,7 @@ class plot_kkr():
         # open a single new figure for each plot here
         if groupname in ['kkr', 'scf']: figure()
         for node in nodeslist:
-            print groupname
+            print(groupname)
             # open new figure for each plot in these groups
             if groupname in ['eos', 'dos', 'startpot', 'voro']: figure()
             if groupname in ['kkr', 'scf']:
@@ -107,7 +108,7 @@ class plot_kkr():
                 legend(fontsize='x-small')
             else:
                 self.plot_kkr_single_node(node, **kwargs)
-            print '\n------------------------------------------------------------------\n'
+            print('\n------------------------------------------------------------------\n')
 
     def plot_kkr_single_node(self, node, **kwargs):
         """ TODO docstring"""
@@ -144,17 +145,17 @@ class plot_kkr():
             self.plot_struc(node)
         elif isinstance(node, DataFactory('parameter')):
             if return_name_only: return 'para'
-            print 'node dict:'
+            print('node dict:')
             pprint(node.get_dict())
         elif isinstance(node, DataFactory('remote')):
             if return_name_only: return 'remote'
-            print 'computer name:', node.get_computer_name()
-            print 'remote path:', node.get_remote_path()
+            print('computer name:', node.get_computer_name())
+            print('remote path:', node.get_remote_path())
         elif isinstance(node, DataFactory('folder')):
             if return_name_only: return 'folder'
-            print 'abs path:'
+            print('abs path:')
             pprint(node.get_abs_path())
-            print 'folder content:'
+            print('folder content:')
             pprint(node.get_folder_list())
         # workflows
         elif node.process_label == u'kkr_dos_wc':
@@ -216,24 +217,24 @@ class plot_kkr():
                 outputs.pop(key)
                 
         # now print information about node
-        print 'type:', type(node)
-        print 'label:', node.label
-        print 'description:', node.description
+        print('type:', type(node))
+        print('label:', node.label)
+        print('description:', node.description)
         try:
-            print 'process state:', node.process_label
-            print 'state:', node.process_state
+            print('process state:', node.process_label)
+            print('state:', node.process_state)
         except:
-            print 'nodes does not have the `process_state` attribute'
+            print('nodes does not have the `process_state` attribute')
             
-        print '\ninputs:'
+        print('\ninputs:')
         pprint(inputs)
-        print '\noutputs:'
+        print('\noutputs:')
         pprint(outputs)
         try:
-            print '\nexit status: {} ({})'.format(node.exit_status, node.exit_message)
+            print('\nexit status: {} ({})'.format(node.exit_status, node.exit_message))
         except:
             pass
-        print # empty line at the end
+        print() # empty line at the end
     
     def plot_struc(self, node, **kwargs):
         """visualize structure using ase's `view` function"""
@@ -247,7 +248,7 @@ class plot_kkr():
             structure = node
         # check if empty sphere need to be removed for plotting (ase structgure cannot be constructed for alloys or vacancies)
         if structure.has_vacancies():
-            print "structure has vacancies, need to remove empty sites for plotting"
+            print("structure has vacancies, need to remove empty sites for plotting")
             stmp = StructureData(cell=structure.cell)
             for site in structure.sites:
                 k = structure.get_kind(site.kind_name)
@@ -255,12 +256,12 @@ class plot_kkr():
                 if not k.has_vacancies():
                     stmp.append_atom(position=pos, symbols=k.symbol)
                 else:
-                    print "removing atom", site
+                    print("removing atom", site)
             stmp.set_pbc(structure.pbc)
             structure = stmp
         # now construct ase object and use ase's viewer
         ase_atoms = structure.get_ase()
-        print "plotting structure using ase's `view`"
+        print("plotting structure using ase's `view`")
         view(ase_atoms, **kwargs)
     
     def dosplot(self, d, struc, nofig, all_atoms, l_channels, **kwargs):
@@ -445,7 +446,7 @@ class plot_kkr():
                     tmpval = float(tmpline.split('FERMI')[1].split()[0].replace('D', 'e'))
                     efermi.append(tmpval)
         else:
-            print 'no rms extracted'
+            print('no rms extracted')
 
         return rms, neutr, etot, efermi, ptitle
     
@@ -471,7 +472,7 @@ class plot_kkr():
         #print output
         if not silent:
             from pprint import pprint
-            print 'results dict (entries with `...` have been removed for this writeout for the sake of shortness):'
+            print('results dict (entries with `...` have been removed for this writeout for the sake of shortness):')
             if 'output_parameters' in node.get_outputs_dict():
                 results_dict = node.get_outputs_dict().get('output_parameters').get_dict()
                 # remove symmetry descriptions from resuts dict before writting output
@@ -565,7 +566,7 @@ class plot_kkr():
     
     def plot_kkrimp_calc(self, node, **kwargs):
         """plot things from a kkrimp calculation node"""
-        print 'not implemented yet'
+        print('not implemented yet')
         pass
     
     
@@ -619,7 +620,7 @@ class plot_kkr():
             
         if not silent:
             # print results
-            print 'results:'
+            print('results:')
             self.plot_kkr_single_node(node.out.results_vorostart_wc, noshow=True, silent=True)
         
         # plot starting DOS
@@ -777,7 +778,7 @@ class plot_kkr():
             silent = True
 
         if not silent:
-            print 'results:'
+            print('results:')
             self.plot_kkr_single_node(results)
 
         fig_open = False
@@ -809,7 +810,7 @@ class plot_kkr():
                 plotted_kkr_scf = True
 
         if not (plotted_kkr_scf or plotted_kkr_start):
-            print 'found no startpot or kkrstart data to plot'
+            print('found no startpot or kkrstart data to plot')
 
         # plot eos results
         try:
@@ -851,16 +852,16 @@ class plot_kkr():
                 eos = EquationOfState(v[1:], e[1:], eos=fitfunc_gs)
                 v01, e01, B1 = eos.fit()
            
-                print '# relative differences to full fit: V0, E0, B (without smallest volume)'
-                print '{} {} {}'.format(abs(1-v01/v0), abs(1-e01/e0), abs(1-B1/B))
+                print('# relative differences to full fit: V0, E0, B (without smallest volume)')
+                print('{} {} {}'.format(abs(1-v01/v0), abs(1-e01/e0), abs(1-B1/B)))
                
                 if len(e)>5:
                     # also take out largest volume
                     eos = EquationOfState(v[1:-1], e[1:-1], eos=fitfunc_gs)
                     v02, e02, B2 = eos.fit()
            
-                    print '\n# V0, E0, B (without smallest and largest volume)'
-                    print '{} {} {}'.format(abs(1-v02/v0), abs(1-e02/e0), abs(1-B2/B))
+                    print('\n# V0, E0, B (without smallest and largest volume)')
+                    print('{} {} {}'.format(abs(1-v02/v0), abs(1-e02/e0), abs(1-B2/B)))
         except:
             pass # do nothing if no eos data there
        

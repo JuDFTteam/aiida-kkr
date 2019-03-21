@@ -2,6 +2,7 @@
 """
 Input plug-in for a voronoi calculation.
 """
+from __future__ import print_function
 
 from aiida.orm.calculation.job import JobCalculation
 from aiida.common.utils import classproperty

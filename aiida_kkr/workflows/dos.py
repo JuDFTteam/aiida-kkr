@@ -4,6 +4,7 @@
 In this module you find the base workflow for a dos calculation and
 some helper methods to do so with AiiDA
 """
+from __future__ import print_function
 if __name__=='__main__':
     from aiida import is_dbenv_loaded, load_dbenv
     if not is_dbenv_loaded():
@@ -424,14 +425,14 @@ def create_dos_result_node(outputnode, dos_retrieved):
     """
     # create XyData nodes (two nodes for non interpolated and interpolated 
     # data, i.e. function returns a list of two nodes) to store the dos arrays
-    print dos_retrieved
-    print dos_retrieved.get_abs_path('')
+    print(dos_retrieved)
+    print(dos_retrieved.get_abs_path(''))
     
     try:
         dosXyDatas = parse_dosfiles(dos_retrieved.get_abs_path(''))
         dos_extracted = True
     except IOError as e:
-        print 'caught IOError: {}'.format(e)
+        print('caught IOError: {}'.format(e))
         dos_extracted = False        
         
     outdict = {}

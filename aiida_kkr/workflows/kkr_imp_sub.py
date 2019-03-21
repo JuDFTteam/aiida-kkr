@@ -3,6 +3,7 @@
 In this module you find the sub workflow for the kkrimp self consistency cycle  
 and some helper methods to do so with AiiDA
 """
+from __future__ import print_function
 
 from aiida.orm import Code, DataFactory
 from aiida.orm.data.base import Float

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import pytest
 import matplotlib
 matplotlib.use('Agg')
@@ -59,7 +60,7 @@ def basic_test(node_id, **kwargs):
         else:
             load_node(node_id)
     except NotExistent:
-        print 'Node not yet in database. Import test database'
+        print('Node not yet in database. Import test database')
         from aiida.orm.importexport import import_data
         import_data('files/export_eos_workflow.tar.gz')
     # now clear old figure and do plotting

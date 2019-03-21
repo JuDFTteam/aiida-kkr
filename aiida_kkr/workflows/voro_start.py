@@ -4,6 +4,7 @@
 In this module you find the base workflow for a dos calculation and
 some helper methods to do so with AiiDA
 """
+from __future__ import print_function
 
 from aiida.orm import Code, DataFactory
 from aiida.work.workchain import WorkChain, while_, if_, ToContext

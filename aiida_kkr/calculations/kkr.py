@@ -2,6 +2,7 @@
 """
 Input plug-in for a KKR calculation.
 """
+from __future__ import print_function
 
 import os
 from numpy import pi, array

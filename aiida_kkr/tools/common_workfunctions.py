@@ -3,6 +3,7 @@
 Here workfunctions and normal functions using aiida-stuff (typically used 
 within workfunctions) are collected.
 """
+from __future__ import print_function
 
 from aiida.common.exceptions import InputValidationError
 from aiida.work import workfunction as wf
@@ -209,7 +210,7 @@ def test_and_get_codenode(codenode, expected_code_type, use_exceptions=False):
             if use_exceptions:
                 raise ValueError(msg)
             else:
-                print >> sys.stderr, msg
+                print(msg, file=sys.stderr)
                 sys.exit(1)
         else:
             msg = ("Code not valid, and no valid codes for {}.\n"
@@ -219,7 +220,7 @@ def test_and_get_codenode(codenode, expected_code_type, use_exceptions=False):
             if use_exceptions:
                 raise ValueError(msg)
             else:
-                print >> sys.stderr, msg
+                print(msg, file=sys.stderr)
                 sys.exit(1)
 
     return code
@@ -938,7 +939,7 @@ def kick_out_corestates(potfile, potfile_out, emin):
                 if len(m[0])>0:
                     istart = istarts[ipot]
                     # change number of core states in potential
-                    print txt[istart+6]
+                    print(txt[istart+6])
                     txt[istart+6] = '%i 1\n'%(nstates[ipot]-len(m[0]))
                     # now remove energy line accordingly
                     for ie_out in m[0][::-1]:
@@ -976,13 +977,13 @@ def kick_out_corestates_wf(potential_sfd, emin):
 
     with SandboxFolder() as tmpdir:
         potfile_out = tmpdir.get_abs_path('')+'potential_deleted_core_states'
-        print potfile_out
+        print(potfile_out)
         num_deleted = kick_out_corestates(potfile_path, potfile_out, emin)
-        print num_deleted
+        print(num_deleted)
         if num_deleted>0:
             potential_nocore_sfd = SingleFileData(file=potfile_out)
             potential_nocore_sfd.store()
-            print potential_nocore_sfd
+            print(potential_nocore_sfd)
     
     # return potential
     if num_deleted>0:

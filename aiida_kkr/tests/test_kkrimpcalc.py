@@ -7,7 +7,7 @@ import pytest
 codename = 'KKRimp@iff003'
 queuename = 'th1_node'
 
-from test_vorocalc import wait_for_it
+from .test_vorocalc import wait_for_it
 
 # tests
 @pytest.mark.usefixtures("aiida_env")

@@ -8,7 +8,7 @@ codename = 'KKRhost@iff003'
 queuename = 'th1_node'
 eps = 10**-14 # threshold for float comparison equivalence
 
-from test_vorocalc import wait_for_it
+from .test_vorocalc import wait_for_it
 
 # tests
 @pytest.mark.usefixtures("aiida_env")

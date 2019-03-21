@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #import pytest
+from __future__ import print_function
 from aiida_kkr.tools.tools_kkrimp import modify_potential, kkrimp_parser_functions
     
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import pytest
 
 #TODO
@@ -21,11 +22,11 @@ def wait_for_it(calc, maxwait=300, dT=10):
     """
     from time import sleep
     nsteps = maxwait/dT
-    print 'waiting for calculation to finish (maximally wait for {} seconds)'.format(maxwait)
+    print('waiting for calculation to finish (maximally wait for {} seconds)'.format(maxwait))
     istep = 0
     calcstate = u'UNKNOWN'
     while istep < nsteps:
-        print 'checking status'
+        print('checking status')
         sleep(dT)
         calcstate = calc.get_state()
         istep += 1
@@ -33,11 +34,11 @@ def wait_for_it(calc, maxwait=300, dT=10):
             break
 
     if calcstate == u'FINISHED':
-        print 'calculation reached FINISHED state'
+        print('calculation reached FINISHED state')
     elif calcstate == u'FAILED':
-        print 'calculation in FAILED state'
+        print('calculation in FAILED state')
     else:
-        print 'maximum waiting time exhausted'
+        print('maximum waiting time exhausted')
         
 
 # tests
