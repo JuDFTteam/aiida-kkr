@@ -540,7 +540,7 @@ class kkr_imp_wc(WorkChain):
 @wf     
 def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at center only!
     from aiida.common.constants import elements as PeriodicTableElements
-    _atomic_numbers = {data['symbol']: num for num, data in PeriodicTableElements.iteritems()}
+    _atomic_numbers = {data['symbol']: num for num, data in PeriodicTableElements.items()}
 
     new_struc = StructureData(cell=struc.cell)
     isite = 0

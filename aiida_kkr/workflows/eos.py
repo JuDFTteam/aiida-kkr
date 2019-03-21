@@ -5,7 +5,10 @@ In this module you find the base workflow for a EOS calculation and
 some helper methods to do so with AiiDA
 """
 from __future__ import print_function
+from __future__ import division
 
+from builtins import range
+from past.utils import old_div
 from aiida.orm import Code, DataFactory, load_node
 from aiida.orm.data.base import Float, Bool
 from aiida.work.workchain import WorkChain, ToContext
@@ -181,7 +184,7 @@ class kkr_eos_wc(WorkChain):
         # set scale_factors from scale_range and nsteps
         self.ctx.scale_factors = [] 
         for i in range(self.ctx.nsteps):
-            scale_fac = self.ctx.scale_range[0]+i*(self.ctx.scale_range[1]-self.ctx.scale_range[0])/(self.ctx.nsteps-1)
+            scale_fac = self.ctx.scale_range[0]+old_div(i*(self.ctx.scale_range[1]-self.ctx.scale_range[0]),(self.ctx.nsteps-1))
             self.ctx.scale_factors.append(scale_fac)
 
 
@@ -203,12 +206,12 @@ class kkr_eos_wc(WorkChain):
         wfd = kkr_startpot_wc.get_wf_defaults(silent=True)
         set_keys = []
         # first set options
-        for key in self.ctx.wf_options.keys():
+        for key in list(self.ctx.wf_options.keys()):
             wfd[key] = self.ctx.wf_options.get(key)
             set_keys.append(key)
         # then set ef_settings
         vorostart_settings = self.ctx.wf_parameters.get('settings_kkr_startpot')
-        for key in vorostart_settings.keys():
+        for key in list(vorostart_settings.keys()):
             if key not in set_keys: # skip setting of options (done above already)
                 wfd[key] = vorostart_settings[key]
         scaled_struc = self.ctx.scaled_structures[0]
@@ -243,7 +246,7 @@ class kkr_eos_wc(WorkChain):
             rmt = []
             radii = smallest_voro_results.get_dict()['radii_atoms_group']
             for rad_iatom in radii:
-                if 'rmt0' in rad_iatom.keys():
+                if 'rmt0' in list(rad_iatom.keys()):
                     rmt.append(rad_iatom['rmt0'])
             rmtcore_min = array(rmt) * smallest_voro_results.get_dict().get('alat') # needs to be mutiplied by alat in atomic units!
             self.report('INFO: extracted rmtcore_min ({})'.format(rmtcore_min))
@@ -272,12 +275,12 @@ class kkr_eos_wc(WorkChain):
         wfd = kkr_scf_wc.get_wf_defaults(silent=True)
         set_keys = []
         # first set options
-        for key in self.ctx.wf_options.keys():
+        for key in list(self.ctx.wf_options.keys()):
             wfd[key] = self.ctx.wf_options.get(key)
             set_keys.append(key)
         # then set ef_settings
         kkr_scf_settings = self.ctx.wf_parameters.get('settings_kkr_scf')
-        for key in kkr_scf_settings.keys():
+        for key in list(kkr_scf_settings.keys()):
             if key not in set_keys: # skip setting of options (done above already)
                 wfd[key] = kkr_scf_settings[key]
 
@@ -306,7 +309,7 @@ class kkr_eos_wc(WorkChain):
 
         # save uuids of calculations to context
         self.ctx.kkr_calc_uuids = []
-        for name in sort(calcs.keys()): # sorting important to have correct assignment of scaling and structure info later on
+        for name in sort(list(calcs.keys())): # sorting important to have correct assignment of scaling and structure info later on
             calc = calcs[name]
             self.ctx.kkr_calc_uuids.append(calc.uuid)
 
@@ -359,7 +362,7 @@ class kkr_eos_wc(WorkChain):
         scalings = etot[:,0]
         rms = etot[:,-1]
         # convert to eV and per atom units
-        etot = etot/len(scaled_struc.sites) # per atom values
+        etot = old_div(etot,len(scaled_struc.sites)) # per atom values
         etot[:,1] = etot[:,1] * get_Ry2eV() # convert energy from Ry to eV
         volumes, energies = etot[:,2], etot[:,1]
        
@@ -420,7 +423,7 @@ class kkr_eos_wc(WorkChain):
         if self.ctx.successful and self.ctx.return_gs_struc:
             # final result: scaling factor for equilibium 
             v0, e0, B = self.ctx.fitdata.get(self.ctx.fitfunc_gs_out)
-            scale_fac0 = v0/self.ctx.structure.get_cell_volume()*len(self.ctx.structure.sites)
+            scale_fac0 = old_div(v0,self.ctx.structure.get_cell_volume()*len(self.ctx.structure.sites))
             outdict['gs_scale_factor'] = scale_fac0
             outdict['gs_fitfunction'] = self.ctx.fitfunc_gs_out
             gs_structure = rescale(self.ctx.structure, Float(scale_fac0))
@@ -440,7 +443,7 @@ class kkr_eos_wc(WorkChain):
                 outnodes['explicit_kpoints'] = explicit_kpoints
                 outnodes['parameters'] = parameters
         # set out nodes and corresponding link names
-        for link_name, node in outnodes.iteritems():
+        for link_name, node in outnodes.items():
             self.out(link_name, node)
 
 

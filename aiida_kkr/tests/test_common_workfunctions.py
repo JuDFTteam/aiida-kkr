@@ -4,10 +4,12 @@
 """
 from __future__ import print_function
 
+from builtins import range
+from builtins import object
 import pytest
 
 @pytest.mark.usefixtures("aiida_env")
-class Test_common_workfunctions():
+class Test_common_workfunctions(object):
     """
     Tests for the common workfunctions from tools.common_workfunctions,
     i.e. functions commonly used in this plugin that depend on aiida stuff to work
@@ -82,23 +84,23 @@ class Test_common_workfunctions():
         unode = update_params_wf(node1, node2)
         
         d0 = node1.get_dict()
-        for i in d0.keys():
+        for i in list(d0.keys()):
             if d0[i] is None:
                 d0.pop(i)
                 
         d1 = unode.get_dict()
-        for i in d1.keys():
+        for i in list(d1.keys()):
             if d1[i] is None:
                 d1.pop(i)
                 
         l_identical, l_diff = [], []
-        for i in d0.keys():
-            if i in d1.keys():
+        for i in list(d0.keys()):
+            if i in list(d1.keys()):
                 l_identical.append([i, d0[i], d1[i]])
             else:
                 l_diff.append([0, i, d0[i]])
-        for i in d1.keys():
-            if i not in d0.keys():
+        for i in list(d1.keys()):
+            if i not in list(d0.keys()):
                 l_diff.append([1, i, d1[i]])
                     
         assert l_identical ==  [[u'LMAX', 2, 2]]

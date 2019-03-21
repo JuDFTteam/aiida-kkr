@@ -3,6 +3,7 @@
 Plug-in to import a KKR calculation. This is based on the PwImmigrantCalculation of the aiida-quantumespresso plugin.
 """
 
+from builtins import range
 import os
 from aiida.orm import DataFactory
 from aiida.orm.calculation.job import _input_subfolder

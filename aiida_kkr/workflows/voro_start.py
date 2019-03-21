@@ -5,7 +5,10 @@ In this module you find the base workflow for a dos calculation and
 some helper methods to do so with AiiDA
 """
 from __future__ import print_function
+from __future__ import division
 
+from builtins import range
+from past.utils import old_div
 from aiida.orm import Code, DataFactory
 from aiida.work.workchain import WorkChain, while_, if_, ToContext
 from aiida.work.launch import submit
@@ -69,7 +72,7 @@ class kkr_startpot_wc(WorkChain):
                         'custom_scheduler_commands' : '',         # some additional scheduler commands 
                         }
     # add defaults of dos_params since they are passed onto that workflow
-    for key, value in kkr_dos_wc.get_wf_defaults(silent=True).iteritems():
+    for key, value in kkr_dos_wc.get_wf_defaults(silent=True).items():
         if key == 'dos_params':
             _wf_default[key] = value
                    
@@ -279,7 +282,7 @@ class kkr_startpot_wc(WorkChain):
             else:
                 kkrparams_default = kkrparams()
                 para_version = self._kkr_default_params[1]
-                for key, val in self._kkr_default_params[0].iteritems():
+                for key, val in self._kkr_default_params[0].items():
                     kkrparams_default.set_value(key, val, silent=True)
                 # create ParameterData node
                 params = ParameterData(dict=kkrparams_default.get_dict())
@@ -292,7 +295,7 @@ class kkr_startpot_wc(WorkChain):
         updated_params = False
         update_list = []
         kkr_para = kkrparams()
-        for key, val in params.get_dict().iteritems():
+        for key, val in params.get_dict().items():
             kkr_para.set_value(key, val, silent=True)
         set_vals = kkr_para.get_set_values()
         set_vals = [keyvalpair[0] for keyvalpair in set_vals]
@@ -550,7 +553,7 @@ class kkr_startpot_wc(WorkChain):
                     return self.exit_codes.ERROR_DOSRUN_FAILED
                     
                 # deal with snpin==1 or 2 cases and check negtive DOS
-                for iatom in range(natom/nspin):
+                for iatom in range(old_div(natom,nspin)):
                     for ispin in range(nspin):
                         x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
                         if nspin == 2 and ispin == 0:
@@ -567,7 +570,7 @@ class kkr_startpot_wc(WorkChain):
                 totdos = dosdata_interpol.get_y()[0][1] # shape= natom*nspin, nept [0] for total DOS
                 Ry2eV = get_Ry2eV()
                 
-                for iatom in range(natom/nspin):
+                for iatom in range(old_div(natom,nspin)):
                     for ispin in range(nspin):
                         x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
                         xrel = abs(x-(emin-self.ctx.efermi)*Ry2eV)
@@ -735,7 +738,7 @@ class kkr_startpot_wc(WorkChain):
             outdict = create_vorostart_result_nodes(results=res_node)
     
         
-        for link_name, node in outdict.iteritems():
+        for link_name, node in outdict.items():
             #self.report("INFO: storing node '{}' with link name '{}'".format(node, link_name))
             #self.report("INFO: node type: {}".format(type(node)))
             self.out(link_name, node)
@@ -751,21 +754,21 @@ def create_vorostart_result_nodes(**kwargs):
     """
     outdict = {}
     # always needs to be there
-    if 'results' in kwargs.keys():
+    if 'results' in list(kwargs.keys()):
         outdict['results_vorostart_wc'] = kwargs['results']
                 
     # other results only there if calculation is a success
-    if 'last_doscal_results' in kwargs.keys():
+    if 'last_doscal_results' in list(kwargs.keys()):
         outdict['last_doscal_results'] = kwargs['last_doscal_results']
-    if 'last_voronoi_results'  in kwargs.keys():
+    if 'last_voronoi_results'  in list(kwargs.keys()):
         outdict['last_voronoi_results'] = kwargs['last_voronoi_results']
-    if 'last_voronoi_remote'  in kwargs.keys():
+    if 'last_voronoi_remote'  in list(kwargs.keys()):
         outdict['last_voronoi_remote'] = kwargs['last_voronoi_remote']
-    if 'last_params_voronoi'  in kwargs.keys():
+    if 'last_params_voronoi'  in list(kwargs.keys()):
         outdict['last_params_voronoi'] = kwargs['last_params_voronoi']
-    if 'last_doscal_dosdata'  in kwargs.keys():
+    if 'last_doscal_dosdata'  in list(kwargs.keys()):
         outdict['last_doscal_dosdata'] = kwargs['last_doscal_dosdata']
-    if 'last_doscal_dosdata_interpol'  in kwargs.keys():
+    if 'last_doscal_dosdata_interpol'  in list(kwargs.keys()):
         outdict['last_doscal_dosdata_interpol'] = kwargs['last_doscal_dosdata_interpol']
     
     return outdict

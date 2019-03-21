@@ -4,8 +4,10 @@ In this module you find the base workflow for writing out the kkr_flexfiles and
 some helper methods to do so with AiiDA
 """
 from __future__ import print_function
+from __future__ import division
         
 
+from past.utils import old_div
 from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, ToContext, if_
 from masci_tools.io.kkr_params import kkrparams
@@ -255,7 +257,7 @@ class kkr_flex_wc(WorkChain):
     
         # step 1: try to fill keywords
         try:
-            for key, val in input_dict.iteritems():
+            for key, val in input_dict.items():
                 para_check.set_value(key, val, silent=True)
         except:
             return self.exit_codes.ERROR_INVALID_CALC_PARAMETERS
@@ -267,7 +269,7 @@ class kkr_flex_wc(WorkChain):
         if missing_list != []:
             kkrdefaults = kkrparams.get_KKRcalc_parameter_defaults()[0]
             kkrdefaults_updated = []
-            for key_default, val_default in kkrdefaults.items():
+            for key_default, val_default in list(kkrdefaults.items()):
                 if key_default in missing_list:
                     para_check.set_value(key_default, kkrdefaults.get(key_default), silent=True)
                     kkrdefaults_updated.append(key_default)
@@ -300,7 +302,7 @@ class kkr_flex_wc(WorkChain):
                 # get Fermi energy shift in eV
                 ef_shift = self.ctx.ef_shift #set new E_F in eV
                 # calculate new Fermi energy in Ry
-                ef_new = (ef_old + ef_shift/get_Ry2eV())       
+                ef_new = (ef_old + old_div(ef_shift,get_Ry2eV()))       
                 self.report('INFO: ef_old + ef_shift = ef_new: {} eV + {} eV = {} eV'.format(ef_old*get_Ry2eV(), ef_shift, ef_new*get_Ry2eV()))
                 para_check = update_params_wf(para_check, ParameterData(dict={'ef_set':ef_new}))
             if self.ctx.dos_run:

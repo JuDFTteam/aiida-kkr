@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import object
 import pytest
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib.pyplot import gcf, title
 
 @pytest.mark.usefixtures("aiida_env")
-class Test_kkr_calculation():
+class Test_kkr_calculation(object):
     """
     Tests for the plot_kkr tool
     """

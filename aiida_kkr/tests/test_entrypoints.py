@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from builtins import object
 import pytest
 
 @pytest.mark.usefixtures("aiida_env")
-class TestAiida_kkr_entrypoints():
+class TestAiida_kkr_entrypoints(object):
     """
     tests all the entry points of the Kkr plugin. Therefore if the plugin is reconized by AiiDA 
     and installed right. 

@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
+from builtins import object
 import pytest
 
 # some global settings
 
 # tests
 @pytest.mark.usefixtures("aiida_env")
-class Test_voronoi_parser():
+class Test_voronoi_parser(object):
     """
     Tests for the voronoi parser
     """

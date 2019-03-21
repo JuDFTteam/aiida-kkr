@@ -183,7 +183,7 @@ class KkrParser(Parser):
             elif check_error_category(err_cat, f_err, out_dict):
                 msg_list.append(f_err)
             else:
-                if 'parser_warnings' not in out_dict.keys():
+                if 'parser_warnings' not in list(out_dict.keys()):
                     out_dict['parser_warnings'] = []
                 out_dict['parser_warnings'].append(f_err.replace('Error', 'Warning'))
         out_dict['parser_errors'] = msg_list

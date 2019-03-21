@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+from __future__ import division
+from builtins import object
+from past.utils import old_div
 import pytest
 
 #TODO
@@ -21,7 +24,7 @@ def wait_for_it(calc, maxwait=300, dT=10):
     wait for maximally <maxwait> seconds and check the calculation's state every <dT> seconds
     """
     from time import sleep
-    nsteps = maxwait/dT
+    nsteps = old_div(maxwait,dT)
     print('waiting for calculation to finish (maximally wait for {} seconds)'.format(maxwait))
     istep = 0
     calcstate = u'UNKNOWN'
@@ -43,7 +46,7 @@ def wait_for_it(calc, maxwait=300, dT=10):
 
 # tests
 @pytest.mark.usefixtures("aiida_env")
-class Test_voronoi_calculation():
+class Test_voronoi_calculation(object):
     """
     Tests for the voronoi calculation
     """

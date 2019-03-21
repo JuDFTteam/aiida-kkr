@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from builtins import object
 import pytest
 
 # some global settings
@@ -12,7 +13,7 @@ from .test_vorocalc import wait_for_it
 
 # tests
 @pytest.mark.usefixtures("aiida_env")
-class Test_kkr_calculation():
+class Test_kkr_calculation(object):
     """
     Tests for the kkr calculation
     """

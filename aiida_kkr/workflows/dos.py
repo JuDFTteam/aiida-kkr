@@ -5,6 +5,9 @@ In this module you find the base workflow for a dos calculation and
 some helper methods to do so with AiiDA
 """
 from __future__ import print_function
+from __future__ import division
+from builtins import range
+from past.utils import old_div
 if __name__=='__main__':
     from aiida import is_dbenv_loaded, load_dbenv
     if not is_dbenv_loaded():
@@ -225,7 +228,7 @@ class kkr_dos_wc(WorkChain):
                 
         # step 1 try to fill keywords
         try:
-            for key, val in input_dict.iteritems():
+            for key, val in input_dict.items():
                 para_check.set_value(key, val, silent=True)
         except:
             return self.exit_codes.ERROR_CALC_PARAMETERS_INVALID
@@ -237,7 +240,7 @@ class kkr_dos_wc(WorkChain):
         if missing_list != []:
             kkrdefaults = kkrparams.get_KKRcalc_parameter_defaults()[0]
             kkrdefaults_updated = []
-            for key_default, val_default in kkrdefaults.items():
+            for key_default, val_default in list(kkrdefaults.items()):
                 if key_default in missing_list:
                     para_check.set_value(key_default, kkrdefaults.get(key_default), silent=True)
                     kkrdefaults_updated.append(key_default)
@@ -258,7 +261,7 @@ class kkr_dos_wc(WorkChain):
         econt_new['NPT1'] = 0
         econt_new['NPT3'] = 0
         try:
-            for key, val in econt_new.iteritems():
+            for key, val in econt_new.items():
                 if key=='kmesh':
                     key = 'BZDIVIDE'
                 elif key=='nepts':
@@ -363,7 +366,7 @@ class kkr_dos_wc(WorkChain):
             outdict = create_dos_result_node_minimal(outputnode)
     
         
-        for link_name, node in outdict.iteritems():
+        for link_name, node in outdict.items():
             #self.report("INFO: storing node '{}' with link name '{}'".format(node, link_name))
             #self.report("INFO: node type: {}".format(type(node)))
             self.out(link_name, node)
@@ -386,9 +389,9 @@ def parse_dosfiles(dospath):
     
     # convert to eV units
     dos[:,:,0] = (dos[:,:,0]-ef)*eVscale
-    dos[:,:,1:] = dos[:,:,1:]/eVscale
+    dos[:,:,1:] = old_div(dos[:,:,1:],eVscale)
     dos_int[:,:,0] = (dos_int[:,:,0]-ef)*eVscale
-    dos_int[:,:,1:] = dos_int[:,:,1:]/eVscale
+    dos_int[:,:,1:] = old_div(dos_int[:,:,1:],eVscale)
     
     # create output nodes
     dosnode = XyData()

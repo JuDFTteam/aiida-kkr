@@ -3,7 +3,12 @@
 contains plot_kkr class for node visualization
 """
 from __future__ import print_function
+from __future__ import division
 
+from builtins import str
+from builtins import range
+from builtins import object
+from past.utils import old_div
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
@@ -11,7 +16,7 @@ __version__ = "0.4"
 __contributors__ = ("Philipp Rüßmann")
 
 
-class plot_kkr():
+class plot_kkr(object):
     """
     Class grouping all functionality to plot typical nodes (calculations, workflows, ...) of the aiida-kkr plugin.
 
@@ -54,13 +59,13 @@ class plot_kkr():
             from matplotlib.pyplot import show
 
             node_groups = self.group_nodes(nodes)
-            for groupname in node_groups.keys():
+            for groupname in list(node_groups.keys()):
                 print('\n==================================================================')
                 print('Group of nodes: {}\n'.format(groupname))
                 # some settings for groups
-                if 'noshow' in kwargs.keys(): noshow = kwargs.pop('noshow') # this is now removed from kwargs
+                if 'noshow' in list(kwargs.keys()): noshow = kwargs.pop('noshow') # this is now removed from kwargs
                 noshow = True # always overwrite noshow settings
-                if 'only' in kwargs.keys(): only = kwargs.pop('only') # this is now removed from kwargs
+                if 'only' in list(kwargs.keys()): only = kwargs.pop('only') # this is now removed from kwargs
 
                 # now plot groups one after the other
                 self.plot_group(groupname, node_groups, noshow=noshow, nofig=True, **kwargs)
@@ -78,7 +83,7 @@ class plot_kkr():
         for node in nodes:
             node = self.get_node(node)
             nodeclass = self.classify_and_plot_node(node, return_name_only=True)
-            if nodeclass not in groups_dict.keys():
+            if nodeclass not in list(groups_dict.keys()):
                 groups_dict[nodeclass] = []
             groups_dict[nodeclass].append(node)
 
@@ -89,7 +94,7 @@ class plot_kkr():
         from matplotlib.pyplot import figure, subplot, title, xlabel, legend, title
         nodeslist = nodesgroups[groupname]
         # take out label from kwargs since it is overwritten
-        if 'label' in kwargs.keys(): label = kwargs.pop('label')
+        if 'label' in list(kwargs.keys()): label = kwargs.pop('label')
         # open a single new figure for each plot here
         if groupname in ['kkr', 'scf']: figure()
         for node in nodeslist:
@@ -115,10 +120,10 @@ class plot_kkr():
         
         # determine if some output is printed to stdout
         silent = False
-        if 'silent' in kwargs.keys():
+        if 'silent' in list(kwargs.keys()):
             silent = kwargs.pop('silent') # this is now removed from kwargs
         noshow = False
-        if 'noshow' in kwargs.keys():
+        if 'noshow' in list(kwargs.keys()):
             noshow = kwargs.pop('noshow') # this is now removed from kwargs
             
         node = self.get_node(node)
@@ -192,12 +197,12 @@ class plot_kkr():
         # load node if pk or uuid is given
         if type(node)==int:
             node = load_node(node)
-        elif type(node)==str:
+        elif type(node)==str or type(node)==unicode:
             node = load_node(node)
         elif isinstance(node, Node):
             pass
         else:
-            raise TypeError("input node should either be the nodes pk (int), it's uuid (str) or the node itself (aiida.orm.Node)")
+            raise TypeError("input node should either be the nodes pk (int), it's uuid (str) or the node itself (aiida.orm.Node). Got type(node)={}".format(type(node)))
         return node
     
     def print_clean_inouts(self, node):
@@ -206,7 +211,7 @@ class plot_kkr():
         # extract inputs and outputs
         inputs = node.get_inputs_dict()
         outputs = node.get_outputs_dict()
-        for key in outputs.keys():
+        for key in list(outputs.keys()):
             try:
                 int(key.split('_')[-1])
                 has_id = True
@@ -278,7 +283,7 @@ class plot_kkr():
         y_all = d.get_y()
         
         natoms = len(struc.sites)
-        nspin = len(y_all[0][1]) / natoms
+        nspin = old_div(len(y_all[0][1]), natoms)
         
         xlbl = x_all[0]+' ('+x_all[2]+')'
     
@@ -337,7 +342,7 @@ class plot_kkr():
 
             
         if only is None:
-            if 'label' not in kwargs.keys():
+            if 'label' not in list(kwargs.keys()):
                 label='rms'
             else:
                 label=kwargs.pop('label')
@@ -347,7 +352,7 @@ class plot_kkr():
             xlabel('iteration')
             twinx()
             if logscale: neutr = abs(array(neutr))
-            if 'label' not in kwargs.keys():
+            if 'label' not in list(kwargs.keys()):
                 label='charge neutrality'
             else:
                 label=kwargs.pop('label')
@@ -459,15 +464,15 @@ class plot_kkr():
         
         # extract options from kwargs
         nofig = False
-        if 'nofig' in kwargs.keys(): nofig = kwargs.pop('nofig')
+        if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
         strucplot = True
-        if 'strucplot' in kwargs.keys(): strucplot = kwargs.pop('strucplot')
+        if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
         logscale = True
-        if 'logscale' in kwargs.keys(): logscale = kwargs.pop('logscale')
+        if 'logscale' in list(kwargs.keys()): logscale = kwargs.pop('logscale')
         only = None
-        if 'only' in kwargs.keys(): only = kwargs.pop('only')
+        if 'only' in list(kwargs.keys()): only = kwargs.pop('only')
         silent = False
-        if 'silent' in kwargs.keys(): silent = kwargs.pop('silent')
+        if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
 
         #print output
         if not silent:
@@ -476,8 +481,8 @@ class plot_kkr():
             if 'output_parameters' in node.get_outputs_dict():
                 results_dict = node.get_outputs_dict().get('output_parameters').get_dict()
                 # remove symmetry descriptions from resuts dict before writting output
-                if 'symmetries_group' in results_dict.keys(): results_dict['symmetries_group']['symmetry_description'] = '...'
-                if 'convergence_group' in results_dict.keys():
+                if 'symmetries_group' in list(results_dict.keys()): results_dict['symmetries_group']['symmetry_description'] = '...'
+                if 'convergence_group' in list(results_dict.keys()):
                     results_dict['convergence_group']['charge_neutrality_all_iterations'] = '...'
                     results_dict['convergence_group']['dos_at_fermi_energy_all_iterations'] = '...'
                     results_dict['convergence_group']['fermi_energy_all_iterations'] = '...'
@@ -492,7 +497,7 @@ class plot_kkr():
         if strucplot:
             self.plot_struc(node)
             
-        if 'label' in kwargs.keys(): 
+        if 'label' in list(kwargs.keys()): 
             label = kwargs.pop('label')
         else:
             label = None
@@ -517,11 +522,11 @@ class plot_kkr():
         has_qvec = 'qvec.dat' in listdir(retpath)
 
         # remove already automatically set things from kwargs
-        if 'ptitle' in kwargs.keys(): 
+        if 'ptitle' in list(kwargs.keys()): 
             ptitle = kwargs.pop('ptitle')
         else:
             ptitle = 'pk= {}'.format(node.pk)
-        if 'newfig' in kwargs.keys(): kwargs.pop('newfig')
+        if 'newfig' in list(kwargs.keys()): kwargs.pop('newfig')
 
         # qdos
         if has_qvec:
@@ -554,7 +559,7 @@ class plot_kkr():
         """plot things for a voro calculation node"""
         
         strucplot = True
-        if 'strucplot' in kwargs.keys(): strucplot = kwargs.pop('strucplot')
+        if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
             
         # plot structure
         if strucplot:
@@ -579,13 +584,13 @@ class plot_kkr():
         
         # extract all options that should not be passed on to plot function
         interpol, all_atoms, l_channels = True, False, True
-        if 'interpol' in kwargs.keys(): interpol = kwargs.pop('interpol')
-        if 'all_atoms' in kwargs.keys(): all_atoms = kwargs.pop('all_atoms')
-        if 'l_channels' in kwargs.keys(): l_channels = kwargs.pop('l_channels') 
+        if 'interpol' in list(kwargs.keys()): interpol = kwargs.pop('interpol')
+        if 'all_atoms' in list(kwargs.keys()): all_atoms = kwargs.pop('all_atoms')
+        if 'l_channels' in list(kwargs.keys()): l_channels = kwargs.pop('l_channels') 
         nofig = False
-        if 'nofig' in kwargs.keys(): nofig = kwargs.pop('nofig')
-        if 'strucplot' in kwargs.keys(): strucplot = kwargs.pop('strucplot')
-        if 'silent' in kwargs.keys(): silent = kwargs.pop('silent')
+        if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
+        if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
+        if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
         
         if interpol:
             d = node.out.dos_data_interpol
@@ -606,10 +611,10 @@ class plot_kkr():
         from masci_tools.io.common_functions import get_Ry2eV
         
         strucplot = True
-        if 'strucplot' in kwargs.keys(): strucplot = kwargs.pop('strucplot')
+        if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
         
         silent = False
-        if 'silent' in kwargs.keys(): silent = kwargs.pop('silent')
+        if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
             
         # plot structure
         if strucplot:
@@ -628,14 +633,14 @@ class plot_kkr():
         # follow links until DOS data has been found
         d = None
         d_int = None
-        for key, val in node.get_outputs_dict().iteritems():
+        for key, val in node.get_outputs_dict().items():
             if key=='last_doscal_dosdata':
                 d = val
             elif key=='last_doscal_dosdata_interpol':
                 d_int = val
             elif 'CALL' in key:
                 if val.process_label=='kkr_dos_wc':
-                    for k2, v2 in val.get_outputs_dict().iteritems():
+                    for k2, v2 in val.get_outputs_dict().items():
                         if k2=='dos_data':
                             d = v2
                         elif k2=='dos_data_interpol':
@@ -643,11 +648,11 @@ class plot_kkr():
             
         # extract all options that should not be passed on to plot function
         interpol, all_atoms, l_channels = True, False, True
-        if 'interpol' in kwargs.keys(): interpol = kwargs.pop('interpol')
-        if 'all_atoms' in kwargs.keys(): all_atoms = kwargs.pop('all_atoms')
-        if 'l_channels' in kwargs.keys(): l_channels = kwargs.pop('l_channels') 
+        if 'interpol' in list(kwargs.keys()): interpol = kwargs.pop('interpol')
+        if 'all_atoms' in list(kwargs.keys()): all_atoms = kwargs.pop('all_atoms')
+        if 'l_channels' in list(kwargs.keys()): l_channels = kwargs.pop('l_channels') 
         nofig = False
-        if 'nofig' in kwargs.keys(): nofig = kwargs.pop('nofig')
+        if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
         
         if interpol:
             d = d_int
@@ -659,7 +664,7 @@ class plot_kkr():
         # now add lines for emin, core states, EF
     
         # extract data for dos and energy contour plotting
-        if 'last_voronoi_results' in node.get_outputs_dict().keys():
+        if 'last_voronoi_results' in list(node.get_outputs_dict().keys()):
             params_dict = node.out.last_voronoi_results.get_dict()
         else:
             params_dict = {}
@@ -698,7 +703,7 @@ class plot_kkr():
             strucplot = False
             ptitle = ''
             
-        if 'strucplot' in kwargs.keys(): strucplot = kwargs.pop('strucplot')
+        if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
         # plot structure
         if strucplot:
             self.plot_struc(struc)
@@ -715,7 +720,7 @@ class plot_kkr():
             # deal with unfinished workflow
             rms, neutr, etot, efermi = [], [], [], []
             outdict = node.get_outputs_dict()
-            for key in sort(outdict.keys()):
+            for key in sort(list(outdict.keys())):
                 if isinstance(outdict[key], KkrCalculation):
                     kkrcalc = outdict[key]
                     rms_tmp, neutr_tmp, etot_tmp, efermi_tmp, ptitle_tmp = self.get_rms_kkrcalc(kkrcalc)
@@ -725,12 +730,12 @@ class plot_kkr():
         
         # extract options from kwargs
         nofig = False
-        if 'nofig' in kwargs.keys(): nofig = kwargs.pop('nofig')
+        if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
         logscale = True
-        if 'logscale' in kwargs.keys(): logscale = kwargs.pop('logscale')
+        if 'logscale' in list(kwargs.keys()): logscale = kwargs.pop('logscale')
         only = None
-        if 'only' in kwargs.keys(): only = kwargs.pop('only')
-        if 'label' in kwargs.keys():
+        if 'only' in list(kwargs.keys()): only = kwargs.pop('only')
+        if 'label' in list(kwargs.keys()):
             label = kwargs.pop('label')
         else:
             label = None
@@ -755,20 +760,20 @@ class plot_kkr():
         from ase.eos import EquationOfState
         
         strucplot = True
-        if 'strucplot' in kwargs.keys(): strucplot = kwargs.pop('strucplot')
+        if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
             
         # plot structure
         if strucplot:
             self.plot_struc(node)
 
         # remove unused things from kwargs
-        if 'label' in kwargs.keys(): label=kwargs.pop('label')
-        if 'noshow' in kwargs.keys(): kwargs.pop('noshow')
-        if 'only' in kwargs.keys(): kwargs.pop('only')
-        if 'nofig' in kwargs.keys(): kwargs.pop('nofig')
-        if 'strucplot' in kwargs.keys(): kwargs.pop('strucplot')
+        if 'label' in list(kwargs.keys()): label=kwargs.pop('label')
+        if 'noshow' in list(kwargs.keys()): kwargs.pop('noshow')
+        if 'only' in list(kwargs.keys()): kwargs.pop('only')
+        if 'nofig' in list(kwargs.keys()): kwargs.pop('nofig')
+        if 'strucplot' in list(kwargs.keys()): kwargs.pop('strucplot')
         silent = False
-        if 'silent' in kwargs.keys(): silent = kwargs.pop('silent')
+        if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
     
         # plot convergence behavior
         outdict = node.get_outputs_dict()
@@ -784,7 +789,7 @@ class plot_kkr():
         fig_open = False
         plotted_kkr_scf = False
         plotted_kkr_start = False
-        for key in sort(outdict.keys()):
+        for key in sort(list(outdict.keys())):
             tmpnode = outdict[key]
             try:
                 tmplabel = tmpnode.process_label
@@ -831,7 +836,7 @@ class plot_kkr():
             # add calculation pks to data points
             scalings_all = array(node.out.eos_results.get_dict().get('scale_factors_all'))
             scalings = node.out.eos_results.get_dict().get('scalings')
-            names = sort([name for name in node.out.eos_results.get_dict().get('sub_workflow_uuids').keys() if 'kkr_scf' in name])
+            names = sort([name for name in list(node.out.eos_results.get_dict().get('sub_workflow_uuids').keys()) if 'kkr_scf' in name])
             pks = array([load_node(node.out.eos_results.get_dict().get('sub_workflow_uuids')[name]).pk for name in names])
             mask = []
             for i in range(len(pks)):
@@ -853,7 +858,7 @@ class plot_kkr():
                 v01, e01, B1 = eos.fit()
            
                 print('# relative differences to full fit: V0, E0, B (without smallest volume)')
-                print('{} {} {}'.format(abs(1-v01/v0), abs(1-e01/e0), abs(1-B1/B)))
+                print('{} {} {}'.format(abs(1-old_div(v01,v0)), abs(1-old_div(e01,e0)), abs(1-old_div(B1,B))))
                
                 if len(e)>5:
                     # also take out largest volume
@@ -861,7 +866,7 @@ class plot_kkr():
                     v02, e02, B2 = eos.fit()
            
                     print('\n# V0, E0, B (without smallest and largest volume)')
-                    print('{} {} {}'.format(abs(1-v02/v0), abs(1-e02/e0), abs(1-B2/B)))
+                    print('{} {} {}'.format(abs(1-old_div(v02,v0)), abs(1-old_div(e02,e0)), abs(1-old_div(B2,B))))
         except:
             pass # do nothing if no eos data there
        
