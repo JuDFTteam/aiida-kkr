@@ -1,13 +1,15 @@
 #rabbitMQ only works with trusty according to travis website
 dist: trusty
 language: python
-python: 2.7
+python:
+  - 2.7
+  - 3.5
 notifications:
   slack:
     on_success: never
 services:
-- postgresql
-- rabbitmq
+  - postgresql
+  - rabbitmq
 addons:
   postgresql: '9.5'
   apt: # adapted from wannier90's travis.yml
@@ -17,39 +19,39 @@ addons:
       - liblapack-dev
 cache: pip
 before_install:
-# this decripts the secrets tar ball
-- openssl aes-256-cbc -K $encrypted_6bf0778859c5_key -iv $encrypted_6bf0778859c5_iv -in secrets.tar.gz.enc -out secrets.tar.gz -d
-# now unpack the secrets (pypi_credentials and ssh key to download the KKR code
-- tar -zxvf secrets.tar.gz && rm secrets.tar.gz
-# Now we install the needed dependencies
-#- sudo apt-get update && sudo apt-get upgrade && sudo apt-get install software-properties-common -y && sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y && sudo apt-get update && sudo apt-get install gfortran-8 -y && sudo apt-get update
-- sudo apt-get install locate
-- sudo service postgresql stop
-- sudo apt-get remove postgresql
-- sudo apt-get install postgresql-9.5
-- sudo updatedb
+  # this decripts the secrets tar ball
+  - openssl aes-256-cbc -K $encrypted_6bf0778859c5_key -iv $encrypted_6bf0778859c5_iv -in secrets.tar.gz.enc -out secrets.tar.gz -d
+  # now unpack the secrets (pypi_credentials and ssh key to download the KKR code
+  - tar -zxvf secrets.tar.gz && rm secrets.tar.gz
+  # Now we install the needed dependencies
+  #- sudo apt-get update && sudo apt-get upgrade && sudo apt-get install software-properties-common -y && sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y && sudo apt-get update && sudo apt-get install gfortran-8 -y && sudo apt-get update
+  - sudo apt-get install locate
+  - sudo service postgresql stop
+  - sudo apt-get remove postgresql
+  - sudo apt-get install postgresql-9.5
+  - sudo updatedb
 install: # python installations
-- pip install -U pip wheel setuptools
-# at the moment need to install masci-tools manually since it is not uploaded to pypi yet
-- pip install -e git+https://github.com/JuDFTteam/masci-tools@master#egg=masci-tools.git
-- pip install -e .
-- pip install codecov
+  - pip install -U pip wheel setuptools
+  # at the moment need to install masci-tools manually since it is not uploaded to pypi yet
+  - pip install -e git+https://github.com/JuDFTteam/masci-tools@master#egg=masci-tools.git
+  - pip install -e .
+  - pip install codecov
 env:
-- TEST_TYPE="unittests"
+  - TEST_TYPE="unittests"
 script:
-# Clone JuKKR repository and build codes
-# place the key where it is expected and make sure the connection works passwordless
-- mv id_rsa_travis ~/.ssh/id_rsa
-- chmod 400 ~/.ssh/id_rsa
-- echo "iffgit.fz-juelich.de,134.94.161.83 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH2UDrT0bZP+WmJGGbtLPtFyC5FgQgOM1XvVJ6u5XBJrYMnKNVb9jAttL+k8VvDgcK6b3dFJnvt7eiXtG/hnqCo=" >> ~/.ssh/known_hosts
-# clone the code and install
-- cd aiida_kkr/tests && ./jukkr_installation.sh
-## First check if rabbitmq communication is working
-#- ./check_pika-rabbitmq.py | tee out_rmq_check
-#- ./verify_rmq_check.py
-# Then run all tests
-- ./run_all.sh
-#- travis_wait 30 ./run_all.sh
+  # Clone JuKKR repository and build codes
+  # place the key where it is expected and make sure the connection works passwordless
+  - mv id_rsa_travis ~/.ssh/id_rsa
+  - chmod 400 ~/.ssh/id_rsa
+  - echo "iffgit.fz-juelich.de,134.94.161.83 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH2UDrT0bZP+WmJGGbtLPtFyC5FgQgOM1XvVJ6u5XBJrYMnKNVb9jAttL+k8VvDgcK6b3dFJnvt7eiXtG/hnqCo=" >> ~/.ssh/known_hosts
+  # clone the code and install
+  - cd aiida_kkr/tests && ./jukkr_installation.sh
+  ## First check if rabbitmq communication is working
+  #- ./check_pika-rabbitmq.py | tee out_rmq_check
+  #- ./verify_rmq_check.py
+  # Then run all tests
+  - ./run_all.sh
+  #- travis_wait 30 ./run_all.sh
 matrix:
   allow_failures: # (needs allow failure so that after_success is executed)
     # these tests fail at the moment because gfortran is too old
@@ -59,11 +61,10 @@ matrix:
     # these are fail because gfortran compilation of kkrimp does not work
     - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_scf_workflow
     - pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_full_workflow
-
 after_success:
-- codecov
-#deploy to pypi using poetry
-- cd ../../ && rm -rf aiida_kkr/tests/{submit_test/,__pycache__/,jukkr} id_rsa_travis #remove test output before publishing
-- pip install twine && ./publish_to_pypi.sh # publish_to_pypi script does not use poetry publish anymore since entrypoints are then not set correctly, use python setuy.py && twine upload instead
+  - codecov
+  #deploy to pypi using poetry
+  - cd ../../ && rm -rf aiida_kkr/tests/{submit_test/,__pycache__/,jukkr} id_rsa_travis #remove test output before publishing
+  - pip install twine && ./publish_to_pypi.sh # publish_to_pypi script does not use poetry publish anymore since entrypoints are then not set correctly, use python setuy.py && twine upload instead
 git:
   depth: 3
