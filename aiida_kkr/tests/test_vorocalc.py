@@ -51,7 +51,7 @@ class Test_voronoi_calculation():
         """
         simple Cu noSOC, FP, lmax2 full example 
         """
-        from aiida.orm import Code, load_node, DataFactory
+        from aiida.orm import Code, DataFactory
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.voro import VoronoiCalculation
        

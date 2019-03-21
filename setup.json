@@ -23,6 +23,7 @@
         "seekpath",
         "pgtest",
         "pytest-cov >= 2.5.0",
+        "pytest-mpl",
         "sphinx",
         "sphinx_rtd_theme",
         "ase",

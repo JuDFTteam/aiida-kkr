@@ -584,6 +584,7 @@ class plot_kkr():
         nofig = False
         if 'nofig' in kwargs.keys(): nofig = kwargs.pop('nofig')
         if 'strucplot' in kwargs.keys(): strucplot = kwargs.pop('strucplot')
+        if 'silent' in kwargs.keys(): silent = kwargs.pop('silent')
         
         if interpol:
             d = node.out.dos_data_interpol
