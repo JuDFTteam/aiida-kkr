@@ -197,7 +197,7 @@ class plot_kkr(object):
         # load node if pk or uuid is given
         if type(node)==int:
             node = load_node(node)
-        elif type(node)==str or type(node)==unicode:
+        elif type(node)==type(''):
             node = load_node(node)
         elif isinstance(node, Node):
             pass
