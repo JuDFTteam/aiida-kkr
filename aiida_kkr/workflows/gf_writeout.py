@@ -41,15 +41,16 @@ class kkr_flex_wc(WorkChain):
     Workchain of a kkr_flex calculation to calculate the Green function with 
     KKR starting from the RemoteData node of a previous calculation (either Voronoi or KKR).
 
-    :param options_parameters: (ParameterData), Workchain specifications
+    :param options: (ParameterData), Workchain specifications
     :param wf_parameters: (ParameterData), Workflow parameters that deviate from previous KKR RemoteData
     :param remote_data: (RemoteData), mandatory; from a converged KKR calculation
     :param kkr: (Code), mandatory; KKR code running the flexfile writeout
     :param impurity_info: ParameterData, mandatory: node specifying information 
                           of the impurities in the system
 
-    :return result_kkr_flex_wc: (ParameterData), Information of workflow results
-                                like success, last result node, list with convergence behavior
+    :return workflow_info: (ParameterData), Information of workflow results
+                            like success, last result node, list with convergence behavior
+    :return GF_host_remote: (RemoteData), host GF of the system                            
     """
 
     _workflowversion = __version__

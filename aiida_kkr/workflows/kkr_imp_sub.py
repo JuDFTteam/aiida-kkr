@@ -56,9 +56,10 @@ class kkr_imp_sub_wc(WorkChain):
     :param impurity_info: (ParameterData), Parameter node with information
                           about the impurity cluster
 
-    :return result_kkr_imp_sub_wc: (ParameterData), Information of workflow results
+    :return workflow_info: (ParameterData), Information of workflow results
                                    like success, last result node, list with 
                                    convergence behavior
+    :return host_imp_pot: (SinglefileData), output potential of the sytem
     """
     
     _workflowversion = __version__
