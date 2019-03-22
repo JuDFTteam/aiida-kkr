@@ -53,6 +53,7 @@ class kkr_imp_sub_wc(WorkChain):
     :param kkrimp: (Code), mandatory; KKRimp code converging the host-imp-potential
     :param remote_data: (RemoteData), mandatory; remote folder of a previous
                            kkrflex calculation containing the flexfiles ...
+    :param kkrimp_remote: (RemoteData), remote folder of a previous kkrimp calculation
     :param impurity_info: (ParameterData), Parameter node with information
                           about the impurity cluster
 
