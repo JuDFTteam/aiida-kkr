@@ -1,5 +1,6 @@
 #-*- coding: utf-8 -*-
 
+from __future__ import absolute_import
 from aiida.parsers.parser import Parser
 from aiida.orm.data.parameter import ParameterData
 from aiida_kkr.calculations.voro import VoronoiCalculation

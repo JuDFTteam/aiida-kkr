@@ -5,6 +5,7 @@ The parser should never fail, but it should catch
 all errors and warnings and show them to the user.
 """
 
+from __future__ import absolute_import
 from aiida.parsers.parser import Parser
 from aiida.orm.data.parameter import ParameterData
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation

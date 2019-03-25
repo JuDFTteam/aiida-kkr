@@ -3,7 +3,7 @@
 Plug-in to import a KKR calculation. This is based on the PwImmigrantCalculation of the aiida-quantumespresso plugin.
 """
 
-from builtins import range
+from __future__ import absolute_import
 import os
 from aiida.orm import DataFactory
 from aiida.orm.calculation.job import _input_subfolder
@@ -15,6 +15,7 @@ from aiida.common.links import LinkType
 from aiida_kkr.calculations.kkr import KkrCalculation
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import structure_from_params
+from six.moves import range
 
 
 #define aiida structures from DataFactory of aiida
@@ -34,7 +35,7 @@ __contributors__ = ("Philipp Rüßmann")
 class KkrImporterCalculation(KkrCalculation):
     """
     Importer dummy calculation for a previous KKR run
-    
+
     :param remote_workdir: Absolute path to the directory where the job was run.
         The transport of the computer you link ask input to the calculation is
         the transport that will be used to retrieve the calculation's files.
@@ -54,13 +55,13 @@ class KkrImporterCalculation(KkrCalculation):
         """
         # reuse base class function
         super(KkrImporterCalculation, self)._init_internal_params()
-        
+
         # calculation plugin version
         self._CALCULATION_PLUGIN_VERSION = __version__
-        
+
         # parser
         self._default_parser = 'kkr.kkrimporterparser'
-        
+
     @classproperty
     def _use_methods(cls):
         """
@@ -82,10 +83,10 @@ class KkrImporterCalculation(KkrCalculation):
                            output_file_names=None, remote_workdir=None):
         """
         Create calculation input nodes based on the job's files.
-        
+
         :param open_transport: An open instance of the transport class of the calculation's computer. See the tutorial for more information.
         :type open_transport: aiida.transport.plugins.local.LocalTransport or aiida.transport.plugins.ssh.SshTransport
-        
+
         This method parses the files in the job's remote working directory to
         create the input nodes that would exist if the calculation were
         submitted using AiiDa. These nodes are:
@@ -95,14 +96,14 @@ class KkrImporterCalculation(KkrCalculation):
         and can be retrieved as a dictionary using the ``get_inputs_dict()``
         method. *These input links are cached-links; nothing is stored by this
         method (including the calculation node itself).*
-            
+
         **Keyword arguments**
         .. note:: These keyword arguments can also be set when instantiating the
         class or using the ``set_`` methods (e.g. ``set_remote_workdir``).
         Offering to set them here simply offers the user an additional
         place to set their values. *Only the values that have not yet been
         set need to be specified.*
-            
+
         :param input_file_names: The file name of the job's input files (inputcard, shapefun).
         :type input_file_names: dict of str values
         :param output_file_names: The file name of the job's output files (i.e.
@@ -144,10 +145,10 @@ class KkrImporterCalculation(KkrCalculation):
                 '(c) use the set_remote_workdir method\n'
                 '    [calc.set_remote_workdir(your_remote_workdir)]'
             )
-            
+
         # check if necessary input file names are given and set filenames from dict
         self.set_input_file_names(input_file_names)
-        
+
         # set output file names instead of using defaults
         self.set_output_file_names(output_file_names)
 
@@ -183,7 +184,7 @@ class KkrImporterCalculation(KkrCalculation):
             local_path = os.path.join(folder.abspath, self._INPUT_FILE_NAME)
             parameters = kkrparams(params_type='kkr')
             parameters.read_keywords_from_inputcard(inputcard=local_path)
-                
+
             # Create ParameterData node based on the namelist and link as input.
             aiida_parameters = ParameterData(dict=parameters.get_dict())
             self.use_parameters(aiida_parameters)
@@ -195,28 +196,28 @@ class KkrImporterCalculation(KkrCalculation):
             self.use_structure(structuredata)
 
         self._set_attr('input_nodes_created', True)
-  
+
     def _prepare_for_retrieval(self, open_transport):
         """
         Prepare the calculation for retrieval by daemon.
-        
-        :param open_transport: An open instance of the transport class of the 
+
+        :param open_transport: An open instance of the transport class of the
             calculation's computer.
-        :type open_transport: aiida.transport.plugins.local.LocalTransport or 
+        :type open_transport: aiida.transport.plugins.local.LocalTransport or
             aiida.transport.plugins.ssh.SshTransport
-        
+
         Here, we
         * manually set the files to retrieve
         * store the calculation and all it's input nodes
         * copy the input file to the calculation's raw_input_folder in the
         * store the remote_workdir as a RemoteData output node
-        
+
         """
 
         # Manually set the files that will be copied to the repository and that
         # the parser will extract the results from. This would normally be
         # performed in self._prepare_for_submission prior to submission.
-        
+
         natom = 1000 # maximal number of atom-resolved files that are retrieved
         # TODO take actual natom value (maybe extract from number of files that are there)
         self._set_attr('retrieve_list',
@@ -254,12 +255,12 @@ class KkrImporterCalculation(KkrCalculation):
     def prepare_for_retrieval_and_parsing(self, open_transport):
         """
         Tell the daemon that the calculation is computed and ready to be parsed.
-        
+
         :param open_transport: An open instance of the transport class of the
             calculation's computer. See the tutorial for more information.
         :type open_transport: aiida.transport.plugins.local.LocalTransport
             or aiida.transport.plugins.ssh.SshTransport
-            
+
         The next time the daemon updates the status of calculations, it will
         see this job is in the 'COMPUTED' state and will retrieve its output
         files and parse the results.
@@ -267,9 +268,9 @@ class KkrImporterCalculation(KkrCalculation):
         started again.
         This method also stores the calculation and all input nodes. It also
         copies the original input file to the calculation's repository folder.
-        
+
         :raises aiida.common.exceptions.InputValidationError: if
-            ``open_transport`` is a different type of transport 
+            ``open_transport`` is a different type of transport
             than the computer's.
         :raises aiida.common.exceptions.InvalidOperation: if
             ``open_transport`` is not open.
@@ -313,7 +314,7 @@ class KkrImporterCalculation(KkrCalculation):
     def set_remote_workdir(self, remote_workdir):
         """
         Set the job's remote working directory.
-        
+
         :param remote_workdir: Absolute path of the job's remote working
             directory.
         :type remote_workdir: str
@@ -327,30 +328,30 @@ class KkrImporterCalculation(KkrCalculation):
         Set the file names of the job's input file (e.g. ``'inputcard'`` etc.).
         :param input_file_names: The file names of the job's input files (inputcard, potential, etc.).
         :type input_file_names: dict
-        
+
         Keys of input_file_names dict should be one or more of:
-            
+
         * ``'input_file'``
         * ``'potential_file'``
         * ``'shapefun_file'``
-        
+
         :note: The keys 'input_file' and 'potential_file' are mandatory!
         """
         if self._INPUT_FILE_NAMES is None:
             self.logger.info('setting input_file_names: {}'.format(input_file_names))
             self._set_attr('input_file_names', input_file_names)
             self._set_filenames_in(input_file_names)
-        
+
     def set_output_file_names(self, output_file_names):
         """
         Set the file names of the job's output files (e.g. ``'output.000.txt'`` etc.).
-        
+
         :param output_file_names: The dictionary of file names of file containing the job's
             outputs.
         :type output_file_names: dict
-        
+
         Keys of output_file_names dict should be one or more of:
-            
+
         * ``'out_file'``
         * ``'out_potential_file'``
         * ``'out_nonco_angles_file'``
@@ -358,17 +359,17 @@ class KkrImporterCalculation(KkrCalculation):
         * ``'output_000_file'``
         * ``'output_2_file'``
         * ``'timing_file'``
-        
+
         :note: In a filename is not given, the default value of aiida_kkr.calculations.kkr are used
         """
         if self._OUTPUT_FILE_NAMES is None:
             if output_file_names is None: #set default values if nothing is chosen
                 self._OUT_POTENTIAL = self._POTENTIAL
-                self._DEFAULT_OUTPUT_FILE = KkrCalculation()._DEFAULT_OUTPUT_FILE 
-                self._NONCO_ANGLES_OUT = KkrCalculation()._NONCO_ANGLES_OUT 
-                self._OUTPUT_0_INIT = KkrCalculation()._OUTPUT_0_INIT 
-                self._OUTPUT_000 = KkrCalculation()._OUTPUT_000 
-                self._OUTPUT_2 = KkrCalculation()._OUTPUT_2 
+                self._DEFAULT_OUTPUT_FILE = KkrCalculation()._DEFAULT_OUTPUT_FILE
+                self._NONCO_ANGLES_OUT = KkrCalculation()._NONCO_ANGLES_OUT
+                self._OUTPUT_0_INIT = KkrCalculation()._OUTPUT_0_INIT
+                self._OUTPUT_000 = KkrCalculation()._OUTPUT_000
+                self._OUTPUT_2 = KkrCalculation()._OUTPUT_2
                 self._OUT_TIMING_000 = KkrCalculation()._OUT_TIMING_000
                 output_file_names = {'out_potential_file': self._OUT_POTENTIAL,
                                      'out_file': self._DEFAULT_OUTPUT_FILE,
@@ -380,9 +381,9 @@ class KkrImporterCalculation(KkrCalculation):
             else:
                 self.logger.info('setting output_file_names: {}'.format(output_file_names))
                 self._set_filenames_out(output_file_names)
-             # finally set ourput_file_names as class attribute   
+             # finally set ourput_file_names as class attribute
             self._set_attr('output_file_names', output_file_names)
-        
+
     def _set_filenames_in(self, input_file_names):
         """
         helper function to set filenames from input_file_names dict
@@ -416,7 +417,7 @@ class KkrImporterCalculation(KkrCalculation):
                 '(c) use the set_input_file_names method\n'
                 '    [calc.set_input_file_name(your_file_names)]'
             )
-        
+
     def _set_filenames_out(self, output_file_names):
         """
         helper function that sets the output file names from the output_file_names dictionary
@@ -451,7 +452,7 @@ class KkrImporterCalculation(KkrCalculation):
                 self._OUT_TIMING_000 = output_file_names.get('timing_file')
             else:
                 self._OUT_TIMING_000 = KkrCalculation()._OUT_TIMING_000
-            
+
 
     # These value are set as class attributes in the parent class,
     # BasePwInputGenerator, but they will be different for a job that wasn't
@@ -467,7 +468,7 @@ class KkrImporterCalculation(KkrCalculation):
     @_INPUT_FILE_NAMES.setter
     def _INPUT_FILE_NAMES(self, value):
         self._set_attr('input_file_names', value)
-        
+
     @property
     def _OUTPUT_FILE_NAMES(self):
         return self.get_attr('output_file_names', None)
@@ -475,4 +476,3 @@ class KkrImporterCalculation(KkrCalculation):
     @_OUTPUT_FILE_NAMES.setter
     def _OUTPUT_FILE_NAMES(self, value):
         self._set_attr('output_file_names', value)
-    

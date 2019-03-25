@@ -2,6 +2,7 @@
 Here we define the fixtures for the tests
 """
 
+from __future__ import absolute_import
 import pytest
 from aiida.utils.fixtures import fixture_manager
 

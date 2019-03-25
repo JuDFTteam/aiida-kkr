@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-In this module you find the sub workflow for the kkrimp self consistency cycle  
+In this module you find the sub workflow for the kkrimp self consistency cycle
 and some helper methods to do so with AiiDA
 """
 from __future__ import print_function
 from __future__ import division
 
-from builtins import range
+from __future__ import absolute_import
 from past.utils import old_div
 from aiida.orm import Code, DataFactory
 from aiida.orm.data.base import Float
@@ -16,6 +16,7 @@ from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inpu
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from aiida.common.datastructures import calc_states
 from numpy import array
+from six.moves import range
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
@@ -27,7 +28,7 @@ __contributors__ = u"Fabian Bertoldo"
 #TODO: work on return results function
 #TODO: edit inspect_kkrimp function
 #TODO: get rid of create_scf_result node and create output nodes differently
-#TOTO: check if calculation parameters from previous calculation have to be 
+#TOTO: check if calculation parameters from previous calculation have to be
 #      loaded (in validate input, compare to kkr workflow)
 #TODO: maybe add decrease mixing factor option as in kkr_scf wc
 #TODO: add option to check if the convergence is on track
@@ -44,7 +45,7 @@ KkrimpProcess = KkrimpCalculation.process()
 
 class kkr_imp_sub_wc(WorkChain):
     """
-    Workchain of a kkrimp self consistency calculation starting from the 
+    Workchain of a kkrimp self consistency calculation starting from the
     host-impurity potential of the system. (Not the entire kkr_imp workflow!)
 
     :param options: (ParameterData), Workchain specifications
@@ -58,27 +59,27 @@ class kkr_imp_sub_wc(WorkChain):
                           about the impurity cluster
 
     :return workflow_info: (ParameterData), Information of workflow results
-                                   like success, last result node, list with 
+                                   like success, last result node, list with
                                    convergence behavior
     :return host_imp_pot: (SinglefileData), output potential of the sytem
     """
-    
+
     _workflowversion = __version__
     _wf_label = 'kkr_imp_sub_wc'
     _wf_description = 'Workflow for a KKRimp self consistency calculation to converge a given host-impurity potential'
-       
+
 
     _options_default = {'queue_name' : '',                        # Queue name to submit jobs too
                         'resources': {"num_machines": 1},         # resources to allowcate for the job
                         'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)}
-                        'custom_scheduler_commands' : '',         # some additional scheduler commands 
+                        'custom_scheduler_commands' : '',         # some additional scheduler commands
                         'use_mpi' : False}                        # execute KKR with mpi or without
-                        
+
     _wf_default = {'kkr_runmax': 5,                           # Maximum number of kkr jobs/starts (defauld iterations per start)
                    'threshold_aggressive_mixing': 5*10**-2,   # threshold after which agressive mixing is used
                    'convergence_criterion' : 3*10**-2,        # Stop if charge denisty is converged below this value
                    'mixreduce': 0.5,                          # reduce mixing factor by this factor if calculaito fails due to too large mixing
-                   'strmix': 0.03,                            # mixing factor of simple mixing                           
+                   'strmix': 0.03,                            # mixing factor of simple mixing
                    'aggressive_mix': 3,                       # type of aggressive mixing (3: broyden's 1st, 4: broyden's 2nd, 5: generalized anderson)
                    'aggrmix': 0.01,                           # mixing factor of aggressive mixing
                    'nsteps': 10,                              # number of iterations done per KKR calculation
@@ -100,38 +101,38 @@ class kkr_imp_sub_wc(WorkChain):
 #                   # Some parameter for direct solver (same as in host code)
 #                   'NPAN_LOGPANELFAC': 2,
 #                   'RADIUS_LOGPANELS': 0.6,                   # where to set change of logarithmic to linear radial mesh
-#                   'RADIUS_MIN': -1, 
+#                   'RADIUS_MIN': -1,
 #                   'NPAN_LOG': 15,                            # number of panels in log mesh
 #                   'NPAN_EQ': 5,                              # number of panels in linear mesh
 #                   'NCHEB': 15                                # number of chebychev polynomials in each panel (total number of points in radial mesh NCHEB*(NPAN_LOG+NPAN_EQ))
-                   }     
+                   }
 
-                   
-                        
+
+
     @classmethod
     def get_wf_defaults(self):
         """
-        Print and return _wf_defaults dictionary. Can be used to easily create 
+        Print and return _wf_defaults dictionary. Can be used to easily create
         set of wf_parameters.
-        
+
         returns _wf_defaults
         """
-    
+
         print('Version of workflow: {}'.format(self._workflowversion))
         return self._wf_default
-        
 
-        
+
+
     @classmethod
     def define(cls, spec):
         """
         Defines the outline of the workflow
         """
-    
+
         super(kkr_imp_sub_wc, cls).define(spec)
-        
+
         # Define the inputs of the workflow
-        spec.input("kkrimp", valid_type=Code, required=True) 
+        spec.input("kkrimp", valid_type=Code, required=True)
         spec.input("host_imp_startpot", valid_type=SinglefileData, required=False)
         spec.input("remote_data", valid_type=RemoteData, required=False)
         spec.input("kkrimp_remote", valid_type=RemoteData, required=False)
@@ -140,7 +141,7 @@ class kkr_imp_sub_wc(WorkChain):
                        default=ParameterData(dict=cls._options_default))
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
                        default=ParameterData(dict=cls._wf_default))
-        
+
         # Here the structure of the workflow is defined
         spec.outline(
             cls.start,
@@ -150,9 +151,9 @@ class kkr_imp_sub_wc(WorkChain):
                     cls.run_kkrimp,
                     cls.inspect_kkrimp),
                 cls.return_results))
-            
-        # exit codes 
-        spec.exit_code(121, 'ERROR_HOST_IMP_POT_GF', 
+
+        # exit codes
+        spec.exit_code(121, 'ERROR_HOST_IMP_POT_GF',
             message="ERROR: Not both host-impurity potential and GF remote "
                     "found in the inputs. Provide either both of them or a "
                     "RemoteData from a previous kkrimp calculation.")
@@ -165,7 +166,7 @@ class kkr_imp_sub_wc(WorkChain):
         # probably not necessary
         spec.exit_code(124, 'ERROR_NO_CALC_PARAMS',
             message="ERROR: No calculation parameters provided")
-        
+
         spec.exit_code(125, 'ERROR_SUB_FAILURE',
             message="ERROR: Last KKRcalc in SUBMISSIONFAILED state!\nstopping now")
         spec.exit_code(126, 'ERROR_MAX_STEPS_REACHED',
@@ -178,13 +179,13 @@ class kkr_imp_sub_wc(WorkChain):
             message="ERROR: Parameters could not be updated")
         spec.exit_code(130, 'ERROR_LAST_CALC_NOT_FINISHED',
             message="ERROR: Last calculation is not in finished state")
-        
-        
+
+
         # Define the outputs of the workflow
         spec.output('workflow_info', valid_type=ParameterData)
         spec.output('host_imp_pot', valid_type=SinglefileData)
 
-        
+
     def start(self):
         """
         init context and some parameters
@@ -222,7 +223,7 @@ class kkr_imp_sub_wc(WorkChain):
         if options_dict == {}:
             options_dict = self._options_default
             self.report('INFO: using default options')
-        
+
         if wf_dict == {}:
             wf_dict = self._wf_default
             self.report('INFO: using default wf parameter')
@@ -233,7 +234,7 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
-        
+
         # set workflow parameters from input, or defaults
         self.ctx.max_number_runs = wf_dict.get('kkr_runmax', self._wf_default['kkr_runmax'])
         self.ctx.description_wf = self.inputs.get('description', 'Workflow for '
@@ -251,24 +252,24 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.nspin = wf_dict.get('nspin', self._wf_default['nspin'])
         self.ctx.spherical = wf_dict.get('non-spherical', self._wf_default['non-spherical'])
         self.ctx.broyden_num = wf_dict.get('broyden-number', self._wf_default['broyden-number'])
-        self.ctx.born_iter = wf_dict.get('born-iter', self._wf_default['born-iter'])     
-        
+        self.ctx.born_iter = wf_dict.get('born-iter', self._wf_default['born-iter'])
+
         # initial magnetization
         self.ctx.mag_init = wf_dict.get('mag_init', self._wf_default['mag_init'])
         self.ctx.hfield = wf_dict.get('hfield', self._wf_default['hfield'])
         self.ctx.xinit = wf_dict.get('init_pos', self._wf_default['init_pos'])
         self.ctx.mag_init_step_success = False
-        
+
         # SOC
         self.ctx.calc_orbmom = wf_dict.get('calc_orbmom', self._wf_default['calc_orbmom'])
         self.ctx.spinorbit = wf_dict.get('spinorbit', self._wf_default['spinorbit'])
-        self.ctx.newsol = wf_dict.get('newsol', self._wf_default['newsol']) 
+        self.ctx.newsol = wf_dict.get('newsol', self._wf_default['newsol'])
         self.ctx.mesh_params = wf_dict.get('mesh_params', self._wf_default['mesh_params'])
-        
+
         # DOS
         self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
 
-        
+
         self.report('INFO: use the following parameter:\n'
                     '\nGeneral settings\n'
                     'use mpi: {}\n'
@@ -328,9 +329,9 @@ class kkr_imp_sub_wc(WorkChain):
                                     'last_neutr':[],
                                     'pk':[],
                                     'uuid':[]}
-                                    
-                                    
-                                    
+
+
+
     def validate_input(self):
         """
         validate input and catch possible errors from the input
@@ -349,41 +350,41 @@ class kkr_imp_sub_wc(WorkChain):
                 test_and_get_codenode(inputs.kkr, 'kkr.kkrimp', use_exceptions=True)
             except ValueError:
                 inputs_ok = False
-                return self.exit_codes.ERROR_INVALID_INPUT_KKRIMP   
-                
+                return self.exit_codes.ERROR_INVALID_INPUT_KKRIMP
+
         if 'kkrimp_remote' in inputs:
             self.ctx.start_from_imp_remote = True
             self.ctx.last_remote = inputs.kkrimp_remote
-                
-        # set params and remote folder to input 
+
+        # set params and remote folder to input
         #self.ctx.last_remote = inputs.GF_remote_data
-           
+
         # set starting potential
         if 'host_imp_startpot' in inputs:
             self.ctx.last_pot = inputs.host_imp_startpot
-            
+
 #        if 'impurity_info' in inputs:
 #            self.ctx.imp_info = inputs.impurity_info
-        
+
         # TBD!!!
         if  'wf_parameters' in inputs:
             self.ctx.last_params = inputs.wf_parameters
         else:
             inputs_ok = False
-            self.report('ERROR: {}'.format(self.exit_codes.ERROR_NO_CALC_PARAMS))            
-            return self.exit_codes.ERROR_NO_CALC_PARAMS 
-            
-        self.report('INFO: validated input successfully: {}'.format(inputs_ok))  
-        
+            self.report('ERROR: {}'.format(self.exit_codes.ERROR_NO_CALC_PARAMS))
+            return self.exit_codes.ERROR_NO_CALC_PARAMS
+
+        self.report('INFO: validated input successfully: {}'.format(inputs_ok))
+
         return inputs_ok
-        
-        
-        
+
+
+
     def condition(self):
         """
         check convergence condition
         """
-        
+
         do_kkr_step = True
         stopreason = ''
 
@@ -400,7 +401,7 @@ class kkr_imp_sub_wc(WorkChain):
                 do_kkr_step = False
         else:
             do_kkr_step = do_kkr_step & True
-            
+
         # check if previous calculation is in SUBMISSIONFAILED state
         if self.ctx.loop_count>1 and self.ctx.last_calc.get_state() == calc_states.SUBMISSIONFAILED:
             return self.exit_codes.ERROR_SUB_FAILURE
@@ -412,26 +413,26 @@ class kkr_imp_sub_wc(WorkChain):
                 do_kkr_step = do_kkr_step & True
             else:
                 do_kkr_step = False
-#                self.report('ERROR: {}'.format(self.exit_codes.ERROR_MAX_STEPS_REACHED))  
+#                self.report('ERROR: {}'.format(self.exit_codes.ERROR_MAX_STEPS_REACHED))
 #                return self.exit_codes.ERROR_MAX_STEPS_REACHED
 
         self.report("INFO: done checking condition for kkr step (result={})".format(do_kkr_step))
 
         if not do_kkr_step:
             self.report("INFO: Stopreason={}".format(stopreason))
-            
+
 #        self.report("INFO: kkr_higher_accuracy = {}".format(self.ctx.kkr_higher_accuracy))
 
         return do_kkr_step
-        
-        
-        
+
+
+
     def update_kkrimp_params(self):
         """
-        update set of KKR parameters (check for reduced mixing, change of 
+        update set of KKR parameters (check for reduced mixing, change of
         mixing strategy, change of accuracy setting)
         """
-        
+
         decrease_mixing_fac = False
         switch_agressive_mixing = False
         switch_higher_accuracy= False
@@ -465,7 +466,7 @@ class kkr_imp_sub_wc(WorkChain):
                 if self.ctx.last_remote is None:
                     if 'kkrimp_remote' in self.inputs:
                         self.ctx.last_remote = self.inputs.kkrimp_remote
-                        self.report('INFO: no successful and converging calculation to take RemoteData from. Reuse RemoteData from input instead.') 
+                        self.report('INFO: no successful and converging calculation to take RemoteData from. Reuse RemoteData from input instead.')
                     elif 'impurity_info' in self.inputs or 'remote_data' in self.inputs:
                         self.ctx.last_remote = None
                 # check if last_remote has finally been set and abort if this is not the case
@@ -497,7 +498,7 @@ class kkr_imp_sub_wc(WorkChain):
         else:
             initial_settings = True
             self.ctx.kkr_step_success = True
-            
+
         if self.ctx.loop_count > 1:
             last_rms = self.ctx.last_rms_all[-1]
 
@@ -523,7 +524,7 @@ class kkr_imp_sub_wc(WorkChain):
 
             # init new_params dict where updated params are collected
             new_params = {}
-            
+
             # step 1.2: check if all mandatory keys are there and add defaults if missing
             missing_list = para_check.get_missing_keys(use_aiida=True)
             if missing_list != []:
@@ -544,13 +545,13 @@ class kkr_imp_sub_wc(WorkChain):
             # step 2: change parameter (contained in new_params dictionary)
             last_mixing_scheme = para_check.get_value('IMIX')
             if last_mixing_scheme is None:
-                last_mixing_scheme = 0                     
-                
+                last_mixing_scheme = 0
+
             strmixfac = self.ctx.strmix
             aggrmixfac = self.ctx.aggrmix
             nsteps = self.ctx.nsteps
             nspin = self.ctx.nspin
-            
+
             # TODO: maybe add decrease mixing factor option as in kkr_scf wc
             # step 2.1 fill new_params dict with values to be updated
             if decrease_mixing_fac:
@@ -573,47 +574,47 @@ class kkr_imp_sub_wc(WorkChain):
                 last_mixing_scheme = self.ctx.type_aggressive_mixing
                 label += ' switched_to_agressive_mixing'
                 description += ' switched to agressive mixing scheme (IMIX={})'.format(last_mixing_scheme)
-                
+
             # add number of scf steps, spin
             new_params['SCFSTEPS'] = nsteps
             new_params['NSPIN'] = nspin
             new_params['INS'] = self.ctx.spherical
-            
+
             # add ldos runoption if dos_run = True
             if self.ctx.dos_run:
                 new_params['RUNFLAG'] = ['ldos']
                 new_params['SCFSTEPS'] = 1
-                
+
             # add newsosol
             if self.ctx.newsol:
                 new_params['TESTFLAG'] = ['tmatnew']
             else:
                 new_params['TESTFLAG'] = []
-                
+
             if self.ctx.spinorbit:
                 new_params['SPINORBIT'] = 1
                 new_params['NCOLL'] = 1
                 new_params['NCHEB'] = self.ctx.mesh_params['NCHEB']
                 new_params['NPAN_LOG'] = self.ctx.mesh_params['NPAN_LOG']
-                new_params['NPAN_EQ'] = self.ctx.mesh_params['NPAN_EQ']  
+                new_params['NPAN_EQ'] = self.ctx.mesh_params['NPAN_EQ']
             else:
                 new_params['SPINORBIT'] = 0
                 new_params['NCOLL'] = 0
-                
+
             if self.ctx.calc_orbmom:
                 new_params['CALCORBITALMOMENT'] = 1
             else:
                 new_params['CALCORBITALMOMENT'] = 0
-            
+
             # set mixing schemes and factors
             if last_mixing_scheme == 3 or last_mixing_scheme == 4:
-                new_params['ITDBRY'] = self.ctx.broyden_num  
+                new_params['ITDBRY'] = self.ctx.broyden_num
                 new_params['IMIX'] = last_mixing_scheme
                 new_params['MIXFAC'] = aggrmixfac
             elif last_mixing_scheme == 0:
                 new_params['IMIX'] = last_mixing_scheme
                 new_params['MIXFAC'] = strmixfac
-                
+
             # add mixing scheme to context
             self.ctx.last_mixing_scheme = last_mixing_scheme
 
@@ -625,7 +626,7 @@ class kkr_imp_sub_wc(WorkChain):
 #                description += ' using higher accuracy settings goven in convergence_setting_fine'
 #            else:
 #                convergence_settings = self.ctx.convergence_setting_coarse
-                
+
 #            # slightly increase temperature if previous calculation was unsuccessful for the second time
 #            if decrease_mixing_fac and not self.convergence_on_track():
 #                self.report('INFO: last calculation did not converge and convergence not on track. Try to increase temperature by 50K.')
@@ -638,7 +639,7 @@ class kkr_imp_sub_wc(WorkChain):
                 new_params['QBOUND'] = self.ctx.threshold_aggressive_mixing
             else:
                 new_params['QBOUND'] = self.ctx.convergence_criterion
-            
+
             # initial magnetization
             if initial_settings and self.ctx.mag_init:
                 if self.ctx.hfield <= 0:
@@ -651,7 +652,7 @@ class kkr_imp_sub_wc(WorkChain):
                 self.report("INFO: mag_init is False. Overwrite 'HFIELD' to '0.0' and 'LINIPOL' to 'False'.")
                 # reset mag init to avoid resinitializing
                 new_params['HFIELD'] = [0.0, 0]
-                
+
             # set nspin to 2 if mag_init is used
             if self.ctx.mag_init:
                 nspin_in = nspin
@@ -674,14 +675,14 @@ class kkr_imp_sub_wc(WorkChain):
 
             # step 3:
             self.report("INFO: update parameters to: {}".format(para_check.get_set_values()))
-            
+
             #test
             self.ctx.last_params = ParameterData(dict={})
-            
+
             updatenode = ParameterData(dict=para_check.get_dict())
             updatenode.label = label
             updatenode.description = description
-            
+
             paranode_new = updatenode #update_params_wf(self.ctx.last_params, updatenode)
             self.ctx.last_params = paranode_new
         else:
@@ -690,7 +691,7 @@ class kkr_imp_sub_wc(WorkChain):
         self.report("INFO: done updating kkr param step")
 
 
-        
+
     def run_kkrimp(self):
         """
         submit a KKR impurity calculation
@@ -705,13 +706,13 @@ class kkr_imp_sub_wc(WorkChain):
         host_GF = self.inputs.remote_data
         imp_pot = self.ctx.last_pot
         last_remote = self.ctx.last_remote
-        
+
         options = {"max_wallclock_seconds": self.ctx.walltime_sec,
                    "resources": self.ctx.resources,
                    "queue_name" : self.ctx.queue}
         if self.ctx.custom_scheduler_commands:
             options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
-        
+
         if last_remote is None:
             # make sure no core states are in energy contour
             # extract emin from output of GF host calculation
@@ -724,13 +725,13 @@ class kkr_imp_sub_wc(WorkChain):
                 imp_info = self.inputs.impurity_info
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_attr('Zimp'))
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
-                inputs = get_inputs_kkrimp(code, options, label, description, params, 
+                inputs = get_inputs_kkrimp(code, options, label, description, params,
                                            not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, imp_pot=imp_pot)
             else:
                 self.report('INFO: getting impurity_info node from previous GF calculation')
                 label = 'KKRimp calculation step {} (IMIX={}, GF_remote: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, host_GF.pk)
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
-                inputs = get_inputs_kkrimp(code, options, label, description, params, 
+                inputs = get_inputs_kkrimp(code, options, label, description, params,
                                            not self.ctx.use_mpi, host_GF=host_GF, imp_pot=imp_pot)
         elif last_remote is not None:
             # fix to get Zimp properly
@@ -738,24 +739,24 @@ class kkr_imp_sub_wc(WorkChain):
                 self.report('INFO: using RemoteData from previous kkrimp calculation and impurity_info node as input')
                 imp_info = self.inputs.impurity_info
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_attr('Zimp'))
-                description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)   
-                inputs = get_inputs_kkrimp(code, options, label, description, params, 
+                description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
+                inputs = get_inputs_kkrimp(code, options, label, description, params,
                                            not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, kkrimp_remote=last_remote)
             else:
                 self.report('INFO: using RemoteData from previous kkrimp calculation as input')
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, None)
-                description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)   
-                inputs = get_inputs_kkrimp(code, options, label, description, params, 
+                description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
+                inputs = get_inputs_kkrimp(code, options, label, description, params,
                                            not self.ctx.use_mpi, host_GF=host_GF, kkrimp_remote=last_remote)
-        
+
         # run the KKR calculation
         self.report('INFO: doing calculation')
         kkrimp_run = self.submit(KkrimpProcess, **inputs)
 
         return ToContext(kkr=kkrimp_run, last_calc=kkrimp_run)
-        
-        
-        
+
+
+
     def inspect_kkrimp(self):
         """
         check for convergence and store some of the results of the last calculation to context
@@ -770,14 +771,14 @@ class kkr_imp_sub_wc(WorkChain):
             self.ctx.kkrimp_step_success = False
             self.report('ERROR: {}', self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED)
             return self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED
-            
+
         self.report("INFO: kkrimp_step_success: {}".format(self.ctx.kkrimp_step_success))
 
         # get potential from last calculation
         retrieved_path = self.ctx.kkr.out.retrieved.get_abs_path() # retrieved path
         pot_path = retrieved_path+'/path/out_potential'
         self.ctx.last_pot = SinglefileData(file=pot_path)
-        
+
         # extract convergence info about rms etc. (used to determine convergence behavior)
         try:
             self.report("INFO: trying to find output of last_calc: {}".format(self.ctx.last_calc))
@@ -786,15 +787,15 @@ class kkr_imp_sub_wc(WorkChain):
         except:
             found_last_calc_output = False
         self.report("INFO: found_last_calc_output: {}".format(found_last_calc_output))
-        
+
         # try yo extract remote folder
         try:
             self.ctx.last_remote = self.ctx.kkr.out.remote_folder
-           # elif 'kkrimp_remote' in self.inputs: 
+           # elif 'kkrimp_remote' in self.inputs:
            #     self.ctx.last_remote = self.inputs.kkrimp_remote
             #else:
             #    self.ctx.last_remote = None
-                #self.ctx.kkrimp_step_success = False                
+                #self.ctx.kkrimp_step_success = False
                 #else:
                 #    self.ctx.last_remote = self.inputs.GF_remote_data
         except:
@@ -820,7 +821,7 @@ class kkr_imp_sub_wc(WorkChain):
         self.report("INFO: kkr_converged: {}".format(self.ctx.kkr_converged))
         self.report("INFO: rms: {}".format(self.ctx.rms))
         self.report("INFO: last_rms_all: {}".format(self.ctx.last_rms_all))
-        
+
         # turn off initial magnetization once one step was successful (update_kkr_params) used in
         if self.ctx.mag_init and self.convergence_on_track(): # and self.ctx.kkrimp_step_success:
             self.ctx.mag_init_step_success = True
@@ -847,7 +848,7 @@ class kkr_imp_sub_wc(WorkChain):
             mixfac = self.ctx.strmix
         elif self.ctx.last_mixing_scheme == 3 or self.ctx.last_mixing_scheme == 4:
             mixfac = self.ctx.aggrmix
-        
+
         if self.ctx.kkr_higher_accuracy:
             qbound = self.ctx.convergence_criterion
         else:
@@ -866,12 +867,12 @@ class kkr_imp_sub_wc(WorkChain):
         self.report("INFO: done inspecting kkrimp results step")
 
 
-        
+
     def convergence_on_track(self):
         """
         Check if convergence behavior of the last calculation is on track (i.e. going down)
         """
-        
+
         on_track = True
         threshold = 5. # used to check condition if at least one of charnge_neutrality, rms-error goes down fast enough
 
@@ -882,7 +883,7 @@ class kkr_imp_sub_wc(WorkChain):
             calc_reached_qbound = False
         except KeyError: # captures
             calc_reached_qbound = False
-           
+
         if self.ctx.kkrimp_step_success and not calc_reached_qbound:
             first_rms = self.ctx.last_rms_all[0]
             last_rms = self.ctx.last_rms_all[-1]
@@ -914,8 +915,8 @@ class kkr_imp_sub_wc(WorkChain):
 
         return on_track
 
-        
-        
+
+
     def return_results(self):
         """
         Return the results of the calculations
@@ -941,7 +942,7 @@ class kkr_imp_sub_wc(WorkChain):
             last_params_pk = None
             last_remote_uuid = None
             last_remote_pk = None
-        
+
         all_pks = []
         for calc in self.ctx.calcs:
             try:

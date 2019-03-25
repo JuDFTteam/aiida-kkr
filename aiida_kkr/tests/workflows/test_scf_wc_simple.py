@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import absolute_import
+from __future__ import print_function
 import pytest
 from dbsetup import *
 
@@ -16,9 +18,9 @@ def print_clean_inouts(node):
             has_id = False
         if 'CALL' in key or 'CREATE' in key or has_id:
             outputs.pop(key)
-    print 'inputs:'
+    print('inputs:')
     pprint(inputs)
-    print '\noutputs:'
+    print('\noutputs:')
     pprint(outputs)
 
 
@@ -110,48 +112,48 @@ class Test_scf_workflow():
         out = self.run_timeout(builder)
        
         # load node of workflow
-        print out
+        print(out)
         n = out['output_kkr_scf_wc_ParameterResults']
        
-        print '\noutputs of workflow\n-------------------------------------------------'
+        print('\noutputs of workflow\n-------------------------------------------------')
         pprint(n.get_outputs_dict())
        
         # get output dictionary
         out = n.get_dict()
-        print '\n\noutput dictionary:\n-------------------------------------------------'
+        print('\n\noutput dictionary:\n-------------------------------------------------')
         pprint(out)
        
         # finally check some output
-        print '\n\ncheck values ...\n-------------------------------------------------'
+        print('\n\ncheck values ...\n-------------------------------------------------')
        
-        print 'voronoi_step_success', out['voronoi_step_success']
+        print('voronoi_step_success', out['voronoi_step_success'])
         assert out['voronoi_step_success']
        
-        print 'kkr_step_success', out['kkr_step_success']
+        print('kkr_step_success', out['kkr_step_success'])
         assert out['kkr_step_success']
        
-        print 'successful', out['successful']
+        print('successful', out['successful'])
         assert out['successful']
        
-        print 'error', out['errors']
+        print('error', out['errors'])
         assert out['errors'] == []
        
-        print 'warning', out['warnings']
+        print('warning', out['warnings'])
         assert out['warnings'] == []
        
-        print 'convergence_reached', out['convergence_reached']
+        print('convergence_reached', out['convergence_reached'])
         assert out['convergence_reached']
        
-        print 'convergence_value', out['convergence_value']
+        print('convergence_value', out['convergence_value'])
         assert out['convergence_value'] < 10**-4
        
-        print 'charge_neutrality', abs(out['charge_neutrality'])
+        print('charge_neutrality', abs(out['charge_neutrality']))
         assert abs(out['charge_neutrality']) < 5*10**-4
        
-        print 'used_higher_accuracy', out['used_higher_accuracy']
+        print('used_higher_accuracy', out['used_higher_accuracy'])
         assert out['used_higher_accuracy']
        
-        print '\ndone with checks\n'
+        print('\ndone with checks\n')
  
 #run test manually
 if __name__=='__main__':

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import absolute_import
+from __future__ import print_function
 import pytest
 from dbsetup import *
 
@@ -71,7 +73,7 @@ class Test_vorostart_workflow():
        
         # now run calculation
         out = self.run_timeout(builder)
-        print out
+        print(out)
        
         # check output
         n = out['results_vorostart_wc']

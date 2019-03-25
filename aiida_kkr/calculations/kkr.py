@@ -4,7 +4,7 @@ Input plug-in for a KKR calculation.
 """
 from __future__ import print_function
 
-from builtins import range
+from __future__ import absolute_import
 import os
 from numpy import pi, array
 
@@ -19,8 +19,9 @@ from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_struct
                                                   check_2Dinput_consistency, update_params_wf,
                                                   vca_check)
 from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
-from aiida_kkr.tools.tools_kkrimp import make_scoef 
+from aiida_kkr.tools.tools_kkrimp import make_scoef
 from masci_tools.io.kkr_params import __kkr_default_params__
+from six.moves import range
 
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
@@ -49,14 +50,14 @@ class KkrCalculation(JobCalculation):
         """
         # reuse base class function
         super(KkrCalculation, self)._init_internal_params()
-        
+
         # calculation plugin version
         self._CALCULATION_PLUGIN_VERSION = __version__
-       
+
         # Default input and output files
         self._DEFAULT_INPUT_FILE = 'inputcard' # will be shown with inputcat
         self._DEFAULT_OUTPUT_FILE = 'out_kkr'  # verdi shell output will be shown with outputcat
-        
+
         # same as _DEFAULT_OUTPUT_FILE: piped output of kkr execution to this file
         self._OUTPUT_FILE_NAME = self._DEFAULT_OUTPUT_FILE
 
@@ -71,7 +72,7 @@ class KkrCalculation(JobCalculation):
         self._NONCO_ANGLES_IMP = 'nonco_angles_imp.dat' # mandatory for GREENIMP option (scattering code)
         self._SHAPEFUN_IMP = 'shapefun_imp' # mandatory for GREENIMP option (scattering code)
         self._POTENTIAL_IMP = 'potential_imp' # mandatory for GREENIMP option (scattering code)
-	
+
 	   # List of output files that should always be present
         self._OUT_POTENTIAL = 'out_potential'
         self._OUTPUT_0_INIT = 'output.0.txt'
@@ -79,7 +80,7 @@ class KkrCalculation(JobCalculation):
         self._OUTPUT_2 = 'output.2.txt'
         self._OUT_TIMING_000 = 'out_timing.000.txt'
         self._NONCO_ANGLES_OUT = 'nonco_angles_out.dat'
-        
+
         # special files (some runs)
         # DOS files
         self._COMPLEXDOS = 'complex.dos'
@@ -98,27 +99,27 @@ class KkrCalculation(JobCalculation):
         # Jij files
         self._Jij_ATOM = 'Jij.atom%0.5i'
         self._SHELLS_DAT = 'shells.dat'
-        
+
         # template.product entry point defined in setup.json
         self._default_parser = 'kkr.kkrparser'
-        
+
         # files that will be copied from local computer if parent was KKR calc
         self._copy_filelist_kkr = [self._SHAPEFUN, self._OUT_POTENTIAL]
-        
-        # list of keywords that are not allowed to be modified (new calculation 
+
+        # list of keywords that are not allowed to be modified (new calculation
         # starting from structure and voronoi run is needed instead):
-        self._do_never_modify = ['ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'CARTESIAN', 
-                                 'INTERFACE', '<NLBASIS>', '<RBLEFT>', 'ZPERIODL', 
-                                 '<NRBASIS>', '<RBRIGHT>', 'ZPERIODR', 'KSHAPE', '<SHAPE>', 
+        self._do_never_modify = ['ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'CARTESIAN',
+                                 'INTERFACE', '<NLBASIS>', '<RBLEFT>', 'ZPERIODL',
+                                 '<NRBASIS>', '<RBRIGHT>', 'ZPERIODR', 'KSHAPE', '<SHAPE>',
                                  '<ZATOM>', 'NATYP', '<SITE>', '<CPA-CONC>', '<KAOEZL>', '<KAOEZR>']
         #TODO implement workfunction to modify structure (e.g. to use VCA)
 
-        
+
     @classproperty
     def _use_methods(cls):
         """
         Add use_* methods for calculations.
-        
+
         Code below enables the usage
         my_calculation.use_parameters(my_parameters)
         """
@@ -169,8 +170,8 @@ class KkrCalculation(JobCalculation):
             :param inputdict: dictionary of the input nodes as they would
                 be returned by get_inputs_dict
         """
-        
-        has_parent = False        
+
+        has_parent = False
         local_copy_list = []
         # Check inputdict
         try:
@@ -179,7 +180,7 @@ class KkrCalculation(JobCalculation):
             raise InputValidationError("No parameters specified for this calculation")
         if not isinstance(parameters, ParameterData):
             raise InputValidationError("parameters not of type ParameterData")
-            
+
         try:
             imp_info = inputdict.pop(self.get_linkname('impurity_info'))
             found_imp_info = True
@@ -188,25 +189,25 @@ class KkrCalculation(JobCalculation):
             found_imp_info = False
         if found_imp_info and not isinstance(imp_info, ParameterData):
             raise InputValidationError("impurity_info not of type ParameterData")
-            
+
         try:
             code = inputdict.pop(self.get_linkname('code'))
         except KeyError:
             raise InputValidationError("No code specified for this calculation")
-            
+
         # get qdos inputs
         try:
             kpath = inputdict.pop(self.get_linkname('kpoints'))
             found_kpath = True
         except KeyError:
             found_kpath = False
-            
+
         try:
             parent_calc_folder = inputdict.pop(self.get_linkname('parent_folder'))
         except KeyError:
             raise InputValidationError("Voronoi or previous KKR files needed for KKR calculation, "
                                        "you need to provide a Parent Folder/RemoteData node.")
-                                  
+
         #TODO deal with data from folder data if calculation is continued on a different machine
         if not isinstance(parent_calc_folder, RemoteData):
             raise InputValidationError("parent_calc_folder must be of type RemoteData")
@@ -223,18 +224,18 @@ class KkrCalculation(JobCalculation):
             has_parent = True
         if n_parents == 1:
             parent_calc = parent_calcs[0]
-            has_parent = True         
-        
+            has_parent = True
+
         # check if parent is either Voronoi or previous KKR calculation
         self._check_valid_parent(parent_calc)
-        
+
         # extract parent input parameter dict for following check
         try:
             parent_inp_dict = parent_calc.inp.parameters.get_dict()
         except:
             self.logger.error("Failed trying to find input parameter of parent {}".format(parent_calc))
             raise InputValidationError("No parameter node found of parent calculation.")
-            
+
         # check if no keys are illegally overwritten (i.e. compare with keys in self._do_never_modify)
         for key in list(parameters.get_dict().keys()):
             value = parameters.get_dict()[key]
@@ -254,38 +255,38 @@ class KkrCalculation(JobCalculation):
         # Parent calc does not has to be on the same computer.
         # so far we copy every thing from local computer ggf if kkr we want to copy remotely
 
-                
+
         # get StructureData node from Parent if Voronoi
-        structure = None        
+        structure = None
         self.logger.info("KkrCalculation: Get structure node from voronoi parent")
         if isinstance(parent_calc, VoronoiCalculation):
             self.logger.info("KkrCalculation: Parent is Voronoi calculation")
-            try:            
-                structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc) 
+            try:
+                structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
             except:
                 self.logger.error('KkrCalculation: Could not get structure from Voronoi parent.')
                 raise ValidationError("Cound not find structure node")
         elif isinstance(parent_calc, KkrCalculation):
             self.logger.info("KkrCalculation: Parent is KKR calculation")
-            try:            
+            try:
                 self.logger.info('KkrCalculation: extract structure from KKR parent')
-                structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc) 
+                structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
             except:
                 self.logger.error('Could not get structure from parent.')
                 raise ValidationError('Cound not find structure node starting from parent {}'.format(parent_calc))
         else:
             self.logger.error("KkrCalculation: Parent is neither Voronoi nor KKR calculation!")
             raise ValidationError('Cound not find structure node')
-            
+
         if inputdict:
             self.logger.error('KkrCalculation: Unknown inputs for structure lookup')
             raise ValidationError("Unknown inputs")
-            
+
         # for VCA: check if input structure and parameter node define VCA structure
         vca_structure = vca_check(structure, parameters)
 
         ###################################
-        
+
         # prepare scoef file if impurity_info was given
         write_scoef = False
         runopt = parameters.get_dict().get('RUNOPT', None)
@@ -326,12 +327,12 @@ class KkrCalculation(JobCalculation):
         elif write_scoef:
             self.logger.info('Need to write scoef file but no impurity_info given!')
             raise ValidationError('Found RUNOPT KKRFLEX but no impurity_info in inputs')
-        
+
         # Check for 2D case
         twoDimcheck, msg = check_2Dinput_consistency(structure, parameters)
         if not twoDimcheck:
             raise InputValidationError(msg)
-            
+
         # set shapes array either from parent voronoi run or read from inputcard in kkrimporter calculation
         if parent_calc.get_parser_name() != 'kkr.kkrimporterparser':
             # get shapes array from voronoi parent
@@ -339,10 +340,10 @@ class KkrCalculation(JobCalculation):
         else:
             # extract shapes from input parameters node constructed by kkrimporter calculation
             shapes = voro_parent.inp.parameters.get_dict().get('<SHAPE>')
-        
+
         #
         use_alat_input = parameters.get_dict().get('use_input_alat', False)
-        
+
         # qdos option, ensure low T, E-contour, qdos run option and write qvec.dat file
         if found_kpath:
             # check qdos settings
@@ -391,11 +392,11 @@ class KkrCalculation(JobCalculation):
             qvecpath = tempfolder.get_abs_path(self._QVEC)
             with open(qvecpath, 'w') as file:
                 file.writelines(qvec)
-        
+
         # Prepare inputcard from Structure and input parameter data
         input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
         natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
-        
+
 
         #################
         # Decide what files to copy based on settings to the code (e.g. KKRFLEX option needs scoef)
@@ -405,21 +406,21 @@ class KkrCalculation(JobCalculation):
             outfolderpath = parent_calc.out.retrieved.folder.abspath
             outfolderpath = os.path.join(outfolderpath, 'path')
             self.logger.info("out folder path {}".format(outfolderpath))
-            
+
             copylist = []
             if isinstance(parent_calc, KkrCalculation):
                 copylist = self._copy_filelist_kkr
                 # TODO ggf copy remotely...
-                
+
             if isinstance(parent_calc, VoronoiCalculation):
                 copylist = [parent_calc._SHAPEFUN]
-                # copy either overwrite potential or voronoi output potential 
+                # copy either overwrite potential or voronoi output potential
                 # (voronoi caclualtion retreives only one of the two)
                 if parent_calc._POTENTIAL_IN_OVERWRITE in os.listdir(outfolderpath):
                     copylist.append(parent_calc._POTENTIAL_IN_OVERWRITE)
                 else:
                     copylist.append(parent_calc._OUT_POTENTIAL_voronoi)
-                    
+
             #change copylist in case the calculation starts from an imported calculation
             if parent_calc.get_parser_name() == 'kkr.kkrimporterparser':
                 copylist = []
@@ -429,18 +430,18 @@ class KkrCalculation(JobCalculation):
                     copylist.append(self._OUT_POTENTIAL)
                 if os.path.exists(os.path.join(outfolderpath, self._SHAPEFUN)):
                     copylist.append(self._SHAPEFUN)
-        
+
             # create local_copy_list from copylist and change some names automatically
             for file1 in copylist:
                 filename = file1
-                if (file1 == 'output.pot' or file1 == self._OUT_POTENTIAL or 
+                if (file1 == 'output.pot' or file1 == self._OUT_POTENTIAL or
                    (isinstance(parent_calc, VoronoiCalculation) and file1 == parent_calc._POTENTIAL_IN_OVERWRITE)):
                     filename = self._POTENTIAL
                 local_copy_list.append((
                         os.path.join(outfolderpath, file1),
                         os.path.join(filename)))
-                
-            
+
+
             # for set-ef option:
             ef_set = parameters.get_dict().get('ef_set', None)
             if ef_set is not None:
@@ -452,7 +453,7 @@ class KkrCalculation(JobCalculation):
                     local_copy_list.remove(potcopy_info)
                     # create potential here by readin in old potential and overwriting with changed Fermi energy
                     pot_new_name = tempfolder.get_abs_path(self._POTENTIAL)
-                    
+
                     # change potential
                     txt = potfile.readlines()
                     potstart = []
@@ -468,9 +469,9 @@ class KkrCalculation(JobCalculation):
                     # write new file
                     pot_new_ef = open(pot_new_name, 'w')
                     pot_new_ef.writelines(txt)
-                    pot_new_ef.close()                
-                
-                
+                    pot_new_ef.close()
+
+
             # TODO different copy lists, depending on the keywors input
             print('local copy list: {}'.format(local_copy_list))
             self.logger.info('local copy list: {}'.format(local_copy_list))
@@ -481,10 +482,10 @@ class KkrCalculation(JobCalculation):
         calcinfo.uuid = self.uuid
         calcinfo.local_copy_list = local_copy_list
         calcinfo.remote_copy_list = []
-        
-        # TODO retrieve list needs some logic, retrieve certain files, 
+
+        # TODO retrieve list needs some logic, retrieve certain files,
         # only if certain input keys are specified....
-        calcinfo.retrieve_list = [self._DEFAULT_OUTPUT_FILE, 
+        calcinfo.retrieve_list = [self._DEFAULT_OUTPUT_FILE,
                                   self._INPUT_FILE_NAME,
                                   self._POTENTIAL,
                                   self._SHAPEFUN,
@@ -495,9 +496,9 @@ class KkrCalculation(JobCalculation):
                                   self._OUTPUT_000,
                                   self._OUTPUT_2,
                                   self._OUT_TIMING_000]
-        
+
         # for special cases add files to retireve list:
-            
+
         # 1. dos calculation, add *dos* files if NPOL==0
         retrieve_dos_files = False
         print('NPOL in parameter input:', parameters.get_dict()['NPOL'])
@@ -518,7 +519,7 @@ class KkrCalculation(JobCalculation):
                 for ispin in range(nspin):
                     add_files.append((self._LMDOS%(iatom+1, ispin+1)).replace(' ','0'))
             calcinfo.retrieve_list += add_files
-            
+
         # 2. KKRFLEX calculation
         retrieve_kkrflex_files = False
         if 'RUNOPT' in  list(parameters.get_dict().keys()):
@@ -531,7 +532,7 @@ class KkrCalculation(JobCalculation):
             add_files = self._ALL_KKRFLEX_FILES
             print('adding files for KKRFLEX output', add_files)
             calcinfo.retrieve_list += add_files
-            
+
         # 3. qdos claculation
         retrieve_qdos_files = False
         if 'RUNOPT' in  list(parameters.get_dict().keys()):
@@ -547,7 +548,7 @@ class KkrCalculation(JobCalculation):
                 for ispin in range(nspin):
                     add_files.append((self._QDOS_ATOM%(iatom+1, ispin+1)).replace(' ','0'))
             calcinfo.retrieve_list += add_files
-            
+
         # 4. Jij calculation
         retrieve_Jij_files = False
         if 'RUNOPT' in  list(parameters.get_dict().keys()):
@@ -598,5 +599,3 @@ class KkrCalculation(JobCalculation):
             raise ValidationError("Cannot set several parent calculation to a KKR calculation")
 
         self.use_parent_folder(remotedata)
-
-        

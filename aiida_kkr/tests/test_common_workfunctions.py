@@ -4,9 +4,10 @@
 """
 from __future__ import print_function
 
-from builtins import range
+from __future__ import absolute_import
 from builtins import object
 import pytest
+from six.moves import range
 
 @pytest.mark.usefixtures("aiida_env")
 class Test_common_workfunctions(object):
@@ -14,7 +15,7 @@ class Test_common_workfunctions(object):
     Tests for the common workfunctions from tools.common_workfunctions,
     i.e. functions commonly used in this plugin that depend on aiida stuff to work
     """
-    
+
     def test_generate_inputcard_from_structure(self):
         from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure
         from aiida.orm import DataFactory
@@ -52,9 +53,9 @@ class Test_common_workfunctions(object):
         print(txt, ref)
         for i in range(len(txt)):
             print(i, txt[i], ref[i])
-            assert set(txt[i].split())==set(ref[i].split()) 
-    
-    
+            assert set(txt[i].split())==set(ref[i].split())
+
+
     def test_check_2Dinput_consistency(self):
         from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
         from aiida.orm import DataFactory
@@ -66,33 +67,33 @@ class Test_common_workfunctions(object):
         input_check = check_2Dinput_consistency(s, p)
         assert input_check[0]
         assert input_check[1] == '2D consistency check complete'
-        
-        
+
+
     def test_update_params_wf(self):
         from aiida_kkr.tools.common_workfunctions import update_params_wf
         from masci_tools.io.kkr_params import kkrparams
         from aiida.orm import DataFactory
         ParameterData = DataFactory('parameter')
-        
+
         k = kkrparams(LMAX=2)
         node1 = ParameterData(dict=k.values)
         node2 = ParameterData(dict={'nodename': 'my_changed_name', 'nodedesc': 'My description text', 'EMIN': -1, 'RMAX': 10.})
-        
+
         unode = update_params_wf(node1, node1)
         assert unode == node1
-        
+
         unode = update_params_wf(node1, node2)
-        
+
         d0 = node1.get_dict()
         for i in list(d0.keys()):
             if d0[i] is None:
                 d0.pop(i)
-                
+
         d1 = unode.get_dict()
         for i in list(d1.keys()):
             if d1[i] is None:
                 d1.pop(i)
-                
+
         l_identical, l_diff = [], []
         for i in list(d0.keys()):
             if i in list(d1.keys()):
@@ -102,7 +103,7 @@ class Test_common_workfunctions(object):
         for i in list(d1.keys()):
             if i not in list(d0.keys()):
                 l_diff.append([1, i, d1[i]])
-                    
+
         assert l_identical ==  [[u'LMAX', 2, 2]]
         assert l_diff == [[1, u'RMAX', 10.0], [1, u'EMIN', -1.0]]
         return node1, node2, unode
@@ -113,26 +114,26 @@ class Test_common_workfunctions(object):
         #TODO: implement check
         from aiida_kkr.tools.common_workfunctions import prepare_VCA_structure_wf
         pass
-    
-    
+
+
     def test_prepare_2Dcalc_wf(self):
         #TODO: implement check
         from aiida_kkr.tools.common_workfunctions import prepare_2Dcalc_wf
         pass
-    
-    
+
+
     def test_test_and_get_codenode(self):
         #TODO: implement check
         from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
         pass
-    
-        
+
+
     def test_get_inputs_kkr(self):
         #TODO: implement check
         from aiida_kkr.tools.common_workfunctions import get_inputs_kkr
         assert 1==2
-    
-    
+
+
     def test_get_inputs_voronoi(self):
         #TODO: implement check
         from aiida_kkr.tools.common_workfunctions import get_inputs_voronoi
@@ -144,7 +145,7 @@ class Test_common_workfunctions(object):
         from aiida_kkr.tools.common_workfunctions import get_parent_paranode
         assert 1==2
     """
-        
+
 
 #"""
 if __name__=='__main__':
@@ -154,9 +155,9 @@ if __name__=='__main__':
     from aiida.orm import DataFactory
     StructureData = DataFactory('structure')
     ParameterData = DataFactory('parameter')
-    
+
     t = Test_common_workfunctions()
-    
+
     t1 = t.test_update_params_wf()
     #t2 = t.test_prepare_VCA_structure_wf()
     #t3 = t.test_prepare_2Dcalc_wf()
@@ -165,4 +166,3 @@ if __name__=='__main__':
     #t6 = t.test_get_inputs_voronoi()
     #t7 = t.test_get_parent_paranode()
 #"""
-    

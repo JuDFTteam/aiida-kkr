@@ -13,12 +13,12 @@
         "Environment :: Plugins",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Physics",
-        "Natural Language :: English"      
+        "Natural Language :: English"
     ],
     "version": "1.1.6-dev",
     "reentry_register": true,
     "install_requires": [
-        "aiida-core == 1.0.0a4",
+        "aiida-core >= 1.0.0b1,<2.0.0",
         "masci-tools",
         "seekpath",
         "pgtest",
@@ -30,6 +30,14 @@
         "bumpversion",
         "timeout_decorator"
     ],
+    "extras_require": {
+        "pre-commit": [
+            "pre-commit==1.11.0",
+            "yapf==0.24.0",
+            "prospector==0.12.11",
+            "pylint==1.9.3"
+        ]
+    },
     "entry_points": {
         "aiida.calculations": [
             "kkr.kkr = aiida_kkr.calculations.kkr:KkrCalculation",

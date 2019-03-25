@@ -4,7 +4,7 @@ Input plug-in for a KKRimp calculation.
 """
 from __future__ import print_function
 
-from builtins import range
+from __future__ import absolute_import
 from aiida.orm.calculation.job import JobCalculation
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError, UniquenessError)
@@ -18,6 +18,7 @@ from masci_tools.io.common_functions import search_string
 from aiida_kkr.calculations.voro import VoronoiCalculation
 import os
 from numpy import array, sqrt, sum, where
+from six.moves import range
 
 ParameterData = DataFactory('parameter')
 RemoteData = DataFactory('remote')
@@ -44,7 +45,7 @@ class KkrimpCalculation(JobCalculation):
         """
         # reuse base class function
         super(KkrimpCalculation, self)._init_internal_params()
-        
+
         # calculation plugin version
         self._CALCULATION_PLUGIN_VERSION = __version__
 
@@ -61,7 +62,7 @@ class KkrimpCalculation(JobCalculation):
         self._SHAPEFUN = 'shapefun'
         self._KKRFLEX_ANGLE = 'kkrflex_angle'
         self._KKRFLEX_LLYFAC = 'kkrflex_llyfac'
-        
+
         # full list of kkrflex files
         self._ALL_KKRFLEX_FILES = KkrCalculation()._ALL_KKRFLEX_FILES
         self._ALL_KKRFLEX_FILES.append(self._KKRFLEX_ANGLE)
@@ -75,7 +76,7 @@ class KkrimpCalculation(JobCalculation):
         self._OUT_ENERGYSP_PER_ATOM = 'out_energysp_per_atom_eV'
         self._OUT_ENERGYTOT = 'out_energytotal_eV'
         self._OUT_ENERGYTOT_PER_ATOM =  'out_energytotal_per_atom_eV'
-        
+
         # Lift of output files that are retrieved if special conditions are fulfilled
         self._OUT_JIJDIJ = 'out_JijDij'
         self._OUT_JIJDIJ_LOCAL = 'out_JijDij_local'
@@ -90,7 +91,7 @@ class KkrimpCalculation(JobCalculation):
 
         # template.product entry point defined in setup.json
         self._default_parser = 'kkr.kkrimpparser'
-        
+
         # default names used within aiida (verdi calculation out(in)putcat)
         self._OUTPUT_FILE_NAME = 'out_kkrimp'
         self._INPUT_FILE_NAME = self._CONFIG
@@ -101,7 +102,7 @@ class KkrimpCalculation(JobCalculation):
     def _use_methods(cls):
         """
         Add use_* methods for calculations.
-        
+
         Code below enables the usage
         my_calculation.use_parameters(my_parameters)
         """
@@ -170,7 +171,7 @@ class KkrimpCalculation(JobCalculation):
         impurity_potential = tmp[8]
         parent_calc_folder = tmp[9]
         structure = tmp[10]
-        
+
         # Prepare input files for KKRimp calculation
         # 1. fill kkr params for KKRimp, write config file and eventually also kkrflex_llyfac file
         host_file_path = kkrflex_file_paths[self._KKRFLEX_GREEN].split(self._KKRFLEX_GREEN)[0]
@@ -179,7 +180,7 @@ class KkrimpCalculation(JobCalculation):
         potfile = self._get_pot_and_shape(imp_info, shapefun_path, shapes, impurity_potential, parent_calc_folder, tempfolder, structure)
         # 3. change kkrflex_atominfo to match impurity case
         self._change_atominfo(imp_info, kkrflex_file_paths, tempfolder)
-        
+
         # prepare copy and retrieve lists
         local_copy_list = [(potfile, self._POTENTIAL)]
         for key in list(kkrflex_file_paths.keys()):
@@ -187,9 +188,9 @@ class KkrimpCalculation(JobCalculation):
                 src_path = kkrflex_file_paths[key]
                 dst_path = key
                 local_copy_list.append((src_path, dst_path))
-                
-        retrieve_list = [self._OUTPUT_FILE_NAME, self._CONFIG, self._KKRFLEX_ATOMINFO, 
-                         self._SHAPEFUN, self._KKRFLEX_ANGLE, self._KKRFLEX_LLYFAC, 
+
+        retrieve_list = [self._OUTPUT_FILE_NAME, self._CONFIG, self._KKRFLEX_ATOMINFO,
+                         self._SHAPEFUN, self._KKRFLEX_ANGLE, self._KKRFLEX_LLYFAC,
                          self._OUT_POTENTIAL, self._OUTPUT_000, self._OUT_TIMING_000,
                          self._OUT_ENERGYSP_PER_ATOM, self._OUT_ENERGYTOT_PER_ATOM]
 
@@ -234,7 +235,7 @@ class KkrimpCalculation(JobCalculation):
         else:
             raise ValueError("Could not extract NSPIN value from config.cfg")
         if 'tmatnew' in allopts and nspin>1:
-            retrieve_list.append(self._OUT_MAGNETICMOMENTS) 
+            retrieve_list.append(self._OUT_MAGNETICMOMENTS)
             file = open(tempfolder.get_abs_path(self._CONFIG))
             outorb = file.readlines()
             file.close()
@@ -245,8 +246,8 @@ class KkrimpCalculation(JobCalculation):
                 calcorb = 0
             if calcorb==1:
                 retrieve_list.append(self._OUT_ORBITALMOMENTS)
-        
-        
+
+
         # Prepare CalcInfo to be returned to aiida (e.g. retreive_list etc.)
         calcinfo = CalcInfo()
         calcinfo.uuid = self.uuid
@@ -261,22 +262,22 @@ class KkrimpCalculation(JobCalculation):
         calcinfo.codes_info = [codeinfo]
 
         return calcinfo
-        
+
     #####################################################
     # helper functions
-    
+
     def _get_and_verify_hostfiles(self, inputdict):
         """
         Check inputdict for host_Greenfunction_folder and extract impurity_info, paths to kkrflex-files and path of shapefun file
-        
+
         :param inputdict: input dictionary containing all input nodes to KkrimpCalculation
-        :returns: 
+        :returns:
             * imp_info: ParameterData node containing impurity information like position, Z_imp, cluster size, etc.
             * kkrflex_file_paths: dict of absolute file paths for the kkrflex files
             * shapefun_path: absolute path of the shapefunction file in the host calculation (needed to construct shapefun_imp)
             * shapes: mapping array of atoms to shapes (<SHAPE> input)
         :note: shapefun_path is None if host_Greenfunction calculation was not full-potential
-        :raises: 
+        :raises:
             * InputValidationError, if inputdict does not contain 'host_Greenfunction'
             * InputValidationError, if host_Greenfunction_folder not of right type
             * UniquenessError, if host_Greenfunction_folder does not have exactly one parent
@@ -301,7 +302,7 @@ class KkrimpCalculation(JobCalculation):
                     "".format(n_parents, "" if n_parents == 0 else "s"))
         else:
             parent_calc = parent_calcs[0]
-            
+
         # extract impurity_info
         try:
             imp_info_inputnode = inputdict.pop(self.get_linkname('impurity_info'))
@@ -317,8 +318,8 @@ class KkrimpCalculation(JobCalculation):
             if imp_info is None:
                 raise InputValidationError("host_Greenfunction calculation does not have an input node impurity_info")
             found_impurity_inputnode = False
-        # if impurity input is seperate input, check if it is the same as 
-        # the one from the parent calc (except for 'Zimp'). If that's not the 
+        # if impurity input is seperate input, check if it is the same as
+        # the one from the parent calc (except for 'Zimp'). If that's not the
         # case, raise an error
         if found_impurity_inputnode and found_host_parent:
             #TODO: implement also 'ilayer_center' check
@@ -332,7 +333,7 @@ class KkrimpCalculation(JobCalculation):
                         print('impurity_info node from input and from previous GF calculation are compatible')
                         check_consistency_imp_info = True
                     else:
-                        print('impurity_info node from input and from previous GF calculation are NOT compatible!. ' 
+                        print('impurity_info node from input and from previous GF calculation are NOT compatible!. '
                               'Please check your impurity_info nodes for consistency.')
                         check_consistency_imp_info = False
                 except AttributeError:
@@ -340,50 +341,50 @@ class KkrimpCalculation(JobCalculation):
                           "GF calculation are compatible. Default values haven't been checked")
                     check_consistency_imp_info = True
             else:
-                print('impurity_info node from input and from previous GF calculation are NOT compatible!. ' 
+                print('impurity_info node from input and from previous GF calculation are NOT compatible!. '
                       'Please check your impurity_info nodes for consistency.')
-                check_consistency_imp_info = False           
+                check_consistency_imp_info = False
             if check_consistency_imp_info:
                 imp_info = imp_info_inputnode
             else:
-                raise InputValidationError("impurity_info nodes (input and GF calc) are not compatible") 
-                    
+                raise InputValidationError("impurity_info nodes (input and GF calc) are not compatible")
+
         # check if host parent was KKRFLEX calculation
         hostfolderpath = parent_calc.out.retrieved.folder.abspath
         hostfolderpath = os.path.join(hostfolderpath, 'path')
         input_file = os.path.join(hostfolderpath, KkrCalculation()._DEFAULT_INPUT_FILE)
         params_host_calc = kkrparams(params_type='kkr') # initialize kkrparams instance to use read_keywords_from_inputcard
         params_host_calc.read_keywords_from_inputcard(inputcard=input_file)
-        
+
         if 'RUNOPT' not in list(params_host_calc.get_dict().keys()):
             host_ok = False
         elif 'KKRFLEX' not in params_host_calc.get_dict().get('RUNOPT', []):
             host_ok = False
         else:
             host_ok = True
-            
+
         if not host_ok:
             raise InputValidationError("host_Greenfunction calculation was not a KKRFLEX run")
-        
+
         # extract absolute paths of kkrflex_* files
         kkrflex_file_paths = {}
         for file in self._ALL_KKRFLEX_FILES:
             file_abspath = os.path.join(hostfolderpath, file)
             if os.path.exists(file_abspath):
                 kkrflex_file_paths[file] = file_abspath
-                
+
         # extract absolute path of host shapefun
         file_abspath = os.path.join(hostfolderpath, KkrCalculation()._SHAPEFUN)
         if os.path.exists(file_abspath):
             shapefun_path = file_abspath
         else:
             shapefun_path = None
-            
+
         # extract shapes array from parameters read from inputcard
         shapes = params_host_calc.get_dict().get('<SHAPE>', None)
         if type(shapes)==int:
             shapes = [shapes]
-            
+
         # extract input structure
         try:
             structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
@@ -391,15 +392,15 @@ class KkrimpCalculation(JobCalculation):
             structure, voro_parent = None, None
         if structure is None:
             raiseInputValidationError("No structure node found from host GF parent")
-            
+
         return imp_info, kkrflex_file_paths, shapefun_path, shapes, parent_calc, params_host_calc, structure
-        
-        
+
+
     def _check_and_extract_input_nodes(self, inputdict):
         """
         Extract input nodes from inputdict and check consitency of input nodes
         :param inputdict: dict of inputnodes
-        :returns: 
+        :returns:
             * parameters (aiida_kkr.tools.kkr_params.kkrparams), optional: parameters of KKRimp that end up in config.cfg
             * code (KKRimpCodeNode): code of KKRimp on some machine
             * imp_info (ParameterDataNode): parameter node of the impurity information, extracted from host_parent_calc
@@ -426,7 +427,7 @@ class KkrimpCalculation(JobCalculation):
             raise InputValidationError("No code specified for this calculation")
         # 3. get hostfiles
         imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, structure = self._get_and_verify_hostfiles(inputdict)
-        
+
         # 4. check impurity potential or parent calc input
         # imp potential
         try:
@@ -466,12 +467,12 @@ class KkrimpCalculation(JobCalculation):
         also writes kkrflex_llyfac file if Lloyd is used in the host system
         """
         # initialize kkrimp parameter set with default values
-        params_kkrimp = kkrparams(params_type='kkrimp', NPAN_LOGPANELFAC=2, 
+        params_kkrimp = kkrparams(params_type='kkrimp', NPAN_LOGPANELFAC=2,
                                   RADIUS_MIN=-1, NCOLL=0, SPINORBIT=0, SCFSTEPS=1,
                                   IMIX=0, MIXFAC=0.05, ITDBRY=20, BRYMIX=0.05,
                                   QBOUND=10**-7, RUNFLAG=[], TESTFLAG=[], HFIELD=[0.0, 0],
                                   CALCFORCE=0, CALCJIJMAT=0, CALCORBITALMOMENT=0, ICST=2)
-        
+
         # keys that are being overwritten from host calculation settings
         keys_overwrite = ['NSPIN', 'KVREL', 'XC', 'INS', 'ICST', 'RADIUS_LOGPANELS',
                           'NPAN_EQ', 'NPAN_LOG', 'NCHEB', 'QBOUND']
@@ -517,7 +518,7 @@ class KkrimpCalculation(JobCalculation):
 
         # now set runflags
         params_kkrimp.set_value('RUNFLAG', runflag)
-            
+
         # overwrite keys if found in parent_calc
         if parent_calc_folder is not None:
             params_parent = parent_calc_folder.get_inputs_dict().get('parameters', None)
@@ -528,17 +529,17 @@ class KkrimpCalculation(JobCalculation):
             for (key, val) in params_parent.get_set_values():
                 self._check_key_setting_consistency(params_kkrimp, key, val)
                 params_kkrimp.set_value(key, val)
-        
+
         # finally overwrite from input parameters
         if parameters is not None:
             for (key, val) in parameters.get_set_values():
                 self._check_key_setting_consistency(params_kkrimp, key, val)
                 params_kkrimp.set_value(key, val)
-                
+
         # write config.cfg
         config_filename = tempfolder.get_abs_path(self._CONFIG)
         params_kkrimp.fill_keywords_to_inputfile(output=config_filename)
-    
+
 
     def _change_atominfo(self, imp_info, kkrflex_file_paths, tempfolder):
         """
@@ -547,10 +548,10 @@ class KkrimpCalculation(JobCalculation):
         # read in atominfo file as it is written out
         with open(kkrflex_file_paths.get(KkrCalculation()._KKRFLEX_ATOMINFO)) as file:
             atominfo = file.readlines()
-            
+
         #TODO implement logic to extract this info from imp_info
         replace_zatom_imp = []
-        
+
         # read scoef for comparison with Rimp_rel
         scoef = []
         with open(tempfolder.get_abs_path(KkrCalculation()._SCOEF), 'r') as file:
@@ -559,7 +560,7 @@ class KkrimpCalculation(JobCalculation):
                 tmpline = file.readline().split()
                 scoef.append([float(i) for i in tmpline[:3]])
         scoef = array(scoef)
-        
+
         # find replaceZimp list from Zimp and Rimp_rel
         imp_info_dict = imp_info.get_dict()
         Zimp_list = imp_info_dict.get('Zimp')
@@ -570,7 +571,7 @@ class KkrimpCalculation(JobCalculation):
             Zimp = Zimp_list[iatom]
             ipos_replace = where(diff==diff.min())[0][0]
             replace_zatom_imp.append([ipos_replace, Zimp])
-        
+
         for (iatom, zimp) in replace_zatom_imp:
             tmp = atominfo[iatom+4].split()
             x, y, z = float(tmp[0]), float(tmp[1]), float(tmp[2])
@@ -579,12 +580,12 @@ class KkrimpCalculation(JobCalculation):
             zatom = zimp
             tmp = ' %24.16f %24.16f %24.16f %5.2f %4i %4i %4i\n'%(x, y, z, zatom, virt, remove, lmax)
             atominfo[iatom+4] = tmp
-            
+
         # write atominfo file
         atominfo_path = tempfolder.get_abs_path(self._KKRFLEX_ATOMINFO)
         with open(atominfo_path, 'w') as file:
             file.writelines(atominfo)
-    
+
 
     def _get_pot_and_shape(self, imp_info, shapefun_path, shapes, impurity_potential, parent_calc_folder, tempfolder, structure):
         """
@@ -598,11 +599,11 @@ class KkrimpCalculation(JobCalculation):
         cylinder_orient = imp_info_dict.get('cylinder_orient', [0., 0., 1.])
         ilayer_center = imp_info_dict.get('ilayer_center', 0)
         make_scoef(structure, Rcut, scoef_filename, hcut, cylinder_orient, ilayer_center)
-        
+
         # create impurity shapefun
         shapefun_new_path = tempfolder.get_abs_path(self._SHAPEFUN)
         modify_potential().shapefun_from_scoef(scoef_filename, shapefun_path, shapes, shapefun_new_path)
-            
+
         # find path to input potential
         if impurity_potential is not None:
             potfile = impurity_potential.get_file_abs_path()
@@ -613,19 +614,18 @@ class KkrimpCalculation(JobCalculation):
             potfile = retrieved.get_abs_path(self._OUT_POTENTIAL)
         else:
             raise InputValidationError('ERROR in _get_pot_and_shape: neither impurity potential nor parent_calc_folder given!')
-            
+
         # return path of input potential (added to copy_list)
         return potfile
-        
-    
+
+
     def _check_key_setting_consistency(self, params_kkrimp, key, val):
         """
         Check if key/value pair that is supposed to be set is not in conflict with previous settings of parameters in params_kkrimp
         """
         param_ok = True
-        
+
         #TODO implement checks
-        
+
         if not param_ok:
             raise ValueError('Trying to set key "{}" with value "{}" which is in conflict to previous settings!'.format(key, val))
-        

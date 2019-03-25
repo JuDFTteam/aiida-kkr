@@ -6,6 +6,7 @@ some helper methods to do so with AiiDA
 """
 from __future__ import print_function
 
+from __future__ import absolute_import
 from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import if_, ToContext, WorkChain
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc

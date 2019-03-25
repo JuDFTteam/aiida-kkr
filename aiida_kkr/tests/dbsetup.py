@@ -1,7 +1,8 @@
 from __future__ import print_function
 
-from builtins import range
+from __future__ import absolute_import
 import os
+from six.moves import range
 
 
 # some global settings
@@ -23,7 +24,7 @@ def prepare_computer(computername, workdir):
     from aiida.orm import Computer
     from aiida.orm.backend import construct_backend
     from aiida.orm.querybuilder import QueryBuilder
-    # 
+    #
     # first check if computer exists already in database
     qb = QueryBuilder()
     qb.append(Computer, tag='computer')
@@ -34,7 +35,7 @@ def prepare_computer(computername, workdir):
             c = all_computers[icomp].get('computer').get('*')
             if c.get_name() == computername:
                 computer_found_in_db = True
-                comp = c 
+                comp = c
     # if it is not there create a new one
     if not computer_found_in_db:
         #comp = Computer(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir=workdir)
@@ -80,4 +81,3 @@ def prepare_code(codename, codelocation, computername, workdir):
         if codename == 'voronoi':
             code.set_prepend_text('ln -s '+codelocation+'ElementDataBase .')
         code.store()
-

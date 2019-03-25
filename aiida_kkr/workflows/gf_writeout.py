@@ -7,6 +7,7 @@ from __future__ import print_function
 from __future__ import division
         
 
+from __future__ import absolute_import
 from past.utils import old_div
 from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, ToContext, if_

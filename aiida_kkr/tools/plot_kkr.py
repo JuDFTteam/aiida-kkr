@@ -5,10 +5,11 @@ contains plot_kkr class for node visualization
 from __future__ import print_function
 from __future__ import division
 
+from __future__ import absolute_import
 from builtins import str
-from builtins import range
 from builtins import object
 from past.utils import old_div
+from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
@@ -23,7 +24,7 @@ class plot_kkr(object):
     :param nodes: node identifier which is to be visualized
 
     optional arguments:
-    
+
     :param silent: print information about input node including inputs and outputs (default: False)
     :type silent: bool
     :param strucplot: plot structure using ase’s view function (default: True)
@@ -49,7 +50,7 @@ class plot_kkr(object):
     """
 
     def __init__(self, nodes=None, **kwargs):
-        
+
         # load database if not done already
         from aiida import load_dbenv, is_dbenv_loaded
         if not is_dbenv_loaded():
@@ -117,7 +118,7 @@ class plot_kkr(object):
 
     def plot_kkr_single_node(self, node, **kwargs):
         """ TODO docstring"""
-        
+
         # determine if some output is printed to stdout
         silent = False
         if 'silent' in list(kwargs.keys()):
@@ -125,15 +126,15 @@ class plot_kkr(object):
         noshow = False
         if 'noshow' in list(kwargs.keys()):
             noshow = kwargs.pop('noshow') # this is now removed from kwargs
-            
+
         node = self.get_node(node)
-    
+
         # print input and output nodes
         if not silent: self.print_clean_inouts(node)
-        
+
         # classify node and call plotting function
         self.classify_and_plot_node(node, silent=silent, **kwargs)
-    
+
         if not noshow:
             from matplotlib.pyplot import show
             show()
@@ -143,7 +144,7 @@ class plot_kkr(object):
         # import things
         from pprint import pprint
         from aiida.orm import DataFactory, WorkCalculation, Calculation
-        
+
         # basic aiida nodes
         if isinstance(node, DataFactory('structure')):
             if return_name_only: return 'struc'
@@ -187,7 +188,7 @@ class plot_kkr(object):
             self.plot_kkrimp_calc(node, **kwargs)
         else:
             raise TypeError("input node neither a `Calculation` nor a `WorkCalculation` (i.e. workflow): {}".format(type(node)))
-    
+
     ### helper functions (structure plot, rms plot, dos plot, data extraction ...) ###
 
     def get_node(self, node):
@@ -204,7 +205,7 @@ class plot_kkr(object):
         else:
             raise TypeError("input node should either be the nodes pk (int), it's uuid (str) or the node itself (aiida.orm.Node). Got type(node)={}".format(type(node)))
         return node
-    
+
     def print_clean_inouts(self, node):
         """print inputs and outputs of nodes without showing 'CALL' and 'CREATE' links in workflows."""
         from pprint import pprint
@@ -220,7 +221,7 @@ class plot_kkr(object):
             # remove 'CALL' and 'CREATE' links
             if 'CALL' in key or 'CREATE' in key or has_id:
                 outputs.pop(key)
-                
+
         # now print information about node
         print('type:', type(node))
         print('label:', node.label)
@@ -230,7 +231,7 @@ class plot_kkr(object):
             print('state:', node.process_state)
         except:
             print('nodes does not have the `process_state` attribute')
-            
+
         print('\ninputs:')
         pprint(inputs)
         print('\noutputs:')
@@ -240,7 +241,7 @@ class plot_kkr(object):
         except:
             pass
         print() # empty line at the end
-    
+
     def plot_struc(self, node, **kwargs):
         """visualize structure using ase's `view` function"""
         from ase.visualize import view
@@ -268,31 +269,31 @@ class plot_kkr(object):
         ase_atoms = structure.get_ase()
         print("plotting structure using ase's `view`")
         view(ase_atoms, **kwargs)
-    
+
     def dosplot(self, d, struc, nofig, all_atoms, l_channels, **kwargs):
         """plot dos from xydata node"""
         from numpy import array, sum
         from matplotlib.pyplot import plot, xlabel, ylabel, gca, figure, legend
         import matplotlib as mpl
         from cycler import cycler
-        
+
         # open new figure
         if not nofig: figure()
-        
+
         x_all = d.get_x()
         y_all = d.get_y()
-        
+
         natoms = len(struc.sites)
         nspin = old_div(len(y_all[0][1]), natoms)
-        
+
         xlbl = x_all[0]+' ('+x_all[2]+')'
-    
+
         #tot only:
         if not l_channels:
             lmax = 1
         else:
             lmax = len(y_all)
-            
+
         pcycle_default = mpl.rcParams['axes.prop_cycle']
         # change color cycler to match spin up/down colors
         if nspin==2 and not all_atoms:
@@ -300,7 +301,7 @@ class plot_kkr(object):
             pcycle_values = array([[i,i] for i in pcycle_values]).reshape(-1)
             pcycle_default = cycler('color', pcycle_values)
         gca().set_prop_cycle(pcycle_default)
-            
+
         for il in range(lmax):
             y2 = y_all[il]
             # extract label
@@ -308,8 +309,8 @@ class plot_kkr(object):
             # take data
             y2 = y2[1].copy()
             y2 = y2.reshape(natoms, nspin, -1)
-            x = x_all[1].copy() 
-        
+            x = x_all[1].copy()
+
             for ispin in range(nspin):
                 if not all_atoms:
                     y = [sum(y2[:,ispin,:], axis=0)] # artificial list so that y[iatom] works later on
@@ -318,7 +319,7 @@ class plot_kkr(object):
                 else:
                     natoms2 = natoms
                     y = y2[:,ispin,:]
-    
+
                 for iatom in range(natoms2):
                     yladd = y_all[il][0].replace('dos ', '')
                     if all_atoms:
@@ -327,20 +328,20 @@ class plot_kkr(object):
                         yladd=''
                     xplt = x[iatom*nspin+ispin]
                     yplt = y[iatom]
-                    
+
                     plot(xplt, yplt, label=yladd, **kwargs)
                     xlabel(xlbl)
                     ylabel(ylbl)
         legend(fontsize='x-small')
-    
+
     def rmsplot(self, rms, neutr, nofig, ptitle, logscale, only=None, **kwargs):
         """plot rms and charge neutrality"""
         from numpy import array
         from matplotlib.pylab import figure, plot, twinx, xlabel, ylabel, legend, subplots_adjust, title, gca
-        
+
         if not nofig: figure()
 
-            
+
         if only is None:
             if 'label' not in list(kwargs.keys()):
                 label='rms'
@@ -382,15 +383,15 @@ class plot_kkr(object):
                 raise ValueError('`only` can only be `rms or `neutr` but got {}'.format(only))
         title(ptitle)
         subplots_adjust(right=0.85)
-    
+
     def get_rms_kkrcalc(self, node, title=None):
         """extract rms etc from kkr calculation. Works for both finished and still running calculations."""
         from plumpy import ProcessState
         from masci_tools.io.common_functions import search_string
-        
+
         rms, neutr, etot, efermi = [], [], [], []
         ptitle = ''
-            
+
         if node.process_state == ProcessState.FINISHED:
             o = node.out.output_parameters.get_dict()
             neutr = o['convergence_group'][u'charge_neutrality_all_iterations']
@@ -402,7 +403,7 @@ class plot_kkr(object):
             pk = o.get('last_calc_nodeinfo').get('pk')
             c = load_node(pk)
             m = c.out.output_parameters.get_dict().get('convergence_group').get('total_spin_moment_all_iterations')
-    
+
             figure(); subplot(1,2,1); plot(rms_all); twinx(); plot(neutr_all,'r'); subplot(1,2,2); plot(m)
             """
         elif node.get_attr('state') in [u'WITHSCHEDULER', u'RETRIEVING']:
@@ -413,14 +414,14 @@ class plot_kkr(object):
             transport = authinfo.get_transport()
 
             out_kkr = ''
-    
+
             # now get contents of out_kkr using remote call of 'cat'
             with transport as open_transport:
                 path = node.get_attr('remote_workdir')
                 if 'out_kkr' in transport.listdir(path):
                     out_kkr = transport.exec_command_wait('cat '+path+'/out_kkr')
                     out_kkr = out_kkr[1].split('\n')
-                    
+
             # now extract rms, charge neutrality, total energy and value of Fermi energy
             itmp = 0
             while itmp>=0:
@@ -454,14 +455,14 @@ class plot_kkr(object):
             print('no rms extracted')
 
         return rms, neutr, etot, efermi, ptitle
-    
-    
-    
+
+
+
     ### calculations ###
-    
+
     def plot_kkr_calc(self, node, **kwargs):
         """plot things for a kkr calculation node"""
-        
+
         # extract options from kwargs
         nofig = False
         if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
@@ -492,12 +493,12 @@ class plot_kkr(object):
                     results_dict['convergence_group']['orbital_moment_per_atom_all_iterations'] = '...'
                     results_dict['convergence_group']['total_spin_moment_all_iterations'] = '...'
                 pprint(results_dict)
-            
+
         # plot structure
         if strucplot:
             self.plot_struc(node)
-            
-        if 'label' in list(kwargs.keys()): 
+
+        if 'label' in list(kwargs.keys()):
             label = kwargs.pop('label')
         else:
             label = None
@@ -506,7 +507,7 @@ class plot_kkr(object):
         except KeyError:
             # this happens in case of qdos run
             rms = []
-    
+
         if len(rms)>1:
             self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
 
@@ -522,7 +523,7 @@ class plot_kkr(object):
         has_qvec = 'qvec.dat' in listdir(retpath)
 
         # remove already automatically set things from kwargs
-        if 'ptitle' in list(kwargs.keys()): 
+        if 'ptitle' in list(kwargs.keys()):
             ptitle = kwargs.pop('ptitle')
         else:
             ptitle = 'pk= {}'.format(node.pk)
@@ -547,7 +548,7 @@ class plot_kkr(object):
                     xticks(ilbl, slbl)
                     xlabel('')
                     [axvline(i, color='grey', ls=':') for i in ilbl]
-    
+
         # dos
         if has_dos:
             figure()
@@ -557,77 +558,77 @@ class plot_kkr(object):
 
     def plot_voro_calc(self, node, **kwargs):
         """plot things for a voro calculation node"""
-        
+
         strucplot = True
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
-            
+
         # plot structure
         if strucplot:
             self.plot_struc(node)
-            
+
         outdict = node.out.output_parameters.get_dict()
         # TODO maybe plot some output of voronoi
-    
-    
+
+
     def plot_kkrimp_calc(self, node, **kwargs):
         """plot things from a kkrimp calculation node"""
         print('not implemented yet')
         pass
-    
-    
+
+
     ### workflows ###
-    
-    
+
+
     def plot_kkr_dos(self, node, **kwargs):
         """plot outputs of a kkr_dos_wc workflow"""
         from aiida_kkr.calculations.voro import VoronoiCalculation
-        
+
         # extract all options that should not be passed on to plot function
         interpol, all_atoms, l_channels = True, False, True
         if 'interpol' in list(kwargs.keys()): interpol = kwargs.pop('interpol')
         if 'all_atoms' in list(kwargs.keys()): all_atoms = kwargs.pop('all_atoms')
-        if 'l_channels' in list(kwargs.keys()): l_channels = kwargs.pop('l_channels') 
+        if 'l_channels' in list(kwargs.keys()): l_channels = kwargs.pop('l_channels')
         nofig = False
         if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
         if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
-        
+
         if interpol:
             d = node.out.dos_data_interpol
         else:
             d = node.out.dos_data
-            
+
         # extract structure (neede in dosplot to extract number of atoms and number of spins)
         struc, voro_parent = VoronoiCalculation.find_parent_structure(node.inp.remote_data)
-            
+
         # do dos plot after data was extracted
         self.dosplot(d, struc, nofig, all_atoms, l_channels, **kwargs)
-    
-    
+
+
     def plot_kkr_startpot(self, node, **kwargs):
         """plot output of kkr_startpot_wc workflow"""
         from aiida_kkr.calculations.voro import VoronoiCalculation
         from matplotlib.pyplot import axvline, legend, title
         from masci_tools.io.common_functions import get_Ry2eV
-        
+
         strucplot = True
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
-        
+
         silent = False
         if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
-            
+
         # plot structure
         if strucplot:
             self.plot_struc(node)
-            
+
         # extract structure (neede in dosplot to extract number of atoms and number of spins)
         struc, voro_parent = VoronoiCalculation.find_parent_structure(node)
-            
+
         if not silent:
             # print results
             print('results:')
             self.plot_kkr_single_node(node.out.results_vorostart_wc, noshow=True, silent=True)
-        
+
         # plot starting DOS
 
         # follow links until DOS data has been found
@@ -645,24 +646,24 @@ class plot_kkr(object):
                             d = v2
                         elif k2=='dos_data_interpol':
                             d_int = v2
-            
+
         # extract all options that should not be passed on to plot function
         interpol, all_atoms, l_channels = True, False, True
         if 'interpol' in list(kwargs.keys()): interpol = kwargs.pop('interpol')
         if 'all_atoms' in list(kwargs.keys()): all_atoms = kwargs.pop('all_atoms')
-        if 'l_channels' in list(kwargs.keys()): l_channels = kwargs.pop('l_channels') 
+        if 'l_channels' in list(kwargs.keys()): l_channels = kwargs.pop('l_channels')
         nofig = False
         if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
-        
+
         if interpol:
             d = d_int
-            
+
         if d is not None:
             # do dos plot after data was extracted
             self.dosplot(d, struc, nofig, all_atoms, l_channels, **kwargs)
-        
+
         # now add lines for emin, core states, EF
-    
+
         # extract data for dos and energy contour plotting
         if 'last_voronoi_results' in list(node.get_outputs_dict().keys()):
             params_dict = node.out.last_voronoi_results.get_dict()
@@ -684,16 +685,16 @@ class plot_kkr(object):
                 if len(ecore_max)>1:
                     [axvline((i-ef_Ry)*get_Ry2eV(), color='b', ls='--') for i in ecore_max[1:]]
             if emin is not None: legend(loc=3, fontsize='x-small')
-            
+
             title(struc.get_formula())
-    
-    
+
+
     def plot_kkr_scf(self, node, **kwargs):
         """plot outputs of a kkr_scf_wc workflow"""
         from aiida_kkr.calculations.kkr import KkrCalculation
         from numpy import sort
         from matplotlib.pyplot import axvline, axhline
-        
+
         # structure plot only if structure is in inputs
         try:
             struc = node.inp.structure
@@ -702,20 +703,20 @@ class plot_kkr(object):
         except:
             strucplot = False
             ptitle = ''
-            
+
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
         # plot structure
         if strucplot:
             self.plot_struc(struc)
-            
-        # next extract information from outputs 
+
+        # next extract information from outputs
         niter_calcs = [0]
         try:
             out_dict = node.out.output_kkr_scf_wc_ParameterResults.get_dict()
             neutr = out_dict['charge_neutrality_all_steps']
             rms = out_dict['convergence_values_all_steps']
             rms_goal = node.inp.wf_parameters.get_dict().get('convergence_criterion')
-        except: 
+        except:
             rms_goal = None
             # deal with unfinished workflow
             rms, neutr, etot, efermi = [], [], [], []
@@ -727,7 +728,7 @@ class plot_kkr(object):
                     niter_calcs.append(len(rms_tmp))
                     rms += rms_tmp
                     neutr += neutr_tmp
-        
+
         # extract options from kwargs
         nofig = False
         if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
@@ -739,7 +740,7 @@ class plot_kkr(object):
             label = kwargs.pop('label')
         else:
             label = None
-    
+
         # extract rms from calculations and plot
         if len(rms)>0:
             self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
@@ -749,8 +750,8 @@ class plot_kkr(object):
                 for i in niter_calcs:
                     tmpsum+=i
                     axvline(tmpsum, color='k', ls=':')
-    
-    
+
+
     def plot_kkr_eos(self, node, **kwargs):
         """plot outputs of a kkr_eos workflow"""
         from numpy import sort, array, where
@@ -758,10 +759,10 @@ class plot_kkr(object):
         from aiida.orm import load_node
         from aiida_kkr.workflows.voro_start import kkr_startpot_wc
         from ase.eos import EquationOfState
-        
+
         strucplot = True
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
-            
+
         # plot structure
         if strucplot:
             self.plot_struc(node)
@@ -774,7 +775,7 @@ class plot_kkr(object):
         if 'strucplot' in list(kwargs.keys()): kwargs.pop('strucplot')
         silent = False
         if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
-    
+
         # plot convergence behavior
         outdict = node.get_outputs_dict()
         try:
@@ -847,26 +848,25 @@ class plot_kkr(object):
                 iv = v[m][0]
                 annotate(s='pk={}'.format(pk), xy=(iv,ie))
 
-            # investigate fit quality by fitting without first/last datapoint 
+            # investigate fit quality by fitting without first/last datapoint
             if len(e)>4:
-               
+
                 eos = EquationOfState(v[1:-1], e[1:-1], eos=fitfunc_gs)
                 v01, e01, B1 = eos.fit()
-               
+
                 # take out smallest data point
                 eos = EquationOfState(v[1:], e[1:], eos=fitfunc_gs)
                 v01, e01, B1 = eos.fit()
-           
+
                 print('# relative differences to full fit: V0, E0, B (without smallest volume)')
                 print('{} {} {}'.format(abs(1-old_div(v01,v0)), abs(1-old_div(e01,e0)), abs(1-old_div(B1,B))))
-               
+
                 if len(e)>5:
                     # also take out largest volume
                     eos = EquationOfState(v[1:-1], e[1:-1], eos=fitfunc_gs)
                     v02, e02, B2 = eos.fit()
-           
+
                     print('\n# V0, E0, B (without smallest and largest volume)')
                     print('{} {} {}'.format(abs(1-old_div(v02,v0)), abs(1-old_div(e02,e0)), abs(1-old_div(B2,B))))
         except:
             pass # do nothing if no eos data there
-       

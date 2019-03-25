@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import absolute_import
 import pytest
 from dbsetup import *
 
@@ -85,7 +86,7 @@ class Test_kkrimp_full_workflow():
         n = out['workflow_info']
         n = n.get_dict()
         for sub in 'auxiliary_voronoi gf_writeout kkr_imp_sub'.split():
-            assert sub in n.get('used_subworkflows').keys()
+            assert sub in list(n.get('used_subworkflows').keys())
        
         kkrimp_sub = load_node(n['used_subworkflows']['kkr_imp_sub'])
         assert kkrimp_sub.out.calculation_info.get_attr('successful')
