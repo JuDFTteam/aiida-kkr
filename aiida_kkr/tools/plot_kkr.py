@@ -143,7 +143,7 @@ class plot_kkr(object):
         """Find class of the node and call plotting function."""
         # import things
         from pprint import pprint
-        from aiida.orm import DataFactory, WorkCalculation, Calculation
+        from aiida.plugins import DataFactory, WorkCalculation, Calculation
 
         # basic aiida nodes
         if isinstance(node, DataFactory('structure')):
@@ -246,7 +246,7 @@ class plot_kkr(object):
         """visualize structure using ase's `view` function"""
         from ase.visualize import view
         from aiida_kkr.calculations.voro import VoronoiCalculation
-        from aiida.orm import DataFactory
+        from aiida.plugins import DataFactory
         StructureData = DataFactory('structure')
         if not isinstance(node, StructureData):
             structure, voro_parent = VoronoiCalculation.find_parent_structure(node)

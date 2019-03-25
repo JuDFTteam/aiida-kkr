@@ -14,7 +14,7 @@ class Test_kkrimp_scf_workflow():
     import timeout_decorator
     @timeout_decorator.timeout(300, use_signals=False)
     def run_timeout(self, builder):
-        from aiida.work.launch import run
+        from aiida.engine.launch import run
         out = run(builder)
         return out
     
@@ -22,7 +22,7 @@ class Test_kkrimp_scf_workflow():
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
         """
-        from aiida.orm import Code, load_node, DataFactory
+        from aiida.plugins import Code, load_node, DataFactory
         from aiida.orm.querybuilder import QueryBuilder
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
@@ -41,7 +41,7 @@ class Test_kkrimp_scf_workflow():
         wfd['strmix'] = 0.05
        
         options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
-        options = ParameterData(dict=options)
+        options = Dict(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         KKRimpCode = Code.get_from_string(kkrimp_codename+'@'+computername)
@@ -56,7 +56,7 @@ class Test_kkrimp_scf_workflow():
         from numpy import loadtxt
         neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]
         settings_dict = {'pot1': 'out_potential',  'out_pot': 'potential_imp', 'neworder': neworder_pot1}
-        settings = ParameterData(dict=settings_dict)
+        settings = Dict(dict=settings_dict)
         startpot_imp_sfd = neworder_potential_wf(settings_node=settings, parent_calc_folder=GF_host_calc.out.remote_folder)
        
         label = 'kkrimp_scf Cu host_in_host'
@@ -69,7 +69,7 @@ class Test_kkrimp_scf_workflow():
         builder.kkrimp = KKRimpCode
         builder.options = options
         builder.remote_data = GF_host_calc.out.remote_folder
-        builder.wf_parameters = ParameterData(dict=wfd)
+        builder.wf_parameters = Dict(dict=wfd)
         builder.host_imp_startpot = startpot_imp_sfd
        
         # now run calculation

@@ -14,7 +14,7 @@ class Test_gf_writeout_workflow():
     import timeout_decorator
     @timeout_decorator.timeout(240, use_signals=False)
     def run_timeout(self, builder):
-        from aiida.work.launch import run
+        from aiida.engine.launch import run
         out = run(builder)
         return out
     
@@ -22,7 +22,7 @@ class Test_gf_writeout_workflow():
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
         """
-        from aiida.orm import Code, load_node, DataFactory
+        from aiida.plugins import Code, load_node, DataFactory
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
         from numpy import array
@@ -37,12 +37,12 @@ class Test_gf_writeout_workflow():
         # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
         wfd =kkr_flex_wc.get_wf_defaults()
         options = {'queue_name' : queuename, 'resources': {"num_machines": 1},'max_wallclock_seconds' : 5*60, 'custom_scheduler_commands' : '', 'use_mpi' : False}
-        options = ParameterData(dict=options)
+        options = Dict(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         KKRCode = Code.get_from_string(kkr_codename+'@'+computername)
        
-        imp_info = ParameterData(dict={'Rcut':1.01, 'ilayer_center': 0, 'Zimp':[79.]})
+        imp_info = Dict(dict={'Rcut':1.01, 'ilayer_center': 0, 'Zimp':[79.]})
        
         label = 'GF_writeout Cu bulk'
         descr = 'GF_writeout workflow for Cu bulk'

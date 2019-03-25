@@ -22,7 +22,7 @@ class Test_kkrimp_calculation(object):
         """
         simple Cu noSOC, FP, lmax2
         """
-        from aiida.orm import Code, load_node, DataFactory
+        from aiida.plugins import Code, load_node, DataFactory
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkrimp import KkrimpCalculation
         ParameterData = DataFactory('parameter')
@@ -37,13 +37,13 @@ class Test_kkrimp_calculation(object):
         from numpy import loadtxt
         neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]
         settings_dict = {'pot1': 'out_potential',  'out_pot': 'potential_imp', 'neworder': neworder_pot1}
-        settings = ParameterData(dict=settings_dict)
+        settings = Dict(dict=settings_dict)
         startpot_imp_sfd = neworder_potential_wf(settings_node=settings, parent_calc_folder=GF_host_calc.out.remote_folder)
 
         # set 1 simple mixing step
         kkrimp_params = kkrparams(params_type='kkrimp')
         kkrimp_params.set_multiple_values(SCFSTEPS=1, IMIX=0, MIXFAC=0.05)
-        ParamsKKRimp = ParameterData(dict=kkrimp_params.get_dict())
+        ParamsKKRimp = Dict(dict=kkrimp_params.get_dict())
 
         # create new KKRimp calculation
         kkrimp_code = Code.get_from_string(codename)

@@ -8,12 +8,12 @@ from __future__ import absolute_import
 import os
 from numpy import pi, array
 
-from aiida.orm.calculation.job import JobCalculation
+from aiida.engine.calculation.job import CalcJob
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import InputValidationError, ValidationError
 from aiida.common.datastructures import CalcInfo, CodeInfo
-from aiida.orm import DataFactory
+from aiida.plugins import DataFactory
 from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_structure,
                                                   check_2Dinput_consistency, update_params_wf,
@@ -38,7 +38,7 @@ __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
 
-class KkrCalculation(JobCalculation):
+class KkrCalculation(CalcJob):
     """
     AiiDA calculation plugin for a KKR calculation
     .
@@ -301,7 +301,7 @@ class KkrCalculation(JobCalculation):
             write_scoef = True
             runopt = parameters.get_dict().get('RUNOPT', [])
             runopt.append('KKRFLEX')
-            parameters = update_params_wf(parameters, ParameterData(dict={'RUNOPT':runopt, 'nodename': 'update_KKRFLEX', 'nodedesc':'Update Parameter node with KKRFLEX runopt'}))
+            parameters = update_params_wf(parameters, Dict(dict={'RUNOPT':runopt, 'nodename': 'update_KKRFLEX', 'nodedesc':'Update Parameter node with KKRFLEX runopt'}))
         if found_imp_info and write_scoef:
             scoef_filename = os.path.join(tempfolder.get_abs_path(''), self._SCOEF)
             imp_info_dict = imp_info.get_dict()
@@ -376,7 +376,7 @@ class KkrCalculation(JobCalculation):
                     new_params[key] = val
                 for key, val in change_values:
                     new_params[key] = val
-                new_params_node = ParameterData(dict=new_params)
+                new_params_node = Dict(dict=new_params)
                 #parameters = update_params_wf(parameters, new_params_node)
                 parameters = new_params_node
             # write qvec.dat file

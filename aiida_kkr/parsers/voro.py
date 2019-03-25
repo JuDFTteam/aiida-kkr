@@ -2,7 +2,7 @@
 
 from __future__ import absolute_import
 from aiida.parsers.parser import Parser
-from aiida.orm.data.parameter import ParameterData
+from aiida.orm.nodes.parameter import Dict
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.exceptions import InputValidationError
 from masci_tools.io.parsers.voroparser_functions import parse_voronoi_output
@@ -120,7 +120,7 @@ class VoronoiParser(Parser):
         out_dict['parser_errors'] = msg_list
         
         #create output node and link
-        output_data = ParameterData(dict=out_dict)
+        output_data = Dict(dict=out_dict)
         link_name = self.get_linkname_outparams()
         node_list = [(link_name, output_data)]
         

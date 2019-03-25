@@ -20,7 +20,7 @@ def list():  # pylint: disable=redefined-builtin
         load_dbenv()
 
     from aiida.orm.querybuilder import QueryBuilder
-    from aiida.orm import DataFactory
+    from aiida.plugins import DataFactory
     KKrStructure = DataFactory('kkr.kkrstructure')
 
     qb = QueryBuilder()

@@ -5,11 +5,11 @@ Input plug-in for a KKRimp calculation.
 from __future__ import print_function
 
 from __future__ import absolute_import
-from aiida.orm.calculation.job import JobCalculation
+from aiida.engine.calculation.job import CalcJob
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError, UniquenessError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
-from aiida.orm import DataFactory
+from aiida.plugins import DataFactory
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.tools.tools_kkrimp import modify_potential
@@ -33,7 +33,7 @@ __contributors__ = ("Philipp Rüßmann")
 
 #TODO: implement 'ilayer_center' consistency check
 
-class KkrimpCalculation(JobCalculation):
+class KkrimpCalculation(CalcJob):
     """
     AiiDA calculation plugin for a KKR calculation
     .

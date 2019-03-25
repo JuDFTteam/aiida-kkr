@@ -15,7 +15,7 @@ class Test_dos_workflow():
     import timeout_decorator
     @timeout_decorator.timeout(240, use_signals=False)
     def run_timeout(self, builder):
-        from aiida.work.launch import run
+        from aiida.engine.launch import run
         out = run(builder)
         return out
     
@@ -23,7 +23,7 @@ class Test_dos_workflow():
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
         """
-        from aiida.orm import Code, load_node, DataFactory
+        from aiida.plugins import Code, load_node, DataFactory
         from aiida.orm import Computer
         from aiida.orm.querybuilder import QueryBuilder
         from masci_tools.io.kkr_params import kkrparams
@@ -51,10 +51,10 @@ class Test_dos_workflow():
         wfd = kkr_dos_wc.get_wf_defaults()
         wfd['dos_params']['kmesh'] = [10, 10, 10]
         wfd['dos_params']['nepts'] = 10
-        params_dos = ParameterData(dict=wfd)
+        params_dos = Dict(dict=wfd)
 
         options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
-        options = ParameterData(dict=options)
+        options = Dict(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         KKRCode = Code.get_from_string(kkr_codename+'@'+computername)

@@ -15,7 +15,7 @@ class Test_vorostart_workflow():
     import timeout_decorator
     @timeout_decorator.timeout(300, use_signals=False)
     def run_timeout(self, builder):
-        from aiida.work.launch import run
+        from aiida.engine.launch import run
         out = run(builder)
         return out
     
@@ -23,7 +23,7 @@ class Test_vorostart_workflow():
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
         """
-        from aiida.orm import Code, load_node, DataFactory
+        from aiida.plugins import Code, load_node, DataFactory
         from aiida.orm.querybuilder import QueryBuilder
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.voro_start import kkr_startpot_wc
@@ -52,14 +52,14 @@ class Test_vorostart_workflow():
         wfd['natom_in_cls_min'] = 20
         wfd['num_rerun'] = 2
         options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
-        params_vorostart = ParameterData(dict=wfd)
-        options = ParameterData(dict=options)
+        params_vorostart = Dict(dict=wfd)
+        options = Dict(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         VoroCode = Code.get_from_string(voro_codename+'@'+computername)
        
         # Finally we use the kkrparams class to prepare a valid set of KKR parameters that are stored as a ParameterData object for the use in aiida
-        ParaNode = ParameterData(dict=kkrparams(LMAX=2, NSPIN=1, RCLUSTZ=1.9).get_dict())
+        ParaNode = Dict(dict=kkrparams(LMAX=2, NSPIN=1, RCLUSTZ=1.9).get_dict())
        
         # create process builder to set parameters
         builder = kkr_startpot_wc.get_builder()

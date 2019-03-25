@@ -18,12 +18,12 @@ class Test_common_workfunctions(object):
 
     def test_generate_inputcard_from_structure(self):
         from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure
-        from aiida.orm import DataFactory
+        from aiida.plugins import DataFactory
         StructureData = DataFactory('structure')
         ParameterData = DataFactory('parameter')
         s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
         s.append_atom(position=[0,0,0], symbols='Fe')
-        p = ParameterData(dict={'LMAX':2, 'NSPIN':2, 'RMAX':10, 'GMAX':100})
+        p = Dict(dict={'LMAX':2, 'NSPIN':2, 'RMAX':10, 'GMAX':100})
         generate_inputcard_from_structure(p, s, 'inputcard')
         txt = open('inputcard', 'r').readlines()
         ref = ['ALATBASIS= 1.88972612545783\n',
@@ -58,12 +58,12 @@ class Test_common_workfunctions(object):
 
     def test_check_2Dinput_consistency(self):
         from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
-        from aiida.orm import DataFactory
+        from aiida.plugins import DataFactory
         StructureData = DataFactory('structure')
         ParameterData = DataFactory('parameter')
         s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
         s.append_atom(position=[0,0,0], symbols='Fe')
-        p = ParameterData(dict={'INTERFACE':True})
+        p = Dict(dict={'INTERFACE':True})
         input_check = check_2Dinput_consistency(s, p)
         assert input_check[0]
         assert input_check[1] == '2D consistency check complete'
@@ -72,12 +72,12 @@ class Test_common_workfunctions(object):
     def test_update_params_wf(self):
         from aiida_kkr.tools.common_workfunctions import update_params_wf
         from masci_tools.io.kkr_params import kkrparams
-        from aiida.orm import DataFactory
+        from aiida.plugins import DataFactory
         ParameterData = DataFactory('parameter')
 
         k = kkrparams(LMAX=2)
-        node1 = ParameterData(dict=k.values)
-        node2 = ParameterData(dict={'nodename': 'my_changed_name', 'nodedesc': 'My description text', 'EMIN': -1, 'RMAX': 10.})
+        node1 = Dict(dict=k.values)
+        node2 = Dict(dict={'nodename': 'my_changed_name', 'nodedesc': 'My description text', 'EMIN': -1, 'RMAX': 10.})
 
         unode = update_params_wf(node1, node1)
         assert unode == node1
@@ -152,7 +152,7 @@ if __name__=='__main__':
     from aiida import load_dbenv, is_dbenv_loaded
     if not is_dbenv_loaded():
         load_dbenv()
-    from aiida.orm import DataFactory
+    from aiida.plugins import DataFactory
     StructureData = DataFactory('structure')
     ParameterData = DataFactory('parameter')
 

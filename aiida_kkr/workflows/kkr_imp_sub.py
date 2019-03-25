@@ -8,9 +8,9 @@ from __future__ import division
 
 from __future__ import absolute_import
 from past.utils import old_div
-from aiida.orm import Code, DataFactory
-from aiida.orm.data.base import Float
-from aiida.work.workchain import WorkChain, ToContext, while_, if_
+from aiida.plugins import Code, DataFactory
+from aiida.orm.nodes.base import Float
+from aiida.engine.workchain import WorkChain, ToContext, while_, if_
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
@@ -138,9 +138,9 @@ class kkr_imp_sub_wc(WorkChain):
         spec.input("kkrimp_remote", valid_type=RemoteData, required=False)
         spec.input("impurity_info", valid_type=ParameterData, required=False)
         spec.input("options", valid_type=ParameterData, required=False,
-                       default=ParameterData(dict=cls._options_default))
+                       default=Dict(dict=cls._options_default))
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
-                       default=ParameterData(dict=cls._wf_default))
+                       default=Dict(dict=cls._wf_default))
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -677,9 +677,9 @@ class kkr_imp_sub_wc(WorkChain):
             self.report("INFO: update parameters to: {}".format(para_check.get_set_values()))
 
             #test
-            self.ctx.last_params = ParameterData(dict={})
+            self.ctx.last_params = Dict(dict={})
 
-            updatenode = ParameterData(dict=para_check.get_dict())
+            updatenode = Dict(dict=para_check.get_dict())
             updatenode.label = label
             updatenode.description = description
 
@@ -1009,7 +1009,7 @@ class kkr_imp_sub_wc(WorkChain):
 
         # create results  node
         self.report("INFO: create results nodes") #: {}".format(outputnode_dict))
-        outputnode_t = ParameterData(dict=outputnode_dict)
+        outputnode_t = Dict(dict=outputnode_dict)
         outputnode_t.label = 'kkr_scf_wc_results'
         outputnode_t.description = 'Contains results of workflow (e.g. workflow version number, info about success of wf, lis tof warnings that occured during execution, ...)'
 

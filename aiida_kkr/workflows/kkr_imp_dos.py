@@ -7,8 +7,8 @@ some helper methods to do so with AiiDA
 from __future__ import print_function
 
 from __future__ import absolute_import
-from aiida.orm import Code, DataFactory, load_node
-from aiida.work.workchain import if_, ToContext, WorkChain
+from aiida.plugins import Code, DataFactory, load_node
+from aiida.engine.workchain import if_, ToContext, WorkChain
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
 
@@ -93,9 +93,9 @@ class kkr_imp_dos_wc(WorkChain):
         spec.input("kkrimp", valid_type=Code, required=True)
         spec.input("host_imp_pot", valid_type=SinglefileData, required=True)        
         spec.input("options", valid_type=ParameterData, required=False,
-                       default=ParameterData(dict=cls._options_default))
+                       default=Dict(dict=cls._options_default))
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
-                       default=ParameterData(dict=cls._wf_default))
+                       default=Dict(dict=cls._wf_default))
     
         # Here the structure of the workflow is defined
         spec.outline(
@@ -144,7 +144,7 @@ class kkr_imp_dos_wc(WorkChain):
         self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
-        self.ctx.options_params_dict = ParameterData(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources, 
+        self.ctx.options_params_dict = Dict(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources, 
                                                            'max_wallclock_seconds': self.ctx.walltime_sec, 'queue_name': self.ctx.queue, 
                                                            'custom_scheduler_commands': self.ctx.custom_scheduler_commands})
         
@@ -236,7 +236,7 @@ class kkr_imp_dos_wc(WorkChain):
         converged_host_remote = self.ctx.conv_host_remote
         imp_info = self.ctx.imp_info
         
-        wf_params_gf = ParameterData(dict={'ef_shift':self.ctx.ef_shift, 'dos_run':True,
+        wf_params_gf = Dict(dict={'ef_shift':self.ctx.ef_shift, 'dos_run':True,
                                            'dos_params':self.ctx.dos_params_dict})
         label_gf = 'GF writeout for imp DOS'
         description_gf = 'GF writeout step with energy contour for impurity DOS'
@@ -266,7 +266,7 @@ class kkr_imp_dos_wc(WorkChain):
         
         nspin = gf_writeout_calc.out.output_parameters.get_attr('nspin')
         self.report('nspin: {}'.format(nspin))
-        self.ctx.kkrimp_params_dict = ParameterData(dict={'nspin': nspin, 
+        self.ctx.kkrimp_params_dict = Dict(dict={'nspin': nspin, 
                                                           'nsteps': self.ctx.nsteps, 
                                                           'kkr_runmax': self.ctx.kkr_runmax, 'non_spherical': self.ctx.non_spherical, 
                                                           'spinorbit': self.ctx.spinorbit, 'newsol': self.ctx.newsol,
@@ -306,7 +306,7 @@ class kkr_imp_dos_wc(WorkChain):
         outputnode_dict['workflow_version'] = self._workflowversion
         outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk, 
                                                 'impurity_dos': self.ctx.kkrimp_dos.pk}  
-        outputnode_t = ParameterData(dict=outputnode_dict)
+        outputnode_t = Dict(dict=outputnode_dict)
         outputnode_t.label = 'kkr_imp_dos_wc_inform'
         outputnode_t.description = 'Contains information for workflow'
         

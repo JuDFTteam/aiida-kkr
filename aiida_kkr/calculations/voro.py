@@ -5,11 +5,11 @@ Input plug-in for a voronoi calculation.
 from __future__ import print_function
 
 from __future__ import absolute_import
-from aiida.orm.calculation.job import JobCalculation
+from aiida.engine.calculation.job import CalcJob
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
-from aiida.orm import DataFactory
+from aiida.plugins import DataFactory
 from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency, vca_check
 from aiida.common.exceptions import UniquenessError
 import os
@@ -26,7 +26,7 @@ StructureData = DataFactory('structure')
 RemoteData = DataFactory('remote')
 SingleFileData = DataFactory('singlefile')
 
-class VoronoiCalculation(JobCalculation):
+class VoronoiCalculation(CalcJob):
     """
     AiiDA calculation plugin for a voronoi calculation (creation of starting potential and shapefun)
     .

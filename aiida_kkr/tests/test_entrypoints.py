@@ -14,21 +14,21 @@ class TestAiida_kkr_entrypoints(object):
     # Calculation
 
     def test_kkrcalculation_entry_point(self):
-        from aiida.orm import CalculationFactory
+        from aiida.plugins import CalculationFactory
         from aiida_kkr.calculations.kkr import KkrCalculation
 
         kkr_calculation = CalculationFactory('kkr.kkr')
         assert kkr_calculation == KkrCalculation
 
     def test_kkrimportercalculation_entry_point(self):
-        from aiida.orm import CalculationFactory
+        from aiida.plugins import CalculationFactory
         from aiida_kkr.calculations.kkrimporter import KkrImporterCalculation
 
         kkrimporter_calculation = CalculationFactory('kkr.kkrimporter')
         assert kkrimporter_calculation == KkrImporterCalculation
 
     def test_kkrimpcalculation_entry_point(self):
-        from aiida.orm import CalculationFactory
+        from aiida.plugins import CalculationFactory
         from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 
         kkrimp_calculation = CalculationFactory('kkr.kkrimp')
@@ -36,7 +36,7 @@ class TestAiida_kkr_entrypoints(object):
 
 
     def test_voronoicalculation_entry_point(self):
-        from aiida.orm import CalculationFactory
+        from aiida.plugins import CalculationFactory
         from aiida_kkr.calculations.voro import VoronoiCalculation
 
         voro_calculation = CalculationFactory('kkr.voro')
@@ -46,7 +46,7 @@ class TestAiida_kkr_entrypoints(object):
     # Data
 
     def test_kkrstructuredata_entry_point(self):
-        from aiida.orm import DataFactory, Data
+        from aiida.plugins import DataFactory, Data
         from aiida_kkr.data.kkrstructure import KkrstructureData
         
         StructureData = DataFactory('structure')

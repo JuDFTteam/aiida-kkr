@@ -6,10 +6,10 @@ some helper methods to do so with AiiDA
 """
 
 from __future__ import absolute_import
-from aiida.orm import Code, DataFactory
-from aiida.work.workchain import WorkChain, while_, if_, ToContext
-from aiida.work.run import submit, run
-from aiida.work import workfunction as wf
+from aiida.plugins import Code, DataFactory
+from aiida.engine.workchain import WorkChain, while_, if_, ToContext
+from aiida.engine.run import submit, run
+from aiida.engine import workfunction as wf
 from aiida.common.datastructures import calc_states
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
@@ -62,7 +62,7 @@ class kkr_check_para_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_check_para_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
-                   default=ParameterData(dict=cls._wf_default))
+                   default=Dict(dict=cls._wf_default))
         spec.input("remote_data", valid_type=RemoteData, required=False)
         spec.input("kkr", valid_type=Code, required=True)
 

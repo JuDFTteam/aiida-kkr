@@ -9,12 +9,12 @@ from __future__ import division
 
 from __future__ import absolute_import
 from past.utils import old_div
-from aiida.orm import Code, DataFactory, load_node
-from aiida.work.workchain import WorkChain, ToContext, if_
+from aiida.plugins import Code, DataFactory, load_node
+from aiida.engine.workchain import WorkChain, ToContext, if_
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
-from aiida.orm.calculation.job import JobCalculation
+from aiida.engine.calculation.job import CalcJob
 from masci_tools.io.common_functions import get_Ry2eV
 from aiida.common.datastructures import calc_states
 from aiida.orm import WorkCalculation
@@ -95,7 +95,7 @@ class kkr_flex_wc(WorkChain):
         
         spec.input("kkr", valid_type=Code, required=True)     
         spec.input("options", valid_type=ParameterData, required=False,
-                       default=ParameterData(dict=cls._options_default))
+                       default=Dict(dict=cls._options_default))
         spec.input("wf_parameters", valid_type=ParameterData, required=False)
         spec.input("remote_data", valid_type=RemoteData, required=True)
         spec.input("impurity_info", valid_type=ParameterData, required=True)
@@ -294,7 +294,7 @@ class kkr_flex_wc(WorkChain):
             runopt.append('KKRFLEX')
             
         self.report('INFO: RUNOPT set to: {}'.format(runopt))
-        para_check = update_params_wf(self.ctx.input_params_KKR, ParameterData(dict={'RUNOPT':runopt}))
+        para_check = update_params_wf(self.ctx.input_params_KKR, Dict(dict={'RUNOPT':runopt}))
         
         if 'wf_parameters' in self.inputs:
             if self.ctx.ef_shift != 0:
@@ -306,9 +306,9 @@ class kkr_flex_wc(WorkChain):
                 # calculate new Fermi energy in Ry
                 ef_new = (ef_old + old_div(ef_shift,get_Ry2eV()))       
                 self.report('INFO: ef_old + ef_shift = ef_new: {} eV + {} eV = {} eV'.format(ef_old*get_Ry2eV(), ef_shift, ef_new*get_Ry2eV()))
-                para_check = update_params_wf(para_check, ParameterData(dict={'ef_set':ef_new}))
+                para_check = update_params_wf(para_check, Dict(dict={'ef_set':ef_new}))
             if self.ctx.dos_run:
-                para_check = update_params_wf(para_check, ParameterData(dict={'EMIN': self.ctx.dos_params_dict['emin'], 
+                para_check = update_params_wf(para_check, Dict(dict={'EMIN': self.ctx.dos_params_dict['emin'], 
                                                                               'EMAX': self.ctx.dos_params_dict['emax'],
                                                                               'NPT2': self.ctx.dos_params_dict['nepts'], 
                                                                               'NPOL': 0, 'NPT1': 0, 'NPT3': 0,
@@ -316,7 +316,7 @@ class kkr_flex_wc(WorkChain):
         self.report(para_check.get_dict())
         
         #construct the final param node containing all of the params   
-        updatenode = ParameterData(dict=para_check.get_dict())
+        updatenode = Dict(dict=para_check.get_dict())
         updatenode.label = label+'KKRparam_flex'
         updatenode.description = descr+'KKR parameter node extracted from parent parameters and wf_parameter and options input node.'
         paranode_flex = update_params_wf(self.ctx.input_params_KKR, updatenode)
@@ -378,7 +378,7 @@ class kkr_flex_wc(WorkChain):
         outputnode_dict['pk_flexcalc'] = self.ctx.flexrun.pk
         outputnode_dict['list_of_errors'] = self.ctx.errors
             
-        outputnode = ParameterData(dict=outputnode_dict)
+        outputnode = Dict(dict=outputnode_dict)
         outputnode.label = 'kkr_flex_wc_results'
         outputnode.description = ''
         outputnode.store()

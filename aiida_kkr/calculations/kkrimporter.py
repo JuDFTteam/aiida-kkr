@@ -5,8 +5,8 @@ Plug-in to import a KKR calculation. This is based on the PwImmigrantCalculation
 
 from __future__ import absolute_import
 import os
-from aiida.orm import DataFactory
-from aiida.orm.calculation.job import _input_subfolder
+from aiida.plugins import DataFactory
+from aiida.engine.calculation.job import _input_subfolder
 from aiida.common.utils import classproperty
 from aiida.common.folders import SandboxFolder
 from aiida.common.exceptions import InputValidationError, InvalidOperation
@@ -186,7 +186,7 @@ class KkrImporterCalculation(KkrCalculation):
             parameters.read_keywords_from_inputcard(inputcard=local_path)
 
             # Create ParameterData node based on the namelist and link as input.
-            aiida_parameters = ParameterData(dict=parameters.get_dict())
+            aiida_parameters = Dict(dict=parameters.get_dict())
             self.use_parameters(aiida_parameters)
 
             # Create a StructureData node from inputs

@@ -16,15 +16,15 @@ if __name__=='__main__':
 
 
 
-from aiida.orm import Code, DataFactory, load_node
-from aiida.work.workchain import WorkChain, if_, ToContext
-from aiida.work.launch import submit
-from aiida.work import workfunction as wf
+from aiida.plugins import Code, DataFactory, load_node
+from aiida.engine.workchain import WorkChain, if_, ToContext
+from aiida.engine.launch import submit
+from aiida.engine import workfunction as wf
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida.orm.calculation.job import JobCalculation
+from aiida.engine.calculation.job import CalcJob
 from aiida.common.datastructures import calc_states
 from aiida.orm import WorkCalculation
 from aiida.common.exceptions import InputValidationError
@@ -92,9 +92,9 @@ class kkr_dos_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_dos_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
-                   default=ParameterData(dict=cls._wf_default))
+                   default=Dict(dict=cls._wf_default))
         spec.input("options", valid_type=ParameterData, required=False,
-                   default=ParameterData(dict=cls._wf_default))
+                   default=Dict(dict=cls._wf_default))
         spec.input("remote_data", valid_type=RemoteData, required=True)
         spec.input("kkr", valid_type=Code, required=True)
 
@@ -278,7 +278,7 @@ class kkr_dos_wc(WorkChain):
         except:
             return self.exit_codes.ERROR_DOS_PARAMS_INVALID
 
-        updatenode = ParameterData(dict=para_check.get_dict())
+        updatenode = Dict(dict=para_check.get_dict())
         updatenode.label = label+'KKRparam_DOS'
         updatenode.description = descr+'KKR parameter node extracted from parent parameters and wf_parameter input node.'
 
@@ -346,7 +346,7 @@ class kkr_dos_wc(WorkChain):
         outputnode_dict['successful'] = self.ctx.successful
         outputnode_dict['list_of_errors'] = self.ctx.errors
 
-        outputnode = ParameterData(dict=outputnode_dict)
+        outputnode = Dict(dict=outputnode_dict)
         outputnode.label = 'kkr_scf_wc_results'
         outputnode.description = ''
         outputnode.store()
@@ -381,7 +381,7 @@ def parse_dosfiles(dospath):
     """
     from masci_tools.io.common_functions import interpolate_dos
     from masci_tools.io.common_functions import get_Ry2eV
-    from aiida.orm import DataFactory
+    from aiida.plugins import DataFactory
     XyData = DataFactory('array.xy')
 
     eVscale = get_Ry2eV()

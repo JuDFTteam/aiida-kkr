@@ -56,7 +56,7 @@ class Test_voronoi_calculation(object):
         """
         simple Cu noSOC, FP, lmax2 full example 
         """
-        from aiida.orm import Code, DataFactory
+        from aiida.plugins import Code, DataFactory
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.voro import VoronoiCalculation
        
@@ -73,7 +73,7 @@ class Test_voronoi_calculation(object):
         params = kkrparams(params_type='voronoi')
         params.set_multiple_values(LMAX=2, NSPIN=1, RCLUSTZ=2.3)
         ParameterData = DataFactory('parameter') # use DataFactory to get ParamerterData class
-        ParaNode = ParameterData(dict=params.get_dict())
+        ParaNode = Dict(dict=params.get_dict())
 
         # import computer etc from database dump
         from aiida.orm.importexport import import_data

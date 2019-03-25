@@ -9,10 +9,10 @@ from __future__ import division
 
 from __future__ import absolute_import
 from past.utils import old_div
-from aiida.orm import Code, DataFactory
-from aiida.work.workchain import WorkChain, while_, if_, ToContext
-from aiida.work.launch import submit
-from aiida.work import workfunction as wf
+from aiida.plugins import Code, DataFactory
+from aiida.engine.workchain import WorkChain, while_, if_, ToContext
+from aiida.engine.launch import submit
+from aiida.engine import workfunction as wf
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from masci_tools.io.kkr_params import kkrparams
@@ -100,9 +100,9 @@ class kkr_startpot_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_startpot_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
-                   default=ParameterData(dict=cls._wf_default))
+                   default=Dict(dict=cls._wf_default))
         spec.input("options", valid_type=ParameterData, required=False,
-                   default=ParameterData(dict=cls._options_default))
+                   default=Dict(dict=cls._options_default))
         spec.input("structure", valid_type=StructureData, required=True)
         spec.input("kkr", valid_type=Code, required=False)
         spec.input("voronoi", valid_type=Code, required=True)
@@ -286,7 +286,7 @@ class kkr_startpot_wc(WorkChain):
                 for key, val in self._kkr_default_params[0].items():
                     kkrparams_default.set_value(key, val, silent=True)
                 # create ParameterData node
-                params = ParameterData(dict=kkrparams_default.get_dict())
+                params = Dict(dict=kkrparams_default.get_dict())
                 params.label = 'Defaults for KKR parameter node'
                 params.description = 'defaults as defined in kkrparams of version {}'.format(para_version)
             #  set last_params accordingly (used below for provenance tracking)
@@ -360,7 +360,7 @@ class kkr_startpot_wc(WorkChain):
                 kkr_para.set_value('GMAX', gmax_input)
                 self.report("INFO: setting GMAX to {} (needed for DOS check with KKRcode)".format(gmax_input))
 
-            updatenode = ParameterData(dict=kkr_para.get_dict())
+            updatenode = Dict(dict=kkr_para.get_dict())
             updatenode.description = 'changed values: {}'.format(update_list)
             if first_iter:
                 updatenode.label = 'initial params from wf input'
@@ -496,7 +496,7 @@ class kkr_startpot_wc(WorkChain):
                               'use_mpi' : self.ctx.use_mpi,
                               'custom_scheduler_commands' : self.ctx.custom_scheduler_commands,
                               'dos_params' : self.ctx.dos_params_dict}
-            wfdospara_node = ParameterData(dict=wfdospara_dict)
+            wfdospara_node = Dict(dict=wfdospara_dict)
             wfdospara_node.label = 'DOS params'
             wfdospara_node.description = 'DOS parameters passed from kkr_startpot_wc input to DOS sub-workflow'
 
@@ -652,7 +652,7 @@ class kkr_startpot_wc(WorkChain):
         res_node_dict['starting_fermi_energy'] = self.ctx.efermi
 
 
-        res_node = ParameterData(dict=res_node_dict)
+        res_node = Dict(dict=res_node_dict)
         res_node.label = 'vorostart_wc_results'
         res_node.description = ''
 

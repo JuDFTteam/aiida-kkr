@@ -7,7 +7,7 @@ all errors and warnings and show them to the user.
 
 from __future__ import absolute_import
 from aiida.parsers.parser import Parser
-from aiida.orm.data.parameter import ParameterData
+from aiida.orm.nodes.parameter import Dict
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from aiida.common.exceptions import InputValidationError
 from masci_tools.io.parsers.kkrparser_functions import check_error_category
@@ -174,7 +174,7 @@ class KkrimpParser(Parser):
         out_dict['parser_errors'] = msg_list
         
         #create output node and link
-        output_data = ParameterData(dict=out_dict)
+        output_data = Dict(dict=out_dict)
         link_name = self.get_linkname_outparams()
         node_list = [(link_name, output_data)]
             

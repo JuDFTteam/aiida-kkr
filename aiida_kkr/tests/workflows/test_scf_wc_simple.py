@@ -34,7 +34,7 @@ class Test_scf_workflow():
     import timeout_decorator
     @timeout_decorator.timeout(300, use_signals=False)
     def run_timeout(self, builder):
-        from aiida.work.launch import run
+        from aiida.engine.launch import run
         out = run(builder)
         return out
     
@@ -42,7 +42,7 @@ class Test_scf_workflow():
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
         """
-        from aiida.orm import Code, load_node, DataFactory
+        from aiida.plugins import Code, load_node, DataFactory
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
         from pprint import pprint
@@ -82,17 +82,17 @@ class Test_scf_workflow():
         wfd['num_rerun'] = 2
         wfd['natom_in_cls_min'] = 20
        
-        KKRscf_wf_parameters = ParameterData(dict=wfd)
+        KKRscf_wf_parameters = Dict(dict=wfd)
 
         options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
-        options = ParameterData(dict=options)
+        options = Dict(dict=options)
        
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         VoroCode = Code.get_from_string(voro_codename+'@'+computername)
         KKRCode = Code.get_from_string(kkr_codename+'@'+computername)
        
         # Finally we use the kkrparams class to prepare a valid set of KKR parameters that are stored as a ParameterData object for the use in aiida
-        ParaNode = ParameterData(dict=kkrparams(LMAX=2, RMAX=7, GMAX=65, NSPIN=1, RCLUSTZ=1.9).get_dict())
+        ParaNode = Dict(dict=kkrparams(LMAX=2, RMAX=7, GMAX=65, NSPIN=1, RCLUSTZ=1.9).get_dict())
        
         label = 'KKR-scf for Cu bulk'
         descr = 'KKR self-consistency workflow for Cu bulk'

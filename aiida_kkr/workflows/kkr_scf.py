@@ -9,9 +9,9 @@ from __future__ import division
 
 from __future__ import absolute_import
 from past.utils import old_div
-from aiida.orm import Code, DataFactory, load_node
-from aiida.work.workchain import WorkChain, while_, if_, ToContext
-from aiida.work import workfunction as wf
+from aiida.plugins import Code, DataFactory, load_node
+from aiida.engine.workchain import WorkChain, while_, if_, ToContext
+from aiida.engine import workfunction as wf
 from aiida.common.datastructures import calc_states
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
@@ -144,9 +144,9 @@ class kkr_scf_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_scf_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=ParameterData, required=False,
-                   default=ParameterData(dict=cls._wf_default))
+                   default=Dict(dict=cls._wf_default))
         spec.input("options", valid_type=ParameterData, required=False,
-                   default=ParameterData(dict=cls._wf_default))
+                   default=Dict(dict=cls._wf_default))
         spec.input("structure", valid_type=StructureData, required=False)
         spec.input("calc_parameters", valid_type=ParameterData, required=False)
         spec.input("remote_data", valid_type=RemoteData, required=False)
@@ -260,7 +260,7 @@ class kkr_scf_wc(WorkChain):
         self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
-        self.ctx.options_params_dict = ParameterData(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources,
+        self.ctx.options_params_dict = Dict(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources,
                                                            'max_wallclock_seconds': self.ctx.walltime_sec, 'queue_name': self.ctx.queue,
                                                            'custom_scheduler_commands': self.ctx.custom_scheduler_commands})
 
@@ -398,7 +398,7 @@ class kkr_scf_wc(WorkChain):
         # set params and remote folder to input if voronoi step is skipped
         if not run_voronoi:
             self.ctx.last_remote = inputs.remote_data
-            from aiida.orm.calculation.job import JobCalculation
+            from aiida.engine.calculation.job import CalcJob
             num_parents = len(self.ctx.last_remote.get_inputs(node_type=JobCalculation))
             if num_parents == 0:
                 pk_last_remote = self.ctx.last_remote.inp.last_RemoteData.out.output_kkr_scf_wc_ParameterResults.get_dict().get('last_calc_nodeinfo').get('pk')
@@ -448,7 +448,7 @@ class kkr_scf_wc(WorkChain):
         # check if default values are missing and set appropriately from defaults
         defaults, version = kkrparams.get_KKRcalc_parameter_defaults()
         if params is None:
-            params = ParameterData(dict=defaults)
+            params = Dict(dict=defaults)
             params.label = 'default values'
         newparams = {}
         for key, val in defaults.items():
@@ -460,7 +460,7 @@ class kkr_scf_wc(WorkChain):
             for key, val in params.get_dict().items():
                 if val is not None:
                     newparams[key] = val
-            updatenode = ParameterData(dict=newparams)
+            updatenode = Dict(dict=newparams)
             updatenode.label = 'added defaults to KKR input parameter'
             updatenode.description = 'Overwritten KKR input parameter to correct missing default values automatically'
             params = update_params_wf(params, updatenode)
@@ -478,7 +478,7 @@ class kkr_scf_wc(WorkChain):
                 self.report('WARNING: found NSPIN=1 but for maginit needs NPIN=2. Overwrite this automatically')
                 para_check.set_value('NSPIN', 2, silent=True)
                 self.report("INFO: update parameters to: {}".format(para_check.get_set_values()))
-                updatenode = ParameterData(dict=para_check.get_dict())
+                updatenode = Dict(dict=para_check.get_dict())
                 updatenode.label = 'overwritten KKR input parameters'
                 updatenode.description = 'Overwritten KKR input parameter to correct NSPIN to 2'
                 params = update_params_wf(params, updatenode)
@@ -499,7 +499,7 @@ class kkr_scf_wc(WorkChain):
                     num_updated += 1
             if num_updated > 0:
                 label = "voro_start_updated_params"
-        sub_wf_params = ParameterData(dict=sub_wf_params_dict)
+        sub_wf_params = Dict(dict=sub_wf_params_dict)
         sub_wf_params.label = label
         sub_wf_params.description = description
 
@@ -809,7 +809,7 @@ class kkr_scf_wc(WorkChain):
 
             # step 3:
             self.report("INFO: update parameters to: {}".format(para_check.get_set_values()))
-            updatenode = ParameterData(dict=para_check.get_dict())
+            updatenode = Dict(dict=para_check.get_dict())
             updatenode.label = label
             updatenode.description = description
 
@@ -1134,7 +1134,7 @@ class kkr_scf_wc(WorkChain):
 
         # create results  node
         self.report("INFO: create results node") #: {}".format(outputnode_dict))
-        outputnode_t = ParameterData(dict=outputnode_dict)
+        outputnode_t = Dict(dict=outputnode_dict)
         outputnode_t.label = 'kkr_scf_wc_results'
         outputnode_t.description = 'Contains results of workflow (e.g. workflow version number, info about success of wf, lis tof warnings that occured during execution, ...)'
 
@@ -1274,7 +1274,7 @@ class kkr_scf_wc(WorkChain):
                               'use_mpi' : self.ctx.use_mpi,
                               'custom_scheduler_commands' : self.ctx.custom_scheduler_commands,
                               'dos_params' : self.ctx.dos_params}
-            wfdospara_node = ParameterData(dict=wfdospara_dict)
+            wfdospara_node = Dict(dict=wfdospara_dict)
             wfdospara_node.label = 'DOS params'
             wfdospara_node.description = 'DOS parameter set for final DOS calculation of kkr_scf_wc'
 

@@ -9,10 +9,10 @@ from __future__ import division
 
 from __future__ import absolute_import
 from past.utils import old_div
-from aiida.orm import Code, DataFactory, load_node
-from aiida.orm.data.base import Float, Bool
-from aiida.work.workchain import WorkChain, ToContext
-from aiida.work.workfunctions import workfunction as wf
+from aiida.plugins import Code, DataFactory, load_node
+from aiida.orm.nodes.base import Float, Bool
+from aiida.engine.workchain import WorkChain, ToContext
+from aiida.engine.workfunctions import workfunction as wf
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.tools.common_workfunctions import update_params_wf
@@ -91,9 +91,9 @@ class kkr_eos_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_eos_wc, cls).define(spec)
         spec.input("options", valid_type=ParameterData, required=False,         # computer options
-                   default=ParameterData(dict=cls._options_default))
+                   default=Dict(dict=cls._options_default))
         spec.input("wf_parameters", valid_type=ParameterData, required=False,   # workfunction settings
-                   default=ParameterData(dict=cls._wf_default))
+                   default=Dict(dict=cls._wf_default))
         spec.input("kkr", valid_type=Code, required=True)                       # KKRhost code
         spec.input("voronoi", valid_type=Code, required=True)                   # voronoi code
         spec.input("structure", valid_type=StructureData, required=True)        # starting structure node
@@ -217,7 +217,7 @@ class kkr_eos_wc(WorkChain):
                 wfd[key] = vorostart_settings[key]
         scaled_struc = self.ctx.scaled_structures[0]
         future = self.submit(kkr_startpot_wc, structure=scaled_struc, kkr=self.ctx.kkr,
-                             voronoi=self.ctx.voro, wf_parameters=ParameterData(dict=wfd),
+                             voronoi=self.ctx.voro, wf_parameters=Dict(dict=wfd),
                              calc_parameters=self.ctx.calc_parameters,
                              options=self.ctx.wf_options)
 
@@ -258,7 +258,7 @@ class kkr_eos_wc(WorkChain):
         voro_params_with_rmtcore = kkrparams(**voro_params.get_dict())
         voro_params_with_rmtcore.set_value('<RMTCORE>', rmtcore_min)
         voro_params_with_rmtcore_dict = voro_params_with_rmtcore.get_dict()
-        voro_params_with_rmtcore = update_params_wf(voro_params, ParameterData(dict=voro_params_with_rmtcore_dict))
+        voro_params_with_rmtcore = update_params_wf(voro_params, Dict(dict=voro_params_with_rmtcore_dict))
         self.report('INFO: updated kkr_parameters inlcuding RMTCORE setting (uuid={})'.format(voro_params_with_rmtcore.uuid))
 
         # store links to context
@@ -291,7 +291,7 @@ class kkr_eos_wc(WorkChain):
         # submit first calculation separately
         self.report('submit calc for scale fac= {} on {}'.format(self.ctx.scale_factors[0], self.ctx.scaled_structures[0].get_formula()))
         future = self.submit(kkr_scf_wc, kkr=self.ctx.kkr, remote_data=self.ctx.smallest_voro_remote,
-                             wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run,
+                             wf_parameters=Dict(dict=wfd), calc_parameters=self.ctx.params_kkr_run,
                              options=self.ctx.wf_options)
         scale_fac = self.ctx.scale_factors[0]
         calcs['kkr_{}_{}'.format(1, scale_fac)] = future
@@ -303,7 +303,7 @@ class kkr_eos_wc(WorkChain):
             scaled_struc = self.ctx.scaled_structures[i+1]
             self.report('submit calc for scale fac= {} on {}'.format(scale_fac, scaled_struc.get_formula()))
             future = self.submit(kkr_scf_wc, structure=scaled_struc, kkr=self.ctx.kkr, voronoi=self.ctx.voro,
-                                 wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run,
+                                 wf_parameters=Dict(dict=wfd), calc_parameters=self.ctx.params_kkr_run,
                                  options=self.ctx.wf_options)
             calcs['kkr_{}_{}'.format(i+2, scale_fac)] = future
             self.ctx.sub_wf_ids['kkr_scf_{}'.format(i+2)] = future.uuid
@@ -437,7 +437,7 @@ class kkr_eos_wc(WorkChain):
             outdict['gs_structure_uuid'] = gs_structure.uuid
 
         # create output nodes in dict with link names
-        outnodes = {'eos_results': ParameterData(dict=outdict)}
+        outnodes = {'eos_results': Dict(dict=outdict)}
         if self.ctx.return_gs_struc:
             outnodes['gs_structure'] = gs_structure
             if self.ctx.use_primitive_structure:

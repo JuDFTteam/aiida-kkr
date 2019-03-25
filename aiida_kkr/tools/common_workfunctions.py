@@ -9,8 +9,8 @@ from __future__ import division
 from __future__ import absolute_import
 from past.utils import old_div
 from aiida.common.exceptions import InputValidationError
-from aiida.work import workfunction as wf
-from aiida.orm import DataFactory
+from aiida.engine import workfunction as wf
+from aiida.plugins import DataFactory
 from masci_tools.io.kkr_params import kkrparams
 from six.moves import range
 
@@ -131,7 +131,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
 
 
     # create new node
-    ParaNode = ParameterData(dict=params.values)
+    ParaNode = Dict(dict=params.values)
     ParaNode.label = nodename
     ParaNode.description = nodedesc
 
@@ -774,8 +774,8 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
     from aiida_kkr.tools.tools_kkrimp import modify_potential
     from aiida.common.folders import SandboxFolder
     from aiida.common.exceptions import UniquenessError
-    from aiida.orm.calculation.job import JobCalculation
-    from aiida.orm import DataFactory
+    from aiida.engine.calculation.job import CalcJob
+    from aiida.plugins import DataFactory
 
     if 'parent_calc_folder2' in list(kwargs.keys()):
         parent_calc_folder2=kwargs.get('parent_calc_folder2', None)
@@ -972,7 +972,7 @@ def kick_out_corestates_wf(potential_sfd, emin):
     :returns: potential without core states higher than emin (SingleFileData)
     """
     from aiida.common.folders import SandboxFolder
-    from aiida.orm import DataFactory
+    from aiida.plugins import DataFactory
 
     SingleFileData = DataFactory('singlefile')
 

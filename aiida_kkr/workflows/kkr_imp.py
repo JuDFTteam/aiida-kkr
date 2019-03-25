@@ -5,9 +5,9 @@ and some helper methods to do so with AiiDA
 """
 from __future__ import print_function
 from __future__ import absolute_import
-from aiida.orm import Code, DataFactory, load_node
-from aiida.work.workchain import WorkChain, ToContext, if_
-from aiida.work.workfunctions import workfunction as wf
+from aiida.plugins import Code, DataFactory, load_node
+from aiida.engine.workchain import WorkChain, ToContext, if_
+from aiida.engine.workfunctions import workfunction as wf
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, neworder_potential_wf
@@ -202,7 +202,7 @@ class kkr_imp_wc(WorkChain):
         self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
-        self.ctx.options_params_dict = ParameterData(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources, 'max_wallclock_seconds': self.ctx.walltime_sec,
+        self.ctx.options_params_dict = Dict(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources, 'max_wallclock_seconds': self.ctx.walltime_sec,
                                                            'queue_name': self.ctx.queue, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands})
 
         # set label and description of the workflow
@@ -220,7 +220,7 @@ class kkr_imp_wc(WorkChain):
         self.ctx.voro_check_dos = voro_aux_dict.get('check_dos', self._voro_aux_default['check_dos'])
         self.ctx.voro_delta_e_min_core_states = voro_aux_dict.get('delta_e_min_core_states', self._voro_aux_default['delta_e_min_core_states'])
         # set up new parameter dict to pass to voronoi subworkflow later
-        self.ctx.voro_params_dict = ParameterData(dict={'queue_name': self.ctx.queue, 'resources': self.ctx.resources, 'walltime_sec': self.ctx.walltime_sec,
+        self.ctx.voro_params_dict = Dict(dict={'queue_name': self.ctx.queue, 'resources': self.ctx.resources, 'walltime_sec': self.ctx.walltime_sec,
                                                         'use_mpi': self.ctx.use_mpi, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
                                                         'dos_params': self.ctx.voro_dos_params, 'num_rerun': self.ctx.voro_num_rerun,
                                                         'fac_cls_increase': self.ctx.voro_fac_cls_increase, 'r_cls': self.ctx.voro_r_cls,
@@ -249,7 +249,7 @@ class kkr_imp_wc(WorkChain):
         self.ctx.spinorbit = wf_dict.get('spinorbit', self._wf_default['spinorbit'])
         self.ctx.newsol = wf_dict.get('newsol', self._wf_default['newsol'])
         # set up new parameter dict to pass to kkrimp subworkflow later
-        self.ctx.kkrimp_params_dict = ParameterData(dict={'nspin': self.ctx.nspin, 'nsteps': self.ctx.nsteps, 'kkr_runmax': self.ctx.kkr_runmax,
+        self.ctx.kkrimp_params_dict = Dict(dict={'nspin': self.ctx.nspin, 'nsteps': self.ctx.nsteps, 'kkr_runmax': self.ctx.kkr_runmax,
                                                           'threshold_aggressive_mixing': self.ctx.threshold_aggressive_mixing,
                                                           'convergence_criterion': self.ctx.convergence_criterion, 'mixreduce': self.ctx.mixreduce,
                                                           'strmix': self.ctx.strmix, 'aggressive_mix': self.ctx.aggressive_mix,
@@ -450,7 +450,7 @@ class kkr_imp_wc(WorkChain):
 
         settings_label = 'startpot_KKRimp for imp_info node {}'.format(imp_info.pk)
         settings_description = 'starting potential for impurity info: {}'.format(imp_info)
-        settings = ParameterData(dict={'pot1': potname_converged,  'out_pot': potname_imp, 'neworder': neworder_pot1,
+        settings = Dict(dict={'pot1': potname_converged,  'out_pot': potname_imp, 'neworder': neworder_pot1,
                                        'pot2': potname_impvorostart, 'replace_newpos': replacelist_pot2, 'label': settings_label,
                                        'description': settings_description})
         startpot_kkrimp = neworder_potential_wf(settings_node=settings, parent_calc_folder=converged_host_remote,
@@ -527,7 +527,7 @@ class kkr_imp_wc(WorkChain):
         outputnode_dict['voro_wc_success'] = res_voro_info.get_attr('successful')
         outputnode_dict['kkrimp_wc_success'] = last_calc_info.get_attr('successful')
         outputnode_dict['last_calculation_pk'] = last_calc_pk
-        outputnode_t = ParameterData(dict=outputnode_dict)
+        outputnode_t = Dict(dict=outputnode_dict)
         outputnode_t.label = 'kkrimp_wc_inform'
         outputnode_t.description = 'Contains information for workflow'
         self.report('INFO: workflow_info node: {}'.format(outputnode_t.get_attrs()))
