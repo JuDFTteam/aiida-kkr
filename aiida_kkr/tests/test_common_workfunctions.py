@@ -20,7 +20,7 @@ class Test_common_workfunctions(object):
         from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure
         from aiida.plugins import DataFactory
         StructureData = DataFactory('structure')
-        ParameterData = DataFactory('dict')
+        Dict = DataFactory('dict')
         s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
         s.append_atom(position=[0,0,0], symbols='Fe')
         p = Dict(dict={'LMAX':2, 'NSPIN':2, 'RMAX':10, 'GMAX':100})
@@ -60,7 +60,7 @@ class Test_common_workfunctions(object):
         from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
         from aiida.plugins import DataFactory
         StructureData = DataFactory('structure')
-        ParameterData = DataFactory('dict')
+        Dict = DataFactory('dict')
         s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
         s.append_atom(position=[0,0,0], symbols='Fe')
         p = Dict(dict={'INTERFACE':True})
@@ -73,14 +73,14 @@ class Test_common_workfunctions(object):
         from aiida_kkr.tools.common_workfunctions import update_params_wf
         from masci_tools.io.kkr_params import kkrparams
         from aiida.plugins import DataFactory
-        ParameterData = DataFactory('dict')
+        Dict = DataFactory('dict')
 
         k = kkrparams(LMAX=2)
         node1 = Dict(dict=k.values)
         node2 = Dict(dict={'nodename': 'my_changed_name', 'nodedesc': 'My description text', 'EMIN': -1, 'RMAX': 10.})
 
         unode = update_params_wf(node1, node1)
-        assert unode == node1
+        assert unode.get_dict() == node1.get_dict()
 
         unode = update_params_wf(node1, node2)
 
@@ -154,7 +154,7 @@ if __name__=='__main__':
         load_dbenv()
     from aiida.plugins import DataFactory
     StructureData = DataFactory('structure')
-    ParameterData = DataFactory('dict')
+    Dict = DataFactory('dict')
 
     t = Test_common_workfunctions()
 

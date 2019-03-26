@@ -8,33 +8,33 @@ from __future__ import division
 from __future__ import absolute_import
 from past.utils import old_div
 from aiida.common.exceptions import InputValidationError
-from aiida.engine import workfunction as wf
+from aiida.engine import calcfunction
 from aiida.plugins import DataFactory
 from masci_tools.io.kkr_params import kkrparams
 from six.moves import range
 
 #define aiida structures from DataFactory of aiida
-ParameterData = DataFactory('dict')
+Dict = DataFactory('dict')
 
 # keys that are used by aiida-kkr some something else than KKR parameters
 _ignored_keys = ['ef_set', 'use_input_alat']
 
-@wf
+@calcfunction
 def update_params_wf(parameternode, updatenode):
     """
     Work function to update a KKR input parameter node.
     Stores new node in database and creates a link from old parameter node to new node
     Returns updated parameter node using update_params function
 
-    :note: Input nodes need to be valid aiida ParameterData objects.
+    :note: Input nodes need to be valid aiida Dict objects.
 
-    :param parameternode: Input aiida ParameterData node cotaining KKR specific parameters
-    :param updatenode: Input aiida ParameterData node containing a dictionary with the parameters that are supposed to be changed.
+    :param parameternode: Input aiida Dict node cotaining KKR specific parameters
+    :param updatenode: Input aiida Dict node containing a dictionary with the parameters that are supposed to be changed.
 
     :note: If 'nodename' is contained in dict of updatenode the string corresponding to this key will be used as nodename for the new node. Otherwise a default name is used
     :note: Similar for 'nodedesc' which gives new node a description
 
-    :example: updated_params = ParameterData(dict={'nodename': 'my_changed_name', 'nodedesc': 'My description text', 'EMIN': -1, 'RMAX': 10.})
+    :example: updated_params = Dict(dict={'nodename': 'my_changed_name', 'nodedesc': 'My description text', 'EMIN': -1, 'RMAX': 10.})
               new_params_node = update_params_wf(input_node, updated_params)
     """
     updatenode_dict = updatenode.get_dict()
@@ -77,8 +77,8 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
     :note: By default nodename is 'updated KKR parameters' and description contains list of changed
     """
     # check if node is a valid KKR parameters node
-    if not isinstance(node, ParameterData):
-        print('Input node is not a valid ParameterData node')
+    if not isinstance(node, Dict):
+        print('Input node is not a valid Dict node')
         raise InputValidationError('update_params needs valid parameter node as input')
 
     #initialize temporary kkrparams instance containing all possible KKR parameters
@@ -104,7 +104,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
     # check if values are given as **kwargs (otherwise return input node)
     if len(kwargs)==0:
         print('No additional input keys given, return input node')
-        return node
+        return node.clone()
     else:
         for key in kwargs:
             # check if value of 'key' should be set (either because it differs from old para node or because it was not set at all)
@@ -120,7 +120,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
 
     if len(list(changed_params.keys()))==0:
         print('No keys have been changed, return input node')
-        return node
+        return node.clone()
 
     # set linkname with input or default value
     if nodename is None or type(nodename) is not str:
@@ -141,7 +141,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
 # increase ZATOM which violates the _do_never_modify rule in KKR calculation
 # this should then create a new structure and modify the old potential accordingly
 # general rule: Nover destroy the data provenance!!!
-@wf
+@calcfunction
 def prepare_VCA_structure_wf():
     pass
 
@@ -151,7 +151,7 @@ def prepare_VCA_structure():
 
 #TODO implement 2D input helper
 # a helper workfunction would be nice to create the vacuum region etc. for 2D calculation
-@wf
+@calcfunction
 def prepare_2Dcalc_wf():
     pass
 
@@ -449,11 +449,11 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
         sitekind = structure.get_kind(site.kind_name)
         for ikind in range(len(sitekind.symbols)):
             site_symbol = sitekind.symbols[ikind]
-            if sitekind.is_alloy():
+            if sitekind.is_alloy:
                 wght = sitekind.weights[ikind]
             else:
                 wght = 1.
-            if not sitekind.has_vacancies():
+            if not sitekind.has_vacancies:
                 zatom_tmp = _atomic_numbers[site_symbol]
             else:
                 zatom_tmp = 0.0
@@ -604,7 +604,7 @@ def check_2Dinput_consistency(structure, parameters):
     Check if structure and parameter data are complete and matching.
 
     :param input: structure, needs to be a valid aiida StructureData node
-    :param input: parameters, needs to be valid aiida ParameterData node
+    :param input: parameters, needs to be valid aiida Dict node
 
     returns (False, errormessage) if an inconsistency has been found, otherwise return (True, '2D consistency check complete')
     """
@@ -736,7 +736,7 @@ def structure_from_params(parameters):
     # finally return structure
     return is_complete, struc
 
-@wf
+@calcfunction
 def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, parent_calc_folder2=None):
     """
     Workfunction to create database structure for aiida_kkr.tools.modify_potential.neworder_potential function
@@ -744,7 +744,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
     the input computer node before the output potential is stored as SingleFileData
     in the Database.
 
-    :param settings_node: settings for the neworder_potentail function (ParameterData)
+    :param settings_node: settings for the neworder_potentail function (Dict)
     :param parent_calc_folder: parent calculation remote folder node where the input
         potential is retreived from (RemoteData)
     :param parent_calc_folder2: *optional*, parent calculation remote folder node where
@@ -779,13 +779,13 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
         parent_calc_folder2=None
 
     # get aiida data types used here
-    ParameterData = DataFactory('dict')
+    Dict = DataFactory('dict')
     RemoteData = DataFactory('remote')
     SingleFileData = DataFactory('singlefile')
 
     # check input consistency
-    if not isinstance(settings_node, ParameterData):
-        raise InputValidationError('settings_node needs to be a valid aiida ParameterData node')
+    if not isinstance(settings_node, Dict):
+        raise InputValidationError('settings_node needs to be a valid aiida Dict node')
     if not isinstance(parent_calc_folder, RemoteData):
         raise InputValidationError('parent_calc_folder needs to be a valid aiida RemoteData node')
     if parent_calc_folder2 is not None and not isinstance(parent_calc_folder2, RemoteData):
@@ -959,7 +959,7 @@ def kick_out_corestates(potfile, potfile_out, emin):
         return num_deleted
 
 
-@wf
+@calcfunction
 def kick_out_corestates_wf(potential_sfd, emin):
     """
     Workfunction that kicks out all core states from single file data potential that are higher than emin.
