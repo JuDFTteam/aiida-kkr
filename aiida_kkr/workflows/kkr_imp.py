@@ -28,7 +28,7 @@ __contributors__ = u"Fabian Bertoldo"
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('dict')
+Dict = DataFactory('dict')
 SinglefileData = DataFactory('singlefile')
 FolderData = DataFactory('folder')
 
@@ -40,9 +40,9 @@ class kkr_imp_wc(WorkChain):
     and impurity_info node), or with a converged host potential and impurity
     startpotentials, ... to calculate the converged host-impurity potential of the system.
 
-    :param options: (ParameterData), Workchain specifications
-    :param wf_parameters: (ParameterData), specifications for the kkr impurity workflow
-    :param voro_aux_parameters: (ParameterData), specification for the auxiliary voronoi calculation for the impurity
+    :param options: (Dict), Workchain specifications
+    :param wf_parameters: (Dict), specifications for the kkr impurity workflow
+    :param voro_aux_parameters: (Dict), specification for the auxiliary voronoi calculation for the impurity
     :param kkrimp: (Code), mandatory: KKRimp code converging the host-imp-potential
     :param kkr: (Code), mandatory: KKR code for calculation the host potential
     :param voronoi: (Code), mandatory: Voronoi code to generate the impurity startpot
@@ -51,10 +51,10 @@ class kkr_imp_wc(WorkChain):
     :param remote_data_host: (RemoteData): remote folder of a converged KKR
                                            host calculation
 
-    :return workflow_info: (ParameterData), Information of workflow results
-    :return last_calc_output_parameters: (ParameterData), output parameters of
+    :return workflow_info: (Dict), Information of workflow results
+    :return last_calc_output_parameters: (Dict), output parameters of
                                          the last called calculation
-    :return last_calc_info: (ParameterData), information of the last called calculation
+    :return last_calc_info: (Dict), information of the last called calculation
     """
 
 
@@ -131,13 +131,13 @@ class kkr_imp_wc(WorkChain):
         # define the inputs of the workflow
         spec.input("voronoi", valid_type=Code, required=True)
         spec.input("kkrimp", valid_type=Code, required=True)
-        spec.input("impurity_info", valid_type=ParameterData, required=True)
+        spec.input("impurity_info", valid_type=Dict, required=True)
         spec.input("kkr", valid_type=Code, required=True)
         spec.input("remote_data_host", valid_type=RemoteData, required=False)
         spec.input("remote_data_gf", valid_type=RemoteData, required=False)
-        spec.input("options", valid_type=ParameterData, required=False)
-        spec.input("voro_aux_parameters", valid_type=ParameterData, required=False)
-        spec.input("wf_parameters", valid_type=ParameterData, required=False)
+        spec.input("options", valid_type=Dict, required=False)
+        spec.input("voro_aux_parameters", valid_type=Dict, required=False)
+        spec.input("wf_parameters", valid_type=Dict, required=False)
 
 
         # structure of the workflow
@@ -165,9 +165,9 @@ class kkr_imp_wc(WorkChain):
 
 
         # define the outputs of the workflow
-        spec.output('workflow_info', valid_type=ParameterData)
-        spec.output('last_calc_output_parameters', valid_type=ParameterData)
-        spec.output('last_calc_info', valid_type=ParameterData)
+        spec.output('workflow_info', valid_type=Dict)
+        spec.output('last_calc_output_parameters', valid_type=Dict)
+        spec.output('last_calc_info', valid_type=Dict)
 
 
 

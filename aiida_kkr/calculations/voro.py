@@ -156,7 +156,7 @@ class VoronoiCalculation(CalcJob):
             use_alat_input = parameters.get_dict().get('use_input_alat', False)
             natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_filename, isvoronoi=True, vca_structure=vca_structure, use_input_alat=use_alat_input)
         except ValueError as e:
-            raise InputValidationError("Input ParameterData not consistent: {}".format(e))
+            raise InputValidationError("Input Dict not consistent: {}".format(e))
 
         # Decide what files to copy
         local_copy_list = []

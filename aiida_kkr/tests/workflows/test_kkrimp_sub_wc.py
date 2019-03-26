@@ -29,7 +29,7 @@ class Test_kkrimp_scf_workflow():
         from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
         from numpy import array
 
-        ParameterData = DataFactory('dict')
+        Dict = DataFactory('dict')
         StructureData = DataFactory('structure')
 
         # prepare computer and code (needed so that

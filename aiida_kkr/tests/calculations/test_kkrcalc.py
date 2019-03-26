@@ -3,14 +3,10 @@
 from __future__ import absolute_import
 from builtins import object
 import pytest
+from aiida_kkr.tests.calculations.test_vorocalc import wait_for_it
 
 # some global settings
-
-codename = 'KKRhost@iff003'
-queuename = 'th1_node'
 eps = 10**-14 # threshold for float comparison equivalence
-
-from aiida_kkr.tests.calculations.test_vorocalc import wait_for_it
 
 # tests
 @pytest.mark.usefixtures("aiida_env")
@@ -27,12 +23,15 @@ class Test_kkr_calculation(object):
         from aiida.plugins import DataFactory
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkr import KkrCalculation
-        ParameterData = DataFactory('dict')
+        Dict = DataFactory('dict')
 
         # load necessary files from db_dump files
         from aiida.orm.importexport import import_data
         import_data('files/db_dump_vorocalc.tar.gz')
         import_data('files/db_dump_kkrcalc.tar.gz')
+
+        # prepare computer and code (needed so that
+        prepare_code(kkr_codename, codelocation, computername, workdir)
 
         # first load parent voronoi calculation
         voro_calc = load_node('559b9d9b-3525-402e-9b24-ecd8b801853c')
@@ -43,15 +42,17 @@ class Test_kkr_calculation(object):
         params_node = Dict(dict=params.get_dict())
 
         # load code from database and create new voronoi calculation
-        code = Code.get_from_string(codename)
+        #code = Code.get_from_string(codename)
+        code = Code.get_from_string(kkr_codename+'@'+computername)
         options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
         builder = KkrCalculation.get_builder()
         builder.code = code
-        builder.options = options
+        builder.metadata.options = options
         builder.parameters = params_node
         builder.parent_folder = voro_calc.out.remote_folder
-        builder.submit_test()
-
+        #builder.submit_test()
+        from aiida.engine import run
+        run(builder)
 
 
     def test_kkr_from_kkr(self):
@@ -62,7 +63,7 @@ class Test_kkr_calculation(object):
         from aiida.plugins import DataFactory
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkr import KkrCalculation
-        ParameterData = DataFactory('dict')
+        Dict = DataFactory('dict')
 
         # first load parent voronoi calculation
         kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
@@ -89,7 +90,7 @@ class Test_kkr_calculation(object):
         from aiida.plugins import DataFactory
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkr import KkrCalculation
-        ParameterData = DataFactory('dict')
+        Dict = DataFactory('dict')
 
         # first load parent voronoi calculation
         kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')

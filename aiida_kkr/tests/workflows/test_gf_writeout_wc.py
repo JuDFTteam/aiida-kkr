@@ -29,7 +29,7 @@ class Test_gf_writeout_workflow():
         from numpy import array
         import os
 
-        ParameterData = DataFactory('dict')
+        Dict = DataFactory('dict')
         StructureData = DataFactory('structure')
 
         # prepare computer and code (needed so that

@@ -33,7 +33,7 @@ __contributors__ = u"Fabian Bertoldo"
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('dict')
+Dict = DataFactory('dict')
 SinglefileData = DataFactory('singlefile')
 FolderData = DataFactory('folder')
 
@@ -42,17 +42,17 @@ class kkr_imp_sub_wc(WorkChain):
     Workchain of a kkrimp self consistency calculation starting from the
     host-impurity potential of the system. (Not the entire kkr_imp workflow!)
 
-    :param options: (ParameterData), Workchain specifications
-    :param wf_parameters: (ParameterData), specifications for the calculation
+    :param options: (Dict), Workchain specifications
+    :param wf_parameters: (Dict), specifications for the calculation
     :param host_imp_startpot: (RemoteData), mandatory; input host-impurity potential
     :param kkrimp: (Code), mandatory; KKRimp code converging the host-imp-potential
     :param remote_data: (RemoteData), mandatory; remote folder of a previous
                            kkrflex calculation containing the flexfiles ...
     :param kkrimp_remote: (RemoteData), remote folder of a previous kkrimp calculation
-    :param impurity_info: (ParameterData), Parameter node with information
+    :param impurity_info: (Dict), Parameter node with information
                           about the impurity cluster
 
-    :return workflow_info: (ParameterData), Information of workflow results
+    :return workflow_info: (Dict), Information of workflow results
                                    like success, last result node, list with
                                    convergence behavior
     :return host_imp_pot: (SinglefileData), output potential of the sytem
@@ -130,10 +130,10 @@ class kkr_imp_sub_wc(WorkChain):
         spec.input("host_imp_startpot", valid_type=SinglefileData, required=False)
         spec.input("remote_data", valid_type=RemoteData, required=False)
         spec.input("kkrimp_remote", valid_type=RemoteData, required=False)
-        spec.input("impurity_info", valid_type=ParameterData, required=False)
-        spec.input("options", valid_type=ParameterData, required=False,
+        spec.input("impurity_info", valid_type=Dict, required=False)
+        spec.input("options", valid_type=Dict, required=False,
                        default=Dict(dict=cls._options_default))
-        spec.input("wf_parameters", valid_type=ParameterData, required=False,
+        spec.input("wf_parameters", valid_type=Dict, required=False,
                        default=Dict(dict=cls._wf_default))
 
         # Here the structure of the workflow is defined
@@ -176,7 +176,7 @@ class kkr_imp_sub_wc(WorkChain):
 
 
         # Define the outputs of the workflow
-        spec.output('workflow_info', valid_type=ParameterData)
+        spec.output('workflow_info', valid_type=Dict)
         spec.output('host_imp_pot', valid_type=SinglefileData)
 
 

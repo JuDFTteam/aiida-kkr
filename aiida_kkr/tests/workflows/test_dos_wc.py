@@ -31,7 +31,7 @@ class Test_dos_workflow():
         from aiida_kkr.workflows.dos import kkr_dos_wc
         from numpy import array
 
-        ParameterData = DataFactory('dict')
+        Dict = DataFactory('dict')
         StructureData = DataFactory('structure')
 
         # prepare computer and code (needed so that

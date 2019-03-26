@@ -29,7 +29,7 @@ __contributors__ = u"Fabian Bertoldo"
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('dict')
+Dict = DataFactory('dict')
 FolderData = DataFactory('folder')
 
 class kkr_flex_wc(WorkChain):
@@ -37,14 +37,14 @@ class kkr_flex_wc(WorkChain):
     Workchain of a kkr_flex calculation to calculate the Green function with
     KKR starting from the RemoteData node of a previous calculation (either Voronoi or KKR).
 
-    :param options: (ParameterData), Workchain specifications
-    :param wf_parameters: (ParameterData), Workflow parameters that deviate from previous KKR RemoteData
+    :param options: (Dict), Workchain specifications
+    :param wf_parameters: (Dict), Workflow parameters that deviate from previous KKR RemoteData
     :param remote_data: (RemoteData), mandatory; from a converged KKR calculation
     :param kkr: (Code), mandatory; KKR code running the flexfile writeout
-    :param impurity_info: ParameterData, mandatory: node specifying information
+    :param impurity_info: Dict, mandatory: node specifying information
                           of the impurities in the system
 
-    :return workflow_info: (ParameterData), Information of workflow results
+    :return workflow_info: (Dict), Information of workflow results
                             like success, last result node, list with convergence behavior
     :return GF_host_remote: (RemoteData), host GF of the system
     """
@@ -89,11 +89,11 @@ class kkr_flex_wc(WorkChain):
         super(kkr_flex_wc, cls).define(spec)
 
         spec.input("kkr", valid_type=Code, required=True)
-        spec.input("options", valid_type=ParameterData, required=False,
+        spec.input("options", valid_type=Dict, required=False,
                        default=Dict(dict=cls._options_default))
-        spec.input("wf_parameters", valid_type=ParameterData, required=False)
+        spec.input("wf_parameters", valid_type=Dict, required=False)
         spec.input("remote_data", valid_type=RemoteData, required=True)
-        spec.input("impurity_info", valid_type=ParameterData, required=True)
+        spec.input("impurity_info", valid_type=Dict, required=True)
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -105,7 +105,7 @@ class kkr_flex_wc(WorkChain):
 
         # ToDo: improve error codes
         spec.exit_code(101, 'ERROR_INVALID_INPUT_IMP_INFO',
-            message="ERROR: the 'impurity_info' input ParameterData node could not be used")
+            message="ERROR: the 'impurity_info' input Dict node could not be used")
         spec.exit_code(102, 'ERROR_INVALID_INPUT_KKR',
             message="ERROR: the code you provided for kkr does not use the plugin kkr.kkr")
         spec.exit_code(103, 'ERROR_INVALID_INPUT_REMOTE_DATA',
@@ -117,7 +117,7 @@ class kkr_flex_wc(WorkChain):
 
         # specify the outputs
         #spec.output('remote_folder', valid_type=RemoteData)
-        spec.output('workflow_info', valid_type=ParameterData)
+        spec.output('workflow_info', valid_type=Dict)
         spec.output('GF_host_remote', valid_type=RemoteData)
 
 
@@ -378,7 +378,7 @@ class kkr_flex_wc(WorkChain):
 
         # return the input remote_data folder as output node
         #self.out('remote_data', self.inputs.remote_data)
-        # return ParameterData node containing information about previous calculation
+        # return Dict node containing information about previous calculation
         self.out('workflow_info', outputnode)
         # return retrieved data from kkrflex calculation
         self.out('GF_host_remote', self.ctx.flexrun.out.remote_folder)

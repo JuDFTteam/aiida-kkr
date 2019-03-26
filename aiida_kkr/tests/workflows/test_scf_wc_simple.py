@@ -49,7 +49,7 @@ class Test_scf_workflow():
         from pprint import pprint
         from numpy import array
 
-        ParameterData = DataFactory('dict')
+        Dict = DataFactory('dict')
         StructureData = DataFactory('structure')
 
         from aiida.orm.implementation.django.code import Code
@@ -92,7 +92,7 @@ class Test_scf_workflow():
         VoroCode = Code.get_from_string(voro_codename+'@'+computername)
         KKRCode = Code.get_from_string(kkr_codename+'@'+computername)
 
-        # Finally we use the kkrparams class to prepare a valid set of KKR parameters that are stored as a ParameterData object for the use in aiida
+        # Finally we use the kkrparams class to prepare a valid set of KKR parameters that are stored as a Dict object for the use in aiida
         ParaNode = Dict(dict=kkrparams(LMAX=2, RMAX=7, GMAX=65, NSPIN=1, RCLUSTZ=1.9).get_dict())
 
         label = 'KKR-scf for Cu bulk'

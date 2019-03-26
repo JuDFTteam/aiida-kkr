@@ -23,7 +23,7 @@ __contributors__ = u"Fabian Bertoldo"
 #TODO: generalise search for imp_info and conv_host from startpot
 
 
-ParameterData = DataFactory('dict')
+Dict = DataFactory('dict')
 RemoteData = DataFactory('remote')
 SinglefileData = DataFactory('singlefile')
 
@@ -33,16 +33,16 @@ class kkr_imp_dos_wc(WorkChain):
     Workchain of a DOS calculation for an impurity system starting from a
     converged impurity calculation or workflow
 
-    :param options: (ParameterData), computer options
-    :param wf_parameters: (ParameterData), specifications for the DOS
+    :param options: (Dict), computer options
+    :param wf_parameters: (Dict), specifications for the DOS
     :param kkr: (Code), mandatory: KKR code for gf_writeout step
     :param kkrimp: (Code), mandatory: KKRimp code for DOS calculation
     :param imp_host_pot: (SinglefileData), mandatory: impurity startpotential
 
-    :return workflow_info: (ParameterData), Information on workflow results
-    :return last_calc_output_parameters: (ParameterData), output parameters of
+    :return workflow_info: (Dict), Information on workflow results
+    :return last_calc_output_parameters: (Dict), output parameters of
                                          the last called calculation
-    :return last_calc_info: (ParameterData), information of the last called calculation
+    :return last_calc_info: (Dict), information of the last called calculation
     """
 
     _workflowversion = __version__
@@ -93,9 +93,9 @@ class kkr_imp_dos_wc(WorkChain):
         spec.input("kkr", valid_type=Code, required=True)
         spec.input("kkrimp", valid_type=Code, required=True)
         spec.input("host_imp_pot", valid_type=SinglefileData, required=True)
-        spec.input("options", valid_type=ParameterData, required=False,
+        spec.input("options", valid_type=Dict, required=False,
                        default=Dict(dict=cls._options_default))
-        spec.input("wf_parameters", valid_type=ParameterData, required=False,
+        spec.input("wf_parameters", valid_type=Dict, required=False,
                        default=Dict(dict=cls._wf_default))
 
         # Here the structure of the workflow is defined
@@ -112,9 +112,9 @@ class kkr_imp_dos_wc(WorkChain):
 
 
         # specify the outputs
-        spec.output('workflow_info', valid_type=ParameterData)
-        spec.output('last_calc_output_parameters', valid_type=ParameterData)
-        spec.output('last_calc_info', valid_type=ParameterData)
+        spec.output('workflow_info', valid_type=Dict)
+        spec.output('last_calc_output_parameters', valid_type=Dict)
+        spec.output('last_calc_info', valid_type=Dict)
 
 
     def start(self):
@@ -159,7 +159,7 @@ class kkr_imp_dos_wc(WorkChain):
         self.ctx.non_spherical = wf_dict.get('non_spherical', self._wf_default['non_spherical'])
         self.ctx.spinorbit = wf_dict.get('spinorbit', self._wf_default['spinorbit'])
         self.ctx.newsol = wf_dict.get('newsol', self._wf_default['newsol'])
-        #self.ctx.kkrimp_params_dict = ParameterData(dict={#'nspin': self.ctx.nspin,
+        #self.ctx.kkrimp_params_dict = Dict(dict={#'nspin': self.ctx.nspin,
         #                                                  'nsteps': self.ctx.nsteps,
         #                                                  'kkr_runmax': self.ctx.kkr_runmax, 'non_spherical': self.ctx.non_spherical,
         #                                                  'spinorbit': self.ctx.spinorbit, 'newsol': self.ctx.newsol,

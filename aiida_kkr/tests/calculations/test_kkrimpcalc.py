@@ -3,12 +3,6 @@
 from __future__ import absolute_import
 from builtins import object
 import pytest
-
-# some global settings
-
-codename = 'KKRimp@iff003'
-queuename = 'th1_node'
-
 from aiida_kkr.tests.calculations.test_vorocalc import wait_for_it
 
 # tests
@@ -26,12 +20,15 @@ class Test_kkrimp_calculation(object):
         from aiida.plugins import DataFactory
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkrimp import KkrimpCalculation
-        ParameterData = DataFactory('dict')
+        Dict = DataFactory('dict')
 
         # first load parent voronoi calculation
         from aiida.orm.importexport import import_data
         import_data('files/db_dump_kkrflex_create.tar.gz')
         GF_host_calc = load_node('de9b5093-25e7-407e-939e-9282c4431343') #'9459b4ea-ead5-4268-aa29-1c5e18654d77')
+
+        # prepare computer and code (needed so that
+        prepare_code(kkrimp_codename, codelocation, computername, workdir)
 
         # now create a SingleFileData node containing the impurity starting potential
         from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
@@ -47,15 +44,18 @@ class Test_kkrimp_calculation(object):
         ParamsKKRimp = Dict(dict=kkrimp_params.get_dict())
 
         # create new KKRimp calculation
-        kkrimp_code = Code.get_from_string(codename)
+        #kkrimp_code = Code.get_from_string(codename)
+        kkrimp_code = Code.get_from_string(kkrimp_codename+'@'+computername)
         options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
         builder = KkrimpCalculation.get_builder()
         builder.code = kkrimp_code
         builder.host_Greenfunction_folder = GF_host_calc.out.remote_folder
         builder.impurity_potential = startpot_imp_sfd
-        builder.options = options
+        builder.metadata.options = options
         builder.parameters = ParamsKKRimp
-        builder.submit_test()
+        #builder.submit_test()
+        from aiida.engine import run
+        run(builder)
 
 
 #run test manually

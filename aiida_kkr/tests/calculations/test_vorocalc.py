@@ -15,11 +15,6 @@ from dbsetup import *
 # * test_voronoi_after_kkr
 # * test_overwrite_potential
 
-# some global settings
-
-codename = 'voronoi@iff003'
-queuename = 'th1_node'
-
 def wait_for_it(calc, maxwait=300, dT=10):
     """
     helper function used to wait until calculation reaches FINISHED state
@@ -94,7 +89,6 @@ class Test_voronoi_calculation(object):
         builder.metadata.options = options
         builder.parameters = ParaNode
         builder.structure = Cu
-        print(builder)
         #builder.submit_test()
         from aiida.engine import run
         run(builder)

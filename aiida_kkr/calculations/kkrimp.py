@@ -20,7 +20,7 @@ import os
 from numpy import array, sqrt, sum, where
 from six.moves import range
 
-ParameterData = DataFactory('dict')
+Dict = DataFactory('dict')
 RemoteData = DataFactory('remote')
 SinglefileData = DataFactory('singlefile')
 
@@ -109,7 +109,7 @@ class KkrimpCalculation(CalcJob):
         use_dict = JobCalculation._use_methods
         use_dict.update({
             "parameters": {
-                'valid_types': ParameterData,
+                'valid_types': Dict,
                 'additional_parameter': None,
                 'linkname': 'parameters',
                 'docstring':
@@ -139,7 +139,7 @@ class KkrimpCalculation(CalcJob):
                 ("Use a node that specifies a parent KKRimp calculation.")
                 },
             "impurity_info": {
-                'valid_types': ParameterData,
+                'valid_types': Dict,
                 'additional_parameter': None,
                 'linkname': 'impurity_info',
                 'docstring':
@@ -272,7 +272,7 @@ class KkrimpCalculation(CalcJob):
 
         :param inputdict: input dictionary containing all input nodes to KkrimpCalculation
         :returns:
-            * imp_info: ParameterData node containing impurity information like position, Z_imp, cluster size, etc.
+            * imp_info: Dict node containing impurity information like position, Z_imp, cluster size, etc.
             * kkrflex_file_paths: dict of absolute file paths for the kkrflex files
             * shapefun_path: absolute path of the shapefunction file in the host calculation (needed to construct shapefun_imp)
             * shapes: mapping array of atoms to shapes (<SHAPE> input)
@@ -306,8 +306,8 @@ class KkrimpCalculation(CalcJob):
         # extract impurity_info
         try:
             imp_info_inputnode = inputdict.pop(self.get_linkname('impurity_info'))
-            if not isinstance(imp_info_inputnode, ParameterData):
-                raise InputValidationError("impurity_info not of type ParameterData")
+            if not isinstance(imp_info_inputnode, Dict):
+                raise InputValidationError("impurity_info not of type Dict")
             imp_info = parent_calc.get_inputs_dict().get('impurity_info', None)
             if imp_info is None:
                 raise InputValidationError("host_Greenfunction calculation does not have an input node impurity_info")
@@ -403,7 +403,7 @@ class KkrimpCalculation(CalcJob):
         :returns:
             * parameters (aiida_kkr.tools.kkr_params.kkrparams), optional: parameters of KKRimp that end up in config.cfg
             * code (KKRimpCodeNode): code of KKRimp on some machine
-            * imp_info (ParameterDataNode): parameter node of the impurity information, extracted from host_parent_calc
+            * imp_info (DictNode): parameter node of the impurity information, extracted from host_parent_calc
             * kkrflex_file_paths (dict): dictionary of {filenames: absolute_path_to_file} for the kkrflex-files
             * shapfun_path (str): absolute path of the shapefunction of the host parent calculation
             * host_parent_calc (KkrCalculation): node of the parent host calculation where the kkrflex-files were created
@@ -413,8 +413,8 @@ class KkrimpCalculation(CalcJob):
         # 1. extract parameters, optional (defaults extracted from host calculation)
         try:
             parameters = inputdict.pop(self.get_linkname('parameters'))
-            if not isinstance(parameters, ParameterData):
-                raise InputValidationError("parameters not of type ParameterData")
+            if not isinstance(parameters, Dict):
+                raise InputValidationError("parameters not of type Dict")
         except KeyError:
             self.logger.info("No parameters specified for this calculation, use defaults")
             parameters = None

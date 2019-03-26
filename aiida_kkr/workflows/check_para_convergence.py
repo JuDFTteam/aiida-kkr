@@ -17,7 +17,7 @@ __contributors__ = u"Philipp Rüßmann"
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('dict')
+Dict = DataFactory('dict')
 
 class kkr_check_para_wc(WorkChain):
     """

@@ -43,7 +43,7 @@ __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('dict')
+Dict = DataFactory('dict')
 
 class kkr_scf_wc(WorkChain):
     """
@@ -56,15 +56,15 @@ class kkr_scf_wc(WorkChain):
     optional with calc_parameters
     (2) Start from an existing Voronoi or KKR calculation, with a remoteData
 
-    :param wf_parameters: (ParameterData), Workchain Spezifications
-    :param options: (ParameterData); specifications for the computer
+    :param wf_parameters: (Dict), Workchain Spezifications
+    :param options: (Dict); specifications for the computer
     :param structure: (StructureData), Crystal structure
-    :param calc_parameters: (ParameterData), Vornoi/Kkr Parameters
+    :param calc_parameters: (Dict), Vornoi/Kkr Parameters
     :param remote_data: (RemoteData), from a KKR, or Vornoi calculation
     :param voronoi: (Code)
     :param kkr: (Code)
 
-    :return output_kkr_scf_wc_para: (ParameterData), Information of workflow results
+    :return output_kkr_scf_wc_para: (Dict), Information of workflow results
         like Success, last result node, list with convergence behavior
 
     minimum input example:
@@ -141,12 +141,12 @@ class kkr_scf_wc(WorkChain):
         """
         # Take input of the workflow or use defaults defined above
         super(kkr_scf_wc, cls).define(spec)
-        spec.input("wf_parameters", valid_type=ParameterData, required=False,
+        spec.input("wf_parameters", valid_type=Dict, required=False,
                    default=Dict(dict=cls._wf_default))
-        spec.input("options", valid_type=ParameterData, required=False,
+        spec.input("options", valid_type=Dict, required=False,
                    default=Dict(dict=cls._wf_default))
         spec.input("structure", valid_type=StructureData, required=False)
-        spec.input("calc_parameters", valid_type=ParameterData, required=False)
+        spec.input("calc_parameters", valid_type=Dict, required=False)
         spec.input("remote_data", valid_type=RemoteData, required=False)
         spec.input("voronoi", valid_type=Code, required=False)
         spec.input("kkr", valid_type=Code, required=True)

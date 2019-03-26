@@ -20,7 +20,7 @@ from six.moves import range
 
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
-ParameterData = DataFactory('dict')
+Dict = DataFactory('dict')
 StructureData = DataFactory('structure')
 
 
@@ -90,7 +90,7 @@ class KkrImporterCalculation(KkrCalculation):
         This method parses the files in the job's remote working directory to
         create the input nodes that would exist if the calculation were
         submitted using AiiDa. These nodes are:
-        * a ``'parameters'`` ParameterData node, based on the namelists and
+        * a ``'parameters'`` Dict node, based on the namelists and
         their variable-value pairs;
         * ...;
         and can be retrieved as a dictionary using the ``get_inputs_dict()``
@@ -185,7 +185,7 @@ class KkrImporterCalculation(KkrCalculation):
             parameters = kkrparams(params_type='kkr')
             parameters.read_keywords_from_inputcard(inputcard=local_path)
 
-            # Create ParameterData node based on the namelist and link as input.
+            # Create Dict node based on the namelist and link as input.
             aiida_parameters = Dict(dict=parameters.get_dict())
             self.use_parameters(aiida_parameters)
 

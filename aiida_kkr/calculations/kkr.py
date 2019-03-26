@@ -25,7 +25,7 @@ from six.moves import range
 
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
-ParameterData = DataFactory('dict')
+Dict = DataFactory('dict')
 StructureData = DataFactory('structure')
 KpointsData = DataFactory('array.kpoints')
 
@@ -126,7 +126,7 @@ class KkrCalculation(CalcJob):
         use_dict = JobCalculation._use_methods
         use_dict.update({
             "parameters": {
-                'valid_types': ParameterData,
+                'valid_types': Dict,
                 'additional_parameter': None,
                 'linkname': 'parameters',
                 'docstring':
@@ -143,7 +143,7 @@ class KkrCalculation(CalcJob):
                     "uploaded from the repository.")
             },
             "impurity_info": {
-                'valid_types': ParameterData,
+                'valid_types': Dict,
                 'additional_parameter': None,
                 'linkname': 'impurity_info',
                 'docstring': ("Use a Parameter node that specifies properties "
@@ -178,8 +178,8 @@ class KkrCalculation(CalcJob):
             parameters = inputdict.pop(self.get_linkname('parameters'))
         except KeyError:
             raise InputValidationError("No parameters specified for this calculation")
-        if not isinstance(parameters, ParameterData):
-            raise InputValidationError("parameters not of type ParameterData")
+        if not isinstance(parameters, Dict):
+            raise InputValidationError("parameters not of type Dict")
 
         try:
             imp_info = inputdict.pop(self.get_linkname('impurity_info'))
@@ -187,8 +187,8 @@ class KkrCalculation(CalcJob):
         except KeyError:
             imp_info = None
             found_imp_info = False
-        if found_imp_info and not isinstance(imp_info, ParameterData):
-            raise InputValidationError("impurity_info not of type ParameterData")
+        if found_imp_info and not isinstance(imp_info, Dict):
+            raise InputValidationError("impurity_info not of type Dict")
 
         try:
             code = inputdict.pop(self.get_linkname('code'))

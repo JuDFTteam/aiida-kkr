@@ -32,19 +32,19 @@ __contributors__ = u"Philipp Rüßmann"
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('dict')
+Dict = DataFactory('dict')
 
 class kkr_dos_wc(WorkChain):
     """
     Workchain a DOS calculation with KKR starting from the remoteData node
     of a previous calculation (either Voronoi or KKR).
 
-    :param wf_parameters: (ParameterData); Workchain specifications
-    :param options: (ParameterData); specifications for the computer
+    :param wf_parameters: (Dict); Workchain specifications
+    :param options: (Dict); specifications for the computer
     :param remote_data: (RemoteData), mandatory; from a KKR or Vornoi calculation
     :param kkr: (Code), mandatory; KKR code running the dos calculation
 
-    :return result_kkr_dos_wc: (ParameterData), Information of workflow results
+    :return result_kkr_dos_wc: (Dict), Information of workflow results
         like Success, last result node, list with convergence behavior
     """
 
@@ -81,9 +81,9 @@ class kkr_dos_wc(WorkChain):
         """
         # Take input of the workflow or use defaults defined above
         super(kkr_dos_wc, cls).define(spec)
-        spec.input("wf_parameters", valid_type=ParameterData, required=False,
+        spec.input("wf_parameters", valid_type=Dict, required=False,
                    default=Dict(dict=cls._wf_default))
-        spec.input("options", valid_type=ParameterData, required=False,
+        spec.input("options", valid_type=Dict, required=False,
                    default=Dict(dict=cls._wf_default))
         spec.input("remote_data", valid_type=RemoteData, required=True)
         spec.input("kkr", valid_type=Code, required=True)

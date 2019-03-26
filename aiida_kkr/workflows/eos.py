@@ -34,7 +34,7 @@ __contributors__ = u"Philipp Rüßmann"
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('dict')
+Dict = DataFactory('dict')
 
 class kkr_eos_wc(WorkChain):
     """
@@ -87,14 +87,14 @@ class kkr_eos_wc(WorkChain):
         """
         # Take input of the workflow or use defaults defined above
         super(kkr_eos_wc, cls).define(spec)
-        spec.input("options", valid_type=ParameterData, required=False,         # computer options
+        spec.input("options", valid_type=Dict, required=False,         # computer options
                    default=Dict(dict=cls._options_default))
-        spec.input("wf_parameters", valid_type=ParameterData, required=False,   # workfunction settings
+        spec.input("wf_parameters", valid_type=Dict, required=False,   # workfunction settings
                    default=Dict(dict=cls._wf_default))
         spec.input("kkr", valid_type=Code, required=True)                       # KKRhost code
         spec.input("voronoi", valid_type=Code, required=True)                   # voronoi code
         spec.input("structure", valid_type=StructureData, required=True)        # starting structure node
-        spec.input("calc_parameters", valid_type=ParameterData, required=False) # KKR input parameters (lmax etc.)
+        spec.input("calc_parameters", valid_type=Dict, required=False) # KKR input parameters (lmax etc.)
 
         # Here the structure of the workflow is defined
         spec.outline(
