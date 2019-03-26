@@ -6,6 +6,7 @@ from __future__ import absolute_import
 from builtins import object
 from past.utils import old_div
 import pytest
+from dbsetup import *
 
 #TODO
 # implement missing tests:
@@ -51,7 +52,6 @@ class Test_voronoi_calculation(object):
     """
     Tests for the voronoi calculation
     """
-
     def test_startpot_Cu_simple(self):
         """
         simple Cu noSOC, FP, lmax2 full example
@@ -61,7 +61,7 @@ class Test_voronoi_calculation(object):
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.voro import VoronoiCalculation
 
-        ParameterData = DataFactory('dict')
+        Dict = DataFactory('dict')
         StructureData = DataFactory('structure')
 
         # create StructureData instance for Cu
@@ -70,25 +70,34 @@ class Test_voronoi_calculation(object):
         Cu = StructureData(cell=bravais)
         Cu.append_atom(position=[0,0,0], symbols='Cu')
 
-        # create parameterData input node using kkrparams class from masci-tools
+        # create Dict input node using kkrparams class from masci-tools
         params = kkrparams(params_type='voronoi')
         params.set_multiple_values(LMAX=2, NSPIN=1, RCLUSTZ=2.3)
-        ParameterData = DataFactory('dict') # use DataFactory to get ParamerterData class
+        Dict = DataFactory('dict') # use DataFactory to get ParamerterData class
         ParaNode = Dict(dict=params.get_dict())
 
         # import computer etc from database dump
         from aiida.orm.importexport import import_data
         import_data('files/db_dump_vorocalc.tar.gz')
 
+        # prepare computer and code (needed so that
+        prepare_code(voro_codename, codelocation, computername, workdir)
+
         # load code from database and create new voronoi calculation
-        code = Code.get_from_string(codename)
+        #code = Code.get_from_string(codename)
+        code = Code.get_from_string(voro_codename+'@'+computername)
+
+        #code = Code.get_from_string('voronoi@localhost_new')
         options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
         builder = VoronoiCalculation.get_builder()
         builder.code = code
-        builder.options = options
+        builder.metadata.options = options
         builder.parameters = ParaNode
         builder.structure = Cu
-        builder.submit_test()
+        print(builder)
+        #builder.submit_test()
+        from aiida.engine import run
+        run(builder)
 
     def test_vca_structure(self):
         """

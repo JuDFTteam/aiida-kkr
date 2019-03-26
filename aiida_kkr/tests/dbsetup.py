@@ -22,13 +22,12 @@ codelocation = cwd+'/jukkr/'
 def prepare_computer(computername, workdir):
     """Create new computer in db or read computer from db if it already exists."""
     from aiida.orm import Computer
-    from aiida.orm.backend import construct_backend
     from aiida.orm.querybuilder import QueryBuilder
-    #
+
     # first check if computer exists already in database
     qb = QueryBuilder()
     qb.append(Computer, tag='computer')
-    all_computers = qb.get_results_dict()
+    all_computers = qb.dict()
     computer_found_in_db = False
     if len(all_computers)>0:
         for icomp in range(len(all_computers)):
@@ -39,8 +38,7 @@ def prepare_computer(computername, workdir):
     # if it is not there create a new one
     if not computer_found_in_db:
         #comp = Computer(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir=workdir)
-        b = construct_backend()
-        comp = b.computers.create(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir=workdir)
+        comp = Computer(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir=workdir)
         comp.set_default_mpiprocs_per_machine(4)
         comp.store()
         print('computer stored now cofigure')

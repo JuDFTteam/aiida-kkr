@@ -3,7 +3,6 @@
 Input plug-in for a voronoi calculation.
 """
 from __future__ import print_function
-
 from __future__ import absolute_import
 from aiida.engine import CalcJob
 from aiida.common.utils import classproperty
@@ -13,6 +12,7 @@ from aiida.plugins import DataFactory
 from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency, vca_check
 from aiida.common.exceptions import UniquenessError
 import os
+import six
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -21,7 +21,7 @@ __version__ = "0.5"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
-ParameterData = DataFactory('dict')
+Dict = DataFactory('dict')
 StructureData = DataFactory('structure')
 RemoteData = DataFactory('remote')
 SingleFileData = DataFactory('singlefile')
@@ -32,102 +32,64 @@ class VoronoiCalculation(CalcJob):
     .
     """
 
-    def _init_internal_params(self):
+    ####################
+    # File names etc.
+    ####################
+    # calculation plugin version
+    _CALCULATION_PLUGIN_VERSION = __version__
+    # Default input and output files
+    _DEFAULT_INPUT_FILE = 'inputcard' # will be shown with inputcat
+    _DEFAULT_OUTPUT_FILE = 'out_voronoi' #'shell output will be shown with outputca
+    # List of mandatory input files
+    _INPUT_FILE_NAME = 'inputcard'
+    # List of output files that should always be present
+    _OUTPUT_FILE_NAME = 'out_voronoi'
+    # template.product entry point defined in setup.json
+    _default_parser = 'kkr.voroparser'
+    # File names
+    _ATOMINFO = 'atominfo.txt'
+    _RADII = 'radii.dat'
+    _SHAPEFUN = 'shapefun'
+    _VERTICES = 'vertices.dat'
+    _OUT_POTENTIAL_voronoi = 'output.pot'
+    _POTENTIAL_IN_OVERWRITE = 'overwrite_potential'
+
+    @classmethod
+    def define(cls, spec):
         """
-        Init internal parameters at class load time
+        define internals and inputs / outputs of calculation
         """
-        # reuse base class (i.e. JobCalculation) functions
-        super(VoronoiCalculation, self)._init_internal_params()
+        # reuse base class (i.e. CalcJob) functions
+        super(VoronoiCalculation, cls).define(spec)
+        # now define input files
+        spec.input('metadata.options.parser_name', valid_type=six.string_types, default=cls._default_parser)
+        spec.input('metadata.options.input_filename', valid_type=six.string_types, default=cls._DEFAULT_INPUT_FILE)
+        spec.input('metadata.options.output_filename', valid_type=six.string_types, default=cls._DEFAULT_OUTPUT_FILE)
+        # define input nodes (optional ones have required=False)
+        spec.input('parameters', valid_type=Dict, help='Use a node that specifies the input parameters')
+        spec.input('structure', valid_type=StructureData, required=False, help='Use a node that specifies the input crystal structure')
+        spec.input('parent_KKR', valid_type=RemoteData, required=False, help='Use a node that specifies a parent KKR calculation')
+        spec.input('potential_overwrite', valid_type=SingleFileData, required=False, help='Use a node that specifies the potential which is used instead of the voronoi output potential')
+        # define outputs
+        spec.output('results', valid_type=Dict, help='calculation outputs')
+        # define exit codes, also used in parser
+        spec.exit_code(301, 'ERROR_NO_OUTPUT_FILE',
+          message='Voronoi output file not found')
 
-        # calculation plugin version
-        self._CALCULATION_PLUGIN_VERSION = __version__
 
-        # Default input and output files
-        self._DEFAULT_INPUT_FILE = 'inputcard' # will be shown with inputcat
-        self._DEFAULT_OUTPUT_FILE = 'out_voronoi' #'shell output will be shown with outputca
+    def prepare_for_submission(self, tempfolder):
+        """Create the input files from the input nodes passed to this instance of the `CalcJob`.
 
-        # List of mandatory input files
-        self._INPUT_FILE_NAME = 'inputcard'
-        #self._INPUTCARD = 'inputcard'
-
-	   # List of output files that should always be present
-        self._OUTPUT_FILE_NAME = 'out_voronoi'
-
-        # template.product entry point defined in setup.json
-        self._default_parser = 'kkr.voroparser'
-
-        # File names
-        self._ATOMINFO = 'atominfo.txt'
-        self._RADII = 'radii.dat'
-        self._SHAPEFUN = 'shapefun'
-        self._VERTICES = 'vertices.dat'
-        self._OUT_POTENTIAL_voronoi = 'output.pot'
-        self._POTENTIAL_IN_OVERWRITE = 'overwrite_potential'
-
-    @classproperty
-    def _use_methods(cls):
-        """
-        Add use_* methods for calculations.
-
-        Code below enables the usage
-        my_calculation.use_parameters(my_parameters)
-        """
-        use_dict = JobCalculation._use_methods
-        use_dict.update({
-            "parameters": {
-                'valid_types': ParameterData,
-                'additional_parameter': None,
-                'linkname': 'parameters',
-                'docstring':
-                ("Use a node that specifies the input parameters ")
-            },
-            "structure": {
-                'valid_types': StructureData,
-                'additional_parameter': None,
-                'linkname': 'structure',
-                'docstring':
-                ("Use a node that specifies the input crystal structure ")
-                },
-            "parent_KKR": {
-                'valid_types': RemoteData,
-                'additional_parameter': None,
-                'linkname': 'parent_calc',
-                'docstring':
-                ("Use a node that specifies a parent KKR calculation ")
-                },
-            "potential_overwrite": {
-                'valid_types': SingleFileData,
-                'additional_parameter': None,
-                'linkname': 'potential_overwrite',
-                'docstring':
-                ("Use a node that specifies the potential which is used instead of the voronoi output potential ")
-                },
-            })
-        return use_dict
-
-    def _prepare_for_submission(self, tempfolder, inputdict):
-        """
-        Create input files.
-
-            :param tempfolder: aiida.common.folders.Folder subclass where
-                the plugin should put all its files.
-            :param inputdict: dictionary of the input nodes as they would
-                be returned by get_inputs_dict
+        :param tempfolder: an `aiida.common.folders.Folder` to temporarily write files on disk
+        :return: `aiida.common.datastructures.CalcInfo` instance
         """
         # Check inputdict
-        try:
-            parameters = inputdict.pop(self.get_linkname('parameters'))
-        except KeyError:
-            raise InputValidationError("No parameters specified for this "
-                                       "calculation")
-        if not isinstance(parameters, ParameterData):
-            raise InputValidationError("parameters not of type "
-                                       "ParameterData")
+        parameters = self.inputs.parameters
 
-        try:
-            structure = inputdict.pop(self.get_linkname('structure'))
+        if 'structure' in self.inputs:
+            structure = self.inputs.structure
             found_structure = True
-        except KeyError:
+        else:
             found_structure = False
 
         vca_structure = False
@@ -137,23 +99,17 @@ class VoronoiCalculation(CalcJob):
                                             "StructureData")
             # for VCA: check if input structure and parameter node define VCA structure
             vca_structure = vca_check(structure, parameters)
-        try:
-            code = inputdict.pop(self.get_linkname('code'))
-        except KeyError:
-            raise InputValidationError("No code specified for this "
-                                       "calculation")
+
+        code = self.inputs.code
 
         # check if a parent folder containing a potential file (out_potential) is given
-        try:
-            parent_calc_folder = inputdict.pop(self.get_linkname('parent_KKR'))
+        if 'parent_KKR' in self.inputs:
+            parent_calc_folder = self.inputs.parent_KKR
             found_parent = True
-        except KeyError:
+        else:
             found_parent = False
 
         if found_parent:
-            if not isinstance(parent_calc_folder, RemoteData):
-                raise InputValidationError("parent_KKR must be of type RemoteData")
-
             # check if parent is either Voronoi or previous KKR calculation
             overwrite_potential, parent_calc = self._check_valid_parent(parent_calc_folder)
 
@@ -176,24 +132,17 @@ class VoronoiCalculation(CalcJob):
                                            "calculation")
 
         # check if overwrite potential is given explicitly
-        try:
-            potfile_overwrite = inputdict.pop(self.get_linkname('potential_overwrite'))
+        if 'potfile_overwrite' in self.inputs:
+            potfile_overwrite = self.inputs.potfile_overwrite
             has_potfile_overwrite = True
-        except KeyError:
+        else:
             has_potfile_overwrite = False
 
         if has_potfile_overwrite:
             overwrite_potential = True
-            if not isinstance(potfile_overwrite, SingleFileData):
-                raise InputValidationError("potfile_overwrite must be of type SingleFileData")
             if not found_structure:
                 raise InputValidationError("Input structure needed for this calculation "
                                            "(using 'potential_overwrite' input node)")
-
-        # finally check if something else was given as input (should not be the case)
-        if inputdict:
-            raise ValidationError("Unknown inputs: {}".format(inputdict))
-
 
         ###################################
         # Check for 2D case

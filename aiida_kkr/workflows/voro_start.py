@@ -31,7 +31,7 @@ __version__ = "0.9.1"
 __contributors__ = u"Philipp Rüßmann"
 
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('dict')
+Dict = DataFactory('dict')
 
 class kkr_startpot_wc(WorkChain):
     """
@@ -39,15 +39,15 @@ class kkr_startpot_wc(WorkChain):
     voronoi and getting the starting DOS for first checks on the validity of the input setting.
     Starts from a structure together with a KKR parameter node.
 
-    :param wf_parameters: (ParameterData), Workchain specifications
-    :param options: (ParameterData), specifications for the computer
+    :param wf_parameters: (Dict), Workchain specifications
+    :param options: (Dict), specifications for the computer
     :param structure: (StructureData), aiida structure node to begin
         calculation from (needs to contain vacancies, if KKR needs empty spheres)
     :param kkr: (Code)
     :param voronoi: (Code)
-    :param calc_parameters: (ParameterData), KKR parameter set, passed on to voronoi run.
+    :param calc_parameters: (Dict), KKR parameter set, passed on to voronoi run.
 
-    :return result_kkr_startpot_wc: (ParameterData), Information of workflow results
+    :return result_kkr_startpot_wc: (Dict), Information of workflow results
         like Success, last result node, dos array data
     """
 
@@ -94,14 +94,14 @@ class kkr_startpot_wc(WorkChain):
         """
         # Take input of the workflow or use defaults defined above
         super(kkr_startpot_wc, cls).define(spec)
-        spec.input("wf_parameters", valid_type=ParameterData, required=False,
+        spec.input("wf_parameters", valid_type=Dict, required=False,
                    default=Dict(dict=cls._wf_default))
-        spec.input("options", valid_type=ParameterData, required=False,
+        spec.input("options", valid_type=Dict, required=False,
                    default=Dict(dict=cls._options_default))
         spec.input("structure", valid_type=StructureData, required=True)
         spec.input("kkr", valid_type=Code, required=False)
         spec.input("voronoi", valid_type=Code, required=True)
-        spec.input("calc_parameters", valid_type=ParameterData, required=False)
+        spec.input("calc_parameters", valid_type=Dict, required=False)
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -280,7 +280,7 @@ class kkr_startpot_wc(WorkChain):
                 para_version = self._kkr_default_params[1]
                 for key, val in self._kkr_default_params[0].items():
                     kkrparams_default.set_value(key, val, silent=True)
-                # create ParameterData node
+                # create Dict node
                 params = Dict(dict=kkrparams_default.get_dict())
                 params.label = 'Defaults for KKR parameter node'
                 params.description = 'defaults as defined in kkrparams of version {}'.format(para_version)
