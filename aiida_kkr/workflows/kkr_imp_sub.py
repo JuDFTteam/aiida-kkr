@@ -5,11 +5,10 @@ and some helper methods to do so with AiiDA
 """
 from __future__ import print_function
 from __future__ import division
-
 from __future__ import absolute_import
 from past.utils import old_div
-from aiida.plugins import Code, DataFactory
-from aiida.orm import Float
+from aiida.plugins import DataFactory
+from aiida.orm import Float, Code
 from aiida.engine import WorkChain, ToContext, while_, if_
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
