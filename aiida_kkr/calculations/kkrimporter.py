@@ -20,7 +20,7 @@ from six.moves import range
 
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
-ParameterData = DataFactory('parameter')
+ParameterData = DataFactory('dict')
 StructureData = DataFactory('structure')
 
 

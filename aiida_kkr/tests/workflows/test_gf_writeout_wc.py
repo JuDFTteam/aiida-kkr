@@ -14,43 +14,44 @@ class Test_gf_writeout_workflow():
     import timeout_decorator
     @timeout_decorator.timeout(240, use_signals=False)
     def run_timeout(self, builder):
-        from aiida.engine.launch import run
+        from aiida.engine import run
         out = run(builder)
         return out
-    
+
     def test_kkrflex_writeout_wc(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
         """
-        from aiida.plugins import Code, load_node, DataFactory
+        from aiida.orm import Code, load_node
+        from aiida.plugins import DataFactory
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
         from numpy import array
         import os
-       
-        ParameterData = DataFactory('parameter')
+
+        ParameterData = DataFactory('dict')
         StructureData = DataFactory('structure')
 
-        # prepare computer and code (needed so that 
+        # prepare computer and code (needed so that
         prepare_code(kkr_codename, codelocation, computername, workdir)
-       
+
         # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
         wfd =kkr_flex_wc.get_wf_defaults()
         options = {'queue_name' : queuename, 'resources': {"num_machines": 1},'max_wallclock_seconds' : 5*60, 'custom_scheduler_commands' : '', 'use_mpi' : False}
         options = Dict(dict=options)
-       
+
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         KKRCode = Code.get_from_string(kkr_codename+'@'+computername)
-       
+
         imp_info = Dict(dict={'Rcut':1.01, 'ilayer_center': 0, 'Zimp':[79.]})
-       
+
         label = 'GF_writeout Cu bulk'
         descr = 'GF_writeout workflow for Cu bulk'
-       
+
         from aiida.orm.importexport import import_data
         import_data('files/db_dump_kkrcalc.tar.gz')
         kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').out.remote_folder
-       
+
         # create process builder to set parameters
         builder = kkr_flex_wc.get_builder()
         builder.description = descr
@@ -59,19 +60,19 @@ class Test_gf_writeout_workflow():
         builder.options = options
         builder.remote_data = kkr_calc_remote
         builder.impurity_info = imp_info
-       
+
         # now run calculation
         out = self.run_timeout(builder)
-       
+
         n = out['workflow_info']
         n = n.get_dict()
-       
+
         assert n.get('successful')
         assert n.get('list_of_errors') == []
-       
+
         d = out['GF_host_remote']
         assert isinstance(d, DataFactory('remote'))
-       
+
         kkrflex_retrieved = load_node(n.get('pk_flexcalc'))
         kkrflex_retrieved = kkrflex_retrieved.out.retrieved
         kkrflex_path = kkrflex_retrieved.get_abs_path('')

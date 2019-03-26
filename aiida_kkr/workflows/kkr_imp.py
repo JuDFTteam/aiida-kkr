@@ -5,9 +5,10 @@ and some helper methods to do so with AiiDA
 """
 from __future__ import print_function
 from __future__ import absolute_import
-from aiida.plugins import Code, DataFactory, load_node
-from aiida.engine.workchain import WorkChain, ToContext, if_
-from aiida.engine.workfunctions import workfunction as wf
+from aiida.orm import Code, load_node
+from aiida.plugins import DataFactory
+from aiida.engine import WorkChain, ToContext, if_
+from aiida.engine import workfunction as wf
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, neworder_potential_wf
@@ -27,7 +28,7 @@ __contributors__ = u"Fabian Bertoldo"
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('parameter')
+ParameterData = DataFactory('dict')
 SinglefileData = DataFactory('singlefile')
 FolderData = DataFactory('folder')
 

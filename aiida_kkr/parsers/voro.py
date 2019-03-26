@@ -2,7 +2,7 @@
 
 from __future__ import absolute_import
 from aiida.parsers.parser import Parser
-from aiida.orm.nodes.parameter import Dict
+from aiida.orm import Dict
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.exceptions import InputValidationError
 from masci_tools.io.parsers.voroparser_functions import parse_voronoi_output
@@ -30,10 +30,10 @@ class VoronoiParser(Parser):
             raise InputValidationError("Input calc must be a Voronoi Calculation")
 
         # these files should be present after success of voronoi
-        self._default_files = {'outfile': calc._OUTPUT_FILE_NAME, 
-                               'atominfo': calc._ATOMINFO, 
+        self._default_files = {'outfile': calc._OUTPUT_FILE_NAME,
+                               'atominfo': calc._ATOMINFO,
                                'radii': calc._RADII}
-        
+
         self._ParserVersion = __version__
 
         #reuse init of base class
@@ -46,14 +46,14 @@ class VoronoiParser(Parser):
 
         :param retrieved: a dictionary of retrieved nodes, where
           the key is the link name
-        :returns: a tuple with two values ``(bool, node_list)``, 
+        :returns: a tuple with two values ``(bool, node_list)``,
           where:
 
           * ``bool``: variable to tell if the parsing succeeded
           * ``node_list``: list of new nodes to be stored in the db
             (as a list of tuples ``(link_name, node)``)
         """
-        
+
         success = False
         node_list = ()
 
@@ -71,9 +71,9 @@ class VoronoiParser(Parser):
         if self._calc._OUTPUT_FILE_NAME not in list_of_files:
             self.logger.error("Output file '{}' not found".format(self._calc._OUTPUT_FILE_NAME))
             return success, node_list
-        
+
         #Parse voronoi output, results that are stored in database are in out_dict
-        
+
         # get path to files and catch errors if files are not present
         file_errors = []
         try:
@@ -84,7 +84,7 @@ class VoronoiParser(Parser):
                 potfile = out_folder.get_abs_path(self._calc._POTENTIAL_IN_OVERWRITE)
             except OSError:
                 file_errors.append("Critical error! Neither potfile {}  not {} "
-                                   "was found".format(self._calc._OUT_POTENTIAL_voronoi, 
+                                   "was found".format(self._calc._OUT_POTENTIAL_voronoi,
                                                       self._calc._POTENTIAL_IN_OVERWRITE))
                 potfile = 'file_not_found'
         try:
@@ -94,12 +94,12 @@ class VoronoiParser(Parser):
             outfile = 'file_not_found'
         try:
             atominfo = out_folder.get_abs_path(self._calc._ATOMINFO)
-        except OSError:  
+        except OSError:
             file_errors.append("Critical error! atominfo not found {}".format(self._calc._ATOMINFO))
             atominfo = 'file_not_found'
         try:
             radii = out_folder.get_abs_path(self._calc._RADII)
-        except OSError:  
+        except OSError:
             file_errors.append("Critical error! radii not found {}".format(self._calc._RADII))
             radii = 'file_not_found'
         try:
@@ -111,19 +111,17 @@ class VoronoiParser(Parser):
         out_dict = {'parser_version': self._ParserVersion}
         out_dict['calculation_plugin_version'] = self._calc._CALCULATION_PLUGIN_VERSION
         #TODO add job description, compound name, calculation title
-        success, msg_list, out_dict = parse_voronoi_output(out_dict, outfile, 
-                                                           potfile, atominfo, 
+        success, msg_list, out_dict = parse_voronoi_output(out_dict, outfile,
+                                                           potfile, atominfo,
                                                            radii, inputfile)
         # add file open errors to parser output of error messages
-        for f_err in file_errors: 
+        for f_err in file_errors:
             msg_list.append(f_err)
         out_dict['parser_errors'] = msg_list
-        
+
         #create output node and link
         output_data = Dict(dict=out_dict)
         link_name = self.get_linkname_outparams()
         node_list = [(link_name, output_data)]
-        
+
         return success, node_list
-    
-     

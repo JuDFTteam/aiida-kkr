@@ -5,7 +5,6 @@ within workfunctions) are collected.
 """
 from __future__ import print_function
 from __future__ import division
-
 from __future__ import absolute_import
 from past.utils import old_div
 from aiida.common.exceptions import InputValidationError
@@ -15,7 +14,7 @@ from masci_tools.io.kkr_params import kkrparams
 from six.moves import range
 
 #define aiida structures from DataFactory of aiida
-ParameterData = DataFactory('parameter')
+ParameterData = DataFactory('dict')
 
 # keys that are used by aiida-kkr some something else than KKR parameters
 _ignored_keys = ['ef_set', 'use_input_alat']
@@ -239,13 +238,12 @@ def get_inputs_kkr(code, remote, options, label='', description='', parameters=N
 
     """
     from aiida_kkr.calculations.kkr import KkrCalculation
-    KkrProcess = KkrCalculation.process()
 
     # then reuse common inputs setter
-    inputs = get_inputs_common(KkrProcess, code, remote, None, options, label,
+    builder = get_inputs_common(KkrCalculation, code, remote, None, options, label,
                                description, parameters, serial, imp_info)
 
-    return inputs
+    return builder
 
 
 
@@ -271,13 +269,12 @@ def get_inputs_voronoi(code, structure, options, label='', description='', param
     """
     # get process for VoronoiCalculation
     from aiida_kkr.calculations.voro import VoronoiCalculation
-    VoronoiProcess = VoronoiCalculation.process()
 
     # then reuse common inputs setter all options
-    inputs = get_inputs_common(VoronoiProcess, code, None, structure, options, label,
+    builder = get_inputs_common(VoronoiCalculation, code, None, structure, options, label,
                                description, params, serial)
 
-    return VoronoiProcess, inputs
+    return builder
 
 
 def get_inputs_kkrimp(code, options, label='', description='', parameters=None, serial=False, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None):
@@ -289,20 +286,19 @@ def get_inputs_kkrimp(code, options, label='', description='', parameters=None, 
     """
 
     from aiida_kkr.calculations.kkrimp import KkrimpCalculation
-    KkrimpProcess = KkrimpCalculation.process()
 
     # then reuse common inputs setter
-    inputs = get_inputs_common(KkrimpProcess, code, None, None, options, label,
+    builder = get_inputs_common(KkrimpCalculation, code, None, None, options, label,
                                description, parameters, serial, imp_info, host_GF, imp_pot, kkrimp_remote)
 
-    return inputs
+    return builder
 
 
-def get_inputs_common(process, code, remote, structure, options, label, description, params, serial, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None):
+def get_inputs_common(calculation, code, remote, structure, options, label, description, params, serial, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None):
     """
     Base function common in get_inputs_* functions for different codes
     """
-    inputs = process.get_builder()
+    inputs = calculation.get_builder()
 
     if structure:
         inputs.structure = structure
@@ -774,7 +770,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
     from aiida_kkr.tools.tools_kkrimp import modify_potential
     from aiida.common.folders import SandboxFolder
     from aiida.common.exceptions import UniquenessError
-    from aiida.engine.calculation.job import CalcJob
+    from aiida.engine import CalcJob
     from aiida.plugins import DataFactory
 
     if 'parent_calc_folder2' in list(kwargs.keys()):
@@ -783,7 +779,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
         parent_calc_folder2=None
 
     # get aiida data types used here
-    ParameterData = DataFactory('parameter')
+    ParameterData = DataFactory('dict')
     RemoteData = DataFactory('remote')
     SingleFileData = DataFactory('singlefile')
 

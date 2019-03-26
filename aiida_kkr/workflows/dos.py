@@ -9,26 +9,18 @@ from __future__ import division
 from __future__ import absolute_import
 from past.utils import old_div
 from six.moves import range
-if __name__=='__main__':
-    from aiida import is_dbenv_loaded, load_dbenv
-    if not is_dbenv_loaded():
-        load_dbenv()
-
-
-
-from aiida.plugins import Code, DataFactory, load_node
-from aiida.engine.workchain import WorkChain, if_, ToContext
-from aiida.engine.launch import submit
+from aiida.orm import Code, load_node
+from aiida.plugins import DataFactory
+from aiida.engine import WorkChain, if_, ToContext
+from aiida.engine import submit
 from aiida.engine import workfunction as wf
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida.engine.calculation.job import CalcJob
-from aiida.common.datastructures import calc_states
-from aiida.orm import WorkCalculation
+from aiida.engine import CalcJob
+from aiida.orm import WorkChainNode
 from aiida.common.exceptions import InputValidationError
-
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
@@ -40,9 +32,7 @@ __contributors__ = u"Philipp Rüßmann"
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('parameter')
-KkrProcess = KkrCalculation.process()
-
+ParameterData = DataFactory('dict')
 
 class kkr_dos_wc(WorkChain):
     """
@@ -194,7 +184,7 @@ class kkr_dos_wc(WorkChain):
         if nparents!=1:
             # extract parent workflow and get uuid of last calc from output node
             parent_workflow = input_remote.inp.last_RemoteData
-            if not isinstance(parent_workflow, WorkCalculation):
+            if not isinstance(parent_workflow, WorkChainNode):
                 raise InputValidationError("Input remote_data node neither output of a KKR/voronoi calculation nor of kkr_scf_wc workflow")
             parent_workflow_out = parent_workflow.out.output_kkr_scf_wc_ParameterResults
             uuid_last_calc = parent_workflow_out.get_dict().get('last_calc_nodeinfo').get('uuid')
@@ -306,7 +296,7 @@ class kkr_dos_wc(WorkChain):
 
         # run the DOS calculation
         self.report('INFO: doing calculation')
-        dosrun = self.submit(KkrProcess, **inputs)
+        dosrun = self.submit(KkrCalculation, **inputs)
 
         return ToContext(dosrun=dosrun)
 
@@ -319,8 +309,7 @@ class kkr_dos_wc(WorkChain):
         """
 
         # capture error of unsuccessful DOS run
-        calc_state = self.ctx.dosrun.get_state()
-        if calc_state != calc_states.FINISHED:
+        if not self.ctx.dosrun.is_finished_ok():
             self.ctx.successful = False
             error = ('ERROR: DOS calculation failed somehow it is '
                     'in state {}'.format(calc_state))

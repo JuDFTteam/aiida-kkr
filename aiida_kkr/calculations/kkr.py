@@ -8,7 +8,7 @@ from __future__ import absolute_import
 import os
 from numpy import pi, array
 
-from aiida.engine.calculation.job import CalcJob
+from aiida.engine import CalcJob
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import InputValidationError, ValidationError
@@ -25,7 +25,7 @@ from six.moves import range
 
 #define aiida structures from DataFactory of aiida
 RemoteData = DataFactory('remote')
-ParameterData = DataFactory('parameter')
+ParameterData = DataFactory('dict')
 StructureData = DataFactory('structure')
 KpointsData = DataFactory('array.kpoints')
 

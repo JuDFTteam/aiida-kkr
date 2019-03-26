@@ -143,13 +143,14 @@ class plot_kkr(object):
         """Find class of the node and call plotting function."""
         # import things
         from pprint import pprint
-        from aiida.plugins import DataFactory, WorkCalculation, Calculation
+        from aiida.plugins import DataFactory
+        from aiida.orm import CalculationNode
 
         # basic aiida nodes
         if isinstance(node, DataFactory('structure')):
             if return_name_only: return 'struc'
             self.plot_struc(node)
-        elif isinstance(node, DataFactory('parameter')):
+        elif isinstance(node, DataFactory('dict')):
             if return_name_only: return 'para'
             print('node dict:')
             pprint(node.get_dict())
@@ -187,14 +188,13 @@ class plot_kkr(object):
             if return_name_only: return 'kkrimp'
             self.plot_kkrimp_calc(node, **kwargs)
         else:
-            raise TypeError("input node neither a `Calculation` nor a `WorkCalculation` (i.e. workflow): {}".format(type(node)))
+            raise TypeError("input node neither a `Calculation` nor a `WorkChainNode` (i.e. workflow): {}".format(type(node)))
 
     ### helper functions (structure plot, rms plot, dos plot, data extraction ...) ###
 
     def get_node(self, node):
         """Get node from pk or uuid"""
-        from aiida.orm import load_node
-        from aiida.orm.node import Node
+        from aiida.orm import load_node, Node
         # load node if pk or uuid is given
         if type(node)==int:
             node = load_node(node)
@@ -385,7 +385,7 @@ class plot_kkr(object):
         subplots_adjust(right=0.85)
 
     def get_rms_kkrcalc(self, node, title=None):
-        """extract rms etc from kkr calculation. Works for both finished and still running calculations."""
+        """extract rms etc from kkr Calculation. Works for both finished and still running Calculations."""
         from plumpy import ProcessState
         from masci_tools.io.common_functions import search_string
 
@@ -458,10 +458,10 @@ class plot_kkr(object):
 
 
 
-    ### calculations ###
+    ### Calculations ###
 
     def plot_kkr_calc(self, node, **kwargs):
-        """plot things for a kkr calculation node"""
+        """plot things for a kkr Calculation node"""
 
         # extract options from kwargs
         nofig = False
@@ -511,7 +511,7 @@ class plot_kkr(object):
         if len(rms)>1:
             self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
 
-        # try to plot dos and qdos data if calculation was bandstructure or DOS run
+        # try to plot dos and qdos data if Calculation was bandstructure or DOS run
         from os import listdir
         from numpy import loadtxt, array, where
         from masci_tools.vis.kkr_plot_bandstruc_qdos import dispersionplot
@@ -557,7 +557,7 @@ class plot_kkr(object):
 
 
     def plot_voro_calc(self, node, **kwargs):
-        """plot things for a voro calculation node"""
+        """plot things for a voro Calculation node"""
 
         strucplot = True
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
@@ -571,7 +571,7 @@ class plot_kkr(object):
 
 
     def plot_kkrimp_calc(self, node, **kwargs):
-        """plot things from a kkrimp calculation node"""
+        """plot things from a kkrimp Calculation node"""
         print('not implemented yet')
         pass
 
@@ -581,7 +581,7 @@ class plot_kkr(object):
 
     def plot_kkr_dos(self, node, **kwargs):
         """plot outputs of a kkr_dos_wc workflow"""
-        from aiida_kkr.calculations.voro import VoronoiCalculation
+        from aiida_kkr.Calculations.voro import VoronoiCalculation
 
         # extract all options that should not be passed on to plot function
         interpol, all_atoms, l_channels = True, False, True
@@ -607,7 +607,7 @@ class plot_kkr(object):
 
     def plot_kkr_startpot(self, node, **kwargs):
         """plot output of kkr_startpot_wc workflow"""
-        from aiida_kkr.calculations.voro import VoronoiCalculation
+        from aiida_kkr.Calculations.voro import VoronoiCalculation
         from matplotlib.pyplot import axvline, legend, title
         from masci_tools.io.common_functions import get_Ry2eV
 
@@ -691,7 +691,7 @@ class plot_kkr(object):
 
     def plot_kkr_scf(self, node, **kwargs):
         """plot outputs of a kkr_scf_wc workflow"""
-        from aiida_kkr.calculations.kkr import KkrCalculation
+        from aiida_kkr.Calculations.kkr import KkrCalculation
         from numpy import sort
         from matplotlib.pyplot import axvline, axhline
 

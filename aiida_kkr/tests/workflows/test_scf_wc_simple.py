@@ -34,27 +34,28 @@ class Test_scf_workflow():
     import timeout_decorator
     @timeout_decorator.timeout(300, use_signals=False)
     def run_timeout(self, builder):
-        from aiida.engine.launch import run
+        from aiida.engine import run
         out = run(builder)
         return out
-    
+
     def test_scf_wc_Cu_simple(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
         """
-        from aiida.plugins import Code, load_node, DataFactory
+        from aiida.orm import Code, load_node
+        from aiida.plugins import DataFactory
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
         from pprint import pprint
         from numpy import array
-       
-        ParameterData = DataFactory('parameter')
+
+        ParameterData = DataFactory('dict')
         StructureData = DataFactory('structure')
 
         from aiida.orm.implementation.django.code import Code
         from aiida.orm.querybuilder import QueryBuilder
 
-        # prepare computer and code (needed so that 
+        # prepare computer and code (needed so that
         prepare_code(voro_codename, codelocation, computername, workdir)
         prepare_code(kkr_codename, codelocation, computername, workdir)
 
@@ -63,37 +64,37 @@ class Test_scf_workflow():
         abohr = 0.52917721067 # conversion factor to Angstroem units
         # bravais vectors
         bravais = array([[0.5, 0.5, 0.0], [0.5, 0.0, 0.5], [0.0, 0.5, 0.5]])
-       
+
         a = 0.5*alat*abohr
         Cu = StructureData(cell=[[a, a, 0.0], [a, 0.0, a], [0.0, a, a]])
         Cu.append_atom(position=[0.0, 0.0, 0.0], symbols='Cu')
-       
+
         Cu.store()
         print(Cu)
-       
+
         # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
         wfd = kkr_scf_wc.get_wf_defaults()
-       
+
         wfd['convergence_criterion'] = 10**-4
-        wfd['check_dos'] = False 
+        wfd['check_dos'] = False
         wfd['kkr_runmax'] = 5
-        wfd['nsteps'] = 50 
-       
+        wfd['nsteps'] = 50
+
         wfd['num_rerun'] = 2
         wfd['natom_in_cls_min'] = 20
-       
+
         KKRscf_wf_parameters = Dict(dict=wfd)
 
         options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
         options = Dict(dict=options)
-       
+
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         VoroCode = Code.get_from_string(voro_codename+'@'+computername)
         KKRCode = Code.get_from_string(kkr_codename+'@'+computername)
-       
+
         # Finally we use the kkrparams class to prepare a valid set of KKR parameters that are stored as a ParameterData object for the use in aiida
         ParaNode = Dict(dict=kkrparams(LMAX=2, RMAX=7, GMAX=65, NSPIN=1, RCLUSTZ=1.9).get_dict())
-       
+
         label = 'KKR-scf for Cu bulk'
         descr = 'KKR self-consistency workflow for Cu bulk'
 
@@ -110,51 +111,51 @@ class Test_scf_workflow():
 
         # now run calculation
         out = self.run_timeout(builder)
-       
+
         # load node of workflow
         print(out)
         n = out['output_kkr_scf_wc_ParameterResults']
-       
+
         print('\noutputs of workflow\n-------------------------------------------------')
         pprint(n.get_outputs_dict())
-       
+
         # get output dictionary
         out = n.get_dict()
         print('\n\noutput dictionary:\n-------------------------------------------------')
         pprint(out)
-       
+
         # finally check some output
         print('\n\ncheck values ...\n-------------------------------------------------')
-       
+
         print('voronoi_step_success', out['voronoi_step_success'])
         assert out['voronoi_step_success']
-       
+
         print('kkr_step_success', out['kkr_step_success'])
         assert out['kkr_step_success']
-       
+
         print('successful', out['successful'])
         assert out['successful']
-       
+
         print('error', out['errors'])
         assert out['errors'] == []
-       
+
         print('warning', out['warnings'])
         assert out['warnings'] == []
-       
+
         print('convergence_reached', out['convergence_reached'])
         assert out['convergence_reached']
-       
+
         print('convergence_value', out['convergence_value'])
         assert out['convergence_value'] < 10**-4
-       
+
         print('charge_neutrality', abs(out['charge_neutrality']))
         assert abs(out['charge_neutrality']) < 5*10**-4
-       
+
         print('used_higher_accuracy', out['used_higher_accuracy'])
         assert out['used_higher_accuracy']
-       
+
         print('\ndone with checks\n')
- 
+
 #run test manually
 if __name__=='__main__':
    from aiida import is_dbenv_loaded, load_dbenv

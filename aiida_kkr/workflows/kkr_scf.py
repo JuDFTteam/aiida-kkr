@@ -6,13 +6,13 @@ some helper methods to do so with AiiDA
 """
 from __future__ import print_function
 from __future__ import division
-
 from __future__ import absolute_import
 from past.utils import old_div
-from aiida.plugins import Code, DataFactory, load_node
-from aiida.engine.workchain import WorkChain, while_, if_, ToContext
+from aiida.orm import Code, load_node
+from aiida.plugins import DataFactory
+from aiida.engine import WorkChain, while_, if_, ToContext
 from aiida.engine import workfunction as wf
-from aiida.common.datastructures import calc_states
+from aiida.engine import CalcJob
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from masci_tools.io.kkr_params import kkrparams
@@ -43,9 +43,7 @@ __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('parameter')
-KkrProcess = KkrCalculation.process()
-VoronoiProcess = VoronoiCalculation.process()
+ParameterData = DataFactory('dict')
 
 class kkr_scf_wc(WorkChain):
     """
@@ -398,7 +396,6 @@ class kkr_scf_wc(WorkChain):
         # set params and remote folder to input if voronoi step is skipped
         if not run_voronoi:
             self.ctx.last_remote = inputs.remote_data
-            from aiida.engine.calculation.job import CalcJob
             num_parents = len(self.ctx.last_remote.get_inputs(node_type=JobCalculation))
             if num_parents == 0:
                 pk_last_remote = self.ctx.last_remote.inp.last_RemoteData.out.output_kkr_scf_wc_ParameterResults.get_dict().get('last_calc_nodeinfo').get('pk')
@@ -569,13 +566,6 @@ class kkr_scf_wc(WorkChain):
                 do_kkr_step = False
         else:
             do_kkr_step = do_kkr_step & True
-
-        # check if previous calculation is in SUBMISSIONFAILED state
-        if self.ctx.loop_count>1 and self.ctx.last_calc.get_state() == calc_states.SUBMISSIONFAILED:
-            self.report('ERROR: last KKRcalc (pk={}) in SUBMISSIONFAILED state!\nstopping now'.format(self.ctx.last_calc.pk))
-            do_kkr_step = False
-            #return self.exit_codes.ERROR_CALC_SUBMISSION_FAILED
-            return do_kkr_step
 
         # next check only needed if another iteration should be done after validating convergence etc. (previous checks)
         if do_kkr_step:
@@ -842,7 +832,7 @@ class kkr_scf_wc(WorkChain):
 
         # run the KKR calculation
         self.report('INFO: doing calculation')
-        kkr_run = self.submit(KkrProcess, **inputs)
+        kkr_run = self.submit(KkrCalculation, **inputs)
 
         return ToContext(kkr=kkr_run, last_calc=kkr_run)
 
@@ -857,10 +847,9 @@ class kkr_scf_wc(WorkChain):
         self.ctx.kkr_step_success = True
 
         # check calculation state
-        calc_state = self.ctx.last_calc.get_state()
-        if calc_state != calc_states.FINISHED:
+        if not self.ctx.last_calc.has_finished_ok():
             self.ctx.kkr_step_success = False
-            self.report("ERROR: last calculation in state: {}".format(calc_state))
+            self.report("ERROR: last calculation not finished correctly")
 
         self.report("INFO: kkr_step_success: {}".format(self.ctx.kkr_step_success))
 

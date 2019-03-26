@@ -9,12 +9,11 @@ from __future__ import division
 from __future__ import absolute_import
 from past.utils import old_div
 from aiida.plugins import Code, DataFactory
-from aiida.orm.nodes.base import Float
-from aiida.engine.workchain import WorkChain, ToContext, while_, if_
+from aiida.orm import Float
+from aiida.engine import WorkChain, ToContext, while_, if_
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
-from aiida.common.datastructures import calc_states
 from numpy import array
 from six.moves import range
 
@@ -33,15 +32,11 @@ __contributors__ = u"Fabian Bertoldo"
 #TODO: maybe add decrease mixing factor option as in kkr_scf wc
 #TODO: add option to check if the convergence is on track
 
-
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('parameter')
+ParameterData = DataFactory('dict')
 SinglefileData = DataFactory('singlefile')
 FolderData = DataFactory('folder')
-KkrimpProcess = KkrimpCalculation.process()
-
-
 
 class kkr_imp_sub_wc(WorkChain):
     """
@@ -402,8 +397,8 @@ class kkr_imp_sub_wc(WorkChain):
         else:
             do_kkr_step = do_kkr_step & True
 
-        # check if previous calculation is in SUBMISSIONFAILED state
-        if self.ctx.loop_count>1 and self.ctx.last_calc.get_state() == calc_states.SUBMISSIONFAILED:
+        # check if previous calculation was successful
+        if self.ctx.loop_count>1 and not self.ctx.last_calc.is_finished_ok():
             return self.exit_codes.ERROR_SUB_FAILURE
 
         # next check only needed if another iteration should be done after validating convergence etc. (previous checks)
@@ -751,7 +746,7 @@ class kkr_imp_sub_wc(WorkChain):
 
         # run the KKR calculation
         self.report('INFO: doing calculation')
-        kkrimp_run = self.submit(KkrimpProcess, **inputs)
+        kkrimp_run = self.submit(KkrimpCalculation, **inputs)
 
         return ToContext(kkr=kkrimp_run, last_calc=kkrimp_run)
 
@@ -766,8 +761,7 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.kkrimp_step_success = True
 
         # check calculation state
-        calc_state = self.ctx.last_calc.get_state()
-        if calc_state != calc_states.FINISHED:
+        if not self.ctx.last_calc.is_finished_ok():
             self.ctx.kkrimp_step_success = False
             self.report('ERROR: {}', self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED)
             return self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED

@@ -14,43 +14,44 @@ class Test_kkrimp_scf_workflow():
     import timeout_decorator
     @timeout_decorator.timeout(300, use_signals=False)
     def run_timeout(self, builder):
-        from aiida.engine.launch import run
+        from aiida.engine import run
         out = run(builder)
         return out
-    
+
     def test_kkrimp_sub_wc(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
         """
-        from aiida.plugins import Code, load_node, DataFactory
+        from aiida.orm import Code, load_node
+        from aiida.plugins import DataFactory
         from aiida.orm.querybuilder import QueryBuilder
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
         from numpy import array
-       
-        ParameterData = DataFactory('parameter')
+
+        ParameterData = DataFactory('dict')
         StructureData = DataFactory('structure')
-       
-        # prepare computer and code (needed so that 
+
+        # prepare computer and code (needed so that
         prepare_code(kkrimp_codename, codelocation, computername, workdir)
 
 
         wfd =kkr_imp_sub_wc.get_wf_defaults()
-       
+
         wfd['nsteps'] = 20
         wfd['strmix'] = 0.05
-       
+
         options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
         options = Dict(dict=options)
-       
+
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         KKRimpCode = Code.get_from_string(kkrimp_codename+'@'+computername)
-       
+
         # import previous GF writeout
         from aiida.orm.importexport import import_data
         import_data('files/db_dump_kkrflex_create.tar.gz')
         GF_host_calc = load_node('de9b5093-25e7-407e-939e-9282c4431343')
-       
+
         # now create a SingleFileData node containing the impurity starting potential
         from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
         from numpy import loadtxt
@@ -58,10 +59,10 @@ class Test_kkrimp_scf_workflow():
         settings_dict = {'pot1': 'out_potential',  'out_pot': 'potential_imp', 'neworder': neworder_pot1}
         settings = Dict(dict=settings_dict)
         startpot_imp_sfd = neworder_potential_wf(settings_node=settings, parent_calc_folder=GF_host_calc.out.remote_folder)
-       
+
         label = 'kkrimp_scf Cu host_in_host'
         descr = 'kkrimp_scf workflow for Cu bulk'
-       
+
         # create process builder to set parameters
         builder = kkr_imp_sub_wc.get_builder()
         builder.description = descr
@@ -71,13 +72,13 @@ class Test_kkrimp_scf_workflow():
         builder.remote_data = GF_host_calc.out.remote_folder
         builder.wf_parameters = Dict(dict=wfd)
         builder.host_imp_startpot = startpot_imp_sfd
-       
+
         # now run calculation
         out = self.run_timeout(builder)
-       
+
         n = out['calculation_info']
         n = n.get_dict()
-       
+
         assert n.get('successful')
         assert n.get('convergence_reached')
 

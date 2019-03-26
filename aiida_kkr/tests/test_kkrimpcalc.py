@@ -22,16 +22,17 @@ class Test_kkrimp_calculation(object):
         """
         simple Cu noSOC, FP, lmax2
         """
-        from aiida.plugins import Code, load_node, DataFactory
+        from aiida.orm import Code, load_node
+        from aiida.plugins import DataFactory
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkrimp import KkrimpCalculation
-        ParameterData = DataFactory('parameter')
+        ParameterData = DataFactory('dict')
 
-        # first load parent voronoi calculation       
+        # first load parent voronoi calculation
         from aiida.orm.importexport import import_data
         import_data('files/db_dump_kkrflex_create.tar.gz')
         GF_host_calc = load_node('de9b5093-25e7-407e-939e-9282c4431343') #'9459b4ea-ead5-4268-aa29-1c5e18654d77')
-       
+
         # now create a SingleFileData node containing the impurity starting potential
         from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
         from numpy import loadtxt
@@ -56,7 +57,7 @@ class Test_kkrimp_calculation(object):
         builder.parameters = ParamsKKRimp
         builder.submit_test()
 
- 
+
 #run test manually
 if __name__=='__main__':
    from aiida import is_dbenv_loaded, load_dbenv

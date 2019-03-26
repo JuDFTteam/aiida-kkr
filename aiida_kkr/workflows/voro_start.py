@@ -6,12 +6,12 @@ some helper methods to do so with AiiDA
 """
 from __future__ import print_function
 from __future__ import division
-
 from __future__ import absolute_import
 from past.utils import old_div
-from aiida.plugins import Code, DataFactory
-from aiida.engine.workchain import WorkChain, while_, if_, ToContext
-from aiida.engine.launch import submit
+from aiida.orm import Code
+from aiida.plugins import DataFactory
+from aiida.engine import WorkChain, while_, if_, ToContext
+from aiida.engine import submit
 from aiida.engine import workfunction as wf
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
@@ -20,10 +20,8 @@ from aiida_kkr.workflows.dos import kkr_dos_wc
 from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_params,
                                                   update_params_wf, get_inputs_voronoi)
 from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
-from aiida.common.datastructures import calc_states
 from numpy import where
 from six.moves import range
-
 
 
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
@@ -32,11 +30,8 @@ __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.9.1"
 __contributors__ = u"Philipp Rüßmann"
 
-
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('parameter')
-KkrProcess = KkrCalculation.process()
-VoronoiProcess = VoronoiCalculation.process()
+ParameterData = DataFactory('dict')
 
 class kkr_startpot_wc(WorkChain):
     """
@@ -402,8 +397,7 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.voro_ok = True
 
         # check calculation state (calculation must be completed)
-        calc_state = self.ctx.voro_calc.get_state()
-        if calc_state != calc_states.FINISHED:
+        if not self.ctx.voro_calc.has_finished_ok():
             self.report("ERROR: Voronoi calculation not in FINISHED state")
             self.ctx.voro_ok = False
             return self.exit_codes.ERROR_VORONOI_FAILED

@@ -6,13 +6,13 @@ some helper methods to do so with AiiDA
 """
 from __future__ import print_function
 from __future__ import division
-
 from __future__ import absolute_import
 from past.utils import old_div
-from aiida.plugins import Code, DataFactory, load_node
-from aiida.orm.nodes.base import Float, Bool
-from aiida.engine.workchain import WorkChain, ToContext
-from aiida.engine.workfunctions import workfunction as wf
+from aiida.orm import Code, load_node
+from aiida.plugins import DataFactory
+from aiida.orm import Float, Bool
+from aiida.engine import WorkChain, ToContext
+from aiida.engine import workfunction as wf
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.tools.common_workfunctions import update_params_wf
@@ -34,10 +34,7 @@ __contributors__ = u"Philipp Rüßmann"
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('parameter')
-KkrProcess = KkrCalculation.process()
-VoronoiProcess = VoronoiCalculation.process()
-
+ParameterData = DataFactory('dict')
 
 class kkr_eos_wc(WorkChain):
     """
@@ -493,7 +490,7 @@ def get_primitive_structure(structure, return_all):
     calls get_explicit_kpoints_path which gives primitive structure
     auxiliary workfunction to keep provenance
     """
-    from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
+    from aiida.tools import get_explicit_kpoints_path
     output = get_explicit_kpoints_path(structure)
     conv_structure = output['conv_structure']
     explicit_kpoints = output['explicit_kpoints']

@@ -5,7 +5,7 @@ Input plug-in for a KKRimp calculation.
 from __future__ import print_function
 
 from __future__ import absolute_import
-from aiida.engine.calculation.job import CalcJob
+from aiida.engine import CalcJob
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError, UniquenessError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
@@ -20,7 +20,7 @@ import os
 from numpy import array, sqrt, sum, where
 from six.moves import range
 
-ParameterData = DataFactory('parameter')
+ParameterData = DataFactory('dict')
 RemoteData = DataFactory('remote')
 SinglefileData = DataFactory('singlefile')
 

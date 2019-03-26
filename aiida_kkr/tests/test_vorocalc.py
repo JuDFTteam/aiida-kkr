@@ -43,7 +43,7 @@ def wait_for_it(calc, maxwait=300, dT=10):
         print('calculation in FAILED state')
     else:
         print('maximum waiting time exhausted')
-        
+
 
 # tests
 @pytest.mark.usefixtures("aiida_env")
@@ -51,16 +51,17 @@ class Test_voronoi_calculation(object):
     """
     Tests for the voronoi calculation
     """
-    
+
     def test_startpot_Cu_simple(self):
         """
-        simple Cu noSOC, FP, lmax2 full example 
+        simple Cu noSOC, FP, lmax2 full example
         """
-        from aiida.plugins import Code, DataFactory
+        from aiida.orm import Code
+        from aiida.plugins import DataFactory
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.voro import VoronoiCalculation
-       
-        ParameterData = DataFactory('parameter')
+
+        ParameterData = DataFactory('dict')
         StructureData = DataFactory('structure')
 
         # create StructureData instance for Cu
@@ -72,7 +73,7 @@ class Test_voronoi_calculation(object):
         # create parameterData input node using kkrparams class from masci-tools
         params = kkrparams(params_type='voronoi')
         params.set_multiple_values(LMAX=2, NSPIN=1, RCLUSTZ=2.3)
-        ParameterData = DataFactory('parameter') # use DataFactory to get ParamerterData class
+        ParameterData = DataFactory('dict') # use DataFactory to get ParamerterData class
         ParaNode = Dict(dict=params.get_dict())
 
         # import computer etc from database dump
@@ -88,32 +89,32 @@ class Test_voronoi_calculation(object):
         builder.parameters = ParaNode
         builder.structure = Cu
         builder.submit_test()
-    
+
     def test_vca_structure(self):
         """
         test for vca_structure behaviour
         """
         pass
-    
+
     def test_overwrite_alat_input(self):
         """
         test using 'use_alat_input' keyword in input parameters
         """
         pass
-    
+
     def test_voronoi_after_kkr(self):
         """
         test voronoi run from parent kkr calculation (e.g. to update to a higher lmax value)
         """
         pass
-    
+
     def test_overwrite_potential(self):
         """
         test providing overwirte_potential input node which overwrites the starting potentai with the given input
         """
         pass
 
- 
+
 #run test manually
 if __name__=='__main__':
    from aiida import is_dbenv_loaded, load_dbenv
