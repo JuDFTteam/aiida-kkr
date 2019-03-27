@@ -11,13 +11,6 @@ class Test_vorostart_workflow():
     """
     Tests for the kkr_startpot workflow
     """
-    # make sure running the workflow exists after at most 5 minutes
-    import timeout_decorator
-    @timeout_decorator.timeout(300, use_signals=False)
-    def run_timeout(self, builder):
-        from aiida.engine import run
-        out = run(builder)
-        return out
 
     def test_vorostart_wc_Cu(self):
         """
@@ -53,7 +46,6 @@ class Test_vorostart_workflow():
         wfd['num_rerun'] = 2
         options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
         params_vorostart = Dict(dict=wfd)
-        options = Dict(dict=options)
 
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         VoroCode = Code.get_from_string(voro_codename+'@'+computername)
@@ -69,14 +61,17 @@ class Test_vorostart_workflow():
         builder.voronoi = VoroCode
         builder.structure = Cu
         builder.wf_parameters = params_vorostart
-        builder.metadata.options = options
+        builder.options = Dict(dict=options)
+        #builder.metadata.options = options
 
         # now run calculation
-        out = self.run_timeout(builder)
+        #out = self.run_timeout(builder)
+        from aiida.engine import run
+        out = run(builder)
         print(out)
 
         # check output
-        n = out['results_vorostart_wc']
+        n = out['results']
         n = n.get_dict()
         assert n.get('successful')
         assert n.get('last_voro_ok')

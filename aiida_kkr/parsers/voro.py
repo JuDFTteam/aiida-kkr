@@ -117,3 +117,6 @@ class VoronoiParser(Parser):
 
         #create output node and link
         self.out('results', Dict(dict=out_dict))
+
+        if not success:
+            return self.exit_codes.ERROR_VORONOI_PARSING_FAILED

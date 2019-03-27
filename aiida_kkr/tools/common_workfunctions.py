@@ -323,21 +323,21 @@ def get_inputs_common(calculation, code, remote, structure, options, label, desc
     #        inputs.options[key] = val
 
     if description:
-        inputs.description = description
+        inputs.metadata.description = description
     else:
-        inputs.description = ''
+        inputs.metadata.description = ''
 
     if label:
-        inputs.label = label
+        inputs.metadata.label = label
     else:
-        inputs.label = ''
+        inputs.metadata.label = ''
 
     if serial:
         options['withmpi'] = False # for now
         options['resources'] = {"num_machines": 1}
 
     if options:
-        inputs.options = options
+        inputs.metadata.options = options
     '''
     options = {
     "max_wallclock_seconds": int,

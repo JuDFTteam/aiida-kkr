@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # clone jukkr repository
-git clone --depth 1 -b develop --single-branch gitlab@iffgit.fz-juelich.de:kkr/jukkr.git
+#git clone --depth 1 -b develop --single-branch gitlab@iffgit.fz-juelich.de:kkr/jukkr.git
 cd jukkr/
 
 # now codes are build using gfortran and in serial, code executables will be places in the jukkr directory

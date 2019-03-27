@@ -61,20 +61,21 @@ class VoronoiCalculation(CalcJob):
         """
         # reuse base class (i.e. CalcJob) functions
         super(VoronoiCalculation, cls).define(spec)
-        # now define input files
-        spec.input('metadata.options.parser_name', valid_type=six.string_types, default=cls._default_parser)
-        spec.input('metadata.options.input_filename', valid_type=six.string_types, default=cls._DEFAULT_INPUT_FILE)
-        spec.input('metadata.options.output_filename', valid_type=six.string_types, default=cls._DEFAULT_OUTPUT_FILE)
+        # now define input files and parser
+        spec.input('metadata.options.parser_name', valid_type=six.string_types, default=cls._default_parser, non_db=True)
+        spec.input('metadata.options.input_filename', valid_type=six.string_types, default=cls._DEFAULT_INPUT_FILE, non_db=True)
+        spec.input('metadata.options.output_filename', valid_type=six.string_types, default=cls._DEFAULT_OUTPUT_FILE, non_db=True)
         # define input nodes (optional ones have required=False)
         spec.input('parameters', valid_type=Dict, help='Use a node that specifies the input parameters')
         spec.input('structure', valid_type=StructureData, required=False, help='Use a node that specifies the input crystal structure')
         spec.input('parent_KKR', valid_type=RemoteData, required=False, help='Use a node that specifies a parent KKR calculation')
         spec.input('potential_overwrite', valid_type=SingleFileData, required=False, help='Use a node that specifies the potential which is used instead of the voronoi output potential')
         # define outputs
-        spec.output('results', valid_type=Dict, help='calculation outputs')
+        spec.output('results', valid_type=Dict, required=True, help='results of the calculation')
+        spec.default_output_node = 'results'
         # define exit codes, also used in parser
-        spec.exit_code(301, 'ERROR_NO_OUTPUT_FILE',
-          message='Voronoi output file not found')
+        spec.exit_code(301, 'ERROR_NO_OUTPUT_FILE', message='Voronoi output file not found')
+        spec.exit_code(302, 'ERROR_VORONOI_PARSING_FAILED', message='Voronoi parser retuned an error')
 
 
     def prepare_for_submission(self, tempfolder):

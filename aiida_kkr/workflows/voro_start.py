@@ -22,6 +22,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
 from numpy import where
 from six.moves import range
+import os
 
 
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
@@ -32,6 +33,8 @@ __contributors__ = u"Philipp Rüßmann"
 
 StructureData = DataFactory('structure')
 Dict = DataFactory('dict')
+XyData = DataFactory('array.xy')
+RemoteData = DataFactory('remote')
 
 class kkr_startpot_wc(WorkChain):
     """
@@ -102,6 +105,29 @@ class kkr_startpot_wc(WorkChain):
         spec.input("kkr", valid_type=Code, required=False)
         spec.input("voronoi", valid_type=Code, required=True)
         spec.input("calc_parameters", valid_type=Dict, required=False)
+        # define output nodes
+        spec.output('results', valid_type=Dict, required=True, help='')
+        spec.output('last_doscal_results', valid_type=Dict, required=False, help='')
+        spec.output('last_voronoi_results', valid_type=Dict, required=False, help='')
+        spec.output('last_voronoi_remote', valid_type=RemoteData, required=False, help='')
+        spec.output('last_params_voronoi', valid_type=Dict, required=False, help='')
+        spec.output('last_doscal_dosdata', valid_type=XyData, required=False, help='')
+        spec.output('last_doscal_dosdata_interpol', valid_type=XyData, required=False, help='')
+        # definition of exit codes if the workflow needs to be terminated
+        spec.exit_code(201, 'ERROR_INVALID_KKRCODE',
+          message='The code you provided for kkr does not use the plugin kkr.kkr')
+        spec.exit_code(202, 'ERROR_INVALID_VORONOICODE',
+          message='The code you provided for voronoi does not use the plugin kkr.voro')
+        spec.exit_code(203, 'ERROR_VORONOI_FAILED',
+          message='Voronoi calculation unsuccessful. Check inputs')
+        spec.exit_code(204, 'ERROR_VORONOI_PARSING_FAILED',
+          message='Voronoi calculation unsuccessful. Check inputs.')
+        spec.exit_code(205, 'ERROR_VORONOI_INVALID_RADII',
+          message='Voronoi calculation unsuccessful. Structure inconsistent. Maybe you need empty spheres?')
+        spec.exit_code(206, 'ERROR_DOSRUN_FAILED',
+          message='DOS run unsuccessful. Check inputs.')
+        spec.exit_code(207, 'ERROR_CORE_STATES_IN_CONTOUR',
+          message='ERROR: contour contains core states!!!')
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -121,22 +147,6 @@ class kkr_startpot_wc(WorkChain):
             # collect results and return
             cls.return_results
         )
-
-        # definition of exit codes if the workflow needs to be terminated
-        spec.exit_code(201, 'ERROR_INVALID_KKRCODE',
-          message='The code you provided for kkr does not use the plugin kkr.kkr')
-        spec.exit_code(202, 'ERROR_INVALID_VORONOICODE',
-          message='The code you provided for voronoi does not use the plugin kkr.voro')
-        spec.exit_code(203, 'ERROR_VORONOI_FAILED',
-          message='Voronoi calculation unsuccessful. Check inputs')
-        spec.exit_code(204, 'ERROR_VORONOI_PARSING_FAILED',
-          message='Voronoi calculation unsuccessful. Check inputs.')
-        spec.exit_code(205, 'ERROR_VORONOI_INVALID_RADII',
-          message='Voronoi calculation unsuccessful. Structure inconsistent. Maybe you need empty spheres?')
-        spec.exit_code(206, 'ERROR_DOSRUN_FAILED',
-          message='DOS run unsuccessful. Check inputs.')
-        spec.exit_code(207, 'ERROR_CORE_STATES_IN_CONTOUR',
-          message='ERROR: contour contains core states!!!')
 
 
     def start(self):
@@ -365,7 +375,7 @@ class kkr_startpot_wc(WorkChain):
             else:
                 updatenode.label = 'updated params: {}'.format(update_list)
                 # also keep track of last voronoi output if that has been used
-                voro_out = self.ctx.voro_calc.out.output_parameters
+                voro_out = self.ctx.voro_calc.outputs.results
                 params = update_voro_input(self.ctx.last_params, updatenode, voro_out)
                 self.ctx.last_params = params
 
@@ -375,9 +385,9 @@ class kkr_startpot_wc(WorkChain):
                        "resources": self.ctx.resources,
                        "queue_name" : self.ctx.queue}
 
-            VoronoiProcess, inputs = get_inputs_voronoi(voronoicode, structure, options, label, description, params=params)
+            builder = get_inputs_voronoi(voronoicode, structure, options, label, description, params=params)
             self.report('INFO: run voronoi step {}'.format(self.ctx.iter))
-            future = self.submit(VoronoiProcess, **inputs)
+            future = self.submit(builder)
 
 
             # return remote_voro (passed to dos calculation as input)
@@ -397,7 +407,7 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.voro_ok = True
 
         # check calculation state (calculation must be completed)
-        if not self.ctx.voro_calc.has_finished_ok():
+        if not self.ctx.voro_calc.is_finished_ok:
             self.report("ERROR: Voronoi calculation not in FINISHED state")
             self.ctx.voro_ok = False
             return self.exit_codes.ERROR_VORONOI_FAILED
@@ -443,7 +453,9 @@ class kkr_startpot_wc(WorkChain):
             self.ctx.dos_params_dict['emin'] = emin_out - self.ctx.delta_e*eV2Ry
             self.report("INFO: emin ({} Ry) - delta_e ({} Ry) smaller than emin ({} Ry) of dos input. Setting automatically to {} Ry".format(emin_out, self.ctx.delta_e*eV2Ry,  emin_dos, emin_out-self.ctx.delta_e*eV2Ry))
 
-        self.ctx.efermi = get_ef_from_potfile(self.ctx.voro_calc.out.retrieved.get_abs_path('output.pot'))
+        potfile_path = os.path.join(self.ctx.voro_calc.outputs.retrieved._repository._get_base_folder().abspath,
+          VoronoiCalculation._OUT_POTENTIAL_voronoi)
+        self.ctx.efermi = get_ef_from_potfile(potfile_path)
         emax = self.ctx.dos_params_dict['emax']
         self.report("INFO: emax dos input: {}, efermi voronoi output: {}".format(emax, self.ctx.efermi))
         if emax < self.ctx.efermi + self.ctx.delta_e*eV2Ry:
@@ -495,7 +507,7 @@ class kkr_startpot_wc(WorkChain):
             wfdospara_node.description = 'DOS parameters passed from kkr_startpot_wc input to DOS sub-workflow'
 
             code = self.inputs.kkr
-            remote = self.ctx.voro_calc.out.remote_folder
+            remote = self.ctx.voro_calc.outputs.remote_folder
             wf_label= 'DOS calculation'
             wf_desc = 'subworkflow of a DOS calculation that perform a singe-shot KKR calc.'
             future = submit(kkr_dos_wc, kkr=code, remote_data=remote,
@@ -516,7 +528,7 @@ class kkr_startpot_wc(WorkChain):
             # check parser output
             doscal = self.ctx.doscal
             try:
-                dos_outdict = doscal.out.results_wf.get_dict()
+                dos_outdict = doscal.outputs.results_wf.get_dict()
                 if not dos_outdict['successful']:
                     self.report("ERROR: DOS workflow unsuccessful")
                     self.ctx.doscheck_ok = False
@@ -535,7 +547,7 @@ class kkr_startpot_wc(WorkChain):
 
             # check for negative DOS
             try:
-                dosdata = doscal.out.dos_data
+                dosdata = doscal.outputs.dos_data
                 natom = len(self.ctx.voro_calc.res.shapes)
                 nspin = dos_outdict['nspin']
 
@@ -559,7 +571,7 @@ class kkr_startpot_wc(WorkChain):
                             self.ctx.dos_check_fail_reason = 'DOS negative'
 
                 # check starting EMIN
-                dosdata_interpol = doscal.out.dos_data_interpol
+                dosdata_interpol = doscal.outputs.dos_data_interpol
 
                 ener = dosdata_interpol.get_x()[1] # shape= natom*nspin, nept
                 totdos = dosdata_interpol.get_y()[0][1] # shape= natom*nspin, nept [0] for total DOS
@@ -654,16 +666,16 @@ class kkr_startpot_wc(WorkChain):
 
         # voronoi outputs
         try:
-            voro_pk = self.ctx.voro_calc.out.pk
+            voro_pk = self.ctx.voro_calc.pk
         except AttributeError:
             voro_pk = None
         try:
-            voro_calc = self.ctx.voro_calc.out.output_parameters
+            voro_calc = self.ctx.voro_calc.outputs.results
         except AttributeError:
             self.report("ERROR: Results ParameterNode of voronoi (pk={}) not found".format(voro_pk))
             voro_calc = None
         try:
-            voro_remote = self.ctx.voro_calc.out.remote_folder
+            voro_remote = self.ctx.voro_calc.outputs.remote_folder
         except AttributeError:
             self.report("ERROR: RemoteFolderNode of voronoi (pk={}) not found".format(voro_pk))
             voro_remote = None
@@ -675,17 +687,17 @@ class kkr_startpot_wc(WorkChain):
 
         # dos calculation outputs
         try:
-            doscal = self.ctx.doscal.out.results_wf
+            doscal = self.ctx.doscal.outputs.results_wf
         except AttributeError:
             self.report("ERROR: Results ParameterNode of DOS calc not found")
             doscal = None
         try:
-            dosdata = self.ctx.doscal.out.dos_data
+            dosdata = self.ctx.doscal.outputs.dos_data
         except AttributeError:
             self.report("ERROR: DOS data of DOS calc not found")
             dosdata = None
         try:
-            dosdata_interpol = self.ctx.doscal.out.dos_data_interpol
+            dosdata_interpol = self.ctx.doscal.outputs.dos_data_interpol
         except AttributeError:
             self.report("ERROR: interpolated DOS data of DOS calc not found")
             dosdata_interpol = None
@@ -702,7 +714,6 @@ class kkr_startpot_wc(WorkChain):
         except:
             self.report("INFO: no doscal data")
 
-
         voronodes_present = False
         if voro_calc is not None:
             if voro_remote is not None:
@@ -714,59 +725,18 @@ class kkr_startpot_wc(WorkChain):
                 if dosdata_interpol is not None:
                     dosnodes_present = True
 
-
         # fill output_nodes dict with
-        if voronodes_present and dosnodes_present:
-            outdict = create_vorostart_result_nodes(results=res_node,
-                                                    last_voronoi_results=voro_calc,
-                                                    last_voronoi_remote=voro_remote,
-                                                    last_params_voronoi=last_params,
-                                                    last_doscal_results=doscal,
-                                                    last_doscal_dosdata=dosdata,
-                                                    last_doscal_dosdata_interpol=dosdata_interpol)
-        elif voronodes_present and not dosnodes_present:
-            outdict = create_vorostart_result_nodes(results=res_node,
-                                                    last_voronoi_results=voro_calc,
-                                                    last_voronoi_remote=voro_remote,
-                                                    last_params_voronoi=last_params)
-        else:
-            outdict = create_vorostart_result_nodes(results=res_node)
-
-
-        for link_name, node in outdict.items():
-            #self.report("INFO: storing node '{}' with link name '{}'".format(node, link_name))
-            #self.report("INFO: node type: {}".format(type(node)))
-            self.out(link_name, node)
+        self.out('results', res_node)
+        if dosnodes_present:
+            self.out('last_doscal_results', doscal)
+            self.out('last_doscal_dosdata', dosdata)
+            self.out('last_doscal_dosdata_interpol', dosdata_interpol)
+        if voronodes_present:
+            self.out('last_voronoi_results',  voro_calc)
+            self.out('last_voronoi_remote', voro_remote)
+            self.out('last_params_voronoi', last_params)
 
         self.report("INFO: done with kkr_startpot workflow!\n")
-
-
-@wf
-def create_vorostart_result_nodes(**kwargs):
-    """
-    Pseudo work function to create output nodes of vorostart in correct graph structure
-    returns outdict {linkname: node}
-    """
-    outdict = {}
-    # always needs to be there
-    if 'results' in list(kwargs.keys()):
-        outdict['results_vorostart_wc'] = kwargs['results']
-
-    # other results only there if calculation is a success
-    if 'last_doscal_results' in list(kwargs.keys()):
-        outdict['last_doscal_results'] = kwargs['last_doscal_results']
-    if 'last_voronoi_results'  in list(kwargs.keys()):
-        outdict['last_voronoi_results'] = kwargs['last_voronoi_results']
-    if 'last_voronoi_remote'  in list(kwargs.keys()):
-        outdict['last_voronoi_remote'] = kwargs['last_voronoi_remote']
-    if 'last_params_voronoi'  in list(kwargs.keys()):
-        outdict['last_params_voronoi'] = kwargs['last_params_voronoi']
-    if 'last_doscal_dosdata'  in list(kwargs.keys()):
-        outdict['last_doscal_dosdata'] = kwargs['last_doscal_dosdata']
-    if 'last_doscal_dosdata_interpol'  in list(kwargs.keys()):
-        outdict['last_doscal_dosdata_interpol'] = kwargs['last_doscal_dosdata_interpol']
-
-    return outdict
 
 
 @wf
