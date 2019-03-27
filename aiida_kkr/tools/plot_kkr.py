@@ -178,17 +178,17 @@ class plot_kkr(object):
             if return_name_only: return 'eos'
             self.plot_kkr_eos(node, **kwargs)
         # calculations
-        elif node.process_label == u'KkrCalculation':
+        elif node.process_type == u'aiida.calculations:kkr.kkr':
             if return_name_only: return 'kkr'
             self.plot_kkr_calc(node, **kwargs)
-        elif node.process_label == u'VoronoiCalculation':
+        elif node.process_type == u'aiida.calculations:kkr.voro':
             if return_name_only: return 'voro'
             self.plot_voro_calc(node, **kwargs)
-        elif node.process_label == u'KkrimpCalculation':
+        elif node.process_type == u'aiida.calculations:kkr.kkrimp':
             if return_name_only: return 'kkrimp'
             self.plot_kkrimp_calc(node, **kwargs)
         else:
-            raise TypeError("input node neither a `Calculation` nor a `WorkChainNode` (i.e. workflow): {}".format(type(node)))
+            raise TypeError("input node neither a `Calculation` nor a `WorkChainNode` (i.e. workflow): {} {}".format(type(node), node))
 
     ### helper functions (structure plot, rms plot, dos plot, data extraction ...) ###
 
@@ -210,24 +210,28 @@ class plot_kkr(object):
         """print inputs and outputs of nodes without showing 'CALL' and 'CREATE' links in workflows."""
         from pprint import pprint
         # extract inputs and outputs
-        inputs = node.get_inputs_dict()
-        outputs = node.get_outputs_dict()
-        for key in list(outputs.keys()):
+        inputs = node.get_incoming().all_nodes()
+        outputs = node.get_outgoing()
+        """
+        all_out_labels = outputs.all_link_labels()
+        for label in list(all_out_labels):
             try:
-                int(key.split('_')[-1])
+                int(label.split('_')[-1])
                 has_id = True
             except:
                 has_id = False
             # remove 'CALL' and 'CREATE' links
-            if 'CALL' in key or 'CREATE' in key or has_id:
-                outputs.pop(key)
+            if 'CALL' in label or 'CREATE' in label or has_id:
+                outputs.pop(label)
+        """
+        outputs = outputs.all_nodes()
 
         # now print information about node
         print('type:', type(node))
         print('label:', node.label)
         print('description:', node.description)
         try:
-            print('process state:', node.process_label)
+            print('process type:', node.process_type)
             print('state:', node.process_state)
         except:
             print('nodes does not have the `process_state` attribute')
@@ -393,7 +397,7 @@ class plot_kkr(object):
         ptitle = ''
 
         if node.process_state == ProcessState.FINISHED:
-            o = node.out.output_parameters.get_dict()
+            o = node.outputs.output_parameters.get_dict()
             neutr = o['convergence_group'][u'charge_neutrality_all_iterations']
             efermi = o['convergence_group'][u'fermi_energy_all_iterations']
             etot = o['convergence_group'][u'total_energy_Ry_all_iterations']
@@ -402,7 +406,7 @@ class plot_kkr(object):
             """
             pk = o.get('last_calc_nodeinfo').get('pk')
             c = load_node(pk)
-            m = c.out.output_parameters.get_dict().get('convergence_group').get('total_spin_moment_all_iterations')
+            m = c.outputs.output_parameters.get_dict().get('convergence_group').get('total_spin_moment_all_iterations')
 
             figure(); subplot(1,2,1); plot(rms_all); twinx(); plot(neutr_all,'r'); subplot(1,2,2); plot(m)
             """
@@ -479,8 +483,8 @@ class plot_kkr(object):
         if not silent:
             from pprint import pprint
             print('results dict (entries with `...` have been removed for this writeout for the sake of shortness):')
-            if 'output_parameters' in node.get_outputs_dict():
-                results_dict = node.get_outputs_dict().get('output_parameters').get_dict()
+            if 'output_parameters' in node.get_outgoing().all_link_labels():
+                results_dict = node.get_outgoing().get_node_by_label('output_parameters').get_dict()
                 # remove symmetry descriptions from resuts dict before writting output
                 if 'symmetries_group' in list(results_dict.keys()): results_dict['symmetries_group']['symmetry_description'] = '...'
                 if 'convergence_group' in list(results_dict.keys()):
@@ -518,9 +522,9 @@ class plot_kkr(object):
         from masci_tools.vis.kkr_plot_dos import dosplot
         from matplotlib.pyplot import show, figure, title, xticks, xlabel, axvline
 
-        retpath = node.out.retrieved.get_abs_path('')
-        has_dos = 'dos.atom1' in listdir(retpath)
-        has_qvec = 'qvec.dat' in listdir(retpath)
+        retlist = node.outputs.retrieved.list_object_names()
+        has_dos = 'dos.atom1' in retlist
+        has_qvec = 'qvec.dat' in retlist
 
         # remove already automatically set things from kwargs
         if 'ptitle' in list(kwargs.keys()):
@@ -531,29 +535,31 @@ class plot_kkr(object):
 
         # qdos
         if has_qvec:
-            has_qdos = 'qdos.01.1.dat' in listdir(retpath)
+            has_qdos = 'qdos.01.1.dat' in retlist
             if has_qdos:
-                ne = len(set(loadtxt(retpath+'/qdos.01.1.dat')[:,0]))
-                if ne>1:
-                    dispersionplot(retpath, newfig=True, ptitle=ptitle, **kwargs)
-                    # add plot labels
-                    ilbl = node.inp.kpoints.get_attr('label_numbers')
-                    slbl = node.inp.kpoints.get_attr('labels')
-                    ilbl = array(ilbl)
-                    slbl = array(slbl)
-                    m_overlap = where(abs(ilbl[1:]-ilbl[:-1])== 1)
-                    if len(m_overlap[0])>0:
-                        for i in m_overlap[0]:
-                            slbl[i+1] = '\n'+slbl[i+1]
-                    xticks(ilbl, slbl)
-                    xlabel('')
-                    [axvline(i, color='grey', ls=':') for i in ilbl]
+                with node.outputs.retrieved.open('qdos.01.1.dat', mode='r') as f:
+                    ne = len(set(loadtxt(f)[:,0]))
+                    if ne>1:
+                        dispersionplot(f, newfig=True, ptitle=ptitle, **kwargs)
+                        # add plot labels
+                        ilbl = node.inputs.kpoints.get_attr('label_numbers')
+                        slbl = node.inputs.kpoints.get_attr('labels')
+                        ilbl = array(ilbl)
+                        slbl = array(slbl)
+                        m_overlap = where(abs(ilbl[1:]-ilbl[:-1])== 1)
+                        if len(m_overlap[0])>0:
+                            for i in m_overlap[0]:
+                                slbl[i+1] = '\n'+slbl[i+1]
+                        xticks(ilbl, slbl)
+                        xlabel('')
+                        [axvline(i, color='grey', ls=':') for i in ilbl]
 
         # dos
         if has_dos:
-            figure()
-            dosplot(retpath, **kwargs)
-            title(ptitle)
+            with node.outputs.retrieved.open('dos.atom1', mode='r') as f:
+                figure()
+                dosplot(f, **kwargs)
+                title(ptitle)
 
 
     def plot_voro_calc(self, node, **kwargs):
@@ -566,7 +572,7 @@ class plot_kkr(object):
         if strucplot:
             self.plot_struc(node)
 
-        outdict = node.out.output_parameters.get_dict()
+        outdict = node.outputs.output_parameters.get_dict()
         # TODO maybe plot some output of voronoi
 
 
@@ -581,7 +587,7 @@ class plot_kkr(object):
 
     def plot_kkr_dos(self, node, **kwargs):
         """plot outputs of a kkr_dos_wc workflow"""
-        from aiida_kkr.Calculations.voro import VoronoiCalculation
+        from aiida_kkr.calculations.voro import VoronoiCalculation
 
         # extract all options that should not be passed on to plot function
         interpol, all_atoms, l_channels = True, False, True
@@ -594,12 +600,12 @@ class plot_kkr(object):
         if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
 
         if interpol:
-            d = node.out.dos_data_interpol
+            d = node.outputs.dos_data_interpol
         else:
-            d = node.out.dos_data
+            d = node.outputs.dos_data
 
         # extract structure (neede in dosplot to extract number of atoms and number of spins)
-        struc, voro_parent = VoronoiCalculation.find_parent_structure(node.inp.remote_data)
+        struc, voro_parent = VoronoiCalculation.find_parent_structure(node.inputs.remote_data)
 
         # do dos plot after data was extracted
         self.dosplot(d, struc, nofig, all_atoms, l_channels, **kwargs)
@@ -627,25 +633,25 @@ class plot_kkr(object):
         if not silent:
             # print results
             print('results:')
-            self.plot_kkr_single_node(node.out.results_vorostart_wc, noshow=True, silent=True)
+            self.plot_kkr_single_node(node.outputs.results_vorostart_wc, noshow=True, silent=True)
 
         # plot starting DOS
 
         # follow links until DOS data has been found
         d = None
         d_int = None
-        for key, val in node.get_outputs_dict().items():
-            if key=='last_doscal_dosdata':
-                d = val
-            elif key=='last_doscal_dosdata_interpol':
-                d_int = val
-            elif 'CALL' in key:
-                if val.process_label=='kkr_dos_wc':
-                    for k2, v2 in val.get_outputs_dict().items():
-                        if k2=='dos_data':
-                            d = v2
-                        elif k2=='dos_data_interpol':
-                            d_int = v2
+        for link_triple in node.get_outgoing().all():
+            if link_triple.link_label=='last_doscal_dosdata':
+                d = link_triple.node
+            elif link_triple.link_label=='last_doscal_dosdata_interpol':
+                d_int = link_triple.node
+            elif 'CALL' in link_triple.link_label:
+                if link_triple.link_label=='kkr_dos_wc':
+                    for link_triple2 in node.get_outgoing().all():
+                        if link_triple2.link_label=='dos_data':
+                            d = link_triple2.node
+                        elif link_triple2.link_label=='dos_data_interpol':
+                            d_int = link_triple2.node
 
         # extract all options that should not be passed on to plot function
         interpol, all_atoms, l_channels = True, False, True
@@ -665,8 +671,8 @@ class plot_kkr(object):
         # now add lines for emin, core states, EF
 
         # extract data for dos and energy contour plotting
-        if 'last_voronoi_results' in list(node.get_outputs_dict().keys()):
-            params_dict = node.out.last_voronoi_results.get_dict()
+        if 'last_voronoi_results' in node.get_outgoing().all_link_labels():
+            params_dict = node.outputs.last_voronoi_results.get_dict()
         else:
             params_dict = {}
         emin = params_dict.get('emin_minus_efermi', None)
@@ -691,13 +697,13 @@ class plot_kkr(object):
 
     def plot_kkr_scf(self, node, **kwargs):
         """plot outputs of a kkr_scf_wc workflow"""
-        from aiida_kkr.Calculations.kkr import KkrCalculation
+        from aiida_kkr.calculations.kkr import KkrCalculation
         from numpy import sort
         from matplotlib.pyplot import axvline, axhline
 
         # structure plot only if structure is in inputs
         try:
-            struc = node.inp.structure
+            struc = node.inputs.structure
             strucplot = True
             ptitle = struc.get_formula()
         except:
@@ -712,16 +718,16 @@ class plot_kkr(object):
         # next extract information from outputs
         niter_calcs = [0]
         try:
-            out_dict = node.out.output_kkr_scf_wc_ParameterResults.get_dict()
+            out_dict = node.outputs.output_kkr_scf_wc_ParameterResults.get_dict()
             neutr = out_dict['charge_neutrality_all_steps']
             rms = out_dict['convergence_values_all_steps']
-            rms_goal = node.inp.wf_parameters.get_dict().get('convergence_criterion')
+            rms_goal = node.inputs.wf_parameters.get_dict().get('convergence_criterion')
         except:
             rms_goal = None
             # deal with unfinished workflow
             rms, neutr, etot, efermi = [], [], [], []
-            outdict = node.get_outputs_dict()
-            for key in sort(list(outdict.keys())):
+            outdict = node.get_outgoing()
+            for key in sort(outdict.all_link_labels()):
                 if isinstance(outdict[key], KkrCalculation):
                     kkrcalc = outdict[key]
                     rms_tmp, neutr_tmp, etot_tmp, efermi_tmp, ptitle_tmp = self.get_rms_kkrcalc(kkrcalc)
@@ -777,9 +783,8 @@ class plot_kkr(object):
         if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
 
         # plot convergence behavior
-        outdict = node.get_outputs_dict()
         try:
-            results = node.out.eos_results
+            results = node.outputs.eos_results
         except:
             silent = True
 
@@ -790,30 +795,32 @@ class plot_kkr(object):
         fig_open = False
         plotted_kkr_scf = False
         plotted_kkr_start = False
-        for key in sort(list(outdict.keys())):
-            tmpnode = outdict[key]
-            try:
-                tmplabel = tmpnode.process_label
-            except:
-                tmplabel = None
-            if tmplabel == u'kkr_startpot_wc':
-                self.plot_kkr_startpot(tmpnode, strucplot=False, silent=True, **kwargs)
-                plotted_kkr_start = True
-            elif tmplabel == u'kkr_scf_wc':
-                if not fig_open:
-                    figure()
-                    fig_open = True
-                # plot rms
-                subplot(2,1,1)
-                self.plot_kkr_scf(tmpnode, silent=True, strucplot=False, nofig=True, only='rms', noshow=True, label='pk={}'.format(tmpnode.pk), **kwargs) # scf workflow, rms only
-                xlabel('') # remove overlapping x label in upper plot
-                legend(loc=3, fontsize='x-small', ncol=2)
-                # plot charge neutrality
-                subplot(2,1,2)
-                self.plot_kkr_scf(tmpnode, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, label='pk={}'.format(tmpnode.pk), **kwargs) # scf workflow, rms only
-                title('')# remove duplicated plot title of lower plot
-                legend(loc=3, fontsize='x-small', ncol=2)
-                plotted_kkr_scf = True
+        outdict = node.get_outgoing()
+        for key in sort(outdict.all_link_labels()):
+            if key!='CALL':
+                tmpnode = outdict.get_node_by_label(key)
+                try:
+                    tmplabel = tmpnode.process_label
+                except:
+                    tmplabel = None
+                if tmplabel == u'kkr_startpot_wc':
+                    self.plot_kkr_startpot(tmpnode, strucplot=False, silent=True, **kwargs)
+                    plotted_kkr_start = True
+                elif tmplabel == u'kkr_scf_wc':
+                    if not fig_open:
+                        figure()
+                        fig_open = True
+                    # plot rms
+                    subplot(2,1,1)
+                    self.plot_kkr_scf(tmpnode, silent=True, strucplot=False, nofig=True, only='rms', noshow=True, label='pk={}'.format(tmpnode.pk), **kwargs) # scf workflow, rms only
+                    xlabel('') # remove overlapping x label in upper plot
+                    legend(loc=3, fontsize='x-small', ncol=2)
+                    # plot charge neutrality
+                    subplot(2,1,2)
+                    self.plot_kkr_scf(tmpnode, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, label='pk={}'.format(tmpnode.pk), **kwargs) # scf workflow, rms only
+                    title('')# remove duplicated plot title of lower plot
+                    legend(loc=3, fontsize='x-small', ncol=2)
+                    plotted_kkr_scf = True
 
         if not (plotted_kkr_scf or plotted_kkr_start):
             print('found no startpot or kkrstart data to plot')
@@ -821,9 +828,9 @@ class plot_kkr(object):
         # plot eos results
         try:
             # exctract data
-            e = array(node.out.eos_results.get_dict().get('energies', []))
-            v = array(node.out.eos_results.get_dict().get('volumes', []))
-            fitfunc_gs = node.out.eos_results.get_dict().get('gs_fitfunction')
+            e = array(node.outputs.eos_results.get_dict().get('energies', []))
+            v = array(node.outputs.eos_results.get_dict().get('volumes', []))
+            fitfunc_gs = node.outputs.eos_results.get_dict().get('gs_fitfunction')
             # now fit and plot
             figure()
             try:
@@ -835,10 +842,10 @@ class plot_kkr(object):
                 plot(v, e, 'o')
 
             # add calculation pks to data points
-            scalings_all = array(node.out.eos_results.get_dict().get('scale_factors_all'))
-            scalings = node.out.eos_results.get_dict().get('scalings')
-            names = sort([name for name in list(node.out.eos_results.get_dict().get('sub_workflow_uuids').keys()) if 'kkr_scf' in name])
-            pks = array([load_node(node.out.eos_results.get_dict().get('sub_workflow_uuids')[name]).pk for name in names])
+            scalings_all = array(node.outputs.eos_results.get_dict().get('scale_factors_all'))
+            scalings = node.outputs.eos_results.get_dict().get('scalings')
+            names = sort([name for name in list(node.outputs.eos_results.get_dict().get('sub_workflow_uuids').keys()) if 'kkr_scf' in name])
+            pks = array([load_node(node.outputs.eos_results.get_dict().get('sub_workflow_uuids')[name]).pk for name in names])
             mask = []
             for i in range(len(pks)):
                 s = scalings[i]
