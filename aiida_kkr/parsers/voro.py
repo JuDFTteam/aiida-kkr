@@ -67,40 +67,34 @@ class VoronoiParser(Parser):
         # get path to files and catch errors if files are not present
         file_errors = []
         try:
-            #potfile = out_folder.get_abs_path(VoronoiCalculation._OUT_POTENTIAL_voronoi)
-            potfile = os.path.join(out_folder._repository._get_base_folder().abspath, VoronoiCalculation._OUT_POTENTIAL_voronoi)
-        except OSError:
+            potfile = out_folder.open(VoronoiCalculation._OUT_POTENTIAL_voronoi)
+        except IOError:
             # cover case where potfile is overwritten from input to voronoi calculation
             try:
-                #potfile = out_folder.get_abs_path(VoronoiCalculation._POTENTIAL_IN_OVERWRITE)
-                potfile = os.path.join(out_folder._repository._get_base_folder().abspath, VoronoiCalculation._POTENTIAL_IN_OVERWRITE)
-            except OSError:
+                potfile = out_folder.open(VoronoiCalculation._POTENTIAL_IN_OVERWRITE)
+            except IOError:
                 file_errors.append("Critical error! Neither potfile {}  not {} "
                                    "was found".format(VoronoiCalculation._OUT_POTENTIAL_voronoi,
                                                       VoronoiCalculation._POTENTIAL_IN_OVERWRITE))
                 potfile = 'file_not_found'
         try:
-            #outfile = out_folder.get_abs_path(VoronoiCalculation._OUTPUT_FILE_NAME)
-            outfile = os.path.join(out_folder._repository._get_base_folder().abspath, VoronoiCalculation._OUTPUT_FILE_NAME)
-        except OSError:
+            outfile = out_folder.open(VoronoiCalculation._OUTPUT_FILE_NAME)
+        except IOError:
             file_errors.append("Critical error! outfile not found {}".format(VoronoiCalculation._OUTPUT_FILE_NAME))
             outfile = 'file_not_found'
         try:
-            #atominfo = out_folder.get_abs_path(VoronoiCalculation._ATOMINFO)
-            atominfo = os.path.join(out_folder._repository._get_base_folder().abspath, VoronoiCalculation._ATOMINFO)
-        except OSError:
+            atominfo = out_folder.open(VoronoiCalculation._ATOMINFO)
+        except IOError:
             file_errors.append("Critical error! atominfo not found {}".format(VoronoiCalculation._ATOMINFO))
             atominfo = 'file_not_found'
         try:
-            #radii = out_folder.get_abs_path(VoronoiCalculation._RADII)
-            radii = os.path.join(out_folder._repository._get_base_folder().abspath, VoronoiCalculation._RADII)
-        except OSError:
+            radii = out_folder.open(VoronoiCalculation._RADII)
+        except IOError:
             file_errors.append("Critical error! radii not found {}".format(VoronoiCalculation._RADII))
             radii = 'file_not_found'
         try:
-            #inputfile = out_folder.get_abs_path(VoronoiCalculation._INPUT_FILE_NAME)
-            inputfile = os.path.join(out_folder._repository._get_base_folder().abspath, VoronoiCalculation._INPUT_FILE_NAME)
-        except OSError:
+            inputfile = out_folder.open(VoronoiCalculation._INPUT_FILE_NAME)
+        except IOError:
             file_errors.append("Critical error! inputfile not found {}".format(VoronoiCalculation._INPUT_FILE_NAME))
             inputfile = 'file_not_found'
         # initialize out_dict and parse output files
