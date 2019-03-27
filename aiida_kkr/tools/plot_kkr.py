@@ -613,7 +613,7 @@ class plot_kkr(object):
 
     def plot_kkr_startpot(self, node, **kwargs):
         """plot output of kkr_startpot_wc workflow"""
-        from aiida_kkr.Calculations.voro import VoronoiCalculation
+        from aiida_kkr.calculations.voro import VoronoiCalculation
         from matplotlib.pyplot import axvline, legend, title
         from masci_tools.io.common_functions import get_Ry2eV
 
