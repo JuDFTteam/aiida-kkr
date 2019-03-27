@@ -10,7 +10,7 @@ from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.plugins import DataFactory
 from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency, vca_check
-from aiida.common.exceptions import UniquenessError
+from aiida.common.exceptions import UniquenessError, NotExistent
 import os
 import six
 
@@ -249,7 +249,7 @@ class VoronoiCalculation(CalcJob):
         """
         Get structure from a parent_folder (result of a calculation, typically a remote folder)
         """
-        return parent_calc.inp.structure
+        return parent_calc.inputs.structure
 
 
     @classmethod
@@ -258,10 +258,9 @@ class VoronoiCalculation(CalcJob):
         Check if parent_folder has structure information in its input
         """
         success = True
-        try:
-            parent_folder.inp.structure
-        except:
+        if 'structure' not in parent_folder.get_incoming().all_link_labels():
             success = False
+        print('has_struc', success)
         return success
 
 
@@ -272,10 +271,12 @@ class VoronoiCalculation(CalcJob):
         """
         parent_folder_tmp0 = parent_folder
         try:
-            parent_folder_tmp = parent_folder_tmp0.inp.remote_folder
-        except:
+            parent_folder_tmp = parent_folder_tmp0.get_incoming().get_node_by_label('remote_folder')
+            print('found remote', parent_folder_tmp)
+        except NotExistent:
             #TODO check if this is a remote folder
             parent_folder_tmp = parent_folder_tmp0
+            print('take remote', parent_folder_tmp)
         return parent_folder_tmp
 
 
@@ -286,12 +287,15 @@ class VoronoiCalculation(CalcJob):
         """
         input_folder_tmp0 = input_folder
         try:
-            parent_folder_tmp = input_folder_tmp0.inp.parent_calc_folder
-        except:
+            parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_calc_folder')
+            print('found parent', parent_folder_tmp)
+        except NotExistent:
             try:
-                parent_folder_tmp = input_folder_tmp0.inp.parent_calc
-            except:
+                parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_calc')
+                print('found parent', parent_folder_tmp)
+            except NotExistent:
                 parent_folder_tmp = input_folder_tmp0
+                print('took input', parent_folder_tmp)
         return parent_folder_tmp
 
 

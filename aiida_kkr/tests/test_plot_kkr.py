@@ -68,3 +68,10 @@ def basic_test(node_id, **kwargs):
     # now clear old figure and do plotting
     gcf().clear()
     plot_kkr(node_id, **kwargs)
+
+if __name__=='__main__':
+    from aiida import is_dbenv_loaded, load_dbenv
+    if not is_dbenv_loaded():
+        load_dbenv()
+    t = Test_plot_kkr()
+    t.test_plot_kkr_calc()
