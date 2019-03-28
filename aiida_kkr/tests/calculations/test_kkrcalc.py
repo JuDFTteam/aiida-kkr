@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from builtins import object
 import pytest
 from aiida_kkr.tests.calculations.test_vorocalc import wait_for_it
+from .dbsetup import *
 
 # some global settings
 eps = 10**-14 # threshold for float comparison equivalence
@@ -72,11 +73,11 @@ class Test_kkr_calculation(object):
         params_node = kkr_calc.inputs.parameters
 
         # load code from database and create new voronoi calculation
-        code = Code.get_from_string(codename)
+        code = Code.get_from_string(kkr_codename+'@'+computername)
         options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
         builder = KkrCalculation.get_builder()
         builder.code = code
-        builder.options = options
+        builder.metadata.options = options
         builder.parameters = params_node
         builder.parent_folder = kkr_calc.outputs.remote_folder
         builder.submit_test()
@@ -105,11 +106,11 @@ class Test_kkr_calculation(object):
         imp_info = Dict(dict={'Rcut':1.01, 'ilayer_center': 0, 'Zimp':[29.]})
 
         # load code from database and create new voronoi calculation
-        code = Code.get_from_string(codename)
+        code = Code.get_from_string(kkr_codename+'@'+computername)
         options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
         builder = KkrCalculation.get_builder()
         builder.code = code
-        builder.options = options
+        builder.metadata.options = options
         builder.parameters = params_node
         builder.parent_folder = kkr_calc.outputs.remote_folder
         builder.impurity_info = imp_info

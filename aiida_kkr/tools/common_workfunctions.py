@@ -626,7 +626,10 @@ def check_2Dinput_consistency(structure, parameters):
         return (False, "'INTERFACE' parameter set to False but structure is 2D")
 
     if has2Dinfo!=is2D:
-        return (False, "2D info given in parameters but structure is 3D\nstructure is 2D? {}\ninput has 2D info? {}\nset keys are: {}".format(is2D, has2Dinfo, set_keys))
+        if is2D:
+            return (False, "2D info given in parameters but structure is 3D\nstructure is 2D? {}\ninput has 2D info? {}\nset keys are: {}".format(is2D, has2Dinfo, set_keys))
+        else:
+            return (False, "3D info given in parameters but structure is 2D\nstructure is 2D? {}\ninput has 2D info? {}\nset keys are: {}".format(is2D, has2Dinfo, set_keys))
 
     # if everything is ok:
     return (True, "2D consistency check complete")

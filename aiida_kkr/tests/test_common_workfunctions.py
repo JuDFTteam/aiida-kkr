@@ -56,17 +56,75 @@ class Test_common_workfunctions(object):
             assert set(txt[i].split())==set(ref[i].split())
 
 
-    def test_check_2Dinput_consistency(self):
+    def test_check_2Dinput_consistency_1(self):
+        # case 1: 3D structure and no 2D params input
         from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
         from aiida.plugins import DataFactory
         StructureData = DataFactory('structure')
         Dict = DataFactory('dict')
         s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
         s.append_atom(position=[0,0,0], symbols='Fe')
-        p = Dict(dict={'INTERFACE':True})
+        p = Dict(dict={'INTERFACE':False})
         input_check = check_2Dinput_consistency(s, p)
         assert input_check[0]
         assert input_check[1] == '2D consistency check complete'
+
+    def test_check_2Dinput_consistency_2(self):
+        # case 2: 2D structure and 2D params input
+        from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
+        from aiida.plugins import DataFactory
+        StructureData = DataFactory('structure')
+        Dict = DataFactory('dict')
+        s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
+        s.append_atom(position=[0,0,0], symbols='Fe')
+        s.set_pbc((True, True, False))
+        p = Dict(dict={'INTERFACE':True, '<NRBASIS>':1, '<RBLEFT>':[0,0,0], '<RBRIGHT>':[0,0,0], 'ZPERIODL':[0,0,0], 'ZPERIODR':[0,0,0], '<NLBASIS>':1})
+        input_check = check_2Dinput_consistency(s, p)
+        assert input_check[0]
+        assert input_check[1] == "2D consistency check complete"
+
+    def test_check_2Dinput_consistency_3(self):
+        # case 3: 2D structure but incomplete 2D input parameters given
+        from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
+        from aiida.plugins import DataFactory
+        StructureData = DataFactory('structure')
+        Dict = DataFactory('dict')
+        s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
+        s.append_atom(position=[0,0,0], symbols='Fe')
+        s.set_pbc((True, True, False))
+        p = Dict(dict={'INTERFACE':True, '<NRBASIS>':1,})
+        input_check = check_2Dinput_consistency(s, p)
+        assert not input_check[0]
+        assert input_check[1] == "2D info given in parameters but structure is 3D\nstructure is 2D? {}\ninput has 2D info? {}\nset keys are: {}".format(True, False, ['INTERFACE', '<NRBASIS>'])
+
+
+    def test_check_2Dinput_consistency_4(self):
+        # case 3: 2D structure but interface parameter set to False
+        from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
+        from aiida.plugins import DataFactory
+        StructureData = DataFactory('structure')
+        Dict = DataFactory('dict')
+        s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
+        s.append_atom(position=[0,0,0], symbols='Fe')
+        s.set_pbc((True, True, False))
+        p = Dict(dict={'INTERFACE':False, '<NRBASIS>':1, '<RBLEFT>':[0,0,0], '<RBRIGHT>':[0,0,0], 'ZPERIODL':[0,0,0], 'ZPERIODR':[0,0,0], '<NLBASIS>':1})
+        input_check = check_2Dinput_consistency(s, p)
+        assert not input_check[0]
+        assert input_check[1] == "'INTERFACE' parameter set to False but structure is 2D"
+
+    def test_check_2Dinput_consistency_5(self):
+        # case 5: 3D structure but 2D params given
+        from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
+        from aiida.plugins import DataFactory
+        StructureData = DataFactory('structure')
+        Dict = DataFactory('dict')
+        s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
+        s.append_atom(position=[0,0,0], symbols='Fe')
+        s.set_pbc((True, True, True))
+        p = Dict(dict={'INTERFACE':True, '<NRBASIS>':1, '<RBLEFT>':[0,0,0], '<RBRIGHT>':[0,0,0], 'ZPERIODL':[0,0,0], 'ZPERIODR':[0,0,0], '<NLBASIS>':1})
+        input_check = check_2Dinput_consistency(s, p)
+        assert not input_check[0]
+        assert input_check[1] == "3D info given in parameters but structure is 2D\nstructure is 2D? {}\ninput has 2D info? {}\nset keys are: {}".format(False, True, ['ZPERIODL', '<NRBASIS>', '<RBLEFT>', 'INTERFACE', '<NLBASIS>', 'ZPERIODR', '<RBRIGHT>'])
 
 
     def test_update_params_wf(self):
@@ -108,6 +166,25 @@ class Test_common_workfunctions(object):
         assert l_diff == [[1, u'RMAX', 10.0], [1, u'EMIN', -1.0]]
         return node1, node2, unode
 
+
+    def test_structure_from_params(self):
+        from aiida_kkr.tools.common_workfunctions import structure_from_params
+        pass
+
+
+    def test_neworder_potential_wf(self):
+        from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
+        pass
+
+
+    def test_vca_check(self):
+        from aiida_kkr.tools.common_workfunctions import vca_check
+        pass
+
+
+    def test_kick_out_corestates_wf(self):
+        from aiida_kkr.tools.common_workfunctions import kick_out_corestates_wf
+        pass
 
     """
     def test_prepare_VCA_structure_wf(self):
