@@ -2,12 +2,9 @@
 """
 Input plug-in for a KKR calculation.
 """
-from __future__ import print_function
-
-from __future__ import absolute_import
+from __future__ import print_function, absolute_import
 import os
 from numpy import pi, array
-
 from aiida.engine import CalcJob
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.utils import classproperty
@@ -231,7 +228,7 @@ class KkrCalculation(CalcJob):
 
         # extract parent input parameter dict for following check
         try:
-            parent_inp_dict = parent_calc.inp.parameters.get_dict()
+            parent_inp_dict = parent_calc.inputs.parameters.get_dict()
         except:
             self.logger.error("Failed trying to find input parameter of parent {}".format(parent_calc))
             raise InputValidationError("No parameter node found of parent calculation.")
@@ -339,7 +336,7 @@ class KkrCalculation(CalcJob):
             shapes = voro_parent.res.shapes
         else:
             # extract shapes from input parameters node constructed by kkrimporter calculation
-            shapes = voro_parent.inp.parameters.get_dict().get('<SHAPE>')
+            shapes = voro_parent.inputs.parameters.get_dict().get('<SHAPE>')
 
         #
         use_alat_input = parameters.get_dict().get('use_input_alat', False)
@@ -403,7 +400,7 @@ class KkrCalculation(CalcJob):
         if has_parent:
             # copy the right files #TODO check first if file, exists and throw
             # warning, now this will throw an error
-            outfolderpath = parent_calc.out.retrieved.folder.abspath
+            outfolderpath = parent_calc.outputs.retrieved.folder.abspath
             outfolderpath = os.path.join(outfolderpath, 'path')
             self.logger.info("out folder path {}".format(outfolderpath))
 

@@ -350,7 +350,7 @@ class KkrimpCalculation(CalcJob):
                 raise InputValidationError("impurity_info nodes (input and GF calc) are not compatible")
 
         # check if host parent was KKRFLEX calculation
-        hostfolderpath = parent_calc.out.retrieved.folder.abspath
+        hostfolderpath = parent_calc.outputs.retrieved.folder.abspath
         hostfolderpath = os.path.join(hostfolderpath, 'path')
         input_file = os.path.join(hostfolderpath, KkrCalculation()._DEFAULT_INPUT_FILE)
         params_host_calc = kkrparams(params_type='kkr') # initialize kkrparams instance to use read_keywords_from_inputcard

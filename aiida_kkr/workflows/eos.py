@@ -231,10 +231,10 @@ class kkr_eos_wc(WorkChain):
         # get output of kkr_startpot
         out_wc = self.ctx.kkr_startpot
         try:
-            res = out_wc.out.results_vorostart_wc
-            voro_params = out_wc.out.last_params_voronoi
-            smallest_voro_remote = out_wc.out.last_voronoi_remote
-            smallest_voro_results = out_wc.out.last_voronoi_results
+            res = out_wc.outputs.results_vorostart_wc
+            voro_params = out_wc.outputs.last_params_voronoi
+            smallest_voro_remote = out_wc.outputs.last_voronoi_remote
+            smallest_voro_results = out_wc.outputs.last_voronoi_results
             vorostart_success = res.get_dict()['successful']
         except AttributeError:
             vorostart_success = False
@@ -326,13 +326,13 @@ class kkr_eos_wc(WorkChain):
             uuid = calc_uuids[iic]
             n = load_node(uuid)
             try:
-                d_result = n.out.output_kkr_scf_wc_ParameterResults.get_dict()
+                d_result = n.outputs.output_kkr_scf_wc_ParameterResults.get_dict()
                 self.report('INFO: extracting output of calculation {}: successful={}, rms={}'.format(uuid, d_result[u'successful'], d_result[u'convergence_value']))
                 if d_result[u'successful']:
                     pk_last_calc = d_result['last_calc_nodeinfo']['pk']
                     n2 = load_node(pk_last_calc)
                     scale = self.ctx.scale_factors[iic]
-                    ener = n2.out.output_parameters.get_dict()['total_energy_Ry']
+                    ener = n2.outputs.output_parameters.get_dict()['total_energy_Ry']
                     rms = d_result[u'convergence_value']
                     scaled_struc = self.ctx.scaled_structures[iic]
                     v = scaled_struc.get_cell_volume()

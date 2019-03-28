@@ -182,16 +182,16 @@ class kkr_dos_wc(WorkChain):
         nparents = len(parents)
         if nparents!=1:
             # extract parent workflow and get uuid of last calc from output node
-            parent_workflow = input_remote.inp.last_RemoteData
+            parent_workflow = input_remote.inputs.last_RemoteData
             if not isinstance(parent_workflow, WorkChainNode):
                 raise InputValidationError("Input remote_data node neither output of a KKR/voronoi calculation nor of kkr_scf_wc workflow")
-            parent_workflow_out = parent_workflow.out.output_kkr_scf_wc_ParameterResults
+            parent_workflow_out = parent_workflow.outputs.output_kkr_scf_wc_ParameterResults
             uuid_last_calc = parent_workflow_out.get_dict().get('last_calc_nodeinfo').get('uuid')
             last_calc = load_node(uuid_last_calc)
             if not isinstance(last_calc, KkrCalculation) and not isinstance(last_calc, VoronoiCalculation):
                 raise InputValidationError("Extracted last_calc node not of type KkrCalculation: check remote_data input node")
             # overwrite remote_data node with extracted remote folder
-            output_remote = last_calc.out.remote_folder
+            output_remote = last_calc.outputs.remote_folder
             self.inputs.remote_data = output_remote
 
         if 'kkr' in inputs:
@@ -341,7 +341,7 @@ class kkr_dos_wc(WorkChain):
 
         self.report("INFO: create dos results nodes: outputnode={}".format(outputnode))
         try:
-            self.report("INFO: create dos results nodes. dos calc retrieved node={}".format(self.ctx.dosrun.out.retrieved))
+            self.report("INFO: create dos results nodes. dos calc retrieved node={}".format(self.ctx.dosrun.outputs.retrieved))
             has_dosrun = True
         except AttributeError as e:
             self.report("ERROR: no dos calc retrieved node found")
@@ -350,7 +350,7 @@ class kkr_dos_wc(WorkChain):
 
         # interpol dos file and store to XyData nodes
         if has_dosrun:
-            outdict = create_dos_result_node(outputnode, self.ctx.dosrun.out.retrieved)
+            outdict = create_dos_result_node(outputnode, self.ctx.dosrun.outputs.retrieved)
         else:
             outdict = create_dos_result_node_minimal(outputnode)
 

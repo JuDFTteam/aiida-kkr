@@ -374,7 +374,7 @@ def get_parent_paranode(remote_data):
     """
     Return the input parameter of the parent calulation giving the remote_data node
     """
-    inp_para = remote_data.inp.remote_folder.inp.parameters
+    inp_para = remote_data.inputs.remote_folder.inputs.parameters
     return inp_para
 
 
@@ -816,11 +816,11 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
                     "".format(n_parents, "" if n_parents == 0 else "s"))
         else:
             parent_calc = parent_calcs[0]
-        remote_path = parent_calc.out.retrieved.get_abs_path('')
+        remote_path = parent_calc.outputs.retrieved.get_abs_path('')
         pot1_path = os.path.join(remote_path, pot1)
 
         # extract nspin from parent calc's input parameter node
-        nspin = parent_calc.inp.parameters.get_dict().get('NSPIN')
+        nspin = parent_calc.inputs.parameters.get_dict().get('NSPIN')
         neworder_spin = []
         for iatom in neworder:
             for ispin in range(nspin):
@@ -838,7 +838,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
                         "".format(n_parents, "" if n_parents == 0 else "s"))
             else:
                 parent_calc = parent_calcs[0]
-            remote_path = parent_calc.out.retrieved.get_abs_path('')
+            remote_path = parent_calc.outputs.retrieved.get_abs_path('')
             pot2_path = os.path.join(remote_path, pot2)
         else:
             pot2_path = None

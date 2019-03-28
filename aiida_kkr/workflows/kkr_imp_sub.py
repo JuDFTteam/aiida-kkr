@@ -449,7 +449,7 @@ class kkr_imp_sub_wc(WorkChain):
                     self.report("INFO: last calc success? {} {}".format(icalc, self.ctx.KKR_steps_stats['success'][icalc]))
                     if self.ctx.KKR_steps_stats['success'][icalc]:
                         if self.ctx.KKR_steps_stats['last_rms'][icalc] < self.ctx.KKR_steps_stats['first_rms'][icalc]:
-                            self.ctx.last_remote = self.ctx.calcs[icalc].out.remote_folder
+                            self.ctx.last_remote = self.ctx.calcs[icalc].outputs.remote_folder
                         else:
                             self.ctx.last_remote = None
                         break # exit loop if last_remote was found successfully
@@ -709,7 +709,7 @@ class kkr_imp_sub_wc(WorkChain):
         if last_remote is None:
             # make sure no core states are in energy contour
             # extract emin from output of GF host calculation
-            GF_out_params = host_GF.inp.remote_folder.out.output_parameters
+            GF_out_params = host_GF.inputs.remote_folder.outputs.output_parameters
             emin = GF_out_params.get_dict().get('energy_contour_group').get('emin')
             # then use this value to get rid of all core states that are lower than emin (return the same input potential if no states have been removed
             imp_pot = kick_out_corestates_wf(imp_pot, Float(emin))
@@ -767,14 +767,14 @@ class kkr_imp_sub_wc(WorkChain):
         self.report("INFO: kkrimp_step_success: {}".format(self.ctx.kkrimp_step_success))
 
         # get potential from last calculation
-        retrieved_path = self.ctx.kkr.out.retrieved.get_abs_path() # retrieved path
+        retrieved_path = self.ctx.kkr.outputs.retrieved.get_abs_path() # retrieved path
         pot_path = retrieved_path+'/path/out_potential'
         self.ctx.last_pot = SinglefileData(file=pot_path)
 
         # extract convergence info about rms etc. (used to determine convergence behavior)
         try:
             self.report("INFO: trying to find output of last_calc: {}".format(self.ctx.last_calc))
-            last_calc_output = self.ctx.last_calc.out.output_parameters.get_dict()
+            last_calc_output = self.ctx.last_calc.outputs.output_parameters.get_dict()
             found_last_calc_output = True
         except:
             found_last_calc_output = False
@@ -782,7 +782,7 @@ class kkr_imp_sub_wc(WorkChain):
 
         # try yo extract remote folder
         try:
-            self.ctx.last_remote = self.ctx.kkr.out.remote_folder
+            self.ctx.last_remote = self.ctx.kkr.outputs.remote_folder
            # elif 'kkrimp_remote' in self.inputs:
            #     self.ctx.last_remote = self.inputs.kkrimp_remote
             #else:
@@ -823,7 +823,7 @@ class kkr_imp_sub_wc(WorkChain):
         # store some statistics used to print table in the end of the report
         self.ctx.KKR_steps_stats['success'].append(self.ctx.kkr_step_success)
         try:
-            isteps = self.ctx.last_calc.out.output_parameters.get_dict()['convergence_group']['number_of_iterations']
+            isteps = self.ctx.last_calc.outputs.output_parameters.get_dict()['convergence_group']['number_of_iterations']
         except:
             self.ctx.warnings.append('cound not set isteps in KKR_steps_stats dict')
             isteps = -1
@@ -870,7 +870,7 @@ class kkr_imp_sub_wc(WorkChain):
 
         # first check if previous calculation was stopped due to reaching the QBOUND limit
         try:
-            calc_reached_qbound = self.ctx.last_calc.out.output_parameters.get_dict()['convergence_group']['calculation_converged']
+            calc_reached_qbound = self.ctx.last_calc.outputs.output_parameters.get_dict()['convergence_group']['calculation_converged']
         except AttributeError: # captures error when last_calc dies not have an output node
             calc_reached_qbound = False
         except KeyError: # captures

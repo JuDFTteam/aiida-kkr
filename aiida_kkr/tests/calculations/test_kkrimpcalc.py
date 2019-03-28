@@ -33,10 +33,10 @@ class Test_kkrimp_calculation(object):
         # now create a SingleFileData node containing the impurity starting potential
         from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
         from numpy import loadtxt
-        neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]
+        neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.outputs.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]
         settings_dict = {'pot1': 'out_potential',  'out_pot': 'potential_imp', 'neworder': neworder_pot1}
         settings = Dict(dict=settings_dict)
-        startpot_imp_sfd = neworder_potential_wf(settings_node=settings, parent_calc_folder=GF_host_calc.out.remote_folder)
+        startpot_imp_sfd = neworder_potential_wf(settings_node=settings, parent_calc_folder=GF_host_calc.outputs.remote_folder)
 
         # set 1 simple mixing step
         kkrimp_params = kkrparams(params_type='kkrimp')
@@ -49,7 +49,7 @@ class Test_kkrimp_calculation(object):
         options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
         builder = KkrimpCalculation.get_builder()
         builder.code = kkrimp_code
-        builder.host_Greenfunction_folder = GF_host_calc.out.remote_folder
+        builder.host_Greenfunction_folder = GF_host_calc.outputs.remote_folder
         builder.impurity_potential = startpot_imp_sfd
         builder.metadata.options = options
         builder.parameters = ParamsKKRimp

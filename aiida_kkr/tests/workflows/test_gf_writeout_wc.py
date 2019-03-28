@@ -50,7 +50,7 @@ class Test_gf_writeout_workflow():
 
         from aiida.orm.importexport import import_data
         import_data('files/db_dump_kkrcalc.tar.gz')
-        kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').out.remote_folder
+        kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').outputs.remote_folder
 
         # create process builder to set parameters
         builder = kkr_flex_wc.get_builder()
@@ -74,7 +74,7 @@ class Test_gf_writeout_workflow():
         assert isinstance(d, DataFactory('remote'))
 
         kkrflex_retrieved = load_node(n.get('pk_flexcalc'))
-        kkrflex_retrieved = kkrflex_retrieved.out.retrieved
+        kkrflex_retrieved = kkrflex_retrieved.outputs.retrieved
         kkrflex_path = kkrflex_retrieved.get_abs_path('')
         for name in 'tmat green atominfo intercell_cmoms intercell_ref'.split():
             assert 'kkrflex_'+name in os.listdir(kkrflex_path)

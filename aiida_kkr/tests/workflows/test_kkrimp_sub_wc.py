@@ -55,10 +55,10 @@ class Test_kkrimp_scf_workflow():
         # now create a SingleFileData node containing the impurity starting potential
         from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
         from numpy import loadtxt
-        neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]
+        neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.outputs.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]
         settings_dict = {'pot1': 'out_potential',  'out_pot': 'potential_imp', 'neworder': neworder_pot1}
         settings = Dict(dict=settings_dict)
-        startpot_imp_sfd = neworder_potential_wf(settings_node=settings, parent_calc_folder=GF_host_calc.out.remote_folder)
+        startpot_imp_sfd = neworder_potential_wf(settings_node=settings, parent_calc_folder=GF_host_calc.outputs.remote_folder)
 
         label = 'kkrimp_scf Cu host_in_host'
         descr = 'kkrimp_scf workflow for Cu bulk'
@@ -69,7 +69,7 @@ class Test_kkrimp_scf_workflow():
         builder.label = label
         builder.kkrimp = KKRimpCode
         builder.options = options
-        builder.remote_data = GF_host_calc.out.remote_folder
+        builder.remote_data = GF_host_calc.outputs.remote_folder
         builder.wf_parameters = Dict(dict=wfd)
         builder.host_imp_startpot = startpot_imp_sfd
 

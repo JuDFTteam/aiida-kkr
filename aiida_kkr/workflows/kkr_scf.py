@@ -397,14 +397,14 @@ class kkr_scf_wc(WorkChain):
             self.ctx.last_remote = inputs.remote_data
             num_parents = len(self.ctx.last_remote.get_inputs(node_type=JobCalculation))
             if num_parents == 0:
-                pk_last_remote = self.ctx.last_remote.inp.last_RemoteData.out.output_kkr_scf_wc_ParameterResults.get_dict().get('last_calc_nodeinfo').get('pk')
+                pk_last_remote = self.ctx.last_remote.inputs.last_RemoteData.outputs.output_kkr_scf_wc_ParameterResults.get_dict().get('last_calc_nodeinfo').get('pk')
                 last_calc = load_node(pk_last_remote)
-                self.ctx.last_remote = last_calc.out.remote_folder
+                self.ctx.last_remote = last_calc.outputs.remote_folder
             try: # first try parent of remote data output of a previous calc.
                 parent_params = get_parent_paranode(inputs.remote_data)
             except AttributeError:
                 try: # next try to extract parameter from previous kkr_scf_wc output
-                    parent_params = inputs.remote_data.inp.last_RemoteData.inp.calc_parameters
+                    parent_params = inputs.remote_data.inputs.last_RemoteData.inputs.calc_parameters
                 except AttributeError:
                     return self.exit_codes.ERROR_NO_PARENT_PARAMS_FOUND
             if  'calc_parameters' in inputs:
@@ -522,12 +522,12 @@ class kkr_scf_wc(WorkChain):
         voro_step_ok = False
 
         # check some output
-        kkrstartpot_results = self.ctx.voronoi.out.results_vorostart_wc.get_dict()
+        kkrstartpot_results = self.ctx.voronoi.outputs.results_vorostart_wc.get_dict()
         if kkrstartpot_results['successful']:
             voro_step_ok = True
         # initialize last_remote and last_params (gets updated in loop of KKR calculations)
-        self.ctx.last_params = self.ctx.voronoi.out.last_params_voronoi
-        self.ctx.last_remote = self.ctx.voronoi.out.last_voronoi_remote
+        self.ctx.last_params = self.ctx.voronoi.outputs.last_params_voronoi
+        self.ctx.last_remote = self.ctx.voronoi.outputs.last_voronoi_remote
 
         # store result in context
         self.ctx.voro_step_success = voro_step_ok
@@ -612,7 +612,7 @@ class kkr_scf_wc(WorkChain):
                 for icalc in range(len(self.ctx.calcs))[::-1]:
                     self.report("INFO: last calc success? {} {}".format(icalc, self.ctx.KKR_steps_stats['success'][icalc]))
                     if self.ctx.KKR_steps_stats['success'][icalc]:
-                        self.ctx.last_remote = self.ctx.calcs[icalc].out.remote_folder
+                        self.ctx.last_remote = self.ctx.calcs[icalc].outputs.remote_folder
                         break # exit loop if last_remote was found successfully
                     else:
                         self.ctx.last_remote = None
@@ -620,7 +620,7 @@ class kkr_scf_wc(WorkChain):
                 self.report("INFO: last_remote is None? {} {}".format(self.ctx.last_remote is None, 'structure' in self.inputs))
                 if self.ctx.last_remote is None:
                     if 'structure' in self.inputs:
-                        self.ctx.voronoi.out.last_voronoi_remote
+                        self.ctx.voronoi.outputs.last_voronoi_remote
                     else:
                         self.ctx.last_remote = self.inputs.remote_data
                 # check if last_remote has finally been set and abort if this is not the case
@@ -855,7 +855,7 @@ class kkr_scf_wc(WorkChain):
         # extract convergence info about rms etc. (used to determine convergence behavior)
         try:
             self.report("INFO: trying to find output of last_calc: {}".format(self.ctx.last_calc))
-            last_calc_output = self.ctx.last_calc.out.output_parameters.get_dict()
+            last_calc_output = self.ctx.last_calc.outputs.output_parameters.get_dict()
             found_last_calc_output = True
         except:
             found_last_calc_output = False
@@ -863,7 +863,7 @@ class kkr_scf_wc(WorkChain):
 
         # try yo extract remote folder
         try:
-            self.ctx.last_remote = self.ctx.kkr.out.remote_folder
+            self.ctx.last_remote = self.ctx.kkr.outputs.remote_folder
         except:
             self.ctx.last_remote = None
             self.ctx.kkr_step_success = False
@@ -906,7 +906,7 @@ class kkr_scf_wc(WorkChain):
         # store some statistics used to print table in the end of the report
         self.ctx.KKR_steps_stats['success'].append(self.ctx.kkr_step_success)
         try:
-            isteps = self.ctx.last_calc.out.output_parameters.get_dict()['convergence_group']['number_of_iterations']
+            isteps = self.ctx.last_calc.outputs.output_parameters.get_dict()['convergence_group']['number_of_iterations']
         except:
             self.ctx.warnings.append('cound not set isteps in KKR_steps_stats dict')
             isteps = -1
@@ -961,7 +961,7 @@ class kkr_scf_wc(WorkChain):
 
         # first check if previous calculation was stopped due to reaching the QBOUND limit
         try:
-            calc_reached_qbound = self.ctx.last_calc.out.output_parameters.get_dict()['convergence_group']['calculation_converged']
+            calc_reached_qbound = self.ctx.last_calc.outputs.output_parameters.get_dict()['convergence_group']['calculation_converged']
         except AttributeError: # captures error when last_calc dies not have an output node
             calc_reached_qbound = False
         except KeyError: # captures
@@ -1064,16 +1064,16 @@ class kkr_scf_wc(WorkChain):
 
         # capture result of vorostart sub-workflow
         try:
-            results_vorostart = self.ctx.voronoi.out.results_vorostart_wc
+            results_vorostart = self.ctx.voronoi.outputs.results_vorostart_wc
         except:
             results_vorostart = None
         try:
-            starting_dosdata_interpol = self.ctx.voronoi.out.last_doscal_dosdata_interpol
+            starting_dosdata_interpol = self.ctx.voronoi.outputs.last_doscal_dosdata_interpol
         except:
             starting_dosdata_interpol = None
 
         try:
-            final_dosdata_interpol = self.ctx.doscal.out.dos_data_interpol
+            final_dosdata_interpol = self.ctx.doscal.outputs.dos_data_interpol
         except:
             final_dosdata_interpol = None
 
@@ -1245,11 +1245,11 @@ class kkr_scf_wc(WorkChain):
             # remember: efermi, emin and emax are in internal units (Ry) but delta_e is in eV!
             eV2Ry = 1./get_Ry2eV()
             emin = self.ctx.dos_params['emin'] # from dos params
-            emin_cont = self.ctx.last_calc.out.output_parameters.get_dict().get('energy_contour_group').get('emin') # from contour (sets limit of dos emin!)
+            emin_cont = self.ctx.last_calc.outputs.output_parameters.get_dict().get('energy_contour_group').get('emin') # from contour (sets limit of dos emin!)
             if emin_cont - self.ctx.delta_e*eV2Ry < emin:
                 self.ctx.dos_params['emin'] = emin_cont - self.ctx.delta_e*eV2Ry
                 self.report("INFO: emin ({} Ry) - delta_e ({} Ry) smaller than emin ({} Ry) of voronoi output. Setting automatically to {}Ry".format(emin_cont, self.ctx.delta_e*eV2Ry,  emin, emin_cont-self.ctx.delta_e*eV2Ry))
-            self.ctx.efermi = get_ef_from_potfile(self.ctx.last_calc.out.retrieved.get_abs_path('out_potential'))
+            self.ctx.efermi = get_ef_from_potfile(self.ctx.last_calc.outputs.retrieved.get_abs_path('out_potential'))
             emax = self.ctx.dos_params['emax']
             if emax < self.ctx.efermi + self.ctx.delta_e*eV2Ry:
                 self.ctx.dos_params['emax'] = self.ctx.efermi + self.ctx.delta_e*eV2Ry
@@ -1267,7 +1267,7 @@ class kkr_scf_wc(WorkChain):
             wfdospara_node.description = 'DOS parameter set for final DOS calculation of kkr_scf_wc'
 
             code = self.inputs.kkr
-            remote = self.ctx.last_calc.out.remote_folder
+            remote = self.ctx.last_calc.outputs.remote_folder
             wf_label= ' final DOS calculation'
             wf_desc = ' subworkflow of a DOS calculation'
             future = self.submit(kkr_dos_wc, kkr=code, remote_data=remote,
@@ -1294,7 +1294,7 @@ class kkr_scf_wc(WorkChain):
         # check parser output
         doscal = self.ctx.doscal
         try:
-            dos_outdict = doscal.out.results_wf.get_dict()
+            dos_outdict = doscal.outputs.results_wf.get_dict()
             if not dos_outdict['successful']:
                 self.report("ERROR: DOS workflow unsuccessful")
                 self.ctx.dos_ok = False
@@ -1310,8 +1310,8 @@ class kkr_scf_wc(WorkChain):
 
         # check for negative DOS
         try:
-            dosdata = doscal.out.dos_data
-            natom = self.ctx.last_calc.out.output_parameters.get_dict()['number_of_atoms_in_unit_cell']
+            dosdata = doscal.outputs.dos_data
+            natom = self.ctx.last_calc.outputs.output_parameters.get_dict()['number_of_atoms_in_unit_cell']
             nspin = dos_outdict['nspin']
 
             ener = dosdata.get_x()[1] # shape= natom*nspin, nept
@@ -1333,7 +1333,7 @@ class kkr_scf_wc(WorkChain):
                         self.ctx.dos_ok = False
 
             # check starting EMIN
-            dosdata_interpol = doscal.out.dos_data_interpol
+            dosdata_interpol = doscal.outputs.dos_data_interpol
 
             ener = dosdata_interpol.get_x()[1] # shape= natom*nspin, nept
             totdos = dosdata_interpol.get_y()[0][1] # shape= natom*nspin, nept

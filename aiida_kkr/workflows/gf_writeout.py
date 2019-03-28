@@ -208,16 +208,16 @@ class kkr_flex_wc(WorkChain):
         nparents = len(parents)
         if nparents!=1:
             # extract parent workflow and get uuid of last calc from output node
-            parent_workflow = input_remote.inp.last_RemoteData
+            parent_workflow = input_remote.inputs.last_RemoteData
             if not isinstance(parent_workflow, WorkChainNode):
                 raise InputValidationError("Input remote_data node neither output of a KKR calculation nor of kkr_scf_wc workflow")
-                parent_workflow_out = parent_workflow.out.output_kkr_scf_wc_ParameterResults
+                parent_workflow_out = parent_workflow.outputs.output_kkr_scf_wc_ParameterResults
                 uuid_last_calc = parent_workflow_out.get_dict().get('last_calc_nodeinfo').get('uuid')
                 last_calc = load_node(uuid_last_calc)
                 if not isinstance(last_calc, KkrCalculation):
                     raise InputValidationError("Extracted last_calc node not of type KkrCalculation: check remote_data input node")
                 # overwrite remote_data node with extracted remote folder
-                output_remote = last_calc.out.remote_folder
+                output_remote = last_calc.outputs.remote_folder
                 self.inputs.remote_data = output_remote
 
         if 'kkr' in inputs:
@@ -294,7 +294,7 @@ class kkr_flex_wc(WorkChain):
             if self.ctx.ef_shift != 0:
                 # extract old Fermi energy in Ry
                 remote_data_parent = self.inputs.remote_data
-                ef_old = remote_data_parent.inp.remote_folder.out.output_parameters.get_attr('fermi_energy')
+                ef_old = remote_data_parent.inputs.remote_folder.outputs.output_parameters.get_attr('fermi_energy')
                 # get Fermi energy shift in eV
                 ef_shift = self.ctx.ef_shift #set new E_F in eV
                 # calculate new Fermi energy in Ry
@@ -380,13 +380,13 @@ class kkr_flex_wc(WorkChain):
         # return Dict node containing information about previous calculation
         self.out('workflow_info', outputnode)
         # return retrieved data from kkrflex calculation
-        self.out('GF_host_remote', self.ctx.flexrun.out.remote_folder)
+        self.out('GF_host_remote', self.ctx.flexrun.outputs.remote_folder)
 
         self.report('INFO: created GF writeout result nodes')
 
 #        self.report("INFO: create GF writeout results nodes: outputnode={}".format(outputnode))
 #        try:
-#            self.report("INFO: create GF writeout results nodes. KKRFLEX calc retrieved node={}".format(self.ctx.flexrun.out.retrieved))
+#            self.report("INFO: create GF writeout results nodes. KKRFLEX calc retrieved node={}".format(self.ctx.flexrun.outputs.retrieved))
 #            has_flexrun = True
 #        except AttributeError as e:
 #            self.report("ERROR: no KKRFLEX calc retrieved node found")

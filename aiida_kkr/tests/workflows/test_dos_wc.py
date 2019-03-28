@@ -65,7 +65,7 @@ class Test_dos_workflow():
 
         from aiida.orm.importexport import import_data
         import_data('files/db_dump_kkrcalc.tar.gz')
-        kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').out.remote_folder
+        kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').outputs.remote_folder
 
         # create process builder to set parameters
         builder = kkr_dos_wc.get_builder()

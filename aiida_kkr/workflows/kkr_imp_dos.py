@@ -206,19 +206,19 @@ class kkr_imp_dos_wc(WorkChain):
                 self.ctx.kkr_imp_wf = inputs.host_imp_pot.created_by.called_by
                 self.report('INFO: found underlying kkr impurity workflow '
                             '(pk: {})'.format(self.ctx.kkr_imp_wf.pk))
-                self.ctx.imp_info = self.ctx.kkr_imp_wf.inp.impurity_info
+                self.ctx.imp_info = self.ctx.kkr_imp_wf.inputs.impurity_info
                 self.report('INFO: found impurity_info node (pk: {})'.format(
                             self.ctx.imp_info.pk))
 #                try:
-#                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inp.gf_remote
+#                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inputs.gf_remote
 #                except:
-#                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inp.remote_converged_host
+#                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inputs.remote_converged_host
                 try:
-                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inp.remote_data_gf.inp.remote_folder.inp.parent_calc_folder.inp.remote_folder.out.remote_folder
+                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inputs.remote_data_gf.inputs.remote_folder.inputs.parent_calc_folder.inputs.remote_folder.outputs.remote_folder
                     self.report('INFO: imported converged_host_remote (pk: {}) and '
                                 'impurity_info from database'.format(self.ctx.conv_host_remote.pk))
                 except:
-                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inp.gf_remote.inp.remote_folder.inp.parent_calc_folder.inp.remote_folder.out.remote_folder
+                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inputs.gf_remote.inputs.remote_folder.inputs.parent_calc_folder.inputs.remote_folder.outputs.remote_folder
                     self.report('INFO: imported converged_host_remote (pk: {}) and '
                                 'impurity_info from database'.format(self.ctx.conv_host_remote.pk))
 
@@ -260,12 +260,12 @@ class kkr_imp_dos_wc(WorkChain):
         options = self.ctx.options_params_dict
         kkrimpcode = self.inputs.kkrimp
         gf_writeout_wf = self.ctx.gf_writeout
-        gf_writeout_calc = load_node(self.ctx.gf_writeout.out.workflow_info.get_attr('pk_flexcalc'))
-        gf_writeout_remote = gf_writeout_wf.out.GF_host_remote
+        gf_writeout_calc = load_node(self.ctx.gf_writeout.outputs.workflow_info.get_attr('pk_flexcalc'))
+        gf_writeout_remote = gf_writeout_wf.outputs.GF_host_remote
         impurity_pot = self.inputs.host_imp_pot
         imps = self.ctx.imp_info
 
-        nspin = gf_writeout_calc.out.output_parameters.get_attr('nspin')
+        nspin = gf_writeout_calc.outputs.output_parameters.get_attr('nspin')
         self.report('nspin: {}'.format(nspin))
         self.ctx.kkrimp_params_dict = Dict(dict={'nspin': nspin,
                                                           'nsteps': self.ctx.nsteps,
@@ -297,9 +297,9 @@ class kkr_imp_dos_wc(WorkChain):
 
         self.report('INFO: creating output nodes for the KKR imp DOS workflow ...')
 
-        last_calc_pk = self.ctx.kkrimp_dos.out.workflow_info.get_attr('last_calc_nodeinfo')['pk']
-        last_calc_output_params = load_node(last_calc_pk).out.output_parameters
-        last_calc_info = self.ctx.kkrimp_dos.out.workflow_info
+        last_calc_pk = self.ctx.kkrimp_dos.outputs.workflow_info.get_attr('last_calc_nodeinfo')['pk']
+        last_calc_output_params = load_node(last_calc_pk).outputs.output_parameters
+        last_calc_info = self.ctx.kkrimp_dos.outputs.workflow_info
 
         outputnode_dict = {}
         outputnode_dict['impurity_info'] = self.ctx.imp_info.get_attrs()

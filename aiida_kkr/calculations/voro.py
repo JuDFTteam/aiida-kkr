@@ -165,7 +165,7 @@ class VoronoiCalculation(CalcJob):
             # copy the right files #TODO check first if file, exists and throw
             # warning, now this will throw an error
             if found_parent and self._is_KkrCalc(parent_calc):
-                outfolderpath = parent_calc.out.retrieved.folder.abspath
+                outfolderpath = parent_calc.outputs.retrieved.folder.abspath
                 self.logger.info("out folder path {}".format(outfolderpath))
                 filename = os.path.join(outfolderpath, 'path', parent_calc._OUT_POTENTIAL)
                 copylist = [filename]

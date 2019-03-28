@@ -62,7 +62,7 @@ class Test_kkrimp_full_workflow():
 
         from aiida.orm.importexport import import_data
         import_data('files/db_dump_kkrcalc.tar.gz')
-        kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').out.remote_folder
+        kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').outputs.remote_folder
 
         label = 'kkrimp_scf full Cu host_in_host'
         descr = 'kkrimp_scf full workflow for Cu bulk inlcuding GF writeout and vorostart for starting potential'
@@ -90,7 +90,7 @@ class Test_kkrimp_full_workflow():
             assert sub in list(n.get('used_subworkflows').keys())
 
         kkrimp_sub = load_node(n['used_subworkflows']['kkr_imp_sub'])
-        assert kkrimp_sub.out.calculation_info.get_attr('successful')
+        assert kkrimp_sub.outputs.calculation_info.get_attr('successful')
 
 
 #run test manually

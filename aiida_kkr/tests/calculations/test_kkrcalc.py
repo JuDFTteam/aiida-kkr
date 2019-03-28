@@ -37,7 +37,7 @@ class Test_kkr_calculation(object):
         voro_calc = load_node('559b9d9b-3525-402e-9b24-ecd8b801853c')
 
         # extract and update KKR parameter (add missing values)
-        params = kkrparams(**voro_calc.inp.parameters.get_dict())
+        params = kkrparams(**voro_calc.inputs.parameters.get_dict())
         params.set_multiple_values(RMAX=7., GMAX=65.)
         params_node = Dict(dict=params.get_dict())
 
@@ -49,7 +49,7 @@ class Test_kkr_calculation(object):
         builder.code = code
         builder.metadata.options = options
         builder.parameters = params_node
-        builder.parent_folder = voro_calc.out.remote_folder
+        builder.parent_folder = voro_calc.outputs.remote_folder
         #builder.submit_test()
         from aiida.engine import run
         run(builder)
@@ -69,7 +69,7 @@ class Test_kkr_calculation(object):
         kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
 
         # extract KKR parameter (add missing values)
-        params_node = kkr_calc.inp.parameters
+        params_node = kkr_calc.inputs.parameters
 
         # load code from database and create new voronoi calculation
         code = Code.get_from_string(codename)
@@ -78,7 +78,7 @@ class Test_kkr_calculation(object):
         builder.code = code
         builder.options = options
         builder.parameters = params_node
-        builder.parent_folder = kkr_calc.out.remote_folder
+        builder.parent_folder = kkr_calc.outputs.remote_folder
         builder.submit_test()
 
 
@@ -96,7 +96,7 @@ class Test_kkr_calculation(object):
         kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
 
         # extract KKR parameter (add KKRFLEX option)
-        params_node = kkr_calc.inp.parameters
+        params_node = kkr_calc.inputs.parameters
         params = params_node.get_dict()
         params['RUNOPT'] = ['KKRFLEX']
         params_node = Dict(dict=params)
@@ -111,7 +111,7 @@ class Test_kkr_calculation(object):
         builder.code = code
         builder.options = options
         builder.parameters = params_node
-        builder.parent_folder = kkr_calc.out.remote_folder
+        builder.parent_folder = kkr_calc.outputs.remote_folder
         builder.impurity_info = imp_info
         builder.submit_test()
 
