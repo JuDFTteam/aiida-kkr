@@ -4,11 +4,8 @@ contains plot_kkr class for node visualization
 """
 from __future__ import print_function
 from __future__ import division
-
 from __future__ import absolute_import
-from builtins import str
-from builtins import object
-from past.utils import old_div
+from builtins import object, str
 from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -288,7 +285,7 @@ class plot_kkr(object):
         y_all = d.get_y()
 
         natoms = len(struc.sites)
-        nspin = old_div(len(y_all[0][1]), natoms)
+        nspin = len(y_all[0][1]) // natoms
 
         xlbl = x_all[0]+' ('+x_all[2]+')'
 
@@ -866,7 +863,7 @@ class plot_kkr(object):
                 v01, e01, B1 = eos.fit()
 
                 print('# relative differences to full fit: V0, E0, B (without smallest volume)')
-                print('{} {} {}'.format(abs(1-old_div(v01,v0)), abs(1-old_div(e01,e0)), abs(1-old_div(B1,B))))
+                print('{} {} {}'.format(abs(1-v01/v0), abs(1-e01/e0), abs(1-B1/B)))
 
                 if len(e)>5:
                     # also take out largest volume
@@ -874,6 +871,6 @@ class plot_kkr(object):
                     v02, e02, B2 = eos.fit()
 
                     print('\n# V0, E0, B (without smallest and largest volume)')
-                    print('{} {} {}'.format(abs(1-old_div(v02,v0)), abs(1-old_div(e02,e0)), abs(1-old_div(B2,B))))
+                    print('{} {} {}'.format(abs(1-v02/v0), abs(1-e02/e0), abs(1-B2/B)))
         except:
             pass # do nothing if no eos data there

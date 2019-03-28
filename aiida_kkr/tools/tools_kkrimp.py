@@ -7,9 +7,7 @@ Tools for the impurity caluclation plugin and its workflows
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from builtins import str
-from past.utils import old_div
-from builtins import object
+from builtins import object, str
 from six.moves import range
 from six.moves import input
 
@@ -365,7 +363,7 @@ class kkrimp_parser_functions(object):
         niter = len(res.get(search_keys[-2], []))
         if niter>0:
             for key in search_keys[1:6]:
-                res[key] = old_div(sum(res[key]),niter)
+                res[key] = sum(res[key])/niter
             for key in [search_keys[0], search_keys[-1]]:
                 res[key] = res[key][0]
         return res
@@ -632,7 +630,7 @@ class kkrimp_parser_functions(object):
         try:
             result_WS, result_tot, result_C = get_charges_per_atom(files['out_log'])
             niter = len(out_dict['convergence_group']['rms_all_iterations'])
-            natyp = int(old_div(len(result_tot),niter))
+            natyp = int(len(result_tot)/niter)
             out_dict['total_charge_per_atom'] = result_WS[-natyp:]
             out_dict['charge_core_states_per_atom'] = result_C[-natyp:]
             # this check deals with the DOS case where output is slightly different
@@ -754,7 +752,7 @@ def get_structure_data(structure):
     m = len(structure.sites) #needed to do the indexing of atoms
     for site in sites:
         for j in range(3):
-            a[k][j] = old_div(site.position[j]*a_to_bohr,alat)
+            a[k][j] = site.position[j]*a_to_bohr/alat
         sitekind = structure.get_kind(site.kind_name)
         naez = n - m
         m = m - 1
@@ -922,15 +920,15 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
     #========================================================
     #spherical approach (same distance in all three directions)
     if clust_shape == 'spherical':
-        box_1 = int(old_div(radius,(old_div(structure.cell_lengths[0]*a_to_bohr,alat))) + 1)
-        box_2 = int(old_div(radius,(old_div(structure.cell_lengths[1]*a_to_bohr,alat))) + 1)
-        box_3 = int(old_div(radius,(old_div(structure.cell_lengths[2]*a_to_bohr,alat))) + 1)
+        box_1 = int(radius/(structure.cell_lengths[0]*a_to_bohr/alat) + 1)
+        box_2 = int(radius/(structure.cell_lengths[1]*a_to_bohr/alat) + 1)
+        box_3 = int(radius/(structure.cell_lengths[2]*a_to_bohr/alat) + 1)
     #cylindrical shape (different distances for the different directions)
     elif clust_shape == 'cylindrical':
         maxval = max(h/2., radius)
-        box_1 = int(old_div(maxval,(old_div(structure.cell_lengths[0]*a_to_bohr,alat))) + 1)
-        box_2 = int(old_div(maxval,(old_div(structure.cell_lengths[1]*a_to_bohr,alat))) + 1)
-        box_3 = int(old_div(maxval,(old_div(structure.cell_lengths[2]*a_to_bohr,alat))) + 1)
+        box_1 = int(maxval/(structure.cell_lengths[0]*a_to_bohr/alat) + 1)
+        box_2 = int(maxval/(structure.cell_lengths[1]*a_to_bohr/alat) + 1)
+        box_3 = int(maxval/(structure.cell_lengths[2]*a_to_bohr/alat) + 1)
     #================================================================================================================
 
     #create array of all the atoms in an expanded system
@@ -939,12 +937,12 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
         for n in range(-box, box + 1):
             for m in range(-box, box + 1):
                 for l in range(-box, box + 1):
-                    x_temp = np.append(x_temp, [[x[j][0] + old_div((n*structure.cell[0][0] + m*structure.cell[1][0] +
-                                                     l*structure.cell[2][0])*a_to_bohr,alat),
-                                                 x[j][1] + old_div((n*structure.cell[0][1] + m*structure.cell[1][1] +
-                                                     l*structure.cell[2][1])*a_to_bohr,alat),
-                                                 x[j][2] + old_div((n*structure.cell[0][2] + m*structure.cell[1][2] +
-                                                     l*structure.cell[2][2])*a_to_bohr,alat),
+                    x_temp = np.append(x_temp, [[x[j][0] + (n*structure.cell[0][0] + m*structure.cell[1][0] +
+                                                     l*structure.cell[2][0])*a_to_bohr/alat,
+                                                 x[j][1] + (n*structure.cell[0][1] + m*structure.cell[1][1] +
+                                                     l*structure.cell[2][1])*a_to_bohr/alat,
+                                                 x[j][2] + (n*structure.cell[0][2] + m*structure.cell[1][2] +
+                                                     l*structure.cell[2][2])*a_to_bohr/alat,
                                                  x[j][3], x[j][4], 0.]], axis = 0)
 
     #x_temp now contains all the atoms and their positions regardless if they are bigger or smaller than the cutoff

@@ -7,7 +7,6 @@ some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from past.utils import old_div
 from six.moves import range
 from aiida.orm import Code, load_node
 from aiida.plugins import DataFactory
@@ -379,9 +378,9 @@ def parse_dosfiles(dospath):
 
     # convert to eV units
     dos[:,:,0] = (dos[:,:,0]-ef)*eVscale
-    dos[:,:,1:] = old_div(dos[:,:,1:],eVscale)
+    dos[:,:,1:] = dos[:,:,1:]/eVscale
     dos_int[:,:,0] = (dos_int[:,:,0]-ef)*eVscale
-    dos_int[:,:,1:] = old_div(dos_int[:,:,1:],eVscale)
+    dos_int[:,:,1:] = dos_int[:,:,1:]/eVscale
 
     # create output nodes
     dosnode = XyData()

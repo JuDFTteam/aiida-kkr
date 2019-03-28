@@ -4,7 +4,6 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 from builtins import object
-from past.utils import old_div
 import pytest
 from dbsetup import *
 
@@ -21,7 +20,7 @@ def wait_for_it(calc, maxwait=300, dT=10):
     wait for maximally <maxwait> seconds and check the calculation's state every <dT> seconds
     """
     from time import sleep
-    nsteps = old_div(maxwait,dT)
+    nsteps = maxwait/dT
     print('waiting for calculation to finish (maximally wait for {} seconds)'.format(maxwait))
     istep = 0
     calcstate = u'UNKNOWN'

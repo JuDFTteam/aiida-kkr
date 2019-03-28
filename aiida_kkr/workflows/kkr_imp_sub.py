@@ -6,7 +6,6 @@ and some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from past.utils import old_div
 from aiida.plugins import DataFactory
 from aiida.orm import Float, Code
 from aiida.engine import WorkChain, ToContext, while_, if_
@@ -883,7 +882,7 @@ class kkr_imp_sub_wc(WorkChain):
             # use this trick to avoid division by zero
             if last_rms == 0:
                 last_rms = 10**-16
-            r = old_div(last_rms,first_rms)
+            r = last_rms/first_rms
             self.report("INFO: convergence check: first/last rms {}, {}".format(first_rms, last_rms))
             if r < 1:
                 self.report("INFO: convergence check: rms goes down")

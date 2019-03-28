@@ -7,7 +7,6 @@ some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from past.utils import old_div
 from aiida.orm import Code, load_node
 from aiida.plugins import DataFactory
 from aiida.engine import WorkChain, while_, if_, ToContext
@@ -978,7 +977,7 @@ class kkr_scf_wc(WorkChain):
                 first_neutr = 10**-16
             if first_rms == 0:
                 first_rms = 10**-16
-            r, n = old_div(last_rms,first_rms), old_div(last_neutr,first_neutr)
+            r, n = last_rms/first_rms, last_neutr/first_neutr
             self.report("INFO convergence check: first/last rms {}, {}; first/last neutrality {}, {}".format(first_rms, last_rms, first_neutr, last_neutr))
             if r < 1 and n < 1:
                 self.report("INFO convergence check: both rms and neutrality go down")
@@ -1324,7 +1323,7 @@ class kkr_scf_wc(WorkChain):
                 return self.exit_codes.ERROR_DOS_RUN_UNSUCCESFUL
 
             # deal with snpin==1 or 2 cases and check negtive DOS
-            for iatom in range(old_div(natom,nspin)):
+            for iatom in range(natom//nspin):
                 for ispin in range(nspin):
                     x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
                     if nspin == 2 and ispin == 0:
@@ -1340,7 +1339,7 @@ class kkr_scf_wc(WorkChain):
             totdos = dosdata_interpol.get_y()[0][1] # shape= natom*nspin, nept
             Ry2eV = get_Ry2eV()
 
-            for iatom in range(old_div(natom,nspin)):
+            for iatom in range(natom//nspin):
                 for ispin in range(nspin):
                     x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
                     xrel = abs(x-(self.ctx.dos_params_dict['emin']-self.ctx.efermi)*Ry2eV)

@@ -7,7 +7,6 @@ some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from past.utils import old_div
 from aiida.orm import Code
 from aiida.plugins import DataFactory
 from aiida.engine import WorkChain, while_, if_, ToContext
@@ -560,7 +559,7 @@ class kkr_startpot_wc(WorkChain):
                     return self.exit_codes.ERROR_DOSRUN_FAILED
 
                 # deal with snpin==1 or 2 cases and check negtive DOS
-                for iatom in range(old_div(natom,nspin)):
+                for iatom in range(natom//nspin):
                     for ispin in range(nspin):
                         x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
                         if nspin == 2 and ispin == 0:
@@ -577,7 +576,7 @@ class kkr_startpot_wc(WorkChain):
                 totdos = dosdata_interpol.get_y()[0][1] # shape= natom*nspin, nept [0] for total DOS
                 Ry2eV = get_Ry2eV()
 
-                for iatom in range(old_div(natom,nspin)):
+                for iatom in range(natom//nspin):
                     for ispin in range(nspin):
                         x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
                         xrel = abs(x-(emin-self.ctx.efermi)*Ry2eV)

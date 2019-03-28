@@ -7,7 +7,6 @@ some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from past.utils import old_div
 from aiida.orm import Code, load_node
 from aiida.plugins import DataFactory
 from aiida.orm import Float, Bool
@@ -182,7 +181,7 @@ class kkr_eos_wc(WorkChain):
         # set scale_factors from scale_range and nsteps
         self.ctx.scale_factors = []
         for i in range(self.ctx.nsteps):
-            scale_fac = self.ctx.scale_range[0]+old_div(i*(self.ctx.scale_range[1]-self.ctx.scale_range[0]),(self.ctx.nsteps-1))
+            scale_fac = self.ctx.scale_range[0]+i*(self.ctx.scale_range[1]-self.ctx.scale_range[0])/(self.ctx.nsteps-1)
             self.ctx.scale_factors.append(scale_fac)
 
 
@@ -360,7 +359,7 @@ class kkr_eos_wc(WorkChain):
         scalings = etot[:,0]
         rms = etot[:,-1]
         # convert to eV and per atom units
-        etot = old_div(etot,len(scaled_struc.sites)) # per atom values
+        etot = etot/len(scaled_struc.sites) # per atom values
         etot[:,1] = etot[:,1] * get_Ry2eV() # convert energy from Ry to eV
         volumes, energies = etot[:,2], etot[:,1]
 
@@ -421,7 +420,7 @@ class kkr_eos_wc(WorkChain):
         if self.ctx.successful and self.ctx.return_gs_struc:
             # final result: scaling factor for equilibium
             v0, e0, B = self.ctx.fitdata.get(self.ctx.fitfunc_gs_out)
-            scale_fac0 = old_div(v0,self.ctx.structure.get_cell_volume()*len(self.ctx.structure.sites))
+            scale_fac0 = v0/self.ctx.structure.get_cell_volume()*len(self.ctx.structure.sites)
             outdict['gs_scale_factor'] = scale_fac0
             outdict['gs_fitfunction'] = self.ctx.fitfunc_gs_out
             gs_structure = rescale(self.ctx.structure, Float(scale_fac0))

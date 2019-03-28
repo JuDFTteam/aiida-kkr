@@ -6,7 +6,6 @@ within workfunctions) are collected.
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from past.utils import old_div
 from aiida.common.exceptions import InputValidationError
 from aiida.engine import calcfunction
 from aiida.plugins import DataFactory
@@ -431,7 +430,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
         wmess = 'found alat in input parameters, this will trigger scaling of RMAX, GMAX and RCLUSTZ!'
         print('WARNING: '+wmess)
         warnings.append(wmess)
-    bravais = old_div(bravais,alat)
+    bravais = bravais/alat
 
     sites = structure.sites
     naez = len(sites)
@@ -443,7 +442,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     for site in sites:
         pos = site.position
         #TODO maybe convert to rel pos and make sure that type is right for script (array or tuple)
-        abspos = old_div(array(pos)*a_to_bohr,alat) # also in units of alat
+        abspos = array(pos)*a_to_bohr/alat # also in units of alat
         positions.append(abspos)
         isite += 1
         sitekind = structure.get_kind(site.kind_name)
@@ -519,25 +518,25 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     # automatically rescale RMAX, GMAX, RCLUSTZ, RCLUSTXY which are scaled with the lattice constant
     if alat_input is not None:
         if input_dict.get('RMAX') is not None:
-            wmess = 'rescale RMAX: {}'.format(old_div(alat_input,alat))
+            wmess = 'rescale RMAX: {}'.format(alat_input/alat)
             print('WARNING: '+wmess)
             warnings.append(wmess)
-            input_dict['RMAX'] = old_div(input_dict['RMAX']*alat_input,alat)
+            input_dict['RMAX'] = input_dict['RMAX']*alat_input/alat
         if input_dict.get('GMAX') is not None:
-            wmess='rescale GMAX: {}'.format(old_div(1,(old_div(alat_input,alat))))
+            wmess='rescale GMAX: {}'.format(1/(alat_input/alat))
             print('WARNING: '+wmess)
             warnings.append(wmess)
-            input_dict['GMAX'] = old_div(input_dict['GMAX']*1,(old_div(alat_input,alat)))
+            input_dict['GMAX'] = input_dict['GMAX']*1/(alat_input/alat)
         if input_dict.get('RCLUSTZ') is not None:
-            wmess='rescale RCLUSTZ: {}'.format(old_div(alat_input,alat))
+            wmess='rescale RCLUSTZ: {}'.format(alat_input/alat)
             print('WARNING: '+wmess)
             warnings.append(wmess)
-            input_dict['RCLUSTZ'] = old_div(input_dict['RCLUSTZ']*alat_input,alat)
+            input_dict['RCLUSTZ'] = input_dict['RCLUSTZ']*alat_input/alat
         if input_dict.get('RCLUSTXY') is not None:
-            wmess='rescale RCLUSTXY: {}'.format(old_div(alat_input,alat))
+            wmess='rescale RCLUSTXY: {}'.format(alat_input/alat)
             print('WARNING: '+wmess)
             warnings.append(wmess)
-            input_dict['RCLUSTXY'] = old_div(input_dict['RCLUSTXY']*alat_input,alat)
+            input_dict['RCLUSTXY'] = input_dict['RCLUSTXY']*alat_input/alat
 
     # empty kkrparams instance (contains formatting info etc.)
     if not isvoronoi:
@@ -582,10 +581,10 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     rbr = params.get_value('<RBRIGHT>')
     zper_l = params.get_value('ZPERIODL')
     zper_r = params.get_value('ZPERIODR')
-    if rbl is not None: params.set_value('<RBLEFT>', old_div(array(rbl)*a_to_bohr,alat))
-    if rbr is not None: params.set_value('<RBRIGHT>', old_div(array(rbr)*a_to_bohr,alat))
-    if zper_l is not None: params.set_value('ZPERIODL', old_div(array(zper_l)*a_to_bohr,alat))
-    if zper_r is not None: params.set_value('ZPERIODR', old_div(array(zper_r)*a_to_bohr,alat))
+    if rbl is not None: params.set_value('<RBLEFT>', array(rbl)*a_to_bohr/alat)
+    if rbr is not None: params.set_value('<RBRIGHT>', array(rbr)*a_to_bohr/alat)
+    if zper_l is not None: params.set_value('ZPERIODL', array(zper_l)*a_to_bohr/alat)
+    if zper_r is not None: params.set_value('ZPERIODR', array(zper_r)*a_to_bohr/alat)
 
     # write inputfile
     params.fill_keywords_to_inputfile(output=input_filename)

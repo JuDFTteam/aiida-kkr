@@ -6,7 +6,6 @@ some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from past.utils import old_div
 from aiida.orm import Code, load_node
 from aiida.plugins import DataFactory
 from aiida.engine import WorkChain, ToContext, if_
@@ -299,7 +298,7 @@ class kkr_flex_wc(WorkChain):
                 # get Fermi energy shift in eV
                 ef_shift = self.ctx.ef_shift #set new E_F in eV
                 # calculate new Fermi energy in Ry
-                ef_new = (ef_old + old_div(ef_shift,get_Ry2eV()))
+                ef_new = (ef_old + ef_shift/get_Ry2eV())
                 self.report('INFO: ef_old + ef_shift = ef_new: {} eV + {} eV = {} eV'.format(ef_old*get_Ry2eV(), ef_shift, ef_new*get_Ry2eV()))
                 para_check = update_params_wf(para_check, Dict(dict={'ef_set':ef_new}))
             if self.ctx.dos_run:
