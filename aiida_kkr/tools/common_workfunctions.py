@@ -845,7 +845,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
             pot2_fhandle = None
 
         # change file path to Sandbox folder accordingly
-        out_pot_fhandle = tempfolder.open(out_pot, 'w')
+        out_pot_fhandle = tempfolder.open(out_pot, u'w')
 
         # run neworder_potential function
         modify_potential().neworder_potential(pot1_fhandle, out_pot_fhandle, neworder, potfile_2=pot2_fhandle,
@@ -951,7 +951,7 @@ def kick_out_corestates(potfile, potfile_out, emin):
 
         if num_deleted>0:
             # write output potential
-            with open(potfile_out, 'w') as f2:
+            with open(potfile_out, u'w') as f2:
                 txt_new = list(array(txt)[all_lines])
                 f2.writelines(txt_new)
 

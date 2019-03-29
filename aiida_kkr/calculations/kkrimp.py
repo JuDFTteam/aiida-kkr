@@ -513,7 +513,7 @@ class KkrimpCalculation(CalcJob):
                 if iline>=0:
                     llyfac = txt[iline].split()[-1]
                     # now write kkrflex_llyfac to tempfolder where later on config file is also written
-                    with open(llyfac_file, 'w') as f2:
+                    with open(llyfac_file, u'w') as f2:
                         f2.writelines([llyfac])
 
         # now set runflags
@@ -537,7 +537,7 @@ class KkrimpCalculation(CalcJob):
                 params_kkrimp.set_value(key, val)
 
         # write config.cfg
-        config_file = tempfolder.open(self._CONFIG, 'w')
+        config_file = tempfolder.open(self._CONFIG, u'w')
         params_kkrimp.fill_keywords_to_inputfile(output=config_file)
 
 
@@ -582,7 +582,7 @@ class KkrimpCalculation(CalcJob):
             atominfo[iatom+4] = tmp
 
         # write atominfo file
-        with tempfolder.open(self._KKRFLEX_ATOMINFO, 'w') as file:
+        with tempfolder.open(self._KKRFLEX_ATOMINFO, u'w') as file:
             file.writelines(atominfo)
 
 
@@ -599,7 +599,7 @@ class KkrimpCalculation(CalcJob):
         cylinder_orient = imp_info_dict.get('cylinder_orient', [0., 0., 1.])
         ilayer_center = imp_info_dict.get('ilayer_center', 0)
         # first create scoef file
-        with tempfolder.open(KkrCalculation()._SCOEF, 'w') as scoef_file:
+        with tempfolder.open(KkrCalculation()._SCOEF, u'w') as scoef_file:
             make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center)
         # now create impurity shapefun
         with tempfolder.get_abs_path(self._SHAPEFUN) as shapefun_new:

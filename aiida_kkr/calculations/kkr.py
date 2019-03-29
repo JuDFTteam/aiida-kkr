@@ -387,11 +387,11 @@ class KkrCalculation(CalcJob):
             qvec = ['%i\n'%len(kpath_array)]
             qvec+=['%e %e %e\n'%(kpt[0], kpt[1], kpt[2]) for kpt in kpath_array]
             qvecpath = tempfolder.get_abs_path(self._QVEC)
-            with open(qvecpath, 'w') as file:
+            with open(qvecpath, u'w') as file:
                 file.writelines(qvec)
 
         # Prepare inputcard from Structure and input parameter data
-        input_file = tempfolder.open(self._INPUT_FILE_NAME, 'w')
+        input_file = tempfolder.open(self._INPUT_FILE_NAME, u'w')
         natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_file, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
 
 
@@ -464,7 +464,7 @@ class KkrCalculation(CalcJob):
                         newline = '%10.5f%20.14f%20.14f\n'%(float(tmpline[0]), ef_set, float(tmpline[-1]))
                         txt[ipotstart+3] = newline
                     # write new file
-                    with open(pot_new_name, 'w') as pot_new_ef:
+                    with open(pot_new_name, u'w') as pot_new_ef:
                         pot_new_ef.writelines(txt)
 
 

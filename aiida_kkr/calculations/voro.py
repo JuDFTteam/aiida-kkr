@@ -152,7 +152,7 @@ class VoronoiCalculation(CalcJob):
             raise InputValidationError(msg)
 
         # Prepare inputcard from Structure and input parameter data
-        input_file = tempfolder.open(self._INPUT_FILE_NAME, 'w')
+        input_file = tempfolder.open(self._INPUT_FILE_NAME, u'w')
         try:
             use_alat_input = parameters.get_dict().get('use_input_alat', False)
             natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_file, isvoronoi=True, vca_structure=vca_structure, use_input_alat=use_alat_input)
