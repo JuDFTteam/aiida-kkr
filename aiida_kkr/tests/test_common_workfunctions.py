@@ -25,7 +25,10 @@ class Test_common_workfunctions(object):
         s.append_atom(position=[0,0,0], symbols='Fe')
         p = Dict(dict={'LMAX':2, 'NSPIN':2, 'RMAX':10, 'GMAX':100})
         generate_inputcard_from_structure(p, s, 'inputcard')
-        txt = open('inputcard', 'r').readlines()
+        fhandle = open('inputcard2', 'w')
+        generate_inputcard_from_structure(p, s, fhandle)
+        txt = open('inputcard', 'r').readlines() # from path
+        txt2 = open('inputcard2', 'r').readlines() # from fhandle
         ref = ['ALATBASIS= 1.88972612545783\n',
                'BRAVAIS\n',
                '0.50000000000000 0.50000000000000 0.00000000000000\n',
@@ -54,6 +57,17 @@ class Test_common_workfunctions(object):
         for i in range(len(txt)):
             print(i, txt[i], ref[i])
             assert set(txt[i].split())==set(ref[i].split())
+        # check if fhandle output also works
+        done=False
+        while not done:
+            try:
+                txt2.remove('\n')
+            except ValueError:
+                done = True
+        assert len(txt2)==len(ref)
+        txt2.sort()
+        for i in range(len(txt)):
+            assert set(txt2[i].split())==set(ref[i].split())
 
 
     def test_check_2Dinput_consistency_1(self):
@@ -167,14 +181,20 @@ class Test_common_workfunctions(object):
         return node1, node2, unode
 
 
-    def test_structure_from_params(self):
-        from aiida_kkr.tools.common_workfunctions import structure_from_params
-        pass
-
-
     def test_neworder_potential_wf(self):
+        from numpy import loadtxt
+        from aiida.orm import load_node
+        from aiida.plugins import DataFactory
         from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
-        pass
+        from aiida.orm.importexport import import_data
+        Dict = DataFactory('dict')
+        import_data('files/db_dump_kkrflex_create.tar.gz')
+        GF_host_calc = load_node('de9b5093-25e7-407e-939e-9282c4431343').outputs
+        neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.retrieved.open('scoef'), skiprows=1)[:,3]-1]
+        settings_dict = {'pot1': 'out_potential',  'out_pot': 'potential_imp', 'neworder': neworder_pot1}
+        settings = Dict(dict=settings_dict)
+        startpot_imp_sfd = neworder_potential_wf(settings_node=settings, parent_calc_folder=GF_host_calc.remote_folder)
+        assert startpot_imp_sfd.get_object_content(startpot_imp_sfd.filename)[::1000] == u'C12807143D556463084.6+55 7D117 9D-87 0+25\n20.70351.75\n0521259.2+491.0-462. 02621D74112D03547T00 4D02116D502 6D39\n96.20261.50941.4944.7+30 98-29 .5-3625D07193.58104D0773D27252285417D341 9.506544D548447094.9+38 91063 54-08 6D28277.60909.98111'
 
 
     def test_vca_check(self):

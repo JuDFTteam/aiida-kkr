@@ -537,8 +537,8 @@ class KkrimpCalculation(CalcJob):
                 params_kkrimp.set_value(key, val)
 
         # write config.cfg
-        config_filename = tempfolder.get_abs_path(self._CONFIG)
-        params_kkrimp.fill_keywords_to_inputfile(output=config_filename)
+        config_file = tempfolder.open(self._CONFIG, 'w')
+        params_kkrimp.fill_keywords_to_inputfile(output=config_file)
 
 
     def _change_atominfo(self, imp_info, kkrflex_file_paths, tempfolder):
@@ -554,7 +554,7 @@ class KkrimpCalculation(CalcJob):
 
         # read scoef for comparison with Rimp_rel
         scoef = []
-        with open(tempfolder.get_abs_path(KkrCalculation()._SCOEF), 'r') as file:
+        with open(tempfolder.open(KkrCalculation()._SCOEF), 'r') as file:
             Nscoef = int(file.readline().split()[0])
             for iline in range(Nscoef):
                 tmpline = file.readline().split()
@@ -582,36 +582,37 @@ class KkrimpCalculation(CalcJob):
             atominfo[iatom+4] = tmp
 
         # write atominfo file
-        atominfo_path = tempfolder.get_abs_path(self._KKRFLEX_ATOMINFO)
-        with open(atominfo_path, 'w') as file:
+        with tempfolder.open(self._KKRFLEX_ATOMINFO, 'w') as file:
             file.writelines(atominfo)
 
 
-    def _get_pot_and_shape(self, imp_info, shapefun_path, shapes, impurity_potential, parent_calc_folder, tempfolder, structure):
+    def _get_pot_and_shape(self, imp_info, shapefun, shapes, impurity_potential, parent_calc_folder, tempfolder, structure):
         """
         write shapefun from impurity info and host shapefun and copy imp. potential
+
+        returns: file handle to potential file
         """
 
-        scoef_filename = os.path.join(tempfolder.get_abs_path(''), KkrCalculation()._SCOEF)
         imp_info_dict = imp_info.get_dict()
         Rcut = imp_info_dict.get('Rcut', None)
         hcut = imp_info_dict.get('hcut', -1.)
         cylinder_orient = imp_info_dict.get('cylinder_orient', [0., 0., 1.])
         ilayer_center = imp_info_dict.get('ilayer_center', 0)
-        make_scoef(structure, Rcut, scoef_filename, hcut, cylinder_orient, ilayer_center)
-
-        # create impurity shapefun
-        shapefun_new_path = tempfolder.get_abs_path(self._SHAPEFUN)
-        modify_potential().shapefun_from_scoef(scoef_filename, shapefun_path, shapes, shapefun_new_path)
+        # first create scoef file
+        with tempfolder.open(KkrCalculation()._SCOEF, 'w') as scoef_file:
+            make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center)
+        # now create impurity shapefun
+        with tempfolder.get_abs_path(self._SHAPEFUN) as shapefun_new:
+            modify_potential().shapefun_from_scoef(scoef_file, shapefun, shapes, shapefun_new)
 
         # find path to input potential
         if impurity_potential is not None:
-            potfile = impurity_potential.get_file_abs_path()
+            potfile = impurity_potential.open(impurity_potential.filename)
         elif parent_calc_folder is not None:
             self.logger.info('parent_calc_folder {} {}'.format(parent_calc_folder, parent_calc_folder.get_inputs_dict()))
             retrieved = parent_calc_folder.get_inputs(node_type=JobCalculation)[0].get_outputs_dict().get('retrieved', None)
             self.logger.info('potfile {} {}'.format(retrieved, self._OUT_POTENTIAL))
-            potfile = retrieved.get_abs_path(self._OUT_POTENTIAL)
+            potfile = retrieved.open(self._OUT_POTENTIAL)
         else:
             raise InputValidationError('ERROR in _get_pot_and_shape: neither impurity potential nor parent_calc_folder given!')
 

@@ -152,10 +152,10 @@ class VoronoiCalculation(CalcJob):
             raise InputValidationError(msg)
 
         # Prepare inputcard from Structure and input parameter data
-        input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
+        input_file = tempfolder.open(self._INPUT_FILE_NAME, 'w')
         try:
             use_alat_input = parameters.get_dict().get('use_input_alat', False)
-            natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_filename, isvoronoi=True, vca_structure=vca_structure, use_input_alat=use_alat_input)
+            natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_file, isvoronoi=True, vca_structure=vca_structure, use_input_alat=use_alat_input)
         except ValueError as e:
             raise InputValidationError("Input Dict not consistent: {}".format(e))
 

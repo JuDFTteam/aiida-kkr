@@ -391,8 +391,8 @@ class KkrCalculation(CalcJob):
                 file.writelines(qvec)
 
         # Prepare inputcard from Structure and input parameter data
-        input_filename = tempfolder.get_abs_path(self._INPUT_FILE_NAME)
-        natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_filename, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
+        input_file = tempfolder.open(self._INPUT_FILE_NAME, 'w')
+        natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_file, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
 
 
         #################
@@ -464,9 +464,8 @@ class KkrCalculation(CalcJob):
                         newline = '%10.5f%20.14f%20.14f\n'%(float(tmpline[0]), ef_set, float(tmpline[-1]))
                         txt[ipotstart+3] = newline
                     # write new file
-                    pot_new_ef = open(pot_new_name, 'w')
-                    pot_new_ef.writelines(txt)
-                    pot_new_ef.close()
+                    with open(pot_new_name, 'w') as pot_new_ef:
+                        pot_new_ef.writelines(txt)
 
 
             # TODO different copy lists, depending on the keywors input

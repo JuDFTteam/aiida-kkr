@@ -772,7 +772,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
     from aiida_kkr.tools.tools_kkrimp import modify_potential
     from aiida.common.folders import SandboxFolder
     from aiida.common.exceptions import UniquenessError
-    from aiida.engine import CalcJob
+    from aiida.orm import CalcJobNode
     from aiida.plugins import DataFactory
 
     if 'parent_calc_folder2' in list(kwargs.keys()):
@@ -810,7 +810,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
     # and construct output potential
     with SandboxFolder() as tempfolder:
         # Get abolute paths of input files from parent calc and filename
-        parent_calcs = parent_calc_folder.get_inputs(node_type=JobCalculation)
+        parent_calcs = parent_calc_folder.get_incoming(node_class=CalcJobNode).all()
         n_parents = len(parent_calcs)
         if n_parents != 1:
             raise UniquenessError(
@@ -818,9 +818,8 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
                     "calculation{}, while it should have a single parent"
                     "".format(n_parents, "" if n_parents == 0 else "s"))
         else:
-            parent_calc = parent_calcs[0]
-        remote_path = parent_calc.outputs.retrieved.get_abs_path('')
-        pot1_path = os.path.join(remote_path, pot1)
+            parent_calc = parent_calcs[0].node
+        pot1_fhandle = parent_calc.outputs.retrieved.open(pot1)
 
         # extract nspin from parent calc's input parameter node
         nspin = parent_calc.inputs.parameters.get_dict().get('NSPIN')
@@ -832,7 +831,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
 
         # Copy optional files?
         if pot2 is not None and parent_calc_folder2 is not None:
-            parent_calcs = parent_calc_folder2.get_inputs(node_type=JobCalculation)
+            parent_calcs = parent_calc_folder2.get_incoming(node_class=CalcJobNode).all()
             n_parents = len(parent_calcs)
             if n_parents != 1:
                 raise UniquenessError(
@@ -840,21 +839,20 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
                         "calculation{}, while it should have a single parent"
                         "".format(n_parents, "" if n_parents == 0 else "s"))
             else:
-                parent_calc = parent_calcs[0]
-            remote_path = parent_calc.outputs.retrieved.get_abs_path('')
-            pot2_path = os.path.join(remote_path, pot2)
+                parent_calc = parent_calcs[0].node
+            pot2_fhandle = parent_calc.outputs.retrieved.open(pot2)
         else:
-            pot2_path = None
+            pot2_fhandle = None
 
         # change file path to Sandbox folder accordingly
-        out_pot_path = tempfolder.get_abs_path(out_pot)
+        out_pot_fhandle = tempfolder.open(out_pot, 'w')
 
         # run neworder_potential function
-        modify_potential().neworder_potential(pot1_path, out_pot_path, neworder, potfile_2=pot2_path,
+        modify_potential().neworder_potential(pot1_fhandle, out_pot_fhandle, neworder, potfile_2=pot2_fhandle,
                                               replace_from_pot2=replace_newpos)
 
         # store output potential to SingleFileData
-        output_potential_sfd_node = SingleFileData(file=out_pot_path)
+        output_potential_sfd_node = SingleFileData(file=tempfolder.open(out_pot))
 
         lbl = settings_dict.get('label', None)
         if lbl is not None:

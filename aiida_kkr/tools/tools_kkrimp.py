@@ -10,6 +10,7 @@ from __future__ import absolute_import
 from builtins import object, str
 from six.moves import range
 from six.moves import input
+from masci_tools.io.common_functions import open_general
 
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH,"
@@ -35,9 +36,8 @@ class modify_potential(object):
         return check1
 
     def _read_input(self, filepath):
-        #print(filepath)
-        with open(filepath) as file:
-            data = file.readlines()
+        with open_general(filepath) as f:
+            data = f.readlines()
 
         if 'shapefun' in filepath:
             mode = 'shape'
@@ -87,8 +87,8 @@ class modify_potential(object):
 
         order=list(range(len(index1)))
 
-        natomtemp = int(open(scoefpath).readlines()[0])
-        filedata=open(scoefpath).readlines()[1:natomtemp+1]
+        natomtemp = int(open_general(scoefpath).readlines()[0])
+        filedata=open_general(scoefpath).readlines()[1:natomtemp+1]
         listnew=[]
         for line in filedata:
             if (len(line.split())>1):
@@ -106,7 +106,8 @@ class modify_potential(object):
         datanew.append('   %i\n' %(len(order)))
         datanew.append('  1.000000000000E+00\n')
         datanew += tmp
-        open(shapefun_new,'w').writelines(datanew)
+        with open_general(shapefun_new,'w') as f:
+            f.writelines(datanew)
 
     def neworder_potential(self, potfile_in, potfile_out, neworder, potfile_2=None, replace_from_pot2=None):
         """
@@ -165,7 +166,8 @@ class modify_potential(object):
                         datanew.append(data[ii])
 
         # write out new potential
-        open(potfile_out,'w').writelines(datanew)
+        with open_general(potfile_out,'w') as f:
+            f.writelines(datanew)
 
 
 
@@ -192,7 +194,7 @@ class kkrimp_parser_functions(object):
         """
         from masci_tools.io.common_functions import search_string
         from numpy import array
-        f = open(out_log)
+        f = open_general(out_log)
         tmptxt = f.readlines()
         f.close()
         econt = {}
@@ -219,7 +221,7 @@ class kkrimp_parser_functions(object):
         :note: mixinfo contains information on mixing scheme and mixing factor used in the calculation
         """
         from masci_tools.io.common_functions import search_string
-        f = open(file)
+        f = open_general(file)
         tmptxt = f.readlines()
         f.close()
         # get rms and number of iterations
@@ -267,7 +269,7 @@ class kkrimp_parser_functions(object):
         :returns: True(False) if SOC solver is (not) used
         """
         from masci_tools.io.common_functions import search_string
-        f = open(file)
+        f = open_general(file)
         tmptxt = f.readlines()
         f.close()
         itmp = search_string('Spin orbit coupling used?', tmptxt)
@@ -286,7 +288,7 @@ class kkrimp_parser_functions(object):
         :returns: natom (int), number of atoms in impurity cluster
         """
         from masci_tools.io.common_functions import search_string
-        f = open(file)
+        f = open_general(file)
         tmptxt = f.readlines()
         f.close()
         itmp = search_string('NATOM is', tmptxt)
@@ -308,7 +310,7 @@ class kkrimp_parser_functions(object):
         from masci_tools.io.common_functions import search_string
         import numpy as np
 
-        f = open(file)
+        f = open_general(file)
         tmptxt = f.readlines()
         f.close()
         itmp = 0
@@ -338,7 +340,7 @@ class kkrimp_parser_functions(object):
         :returns: res (dict) timings in seconds, averaged over iterations
         """
         from masci_tools.io.common_functions import search_string
-        f = open(outfile)
+        f = open_general(outfile)
         tmptxt = f.readlines()
         f.close()
         search_keys = ['time until scf starts',
@@ -376,7 +378,7 @@ class kkrimp_parser_functions(object):
         :returns: 1 if calculation is paramagnetic, 2 otherwise
         """
         from masci_tools.io.common_functions import search_string
-        f = open(file)
+        f = open_general(file)
         tmptxt = f.readlines()
         f.close()
         itmp = search_string('NSPIN', tmptxt)
@@ -396,7 +398,7 @@ class kkrimp_parser_functions(object):
         import numpy as np
         from math import sqrt
 
-        f = open(file)
+        f = open_general(file)
         lines = f.readlines()
         startline = len(lines) - natom
         spinmom_at = np.array([lines[startline].split()])
@@ -424,7 +426,7 @@ class kkrimp_parser_functions(object):
         """
         import numpy as np
 
-        f = open(file)
+        f = open_general(file)
         lines = f.readlines()
         startline = len(lines) - natom
         orbmom_at = np.array([lines[startline].split()])
@@ -443,7 +445,7 @@ class kkrimp_parser_functions(object):
         :param potfile: file that is parsed
         :returns: EF (float), value of the Fermi energy in Ry
         """
-        f = open(potfile)
+        f = open_general(potfile)
         tmptxt = f.readlines()
         f.close()
         EF = float(tmptxt[3].split()[1])
@@ -457,7 +459,7 @@ class kkrimp_parser_functions(object):
         :returns: Etot (list), values of the total energy in Ry for all iterations
         """
         from masci_tools.io.common_functions import search_string
-        f = open(file)
+        f = open_general(file)
         tmptxt = f.readlines()
         f.close()
         itmp = 0
@@ -999,23 +1001,22 @@ def write_scoef(x_res, path):
     x_res = x_res[m]
 
     #write data of x_res into the 'scoef'-file
-    file = open(path, 'w')
-    file.write(str("{0:4d}".format(len(x_res))))
-    file.write("\n")
-    for i in range(len(x_res)):
-        file.write(str("{0:26.19e}".format(x_res[i][0])))
-        file.write(" ")
-        file.write(str("{0:26.19e}".format(x_res[i][1])))
-        file.write(" ")
-        file.write(str("{0:26.19e}".format(x_res[i][2])))
-        file.write(" ")
-        file.write(str("{0:4d}".format(int(x_res[i][3]))))
-        file.write(" ")
-        file.write(str("{0:4.1f}".format(x_res[i][4])))
-        file.write(" ")
-        file.write(str("{0:26.19e}".format(x_res[i][5])))
+    with open_general(path, 'w') as file:
+        file.write(str("{0:4d}".format(len(x_res))))
         file.write("\n")
-    file.close()
+        for i in range(len(x_res)):
+            file.write(str("{0:26.19e}".format(x_res[i][0])))
+            file.write(" ")
+            file.write(str("{0:26.19e}".format(x_res[i][1])))
+            file.write(" ")
+            file.write(str("{0:26.19e}".format(x_res[i][2])))
+            file.write(" ")
+            file.write(str("{0:4d}".format(int(x_res[i][3]))))
+            file.write(" ")
+            file.write(str("{0:4.1f}".format(x_res[i][4])))
+            file.write(" ")
+            file.write(str("{0:26.19e}".format(x_res[i][5])))
+            file.write("\n")
 
 def make_scoef(structure, radius, path, h=-1., vector=[0., 0., 1.], i=0):
     """
