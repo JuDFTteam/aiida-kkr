@@ -110,7 +110,7 @@ class VoronoiParser(Parser):
         out_dict['parser_errors'] = msg_list
 
         #create output node and link
-        self.out('results', Dict(dict=out_dict))
+        self.out('output_parameters', Dict(dict=out_dict))
 
         if not success:
             return self.exit_codes.ERROR_VORONOI_PARSING_FAILED

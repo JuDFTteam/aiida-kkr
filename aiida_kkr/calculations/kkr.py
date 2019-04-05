@@ -6,6 +6,7 @@ from __future__ import print_function, absolute_import
 import os
 from numpy import pi, array
 from aiida.engine import CalcJob
+from aiida.orm import CalcJobNode
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import InputValidationError, ValidationError
@@ -18,6 +19,7 @@ from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_struct
 from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
 from aiida_kkr.tools.tools_kkrimp import make_scoef
 from masci_tools.io.kkr_params import __kkr_default_params__
+import six
 from six.moves import range
 
 #define aiida structures from DataFactory of aiida
@@ -121,8 +123,8 @@ class KkrCalculation(CalcJob):
         spec.input('impurity_info', valid_type=Dict, required=False, help='Use a Parameter node that specifies properties for a follwoing impurity calculation (e.g. setting of impurity cluster in scoef file that is automatically created).')
         spec.input('kpoints', valid_type=KpointsData, required=False, help="Use a KpointsData node that specifies the kpoints for which a bandstructure (i.e. 'qdos') calculation should be performed.")
         # define outputs
-        spec.output('results', valid_type=Dict, required=True, help='results of the KKR calculation')
-        spec.default_output_node = 'results'
+        spec.output('output_parameters', valid_type=Dict, required=True, help='results of the KKR calculation')
+        spec.default_output_node = 'output_parameters'
         # define exit codes, also used in parser
         spec.exit_code(301, 'ERROR_NO_OUTPUT_FILE', message='KKR output file not found')
         spec.exit_code(302, 'ERROR_KKR_PARSING_FAILED', message='KKR parser retuned an error')
@@ -164,21 +166,20 @@ class KkrCalculation(CalcJob):
             found_kpath = False
 
         # extract parent calculation
-        parent_calcs = parent_calc_folder.get_inputs(node_type=JobCalculation)
-        n_parents = len(parent_calcs)
+        parent_calcs = parent_calc_folder.get_incoming(node_class=CalcJobNode)
+        n_parents = len(parent_calcs.all_link_labels())
         if n_parents != 1:
             raise UniquenessError(
                     "Input RemoteData is child of {} "
                     "calculation{}, while it should have a single parent"
                     "".format(n_parents, "" if n_parents == 0 else "s"))
-            parent_calc = parent_calcs[0]
-            has_parent = True
+            # TODO change to exit code
         if n_parents == 1:
-            parent_calc = parent_calcs[0]
+            parent_calc = parent_calcs.first().node
             has_parent = True
 
         # check if parent is either Voronoi or previous KKR calculation
-        self._check_valid_parent(parent_calc)
+        #self._check_valid_parent(parent_calc)
 
         # extract parent input parameter dict for following check
         try:
@@ -210,14 +211,14 @@ class KkrCalculation(CalcJob):
         # get StructureData node from Parent if Voronoi
         structure = None
         self.logger.info("KkrCalculation: Get structure node from voronoi parent")
-        if isinstance(parent_calc, VoronoiCalculation):
+        if parent_calc.process_class == VoronoiCalculation:
             self.logger.info("KkrCalculation: Parent is Voronoi calculation")
             try:
                 structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
             except:
                 self.logger.error('KkrCalculation: Could not get structure from Voronoi parent.')
                 raise ValidationError("Cound not find structure node")
-        elif isinstance(parent_calc, KkrCalculation):
+        elif parent_calc.process_class == KkrCalculation:
             self.logger.info("KkrCalculation: Parent is KKR calculation")
             try:
                 self.logger.info('KkrCalculation: extract structure from KKR parent')
@@ -227,11 +228,7 @@ class KkrCalculation(CalcJob):
                 raise ValidationError('Cound not find structure node starting from parent {}'.format(parent_calc))
         else:
             self.logger.error("KkrCalculation: Parent is neither Voronoi nor KKR calculation!")
-            raise ValidationError('Cound not find structure node')
-
-        if inputdict:
-            self.logger.error('KkrCalculation: Unknown inputs for structure lookup')
-            raise ValidationError("Unknown inputs")
+            raise ValidationError('Cound not find structure node {}'.format(parent_calc))
 
         # for VCA: check if input structure and parameter node define VCA structure
         vca_structure = vca_check(structure, parameters)
@@ -285,12 +282,13 @@ class KkrCalculation(CalcJob):
             raise InputValidationError(msg)
 
         # set shapes array either from parent voronoi run or read from inputcard in kkrimporter calculation
-        if parent_calc.get_parser_name() != 'kkr.kkrimporterparser':
-            # get shapes array from voronoi parent
-            shapes = voro_parent.res.shapes
-        else:
-            # extract shapes from input parameters node constructed by kkrimporter calculation
-            shapes = voro_parent.inputs.parameters.get_dict().get('<SHAPE>')
+        #if parent_calc.get_parser_name() != 'kkr.kkrimporterparser':
+        #    # get shapes array from voronoi parent
+        #    shapes = voro_parent.res.shapes
+        #else:
+
+        # extract shapes from input parameters node constructed by kkrimporter calculation
+        shapes = voro_parent.inputs.parameters.get_dict().get('<SHAPE>')
 
         #
         use_alat_input = parameters.get_dict().get('use_input_alat', False)
@@ -356,11 +354,11 @@ class KkrCalculation(CalcJob):
             outfolder = parent_calc.outputs.retrieved
 
             copylist = []
-            if isinstance(parent_calc, KkrCalculation):
+            if parent_calc.process_class == KkrCalculation:
                 copylist = self._copy_filelist_kkr
                 # TODO ggf copy remotely from remote node if present ...
 
-            if isinstance(parent_calc, VoronoiCalculation):
+            if parent_calc.process_class == VoronoiCalculation:
                 copylist = [parent_calc._SHAPEFUN]
                 # copy either overwrite potential or voronoi output potential
                 # (voronoi caclualtion retreives only one of the two)
@@ -369,6 +367,7 @@ class KkrCalculation(CalcJob):
                 else:
                     copylist.append(parent_calc._OUT_POTENTIAL_voronoi)
 
+            """ # comment out at the moment since importer does not work anyways
             #change copylist in case the calculation starts from an imported calculation
             if parent_calc.get_parser_name() == 'kkr.kkrimporterparser':
                 copylist = []
@@ -378,13 +377,14 @@ class KkrCalculation(CalcJob):
                     copylist.append(self._OUT_POTENTIAL)
                 if self._SHAPEFUN in outfolder.list_object_names():
                     copylist.append(self._SHAPEFUN)
+            """
 
             # create local_copy_list from copylist and change some names automatically
             for file1 in copylist:
                 filename = file1
                 # deal with special case that file is written to another name
                 if (file1 == 'output.pot' or file1 == self._OUT_POTENTIAL or
-                   (isinstance(parent_calc, VoronoiCalculation) and file1 == parent_calc._POTENTIAL_IN_OVERWRITE)):
+                   (parent_calc.process_class == VoronoiCalculation and file1 == parent_calc._POTENTIAL_IN_OVERWRITE)):
                     filename = self._POTENTIAL
                 # now add to copy list
                 local_copy_list.append((outfolder.uuid, file1, filename))
@@ -513,21 +513,6 @@ class KkrCalculation(CalcJob):
         calcinfo.codes_info = [codeinfo]
 
         return calcinfo
-
-
-    def _check_valid_parent(self, calc):
-        """
-        Check that calc is a valid parent for a FleurCalculation.
-        It can be a VoronoiCalculation, KKRCalculation
-        """
-
-        try:
-            if (((not isinstance(calc, VoronoiCalculation)))
-                            and (not isinstance(calc, KkrCalculation))):
-                raise ValueError("Parent calculation must be a VoronoiCalculation or a KkrCalculation")
-        except ImportError:
-            if ((not isinstance(calc, KkrCalculation)) ):
-                raise ValueError("Parent calculation must be a VoronoiCalculation or a KkrCalculation")
 
 
     def _set_parent_remotedata(self, remotedata):

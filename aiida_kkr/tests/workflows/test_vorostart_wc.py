@@ -71,7 +71,7 @@ class Test_vorostart_workflow():
         print(out)
 
         # check output
-        n = out['results']
+        n = out['results_vorostart_wc']
         n = n.get_dict()
         assert n.get('successful')
         assert n.get('last_voro_ok')

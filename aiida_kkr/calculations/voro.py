@@ -5,6 +5,7 @@ Input plug-in for a voronoi calculation.
 from __future__ import print_function
 from __future__ import absolute_import
 from aiida.engine import CalcJob
+from aiida.orm import CalcJobNode
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
@@ -71,8 +72,8 @@ class VoronoiCalculation(CalcJob):
         spec.input('parent_KKR', valid_type=RemoteData, required=False, help='Use a node that specifies a parent KKR calculation')
         spec.input('potential_overwrite', valid_type=SingleFileData, required=False, help='Use a node that specifies the potential which is used instead of the voronoi output potential')
         # define outputs
-        spec.output('results', valid_type=Dict, required=True, help='results of the calculation')
-        spec.default_output_node = 'results'
+        spec.output('output_parameters', valid_type=Dict, required=True, help='results of the calculation')
+        spec.default_output_node = 'output_parameters'
         # define exit codes, also used in parser
         spec.exit_code(301, 'ERROR_NO_OUTPUT_FILE', message='Voronoi output file not found')
         spec.exit_code(302, 'ERROR_VORONOI_PARSING_FAILED', message='Voronoi parser retuned an error')
@@ -209,14 +210,14 @@ class VoronoiCalculation(CalcJob):
         overwrite_pot = False
 
         # extract parent calculation
-        parent_calcs = parent_calc_folder.get_inputs(node_type=JobCalculation)
-        n_parents = len(parent_calcs)
+        parent_calcs = parent_calc_folder.get_incoming(node_class=CalcJobNode)
+        n_parents = len(parent_calcs.all_link_labels())
         if n_parents != 1:
             raise UniquenessError("Input RemoteData is child of {} "
                                   "calculation{}, while it should have a single parent"
                                   "".format(n_parents, "" if n_parents == 0 else "s"))
         else:
-            parent_calc = parent_calcs[0]
+            parent_calc = parent_calcs.first().node
             overwrite_pot = True
 
         if ((not self._is_KkrCalc(parent_calc)) ):
@@ -253,7 +254,6 @@ class VoronoiCalculation(CalcJob):
         success = True
         if 'structure' not in parent_folder.get_incoming().all_link_labels():
             success = False
-        print('has_struc', success)
         return success
 
 

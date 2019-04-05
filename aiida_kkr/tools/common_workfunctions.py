@@ -546,13 +546,13 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
 
     # for KKR calculation set EMIN automatically from parent_calc (always in res.emin of voronoi and kkr) if not provided in input node
     if ('EMIN' not in list(input_dict.keys()) or input_dict['EMIN'] is None) and parent_calc is not None:
-        wmess='Overwriting EMIN with value from parent calculation'
+        wmess='Overwriting EMIN with value from parent calculation {}'.format(parent_calc)
         print('WARNING: '+wmess)
         warnings.append(wmess)
-        if isinstance(parent_calc, VoronoiCalculation):
-            emin = parent_calc.res.emin
+        if parent_calc.process_class == VoronoiCalculation:
+            emin = parent_calc.outputs.output_parameters.get_dict().get('emin')
         else:
-            emin = parent_calc.res.energy_contour_group['emin']
+            emin = parent_calc.outputs.output_parameters.get_dict().get('energy_contour_group').get('emin')
         print('Setting emin:',emin, 'is emin None?',emin is None)
         params.set_value('EMIN', emin)
 

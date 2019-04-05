@@ -181,7 +181,7 @@ class KkrParser(Parser):
         out_dict['parser_errors'] = msg_list
 
         #create output node and link
-        self.out('results', Dict(dict=out_dict))
+        self.out('output_parameters', Dict(dict=out_dict))
 
         if self.icrit != 0 and not success: # overwrite behavior with KKRimporter
             success = True # set automatically to True even if only partial output was parsed

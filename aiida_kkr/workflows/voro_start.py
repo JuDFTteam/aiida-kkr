@@ -105,7 +105,7 @@ class kkr_startpot_wc(WorkChain):
         spec.input("voronoi", valid_type=Code, required=True)
         spec.input("calc_parameters", valid_type=Dict, required=False)
         # define output nodes
-        spec.output('results', valid_type=Dict, required=True, help='')
+        spec.output('results_vorostart_wc', valid_type=Dict, required=True, help='')
         spec.output('last_doscal_results', valid_type=Dict, required=False, help='')
         spec.output('last_voronoi_results', valid_type=Dict, required=False, help='')
         spec.output('last_voronoi_remote', valid_type=RemoteData, required=False, help='')
@@ -374,7 +374,7 @@ class kkr_startpot_wc(WorkChain):
             else:
                 updatenode.label = 'updated params: {}'.format(update_list)
                 # also keep track of last voronoi output if that has been used
-                voro_out = self.ctx.voro_calc.outputs.results
+                voro_out = self.ctx.voro_calc.outputs.output_parameters
                 params = update_voro_input(self.ctx.last_params, updatenode, voro_out)
                 self.ctx.last_params = params
 
@@ -669,7 +669,7 @@ class kkr_startpot_wc(WorkChain):
         except AttributeError:
             voro_pk = None
         try:
-            voro_calc = self.ctx.voro_calc.outputs.results
+            voro_calc = self.ctx.voro_calc.outputs.output_parameters
         except AttributeError:
             self.report("ERROR: Results ParameterNode of voronoi (pk={}) not found".format(voro_pk))
             voro_calc = None
@@ -725,7 +725,7 @@ class kkr_startpot_wc(WorkChain):
                     dosnodes_present = True
 
         # fill output_nodes dict with
-        self.out('results', res_node)
+        self.out('results_vorostart_wc', res_node)
         if dosnodes_present:
             self.out('last_doscal_results', doscal)
             self.out('last_doscal_dosdata', dosdata)
