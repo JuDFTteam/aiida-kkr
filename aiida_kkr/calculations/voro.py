@@ -164,13 +164,11 @@ class VoronoiCalculation(CalcJob):
         if overwrite_potential:
             # copy the right files #TODO check first if file, exists and throw
             # warning, now this will throw an error
+            outfolder = parent_calc.outputs.retrieved
             if found_parent and self._is_KkrCalc(parent_calc):
-                outfolderpath = parent_calc.outputs.retrieved.folder.abspath
-                self.logger.info("out folder path {}".format(outfolderpath))
-                filename = os.path.join(outfolderpath, 'path', parent_calc._OUT_POTENTIAL)
-                copylist = [filename]
+                copylist = [parent_calc._OUT_POTENTIAL]
             elif has_potfile_overwrite:
-                copylist = [potfile_overwrite.get_file_abs_path()]
+                copylist = [potfile_overwrite.filename]
             else:
                 copylist = []
 
@@ -178,7 +176,7 @@ class VoronoiCalculation(CalcJob):
                 filename = file1
                 if (found_parent or has_potfile_overwrite) and file1 == copylist[0]:
                     filename = self._POTENTIAL_IN_OVERWRITE
-                local_copy_list.append((file1, filename))
+                local_copy_list.append((outfolder.uuid, file1, filename))
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()
@@ -235,10 +233,8 @@ class VoronoiCalculation(CalcJob):
         check if calc contains the file out_potential
         """
         is_KKR = False
-        ret = calc.get_retrieved_node()
-        ret_path = ret.get_abs_path()
-        ret_path = os.path.join(ret_path, 'path')
-        if 'out_potential' in os.listdir(ret_path):
+        retrieved_node = calc.get_retrieved_node()
+        if 'out_potential' in retrieved_node.list_object_names():
             is_KKR = True
 
         return is_KKR

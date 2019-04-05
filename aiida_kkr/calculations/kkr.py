@@ -300,7 +300,6 @@ class KkrCalculation(CalcJob):
             runopt.append('KKRFLEX')
             parameters = update_params_wf(parameters, Dict(dict={'RUNOPT':runopt, 'nodename': 'update_KKRFLEX', 'nodedesc':'Update Parameter node with KKRFLEX runopt'}))
         if found_imp_info and write_scoef:
-            scoef_filename = os.path.join(tempfolder.get_abs_path(''), self._SCOEF)
             imp_info_dict = imp_info.get_dict()
             Rcut = imp_info_dict.get('Rcut', None)
             hcut = imp_info_dict.get('hcut', -1.)
@@ -320,7 +319,8 @@ class KkrCalculation(CalcJob):
                 raise TypeError('Input orientation vector ({}) has the wrong shape! It needs to be a 3D-vector!'.format(cylinder_orient))
             else:
                 print('Input parameters for make_scoef read in correctly!')
-                make_scoef(structure, Rcut, scoef_filename, hcut, cylinder_orient, ilayer_center)
+                with tempfolder.open(self._SCOEF, 'w') as scoef_file:
+                    make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center)
         elif write_scoef:
             self.logger.info('Need to write scoef file but no impurity_info given!')
             raise ValidationError('Found RUNOPT KKRFLEX but no impurity_info in inputs')
@@ -386,8 +386,7 @@ class KkrCalculation(CalcJob):
             kpath_array = kpath_array * (alat/2./pi)
             qvec = ['%i\n'%len(kpath_array)]
             qvec+=['%e %e %e\n'%(kpt[0], kpt[1], kpt[2]) for kpt in kpath_array]
-            qvecpath = tempfolder.get_abs_path(self._QVEC)
-            with open(qvecpath, u'w') as file:
+            with tempfolder.open(self._QVEC, 'w') as file:
                 file.writelines(qvec)
 
         # Prepare inputcard from Structure and input parameter data
@@ -400,14 +399,12 @@ class KkrCalculation(CalcJob):
         if has_parent:
             # copy the right files #TODO check first if file, exists and throw
             # warning, now this will throw an error
-            outfolderpath = parent_calc.outputs.retrieved.folder.abspath
-            outfolderpath = os.path.join(outfolderpath, 'path')
-            self.logger.info("out folder path {}".format(outfolderpath))
+            outfolder = parent_calc.outputs.retrieved
 
             copylist = []
             if isinstance(parent_calc, KkrCalculation):
                 copylist = self._copy_filelist_kkr
-                # TODO ggf copy remotely...
+                # TODO ggf copy remotely from remote node if present ...
 
             if isinstance(parent_calc, VoronoiCalculation):
                 copylist = [parent_calc._SHAPEFUN]
@@ -449,24 +446,21 @@ class KkrCalculation(CalcJob):
                     # remove previous output potential from copy list
                     local_copy_list.remove(potcopy_info)
                     # create potential here by readin in old potential and overwriting with changed Fermi energy
-                    pot_new_name = tempfolder.get_abs_path(self._POTENTIAL)
-
-                    # change potential
-                    txt = potfile.readlines()
-                    potstart = []
-                    for iline in range(len(txt)):
-                        line = txt[iline]
-                        if 'exc:' in line:
-                            potstart.append(iline)
-                    for ipotstart in potstart:
-                        tmpline = txt[ipotstart+3]
-                        tmpline = tmpline.split()
-                        newline = '%10.5f%20.14f%20.14f\n'%(float(tmpline[0]), ef_set, float(tmpline[-1]))
-                        txt[ipotstart+3] = newline
-                    # write new file
-                    with open(pot_new_name, u'w') as pot_new_ef:
+                    with tempfolder.open(self._POTENTIAL, 'w') as pot_new_ef:
+                        # change potential
+                        txt = potfile.readlines()
+                        potstart = []
+                        for iline in range(len(txt)):
+                            line = txt[iline]
+                            if 'exc:' in line:
+                                potstart.append(iline)
+                        for ipotstart in potstart:
+                            tmpline = txt[ipotstart+3]
+                            tmpline = tmpline.split()
+                            newline = '%10.5f%20.14f%20.14f\n'%(float(tmpline[0]), ef_set, float(tmpline[-1]))
+                            txt[ipotstart+3] = newline
+                        # write new file
                         pot_new_ef.writelines(txt)
-
 
             # TODO different copy lists, depending on the keywors input
             print('local copy list: {}'.format(local_copy_list))

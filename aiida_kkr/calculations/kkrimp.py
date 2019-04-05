@@ -2,8 +2,8 @@
 """
 Input plug-in for a KKRimp calculation.
 """
-from __future__ import print_function
 
+from __future__ import print_function
 from __future__ import absolute_import
 from aiida.engine import CalcJob
 from aiida.common.utils import classproperty
@@ -35,8 +35,7 @@ __contributors__ = ("Philipp Rüßmann")
 
 class KkrimpCalculation(CalcJob):
     """
-    AiiDA calculation plugin for a KKR calculation
-    .
+    AiiDA calculation plugin for a KKR calculation.
     """
 
     def _init_internal_params(self):
@@ -174,8 +173,7 @@ class KkrimpCalculation(CalcJob):
 
         # Prepare input files for KKRimp calculation
         # 1. fill kkr params for KKRimp, write config file and eventually also kkrflex_llyfac file
-        host_file_path = kkrflex_file_paths[self._KKRFLEX_GREEN].split(self._KKRFLEX_GREEN)[0]
-        self._extract_and_write_config(parent_calc_folder, params_host, parameters, tempfolder, host_file_path)
+        self._extract_and_write_config(parent_calc_folder, params_host, parameters, tempfolder, tempfolder)
         # 2. write shapefun from impurity info and host shapefun and copy imp. potential
         potfile = self._get_pot_and_shape(imp_info, shapefun_path, shapes, impurity_potential, parent_calc_folder, tempfolder, structure)
         # 3. change kkrflex_atominfo to match impurity case
@@ -203,17 +201,15 @@ class KkrimpCalculation(CalcJob):
             testopts = []
         allopts = runopts+testopts
         if 'lmdos' in allopts or 'ldos' in allopts:
-            file = open(tempfolder.get_abs_path(self._CONFIG))
-            config = file.readlines()
-            file.close()
+            with tempfolder.open(self._CONFIG) as file:
+                config = file.readlines()
             itmp = search_string('NSPIN', config)
             if itmp>=0:
                 nspin = int(config[itmp].split()[-1])
             else:
                 raise ValueError("Could not extract NSPIN value from config.cfg")
-            file = open(tempfolder.get_abs_path(self._KKRFLEX_ATOMINFO))
-            atominfo = file.readlines()
-            file.close()
+            with tempfolder.open(self._KKRFLEX_ATOMINFO) as file:
+                atominfo = file.readlines()
             itmp = search_string('NATOM', atominfo)
             if itmp>=0:
                 natom = int(atominfo[itmp+1].split()[0])
@@ -226,9 +222,8 @@ class KkrimpCalculation(CalcJob):
                     retrieve_list.append((self._OUT_LMDOS_BASE%(iatom, ispin)).replace(' ', '0'))
                     retrieve_list.append((self._OUT_LMDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
 
-        file = open(tempfolder.get_abs_path(self._CONFIG))
-        config = file.readlines()
-        file.close()
+        with tempfolder.open(self._CONFIG) as file:
+            config = file.readlines()
         itmp = search_string('NSPIN', config)
         if itmp>=0:
             nspin = int(config[itmp].split()[-1])
@@ -236,9 +231,8 @@ class KkrimpCalculation(CalcJob):
             raise ValueError("Could not extract NSPIN value from config.cfg")
         if 'tmatnew' in allopts and nspin>1:
             retrieve_list.append(self._OUT_MAGNETICMOMENTS)
-            file = open(tempfolder.get_abs_path(self._CONFIG))
-            outorb = file.readlines()
-            file.close()
+            with tempfolder.open(self._CONFIG) as file:
+                outorb = file.readlines()
             itmp = search_string('CALCORBITALMOMENT', outorb)
             if itmp>=0:
                 calcorb = int(outorb[itmp].split()[-1])
@@ -461,7 +455,7 @@ class KkrimpCalculation(CalcJob):
         return parameters, code, imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, impurity_potential, parent_calc_folder, structure
 
 
-    def _extract_and_write_config(self, parent_calc_folder, params_host, parameters, tempfolder, kkrflex_file_path0):
+    def _extract_and_write_config(self, parent_calc_folder, params_host, parameters, tempfolder, GFhost_folder):
         """
         fill kkr params for KKRimp and write config file
         also writes kkrflex_llyfac file if Lloyd is used in the host system
@@ -505,15 +499,13 @@ class KkrimpCalculation(CalcJob):
             # add runflag for imp code
             runflag.append('LLYsimple')
             # also extract renormalization factor and create kkrflex_llyfac file (contains one value only)
-            outfile = os.path.join(kkrflex_file_path0, 'output.000.txt')
-            llyfac_file = tempfolder.get_abs_path(self._KKRFLEX_LLYFAC)
-            with open(outfile) as f:
+            with GFhost_folder.open('output.000.txt') as f:
                 txt = f.readlines()
                 iline = search_string('RENORM_LLY: Renormalization factor of total charge', txt)
                 if iline>=0:
                     llyfac = txt[iline].split()[-1]
                     # now write kkrflex_llyfac to tempfolder where later on config file is also written
-                    with open(llyfac_file, u'w') as f2:
+                    with tempfolder.open(self._KKRFLEX_LLYFAC, 'w') as f2:
                         f2.writelines([llyfac])
 
         # now set runflags
