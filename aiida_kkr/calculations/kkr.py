@@ -359,13 +359,13 @@ class KkrCalculation(CalcJob):
                 # TODO ggf copy remotely from remote node if present ...
 
             if parent_calc.process_class == VoronoiCalculation:
-                copylist = [parent_calc._SHAPEFUN]
+                copylist = [parent_calc.process_class._SHAPEFUN]
                 # copy either overwrite potential or voronoi output potential
                 # (voronoi caclualtion retreives only one of the two)
-                if parent_calc._POTENTIAL_IN_OVERWRITE in outfolder.list_object_names():
-                    copylist.append(parent_calc._POTENTIAL_IN_OVERWRITE)
+                if parent_calc.process_class._POTENTIAL_IN_OVERWRITE in outfolder.list_object_names():
+                    copylist.append(parent_calc.process_class._POTENTIAL_IN_OVERWRITE)
                 else:
-                    copylist.append(parent_calc._OUT_POTENTIAL_voronoi)
+                    copylist.append(parent_calc.process_class._OUT_POTENTIAL_voronoi)
 
             """ # comment out at the moment since importer does not work anyways
             #change copylist in case the calculation starts from an imported calculation
@@ -384,7 +384,7 @@ class KkrCalculation(CalcJob):
                 filename = file1
                 # deal with special case that file is written to another name
                 if (file1 == 'output.pot' or file1 == self._OUT_POTENTIAL or
-                   (parent_calc.process_class == VoronoiCalculation and file1 == parent_calc._POTENTIAL_IN_OVERWRITE)):
+                   (parent_calc.process_class == VoronoiCalculation and file1 == parent_calc.process_class._POTENTIAL_IN_OVERWRITE)):
                     filename = self._POTENTIAL
                 # now add to copy list
                 local_copy_list.append((outfolder.uuid, file1, filename))

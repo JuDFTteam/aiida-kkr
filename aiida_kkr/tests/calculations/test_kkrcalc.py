@@ -80,7 +80,9 @@ class Test_kkr_calculation(object):
         builder.metadata.options = options
         builder.parameters = params_node
         builder.parent_folder = kkr_calc.outputs.remote_folder
-        builder.submit_test()
+        #builder.submit_test()
+        from aiida.engine import run
+        run(builder)
 
 
     def test_kkrflex(self):
@@ -114,7 +116,9 @@ class Test_kkr_calculation(object):
         builder.parameters = params_node
         builder.parent_folder = kkr_calc.outputs.remote_folder
         builder.impurity_info = imp_info
-        builder.submit_test()
+        #builder.submit_test()
+        from aiida.engine import run
+        run(builder)
 
 
 #run test manually
