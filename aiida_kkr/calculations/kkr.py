@@ -41,124 +41,94 @@ class KkrCalculation(CalcJob):
     .
     """
 
-    def _init_internal_params(self):
+    # calculation plugin version
+    self._CALCULATION_PLUGIN_VERSION = __version__
+
+    # Default input and output files
+    self._DEFAULT_INPUT_FILE = 'inputcard' # will be shown with inputcat
+    self._DEFAULT_OUTPUT_FILE = 'out_kkr'  # verdi shell output will be shown with outputcat
+
+    # same as _DEFAULT_OUTPUT_FILE: piped output of kkr execution to this file
+    self._OUTPUT_FILE_NAME = self._DEFAULT_OUTPUT_FILE
+
+    # List of mandatory input files
+    self._INPUT_FILE_NAME = self._DEFAULT_INPUT_FILE
+    self._POTENTIAL = 'potential'
+
+    # List of optional input files (may be mandatory for some settings in inputcard)
+    self._SHAPEFUN = 'shapefun' # mandatory if nonspherical calculation
+    self._SCOEF = 'scoef' # mandatory for KKRFLEX calculation and some functionalities
+    self._NONCO_ANGLES = 'nonco_angles.dat' # mandatory if noncollinear directions are used that are not (theta, phi)= (0,0) for all atoms
+    self._NONCO_ANGLES_IMP = 'nonco_angles_imp.dat' # mandatory for GREENIMP option (scattering code)
+    self._SHAPEFUN_IMP = 'shapefun_imp' # mandatory for GREENIMP option (scattering code)
+    self._POTENTIAL_IMP = 'potential_imp' # mandatory for GREENIMP option (scattering code)
+
+   # List of output files that should always be present
+    self._OUT_POTENTIAL = 'out_potential'
+    self._OUTPUT_0_INIT = 'output.0.txt'
+    self._OUTPUT_000 = 'output.000.txt'
+    self._OUTPUT_2 = 'output.2.txt'
+    self._OUT_TIMING_000 = 'out_timing.000.txt'
+    self._NONCO_ANGLES_OUT = 'nonco_angles_out.dat'
+
+    # special files (some runs)
+    # DOS files
+    self._COMPLEXDOS = 'complex.dos'
+    self._DOS_ATOM = 'dos.atom%i'
+    self._LMDOS = 'lmdos.%2i.%i.dat'
+    # qdos files
+    self._QVEC = 'qvec.dat'
+    self._QDOS_ATOM = 'qdos.%2i.%i.dat'
+    # kkrflex files for impurity calculation
+    self._KKRFLEX_GREEN = 'kkrflex_green'
+    self._KKRFLEX_TMAT = 'kkrflex_tmat'
+    self._KKRFLEX_ATOMINFO = 'kkrflex_atominfo'
+    self._KKRFLEX_INTERCELL_REF = 'kkrflex_intercell_ref'
+    self._KKRFLEX_INTERCELL_CMOMS = 'kkrflex_intercell_cmoms'
+    self._ALL_KKRFLEX_FILES = [self._KKRFLEX_GREEN, self._KKRFLEX_TMAT, self._KKRFLEX_ATOMINFO, self._KKRFLEX_INTERCELL_REF, self._KKRFLEX_INTERCELL_CMOMS]
+    # Jij files
+    self._Jij_ATOM = 'Jij.atom%0.5i'
+    self._SHELLS_DAT = 'shells.dat'
+
+    # template.product entry point defined in setup.json
+    self._default_parser = 'kkr.kkrparser'
+
+    # files that will be copied from local computer if parent was KKR calc
+    self._copy_filelist_kkr = [self._SHAPEFUN, self._OUT_POTENTIAL]
+
+    # list of keywords that are not allowed to be modified (new calculation
+    # starting from structure and voronoi run is needed instead):
+    self._do_never_modify = ['ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'CARTESIAN',
+                             'INTERFACE', '<NLBASIS>', '<RBLEFT>', 'ZPERIODL',
+                             '<NRBASIS>', '<RBRIGHT>', 'ZPERIODR', 'KSHAPE', '<SHAPE>',
+                             '<ZATOM>', 'NATYP', '<SITE>', '<CPA-CONC>', '<KAOEZL>', '<KAOEZR>']
+    #TODO implement workfunction to modify structure (e.g. to use VCA)
+
+    @classmethod
+    def define(cls, spec):
         """
         Init internal parameters at class load time
         """
         # reuse base class function
         super(KkrCalculation, self)._init_internal_params()
-
-        # calculation plugin version
-        self._CALCULATION_PLUGIN_VERSION = __version__
-
-        # Default input and output files
-        self._DEFAULT_INPUT_FILE = 'inputcard' # will be shown with inputcat
-        self._DEFAULT_OUTPUT_FILE = 'out_kkr'  # verdi shell output will be shown with outputcat
-
-        # same as _DEFAULT_OUTPUT_FILE: piped output of kkr execution to this file
-        self._OUTPUT_FILE_NAME = self._DEFAULT_OUTPUT_FILE
-
-        # List of mandatory input files
-        self._INPUT_FILE_NAME = self._DEFAULT_INPUT_FILE
-        self._POTENTIAL = 'potential'
-
-        # List of optional input files (may be mandatory for some settings in inputcard)
-        self._SHAPEFUN = 'shapefun' # mandatory if nonspherical calculation
-        self._SCOEF = 'scoef' # mandatory for KKRFLEX calculation and some functionalities
-        self._NONCO_ANGLES = 'nonco_angles.dat' # mandatory if noncollinear directions are used that are not (theta, phi)= (0,0) for all atoms
-        self._NONCO_ANGLES_IMP = 'nonco_angles_imp.dat' # mandatory for GREENIMP option (scattering code)
-        self._SHAPEFUN_IMP = 'shapefun_imp' # mandatory for GREENIMP option (scattering code)
-        self._POTENTIAL_IMP = 'potential_imp' # mandatory for GREENIMP option (scattering code)
-
-	   # List of output files that should always be present
-        self._OUT_POTENTIAL = 'out_potential'
-        self._OUTPUT_0_INIT = 'output.0.txt'
-        self._OUTPUT_000 = 'output.000.txt'
-        self._OUTPUT_2 = 'output.2.txt'
-        self._OUT_TIMING_000 = 'out_timing.000.txt'
-        self._NONCO_ANGLES_OUT = 'nonco_angles_out.dat'
-
-        # special files (some runs)
-        # DOS files
-        self._COMPLEXDOS = 'complex.dos'
-        self._DOS_ATOM = 'dos.atom%i'
-        self._LMDOS = 'lmdos.%2i.%i.dat'
-        # qdos files
-        self._QVEC = 'qvec.dat'
-        self._QDOS_ATOM = 'qdos.%2i.%i.dat'
-        # kkrflex files for impurity calculation
-        self._KKRFLEX_GREEN = 'kkrflex_green'
-        self._KKRFLEX_TMAT = 'kkrflex_tmat'
-        self._KKRFLEX_ATOMINFO = 'kkrflex_atominfo'
-        self._KKRFLEX_INTERCELL_REF = 'kkrflex_intercell_ref'
-        self._KKRFLEX_INTERCELL_CMOMS = 'kkrflex_intercell_cmoms'
-        self._ALL_KKRFLEX_FILES = [self._KKRFLEX_GREEN, self._KKRFLEX_TMAT, self._KKRFLEX_ATOMINFO, self._KKRFLEX_INTERCELL_REF, self._KKRFLEX_INTERCELL_CMOMS]
-        # Jij files
-        self._Jij_ATOM = 'Jij.atom%0.5i'
-        self._SHELLS_DAT = 'shells.dat'
-
-        # template.product entry point defined in setup.json
-        self._default_parser = 'kkr.kkrparser'
-
-        # files that will be copied from local computer if parent was KKR calc
-        self._copy_filelist_kkr = [self._SHAPEFUN, self._OUT_POTENTIAL]
-
-        # list of keywords that are not allowed to be modified (new calculation
-        # starting from structure and voronoi run is needed instead):
-        self._do_never_modify = ['ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'CARTESIAN',
-                                 'INTERFACE', '<NLBASIS>', '<RBLEFT>', 'ZPERIODL',
-                                 '<NRBASIS>', '<RBRIGHT>', 'ZPERIODR', 'KSHAPE', '<SHAPE>',
-                                 '<ZATOM>', 'NATYP', '<SITE>', '<CPA-CONC>', '<KAOEZL>', '<KAOEZR>']
-        #TODO implement workfunction to modify structure (e.g. to use VCA)
+        # now define input files and parser
+        spec.input('metadata.options.parser_name', valid_type=six.string_types, default=cls._default_parser, non_db=True)
+        spec.input('metadata.options.input_filename', valid_type=six.string_types, default=cls._DEFAULT_INPUT_FILE, non_db=True)
+        spec.input('metadata.options.output_filename', valid_type=six.string_types, default=cls._DEFAULT_OUTPUT_FILE, non_db=True)
+        # define input nodes (optional ones have required=False)
+        spec.input('parameters', valid_type=Dict, required=True, help='Use a node that specifies the input parameters')
+        spec.input('parent_folder', valid_type=RemoteData, required=True, help='Use a remote or local repository folder as parent folder (also for restarts and similar). It should contain all the  needed files for a KKR calc, only edited files should be uploaded from the repository.')
+        spec.input('impurity_info', valid_type=Dict, required=False, help='Use a Parameter node that specifies properties for a follwoing impurity calculation (e.g. setting of impurity cluster in scoef file that is automatically created).')
+        spec.input('kpoints', valid_type=KpointsData, required=False, help="Use a KpointsData node that specifies the kpoints for which a bandstructure (i.e. 'qdos') calculation should be performed.")
+        # define outputs
+        spec.output('results', valid_type=Dict, required=True, help='results of the KKR calculation')
+        spec.default_output_node = 'results'
+        # define exit codes, also used in parser
+        spec.exit_code(301, 'ERROR_NO_OUTPUT_FILE', message='KKR output file not found')
+        spec.exit_code(302, 'ERROR_KKR_PARSING_FAILED', message='KKR parser retuned an error')
 
 
-    @classproperty
-    def _use_methods(cls):
-        """
-        Add use_* methods for calculations.
-
-        Code below enables the usage
-        my_calculation.use_parameters(my_parameters)
-        """
-        use_dict = JobCalculation._use_methods
-        use_dict.update({
-            "parameters": {
-                'valid_types': Dict,
-                'additional_parameter': None,
-                'linkname': 'parameters',
-                'docstring':
-                ("Use a node that specifies the input parameters ")
-            },
-            "parent_folder": {
-                'valid_types': RemoteData,
-                'additional_parameter': None,
-                'linkname': 'parent_calc_folder',
-                'docstring': (
-                    "Use a remote or local repository folder as parent folder "
-                    "(also for restarts and similar). It should contain all the "
-                    "needed files for a KKR calc, only edited files should be "
-                    "uploaded from the repository.")
-            },
-            "impurity_info": {
-                'valid_types': Dict,
-                'additional_parameter': None,
-                'linkname': 'impurity_info',
-                'docstring': ("Use a Parameter node that specifies properties "
-                              "for a follwoing impurity calculation (e.g. setting "
-                              "of impurity cluster in scoef file that is "
-                              "automatically created).")
-            },
-            "kpoints": {
-                'valid_types': KpointsData,
-                'additional_parameter': None,
-                'linkname': 'kpoints',
-                'docstring': ("Use a KpointsData node that specifies the kpoints for which a "
-                              "bandstructure (i.e. 'qdos') calculation should be performed.")
-            },
-            })
-        return use_dict
-
-    def _prepare_for_submission(self, tempfolder, inputdict):
+    def prepare_for_submission(self, tempfolder):
         """
         Create input files.
 
@@ -170,44 +140,28 @@ class KkrCalculation(CalcJob):
 
         has_parent = False
         local_copy_list = []
-        # Check inputdict
-        try:
-            parameters = inputdict.pop(self.get_linkname('parameters'))
-        except KeyError:
-            raise InputValidationError("No parameters specified for this calculation")
-        if not isinstance(parameters, Dict):
-            raise InputValidationError("parameters not of type Dict")
 
-        try:
-            imp_info = inputdict.pop(self.get_linkname('impurity_info'))
+        # get mandatory input nodes
+        parameters = self.inputs.parameters
+        code = self.inputs.code
+        parent_calc_folder = self.inputs.parent_folder
+
+        # now check for optional nodes
+
+        # for GF writeout
+        if 'impurity_info' in self.inputs:
+            imp_info = self.inputs.impurity_info
             found_imp_info = True
-        except KeyError:
+        else:
             imp_info = None
             found_imp_info = False
-        if found_imp_info and not isinstance(imp_info, Dict):
-            raise InputValidationError("impurity_info not of type Dict")
 
-        try:
-            code = inputdict.pop(self.get_linkname('code'))
-        except KeyError:
-            raise InputValidationError("No code specified for this calculation")
-
-        # get qdos inputs
-        try:
-            kpath = inputdict.pop(self.get_linkname('kpoints'))
+        # for qdos funcitonality
+        if 'kpoints' in self.inputs:
+            kpath = self.inputs.kpoints
             found_kpath = True
-        except KeyError:
+        else:
             found_kpath = False
-
-        try:
-            parent_calc_folder = inputdict.pop(self.get_linkname('parent_folder'))
-        except KeyError:
-            raise InputValidationError("Voronoi or previous KKR files needed for KKR calculation, "
-                                       "you need to provide a Parent Folder/RemoteData node.")
-
-        #TODO deal with data from folder data if calculation is continued on a different machine
-        if not isinstance(parent_calc_folder, RemoteData):
-            raise InputValidationError("parent_calc_folder must be of type RemoteData")
 
         # extract parent calculation
         parent_calcs = parent_calc_folder.get_inputs(node_type=JobCalculation)
@@ -390,8 +344,8 @@ class KkrCalculation(CalcJob):
                 file.writelines(qvec)
 
         # Prepare inputcard from Structure and input parameter data
-        input_file = tempfolder.open(self._INPUT_FILE_NAME, u'w')
-        natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_file, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
+        with tempfolder.open(self._INPUT_FILE_NAME, u'w') as input_file:
+            natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_file, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
 
 
         #################
@@ -441,8 +395,8 @@ class KkrCalculation(CalcJob):
             if ef_set is not None:
                 print('local copy list before change: {}'.format(local_copy_list))
                 print("found 'ef_set' in parameters: change EF of potential to this value")
-                potcopy_info = [i for i in local_copy_list if i[1]==self._POTENTIAL][0]
-                with open(potcopy_info[0]) as potfile:
+                potcopy_info = [i for i in local_copy_list if i[2]==self._POTENTIAL][0]
+                with open(potcopy_info[1]) as potfile:
                     # remove previous output potential from copy list
                     local_copy_list.remove(potcopy_info)
                     # create potential here by readin in old potential and overwriting with changed Fermi energy

@@ -95,9 +95,6 @@ class VoronoiCalculation(CalcJob):
 
         vca_structure = False
         if found_structure:
-            if not isinstance(structure, StructureData):
-                raise InputValidationError("structure not of type "
-                                            "StructureData")
             # for VCA: check if input structure and parameter node define VCA structure
             vca_structure = vca_check(structure, parameters)
 

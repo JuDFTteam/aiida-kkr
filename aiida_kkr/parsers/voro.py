@@ -66,35 +66,35 @@ class VoronoiParser(Parser):
 
         # get path to files and catch errors if files are not present
         file_errors = []
-        try:
+        if VoronoiCalculation._OUT_POTENTIAL_voronoi in out_folder.list_object_names():
             potfile = out_folder.open(VoronoiCalculation._OUT_POTENTIAL_voronoi)
-        except IOError:
+        else:
             # cover case where potfile is overwritten from input to voronoi calculation
-            try:
+            if VoronoiCalculation._POTENTIAL_IN_OVERWRITE in out_folder.list_object_names():
                 potfile = out_folder.open(VoronoiCalculation._POTENTIAL_IN_OVERWRITE)
-            except IOError:
+            else:
                 file_errors.append("Critical error! Neither potfile {}  not {} "
                                    "was found".format(VoronoiCalculation._OUT_POTENTIAL_voronoi,
                                                       VoronoiCalculation._POTENTIAL_IN_OVERWRITE))
                 potfile = 'file_not_found'
-        try:
+        if VoronoiCalculation._OUTPUT_FILE_NAME in out_folder.list_object_names():
             outfile = out_folder.open(VoronoiCalculation._OUTPUT_FILE_NAME)
-        except IOError:
+        else:
             file_errors.append("Critical error! outfile not found {}".format(VoronoiCalculation._OUTPUT_FILE_NAME))
             outfile = 'file_not_found'
-        try:
+        if VoronoiCalculation._ATOMINFO in out_folder.list_object_names():
             atominfo = out_folder.open(VoronoiCalculation._ATOMINFO)
-        except IOError:
+        else:
             file_errors.append("Critical error! atominfo not found {}".format(VoronoiCalculation._ATOMINFO))
             atominfo = 'file_not_found'
-        try:
+        if VoronoiCalculation._RADII in out_folder.list_object_names():
             radii = out_folder.open(VoronoiCalculation._RADII)
-        except IOError:
+        else:
             file_errors.append("Critical error! radii not found {}".format(VoronoiCalculation._RADII))
             radii = 'file_not_found'
-        try:
+        if VoronoiCalculation._INPUT_FILE_NAME in out_folder.list_object_names():
             inputfile = out_folder.open(VoronoiCalculation._INPUT_FILE_NAME)
-        except IOError:
+        else:
             file_errors.append("Critical error! inputfile not found {}".format(VoronoiCalculation._INPUT_FILE_NAME))
             inputfile = 'file_not_found'
         # initialize out_dict and parse output files
