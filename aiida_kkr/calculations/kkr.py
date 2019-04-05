@@ -42,63 +42,63 @@ class KkrCalculation(CalcJob):
     """
 
     # calculation plugin version
-    self._CALCULATION_PLUGIN_VERSION = __version__
+    _CALCULATION_PLUGIN_VERSION = __version__
 
     # Default input and output files
-    self._DEFAULT_INPUT_FILE = 'inputcard' # will be shown with inputcat
-    self._DEFAULT_OUTPUT_FILE = 'out_kkr'  # verdi shell output will be shown with outputcat
+    _DEFAULT_INPUT_FILE = 'inputcard' # will be shown with inputcat
+    _DEFAULT_OUTPUT_FILE = 'out_kkr'  # verdi shell output will be shown with outputcat
 
     # same as _DEFAULT_OUTPUT_FILE: piped output of kkr execution to this file
-    self._OUTPUT_FILE_NAME = self._DEFAULT_OUTPUT_FILE
+    _OUTPUT_FILE_NAME = _DEFAULT_OUTPUT_FILE
 
     # List of mandatory input files
-    self._INPUT_FILE_NAME = self._DEFAULT_INPUT_FILE
-    self._POTENTIAL = 'potential'
+    _INPUT_FILE_NAME = _DEFAULT_INPUT_FILE
+    _POTENTIAL = 'potential'
 
     # List of optional input files (may be mandatory for some settings in inputcard)
-    self._SHAPEFUN = 'shapefun' # mandatory if nonspherical calculation
-    self._SCOEF = 'scoef' # mandatory for KKRFLEX calculation and some functionalities
-    self._NONCO_ANGLES = 'nonco_angles.dat' # mandatory if noncollinear directions are used that are not (theta, phi)= (0,0) for all atoms
-    self._NONCO_ANGLES_IMP = 'nonco_angles_imp.dat' # mandatory for GREENIMP option (scattering code)
-    self._SHAPEFUN_IMP = 'shapefun_imp' # mandatory for GREENIMP option (scattering code)
-    self._POTENTIAL_IMP = 'potential_imp' # mandatory for GREENIMP option (scattering code)
+    _SHAPEFUN = 'shapefun' # mandatory if nonspherical calculation
+    _SCOEF = 'scoef' # mandatory for KKRFLEX calculation and some functionalities
+    _NONCO_ANGLES = 'nonco_angles.dat' # mandatory if noncollinear directions are used that are not (theta, phi)= (0,0) for all atoms
+    _NONCO_ANGLES_IMP = 'nonco_angles_imp.dat' # mandatory for GREENIMP option (scattering code)
+    _SHAPEFUN_IMP = 'shapefun_imp' # mandatory for GREENIMP option (scattering code)
+    _POTENTIAL_IMP = 'potential_imp' # mandatory for GREENIMP option (scattering code)
 
    # List of output files that should always be present
-    self._OUT_POTENTIAL = 'out_potential'
-    self._OUTPUT_0_INIT = 'output.0.txt'
-    self._OUTPUT_000 = 'output.000.txt'
-    self._OUTPUT_2 = 'output.2.txt'
-    self._OUT_TIMING_000 = 'out_timing.000.txt'
-    self._NONCO_ANGLES_OUT = 'nonco_angles_out.dat'
+    _OUT_POTENTIAL = 'out_potential'
+    _OUTPUT_0_INIT = 'output.0.txt'
+    _OUTPUT_000 = 'output.000.txt'
+    _OUTPUT_2 = 'output.2.txt'
+    _OUT_TIMING_000 = 'out_timing.000.txt'
+    _NONCO_ANGLES_OUT = 'nonco_angles_out.dat'
 
     # special files (some runs)
     # DOS files
-    self._COMPLEXDOS = 'complex.dos'
-    self._DOS_ATOM = 'dos.atom%i'
-    self._LMDOS = 'lmdos.%2i.%i.dat'
+    _COMPLEXDOS = 'complex.dos'
+    _DOS_ATOM = 'dos.atom%i'
+    _LMDOS = 'lmdos.%2i.%i.dat'
     # qdos files
-    self._QVEC = 'qvec.dat'
-    self._QDOS_ATOM = 'qdos.%2i.%i.dat'
+    _QVEC = 'qvec.dat'
+    _QDOS_ATOM = 'qdos.%2i.%i.dat'
     # kkrflex files for impurity calculation
-    self._KKRFLEX_GREEN = 'kkrflex_green'
-    self._KKRFLEX_TMAT = 'kkrflex_tmat'
-    self._KKRFLEX_ATOMINFO = 'kkrflex_atominfo'
-    self._KKRFLEX_INTERCELL_REF = 'kkrflex_intercell_ref'
-    self._KKRFLEX_INTERCELL_CMOMS = 'kkrflex_intercell_cmoms'
-    self._ALL_KKRFLEX_FILES = [self._KKRFLEX_GREEN, self._KKRFLEX_TMAT, self._KKRFLEX_ATOMINFO, self._KKRFLEX_INTERCELL_REF, self._KKRFLEX_INTERCELL_CMOMS]
+    _KKRFLEX_GREEN = 'kkrflex_green'
+    _KKRFLEX_TMAT = 'kkrflex_tmat'
+    _KKRFLEX_ATOMINFO = 'kkrflex_atominfo'
+    _KKRFLEX_INTERCELL_REF = 'kkrflex_intercell_ref'
+    _KKRFLEX_INTERCELL_CMOMS = 'kkrflex_intercell_cmoms'
+    _ALL_KKRFLEX_FILES = [_KKRFLEX_GREEN, _KKRFLEX_TMAT, _KKRFLEX_ATOMINFO, _KKRFLEX_INTERCELL_REF, _KKRFLEX_INTERCELL_CMOMS]
     # Jij files
-    self._Jij_ATOM = 'Jij.atom%0.5i'
-    self._SHELLS_DAT = 'shells.dat'
+    _Jij_ATOM = 'Jij.atom%0.5i'
+    _SHELLS_DAT = 'shells.dat'
 
     # template.product entry point defined in setup.json
-    self._default_parser = 'kkr.kkrparser'
+    _default_parser = 'kkr.kkrparser'
 
     # files that will be copied from local computer if parent was KKR calc
-    self._copy_filelist_kkr = [self._SHAPEFUN, self._OUT_POTENTIAL]
+    _copy_filelist_kkr = [_SHAPEFUN, _OUT_POTENTIAL]
 
     # list of keywords that are not allowed to be modified (new calculation
     # starting from structure and voronoi run is needed instead):
-    self._do_never_modify = ['ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'CARTESIAN',
+    _do_never_modify = ['ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'CARTESIAN',
                              'INTERFACE', '<NLBASIS>', '<RBLEFT>', 'ZPERIODL',
                              '<NRBASIS>', '<RBRIGHT>', 'ZPERIODR', 'KSHAPE', '<SHAPE>',
                              '<ZATOM>', 'NATYP', '<SITE>', '<CPA-CONC>', '<KAOEZL>', '<KAOEZR>']
@@ -110,7 +110,7 @@ class KkrCalculation(CalcJob):
         Init internal parameters at class load time
         """
         # reuse base class function
-        super(KkrCalculation, self)._init_internal_params()
+        super(KkrCalculation, cls).define(spec)
         # now define input files and parser
         spec.input('metadata.options.parser_name', valid_type=six.string_types, default=cls._default_parser, non_db=True)
         spec.input('metadata.options.input_filename', valid_type=six.string_types, default=cls._DEFAULT_INPUT_FILE, non_db=True)
