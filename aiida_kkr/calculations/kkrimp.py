@@ -529,8 +529,8 @@ class KkrimpCalculation(CalcJob):
                 params_kkrimp.set_value(key, val)
 
         # write config.cfg
-        config_file = tempfolder.open(self._CONFIG, u'w')
-        params_kkrimp.fill_keywords_to_inputfile(output=config_file)
+        with tempfolder.open(self._CONFIG, u'w') as config_file:
+            params_kkrimp.fill_keywords_to_inputfile(output=config_file)
 
 
     def _change_atominfo(self, imp_info, kkrflex_file_paths, tempfolder):
@@ -594,7 +594,7 @@ class KkrimpCalculation(CalcJob):
         with tempfolder.open(KkrCalculation()._SCOEF, u'w') as scoef_file:
             make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center)
         # now create impurity shapefun
-        with tempfolder.get_abs_path(self._SHAPEFUN) as shapefun_new:
+        with tempfolder.open(self._SHAPEFUN) as shapefun_new:
             modify_potential().shapefun_from_scoef(scoef_file, shapefun, shapes, shapefun_new)
 
         # find path to input potential

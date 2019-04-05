@@ -410,7 +410,7 @@ class KkrCalculation(CalcJob):
                 copylist = [parent_calc._SHAPEFUN]
                 # copy either overwrite potential or voronoi output potential
                 # (voronoi caclualtion retreives only one of the two)
-                if parent_calc._POTENTIAL_IN_OVERWRITE in os.listdir(outfolderpath):
+                if parent_calc._POTENTIAL_IN_OVERWRITE in outfolder.list_object_names():
                     copylist.append(parent_calc._POTENTIAL_IN_OVERWRITE)
                 else:
                     copylist.append(parent_calc._OUT_POTENTIAL_voronoi)
@@ -418,22 +418,22 @@ class KkrCalculation(CalcJob):
             #change copylist in case the calculation starts from an imported calculation
             if parent_calc.get_parser_name() == 'kkr.kkrimporterparser':
                 copylist = []
-                if not os.path.exists(os.path.join(outfolderpath, self._OUT_POTENTIAL)):
+                if not self._OUT_POTENTIAL in outfolder.list_object_names():
                     copylist.append(self._POTENTIAL)
                 else:
                     copylist.append(self._OUT_POTENTIAL)
-                if os.path.exists(os.path.join(outfolderpath, self._SHAPEFUN)):
+                if self._SHAPEFUN in outfolder.list_object_names():
                     copylist.append(self._SHAPEFUN)
 
             # create local_copy_list from copylist and change some names automatically
             for file1 in copylist:
                 filename = file1
+                # deal with special case that file is written to another name
                 if (file1 == 'output.pot' or file1 == self._OUT_POTENTIAL or
                    (isinstance(parent_calc, VoronoiCalculation) and file1 == parent_calc._POTENTIAL_IN_OVERWRITE)):
                     filename = self._POTENTIAL
-                local_copy_list.append((
-                        os.path.join(outfolderpath, file1),
-                        os.path.join(filename)))
+                # now add to copy list
+                local_copy_list.append((outfolder.uuid, file1, filename))
 
 
             # for set-ef option:
