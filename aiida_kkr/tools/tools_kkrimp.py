@@ -7,6 +7,7 @@ Tools for the impurity caluclation plugin and its workflows
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
+from __future__ import unicode_literals
 from builtins import object, str
 from six.moves import range
 from six.moves import input

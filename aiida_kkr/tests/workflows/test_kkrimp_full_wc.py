@@ -2,7 +2,7 @@
 
 from __future__ import absolute_import
 import pytest
-from dbsetup import *
+from aiida_kkr.tests.dbsetup import *
 
 # tests
 @pytest.mark.usefixtures("aiida_env")
