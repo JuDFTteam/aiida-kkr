@@ -12,6 +12,7 @@ class Test_vorostart_workflow():
     Tests for the kkr_startpot workflow
     """
 
+    @pytest.mark.timeout(120, method='thread')
     def test_vorostart_wc_Cu(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
@@ -65,7 +66,6 @@ class Test_vorostart_workflow():
         #builder.metadata.options = options
 
         # now run calculation
-        #out = self.run_timeout(builder)
         from aiida.engine import run
         out = run(builder)
         print(out)

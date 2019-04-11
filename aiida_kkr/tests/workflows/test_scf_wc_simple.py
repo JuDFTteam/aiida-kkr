@@ -30,14 +30,8 @@ class Test_scf_workflow():
     """
     Tests for the scf workfunction
     """
-    # make sure running the workflow exists after at most 5 minutes
-    import timeout_decorator
-    @timeout_decorator.timeout(300, use_signals=False)
-    def run_timeout(self, builder):
-        from aiida.engine import run
-        out = run(builder)
-        return out
 
+    @pytest.mark.timeout(300, method='thread')
     def test_scf_wc_Cu_simple(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
@@ -110,7 +104,8 @@ class Test_scf_workflow():
         builder.description = descr
 
         # now run calculation
-        out = self.run_timeout(builder)
+        from aiida.engine import run
+        out = run(builder)
 
         # load node of workflow
         print(out)

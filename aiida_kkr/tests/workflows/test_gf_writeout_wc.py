@@ -10,14 +10,8 @@ class Test_gf_writeout_workflow():
     """
     Tests for the kkr_startpot workflow
     """
-    # make sure running the workflow exists after at most 4 minutes
-    import timeout_decorator
-    @timeout_decorator.timeout(240, use_signals=False)
-    def run_timeout(self, builder):
-        from aiida.engine import run
-        out = run(builder)
-        return out
 
+    @pytest.mark.timeout(240, method='thread')
     def test_kkrflex_writeout_wc(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
@@ -62,7 +56,8 @@ class Test_gf_writeout_workflow():
         builder.impurity_info = imp_info
 
         # now run calculation
-        out = self.run_timeout(builder)
+        from aiida.engine import run
+        out = run(builder)
 
         n = out['workflow_info']
         n = n.get_dict()

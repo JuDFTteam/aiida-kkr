@@ -10,14 +10,8 @@ class Test_kkrimp_full_workflow():
     """
     Tests for the full kkrimp_scf workflow with GF writeout and voroaux steps
     """
-    # make sure running the workflow exists after at most 5 minutes
-    import timeout_decorator
-    @timeout_decorator.timeout(300, use_signals=False)
-    def run_timeout(self, builder):
-        from aiida.engine import run
-        out = run(builder)
-        return out
 
+    @pytest.mark.timeout(300, method='thread')
     def test_kkrimp_full_wc(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
@@ -81,7 +75,8 @@ class Test_kkrimp_full_workflow():
         builder.remote_converged_host = kkr_calc_remote
 
         # now run calculation
-        out = self.run_timeout(builder)
+        from aiida.engine import run
+        out = run(builder)
 
         # check outcome
         n = out['workflow_info']

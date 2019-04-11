@@ -25,11 +25,11 @@
         "pgtest",
         "pytest-cov >= 2.5.0",
         "pytest-mpl",
+        "pytest-timeout",
         "sphinx",
         "sphinx_rtd_theme",
         "ase",
-        "bumpversion",
-        "timeout_decorator"
+        "bumpversion"
     ],
     "extras_require": {
         "pre-commit": [

@@ -11,14 +11,8 @@ class Test_dos_workflow():
     """
     Tests for the kkr_startpot workflow
     """
-    # make sure running the workflow exists after at most 4 minutes
-    import timeout_decorator
-    @timeout_decorator.timeout(240, use_signals=False)
-    def run_timeout(self, builder):
-        from aiida.engine import run
-        out = run(builder)
-        return out
 
+    @pytest.mark.timeout(240, method='thread')
     def test_dos_wc_Cu(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
@@ -77,7 +71,8 @@ class Test_dos_workflow():
         builder.remote_data = kkr_calc_remote
 
         # now run calculation
-        out = self.run_timeout(builder)
+        from aiida.engine import run
+        out = run(builder)
 
         # check outcome
         n = out['results_wf']

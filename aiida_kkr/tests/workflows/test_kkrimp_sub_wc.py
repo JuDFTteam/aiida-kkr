@@ -10,14 +10,8 @@ class Test_kkrimp_scf_workflow():
     """
     Tests for the kkrimp_scf workflow
     """
-    # make sure running the workflow exists after at most 5 minutes
-    import timeout_decorator
-    @timeout_decorator.timeout(300, use_signals=False)
-    def run_timeout(self, builder):
-        from aiida.engine import run
-        out = run(builder)
-        return out
 
+    @pytest.mark.timeout(300, method='thread')
     def test_kkrimp_sub_wc(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
@@ -74,7 +68,8 @@ class Test_kkrimp_scf_workflow():
         builder.host_imp_startpot = startpot_imp_sfd
 
         # now run calculation
-        out = self.run_timeout(builder)
+        from aiida.engine import run
+        out = run(builder)
 
         n = out['calculation_info']
         n = n.get_dict()
