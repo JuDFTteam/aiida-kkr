@@ -68,11 +68,10 @@ class Test_gf_writeout_workflow():
         d = out['GF_host_remote']
         assert isinstance(d, DataFactory('remote'))
 
-        kkrflex_retrieved = load_node(n.get('pk_flexcalc'))
-        kkrflex_retrieved = kkrflex_retrieved.outputs.retrieved
-        kkrflex_path = kkrflex_retrieved.get_abs_path('')
+        kkrflex_calc = load_node(n.get('pk_flexcalc'))
+        kkrflex_retrieved = kkrflex_calc.outputs.retrieved
         for name in 'tmat green atominfo intercell_cmoms intercell_ref'.split():
-            assert 'kkrflex_'+name in os.listdir(kkrflex_path)
+            assert 'kkrflex_'+name in kkrflex_retrieved.list_object_names()
 
 
 #run test manually

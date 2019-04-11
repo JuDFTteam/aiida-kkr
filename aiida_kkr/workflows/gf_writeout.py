@@ -13,6 +13,7 @@ from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida.engine import CalcJob
+from aiida.orm import CalcJobNode
 from masci_tools.io.common_functions import get_Ry2eV
 from aiida.orm import WorkChainNode
 from aiida.common.exceptions import InputValidationError
@@ -204,8 +205,8 @@ class kkr_flex_wc(WorkChain):
         # is not from KKRCalculation but kkr_scf_wc workflow
         input_remote = self.inputs.remote_data
         # check if input_remote has single KKRCalculation parent
-        parents = input_remote.get_inputs(node_type=JobCalculation)
-        nparents = len(parents)
+        parents = input_remote.get_incoming(node_class=CalcJobNode)
+        nparents = len(parents.all_link_labels())
         if nparents!=1:
             # extract parent workflow and get uuid of last calc from output node
             parent_workflow = input_remote.inputs.last_RemoteData
@@ -352,7 +353,7 @@ class kkr_flex_wc(WorkChain):
         """
 
         # capture error of unsuccessful flexrun
-        if not self.ctx.flexrun.is_finished_ok():
+        if not self.ctx.flexrun.is_finished_ok:
             self.ctx.successful = False
             error = ('ERROR: KKRFLEX calculation failed somehow')
             self.ctx.errors.append(error)
