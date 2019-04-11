@@ -12,12 +12,12 @@ from aiida.orm import Code, load_node
 from aiida.plugins import DataFactory
 from aiida.engine import WorkChain, if_, ToContext
 from aiida.engine import submit
-from aiida.engine import workfunction as wf
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.engine import CalcJob
+from aiida.orm import CalcJobNode
 from aiida.orm import WorkChainNode
 from aiida.common.exceptions import InputValidationError
 
@@ -178,8 +178,8 @@ class kkr_dos_wc(WorkChain):
         # extract correct remote folder of last calculation if input remote_folder node is not from KkrCalculation but kkr_scf_wc workflow
         input_remote = self.inputs.remote_data
         # check if input_remote has single KkrCalculation parent
-        parents = input_remote.get_inputs(node_type=JobCalculation)
-        nparents = len(parents)
+        parents = input_remote.get_incoming(node_class=CalcJobNode)
+        nparents = len(parents.all_link_labels())
         if nparents!=1:
             # extract parent workflow and get uuid of last calc from output node
             parent_workflow = input_remote.inputs.last_RemoteData
@@ -308,7 +308,7 @@ class kkr_dos_wc(WorkChain):
         """
 
         # capture error of unsuccessful DOS run
-        if not self.ctx.dosrun.is_finished_ok():
+        if not self.ctx.dosrun.is_finished_ok:
             self.ctx.successful = False
             error = ('ERROR: DOS calculation failed somehow it is '
                     'in state {}'.format(calc_state))
@@ -348,22 +348,27 @@ class kkr_dos_wc(WorkChain):
             self.report("Caught AttributeError {}".format(e))
             has_dosrun = False
 
+        outdict = {}
+        outdict['results_wf'] = outputnode
         # interpol dos file and store to XyData nodes
         if has_dosrun:
-            outdict = create_dos_result_node(outputnode, self.ctx.dosrun.outputs.retrieved)
-        else:
-            outdict = create_dos_result_node_minimal(outputnode)
-
+            dos_retrieved = self.ctx.dosrun.outputs.retrieved
+            if 'complex.dos' in dos_retrieved.list_object_names():
+                dosXyDatas = parse_dosfiles(dos_retrieved.open('complex.dos'))
+                dos_extracted = True
+            else:
+                dos_extracted = False
+            if dos_extracted:
+                outdict['dos_data'] = dosXyDatas[0]
+                outdict['dos_data_interpol'] = dosXyDatas[1]
 
         for link_name, node in outdict.items():
-            #self.report("INFO: storing node '{}' with link name '{}'".format(node, link_name))
-            #self.report("INFO: node type: {}".format(type(node)))
             self.out(link_name, node)
 
         self.report("INFO: done with DOS workflow!\n")
 
 
-def parse_dosfiles(dospath):
+def parse_dosfiles(dosfolder):
     """
     parse dos files to XyData nodes
     """
@@ -374,7 +379,7 @@ def parse_dosfiles(dospath):
 
     eVscale = get_Ry2eV()
 
-    ef, dos, dos_int = interpolate_dos(dospath, return_original=True)
+    ef, dos, dos_int = interpolate_dos(dosfolder, return_original=True)
 
     # convert to eV units
     dos[:,:,0] = (dos[:,:,0]-ef)*eVscale
@@ -409,38 +414,3 @@ def parse_dosfiles(dospath):
     dosnode2.description = 'Array data containing interpolated DOS (i.e. dos at real axis). 3D array with (atoms, energy point, l-channel) dimensions.'
 
     return dosnode, dosnode2
-
-@wf
-def create_dos_result_node(outputnode, dos_retrieved):
-    """
-    This is a pseudo wf, to create the right graph structure of AiiDA.
-    """
-    # create XyData nodes (two nodes for non interpolated and interpolated
-    # data, i.e. function returns a list of two nodes) to store the dos arrays
-    print(dos_retrieved)
-    print(dos_retrieved.get_abs_path(''))
-
-    try:
-        dosXyDatas = parse_dosfiles(dos_retrieved.get_abs_path(''))
-        dos_extracted = True
-    except IOError as e:
-        print('caught IOError: {}'.format(e))
-        dos_extracted = False
-
-    outdict = {}
-    outdict['results_wf'] = outputnode
-    if dos_extracted:
-        outdict['dos_data'] = dosXyDatas[0]
-        outdict['dos_data_interpol'] = dosXyDatas[1]
-
-    return outdict
-
-@wf
-def create_dos_result_node_minimal(outputnode):
-    """
-    This is a pseudo wf, to create the right graph structure of AiiDA.
-    minimal if dosrun unsuccesful
-    """
-    outdict = {}
-    outdict['results_wf'] = outputnode
-    return outdict

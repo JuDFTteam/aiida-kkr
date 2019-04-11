@@ -7,7 +7,7 @@ mkdir -p '.aiida';
 pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=workflows --ignore=jukkr --mpl -p no:warnings
 
 # test running full workflows, need compiled codes and execute them
-#pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_vorostart_workflow
+pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_vorostart_workflow
 
 # these tests fail at the moment because gfortran is too old
 #pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_dos_workflow
