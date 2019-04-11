@@ -211,24 +211,11 @@ class KkrCalculation(CalcJob):
         # get StructureData node from Parent if Voronoi
         structure = None
         self.logger.info("KkrCalculation: Get structure node from voronoi parent")
-        if parent_calc.process_class == VoronoiCalculation:
-            self.logger.info("KkrCalculation: Parent is Voronoi calculation")
-            try:
-                structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
-            except:
-                self.logger.error('KkrCalculation: Could not get structure from Voronoi parent.')
-                raise ValidationError("Cound not find structure node")
-        elif parent_calc.process_class == KkrCalculation:
-            self.logger.info("KkrCalculation: Parent is KKR calculation")
-            try:
-                self.logger.info('KkrCalculation: extract structure from KKR parent')
-                structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
-            except:
-                self.logger.error('Could not get structure from parent.')
-                raise ValidationError('Cound not find structure node starting from parent {}'.format(parent_calc))
-        else:
-            self.logger.error("KkrCalculation: Parent is neither Voronoi nor KKR calculation!")
-            raise ValidationError('Cound not find structure node {}'.format(parent_calc))
+        try:
+            structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
+        except:
+            self.logger.error('KkrCalculation: Could not get structure from Voronoi parent ({}).'.format(parent_calc))
+            raise ValidationError("Cound not find structure node from parent {}".format(parent_calc))
 
         # for VCA: check if input structure and parameter node define VCA structure
         vca_structure = vca_check(structure, parameters)
@@ -282,13 +269,13 @@ class KkrCalculation(CalcJob):
             raise InputValidationError(msg)
 
         # set shapes array either from parent voronoi run or read from inputcard in kkrimporter calculation
-        #if parent_calc.get_parser_name() != 'kkr.kkrimporterparser':
-        #    # get shapes array from voronoi parent
-        #    shapes = voro_parent.res.shapes
-        #else:
-
-        # extract shapes from input parameters node constructed by kkrimporter calculation
-        shapes = voro_parent.inputs.parameters.get_dict().get('<SHAPE>')
+        if parent_calc.process_label=='VoronoiCalculation' or parent_calc.process_label=='KkrCalculation':
+            # get shapes array from voronoi parent
+            shapes = voro_parent.outputs.output_parameters.get_dict().get('shapes')
+        else:
+            # extract shapes from input parameters node constructed by kkrimporter calculation
+            shapes = voro_parent.inputs.parameters.get_dict().get('<SHAPE>')
+        self.logger.info('Extracted shapes: {}'.format(shapes))
 
         #
         use_alat_input = parameters.get_dict().get('use_input_alat', False)

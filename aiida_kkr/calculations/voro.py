@@ -265,11 +265,8 @@ class VoronoiCalculation(CalcJob):
         parent_folder_tmp0 = parent_folder
         try:
             parent_folder_tmp = parent_folder_tmp0.get_incoming().get_node_by_label('remote_folder')
-            print('found remote', parent_folder_tmp)
         except NotExistent:
-            #TODO check if this is a remote folder
             parent_folder_tmp = parent_folder_tmp0
-            print('take remote', parent_folder_tmp)
         return parent_folder_tmp
 
 
@@ -281,14 +278,11 @@ class VoronoiCalculation(CalcJob):
         input_folder_tmp0 = input_folder
         try:
             parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_calc_folder')
-            print('found parent', parent_folder_tmp)
         except NotExistent:
             try:
-                parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_calc')
-                print('found parent', parent_folder_tmp)
+                parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_folder')
             except NotExistent:
                 parent_folder_tmp = input_folder_tmp0
-                print('took input', parent_folder_tmp)
         return parent_folder_tmp
 
 
@@ -298,7 +292,7 @@ class VoronoiCalculation(CalcJob):
         Find the Structure node recuresively in chain of parent calculations (structure node is input to voronoi calculation)
         """
         iiter = 0
-        Nmaxiter = 100
+        Nmaxiter = 1000
         parent_folder_tmp = self._get_remote(parent_folder)
         while not self._has_struc(parent_folder_tmp) and iiter<Nmaxiter:
             parent_folder_tmp = self._get_remote(self._get_parent(parent_folder_tmp))
@@ -307,4 +301,4 @@ class VoronoiCalculation(CalcJob):
             struc = self._get_struc(parent_folder_tmp)
             return struc, parent_folder_tmp
         else:
-            print('struc not found')
+            raise ValueError("structure not found".format(parent_folder_tmp0))

@@ -46,9 +46,6 @@ class Test_scf_workflow():
         Dict = DataFactory('dict')
         StructureData = DataFactory('structure')
 
-        from aiida.orm.implementation.django.code import Code
-        from aiida.orm.querybuilder import QueryBuilder
-
         # prepare computer and code (needed so that
         prepare_code(voro_codename, codelocation, computername, workdir)
         prepare_code(kkr_codename, codelocation, computername, workdir)
@@ -110,9 +107,6 @@ class Test_scf_workflow():
         # load node of workflow
         print(out)
         n = out['output_kkr_scf_wc_ParameterResults']
-
-        print('\noutputs of workflow\n-------------------------------------------------')
-        pprint(n.get_outputs_dict())
 
         # get output dictionary
         out = n.get_dict()

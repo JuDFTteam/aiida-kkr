@@ -846,7 +846,7 @@ class kkr_scf_wc(WorkChain):
         self.ctx.kkr_step_success = True
 
         # check calculation state
-        if not self.ctx.last_calc.has_finished_ok():
+        if not self.ctx.last_calc.is_finished_ok:
             self.ctx.kkr_step_success = False
             self.report("ERROR: last calculation not finished correctly")
 
