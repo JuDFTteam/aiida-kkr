@@ -254,7 +254,7 @@ class plot_kkr(object):
         else:
             structure = node
         # check if empty sphere need to be removed for plotting (ase structgure cannot be constructed for alloys or vacancies)
-        if structure.has_vacancies():
+        if structure.has_vacancies:
             print("structure has vacancies, need to remove empty sites for plotting")
             stmp = StructureData(cell=structure.cell)
             for site in structure.sites:
@@ -539,20 +539,20 @@ class plot_kkr(object):
                     if ne>1:
                         dispersionplot(f, newfig=True, ptitle=ptitle, **kwargs)
                         # add plot labels
-                        ilbl = node.inputs.kpoints.get_attr('label_numbers')
-                        slbl = node.inputs.kpoints.get_attr('labels')
-                        ilbl = array(ilbl)
-                        slbl = array(slbl)
-                        m_overlap = where(abs(ilbl[1:]-ilbl[:-1])== 1)
-                        if len(m_overlap[0])>0:
-                            for i in m_overlap[0]:
-                                slbl[i+1] = '\n'+slbl[i+1]
-                        xticks(ilbl, slbl)
-                        xlabel('')
-                        [axvline(i, color='grey', ls=':') for i in ilbl]
+                        #ilbl = node.inputs.kpoints.get_attr('label_numbers')
+                        #slbl = node.inputs.kpoints.get_attr('labels')
+                        #ilbl = array(ilbl)
+                        #slbl = array(slbl)
+                        #m_overlap = where(abs(ilbl[1:]-ilbl[:-1])== 1)
+                        #if len(m_overlap[0])>0:
+                        #    for i in m_overlap[0]:
+                        #        slbl[i+1] = '\n'+slbl[i+1]
+                        #xticks(ilbl, slbl)
+                        #xlabel('')
+                        #[axvline(i, color='grey', ls=':') for i in ilbl]
 
-        # dos
-        if has_dos:
+        # dos only if qdos was not plotted already
+        if has_dos and not has_qdos:
             with node.outputs.retrieved.open('dos.atom1', mode='r') as f:
                 figure()
                 dosplot(f, **kwargs)

@@ -12,6 +12,7 @@ from aiida.plugins import DataFactory
 from aiida.engine import WorkChain, while_, if_, ToContext
 from aiida.engine import workfunction as wf
 from aiida.engine import CalcJob
+from aiida.orm import CalcJobNode
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from masci_tools.io.kkr_params import kkrparams
@@ -395,7 +396,7 @@ class kkr_scf_wc(WorkChain):
         # set params and remote folder to input if voronoi step is skipped
         if not run_voronoi:
             self.ctx.last_remote = inputs.remote_data
-            num_parents = len(self.ctx.last_remote.get_inputs(node_type=JobCalculation))
+            num_parents = len(self.ctx.last_remote.get_incoming(node_class=CalcJobNode).all_link_labels())
             if num_parents == 0:
                 pk_last_remote = self.ctx.last_remote.inputs.last_RemoteData.outputs.output_kkr_scf_wc_ParameterResults.get_dict().get('last_calc_nodeinfo').get('pk')
                 last_calc = load_node(pk_last_remote)

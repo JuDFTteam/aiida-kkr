@@ -121,6 +121,41 @@ class Test_kkr_calculation(object):
         run(builder)
 
 
+    def test_kkr_qdos(self):
+        """
+        run bandstructure calculation
+        """
+        from aiida.orm import Code, load_node
+        from aiida.plugins import DataFactory
+        from masci_tools.io.kkr_params import kkrparams
+        from aiida_kkr.calculations.kkr import KkrCalculation
+        Dict = DataFactory('dict')
+        KpointsData = DataFactory('array.kpoints')
+
+        # define k-path
+        kpoints = KpointsData()
+        kpoints.set_kpoints([[0,0,0],[0.1,0,0],[0.2,0,0],[0.3,0,0],[0.4,0,0]])
+
+        # first load parent voronoi calculation
+        kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
+
+        # extract KKR parameter (add missing values)
+        params_node = kkr_calc.inputs.parameters
+
+        # load code from database and create new voronoi calculation
+        code = Code.get_from_string(kkr_codename+'@'+computername)
+        options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
+        builder = KkrCalculation.get_builder()
+        builder.code = code
+        builder.metadata.options = options
+        builder.parameters = params_node
+        builder.parent_folder = kkr_calc.outputs.remote_folder
+        builder.kpoints = kpoints
+        #builder.submit_test()
+        from aiida.engine import run
+        run(builder)
+
+
 #run test manually
 if __name__=='__main__':
    from aiida import is_dbenv_loaded, load_dbenv
@@ -130,3 +165,4 @@ if __name__=='__main__':
    Test.test_kkr_from_voronoi()
    Test.test_kkr_from_kkr()
    Test.test_kkrflex()
+   Test.test_kkr_qdos()

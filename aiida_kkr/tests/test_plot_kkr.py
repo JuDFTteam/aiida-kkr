@@ -29,6 +29,14 @@ class Test_plot_kkr(object):
         basic_test('b4745834-93ff-4ac5-88a4-337a1de57168', strucplot=False, noshow=True)
         return gcf()
 
+    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='qdos.png')
+    def test_plot_qdos(self):
+        # load necessary files from db_dump files
+        from aiida.orm.importexport import import_data
+        import_data('files/db_dump_kkrcalc_qdos.tar.gz')
+        basic_test('a0d0d29f-7b22-4ca4-ba55-6b97569d94af', strucplot=False, noshow=True)
+        return gcf()
+
     @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='vorostart.png')
     def test_plot_vorostart_wc(self):
         basic_test('165e9636-07d1-4827-a0e0-6dc2d5b5ec5a', strucplot=False, noshow=True)

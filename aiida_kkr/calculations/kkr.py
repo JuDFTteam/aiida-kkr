@@ -3,6 +3,7 @@
 Input plug-in for a KKR calculation.
 """
 from __future__ import print_function, absolute_import
+from __future__ import unicode_literals
 import os
 from numpy import pi, array
 from aiida.engine import CalcJob

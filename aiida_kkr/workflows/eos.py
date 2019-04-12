@@ -11,7 +11,7 @@ from aiida.orm import Code, load_node
 from aiida.plugins import DataFactory
 from aiida.orm import Float, Bool
 from aiida.engine import WorkChain, ToContext
-from aiida.engine import workfunction as wf
+from aiida.engine import calcfunction
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.tools.common_workfunctions import update_params_wf
@@ -215,7 +215,7 @@ class kkr_eos_wc(WorkChain):
         future = self.submit(kkr_startpot_wc, structure=scaled_struc, kkr=self.ctx.kkr,
                              voronoi=self.ctx.voro, wf_parameters=Dict(dict=wfd),
                              calc_parameters=self.ctx.calc_parameters,
-                             options=self.ctx.wf_options)
+                             options=Dict(dict=self.ctx.wf_options))
 
         self.report('INFO: running kkr_startpot workflow (pk= {})'.format(future.pk))
         self.ctx.sub_wf_ids['kkr_startpot_1'] = future.uuid
@@ -288,7 +288,7 @@ class kkr_eos_wc(WorkChain):
         self.report('submit calc for scale fac= {} on {}'.format(self.ctx.scale_factors[0], self.ctx.scaled_structures[0].get_formula()))
         future = self.submit(kkr_scf_wc, kkr=self.ctx.kkr, remote_data=self.ctx.smallest_voro_remote,
                              wf_parameters=Dict(dict=wfd), calc_parameters=self.ctx.params_kkr_run,
-                             options=self.ctx.wf_options)
+                             options=Dict(dict=self.ctx.wf_options))
         scale_fac = self.ctx.scale_factors[0]
         calcs['kkr_{}_{}'.format(1, scale_fac)] = future
         self.ctx.sub_wf_ids['kkr_scf_1'] = future.uuid
@@ -300,7 +300,7 @@ class kkr_eos_wc(WorkChain):
             self.report('submit calc for scale fac= {} on {}'.format(scale_fac, scaled_struc.get_formula()))
             future = self.submit(kkr_scf_wc, structure=scaled_struc, kkr=self.ctx.kkr, voronoi=self.ctx.voro,
                                  wf_parameters=Dict(dict=wfd), calc_parameters=self.ctx.params_kkr_run,
-                                 options=self.ctx.wf_options)
+                                 options=Dict(dict=self.ctx.wf_options))
             calcs['kkr_{}_{}'.format(i+2, scale_fac)] = future
             self.ctx.sub_wf_ids['kkr_scf_{}'.format(i+2)] = future.uuid
 
@@ -377,7 +377,7 @@ class kkr_eos_wc(WorkChain):
                 fitdata[fitfunc] = [v0, e0, B]
                 alldat.append([v0, e0, B])
                 self.report('{:16} {:8.3f} {:7.3f} {:7.3f}'.format(fitfunc, v0, e0, B))
-            except RuntimeError:
+            except: # capture all errors and mark fit as unsuccessful
                self.ctx.warnings.append('fit unsuccessful for {} function'.format(fitfunc))
                if fitfunc == self.ctx.fitfunc_gs_out:
                    self.ctx.successful = False
@@ -434,11 +434,11 @@ class kkr_eos_wc(WorkChain):
 
         # create output nodes in dict with link names
         outnodes = {'eos_results': Dict(dict=outdict)}
-        if self.ctx.return_gs_struc:
+        if self.ctx.successful and self.ctx.return_gs_struc:
             outnodes['gs_structure'] = gs_structure
             if self.ctx.use_primitive_structure:
                 outnodes['explicit_kpoints'] = explicit_kpoints
-                outnodes['parameters'] = parameters
+                outnodes['get_explicit_kpoints_path_parameters'] = parameters
         # set out nodes and corresponding link names
         for link_name, node in outnodes.items():
             self.out(link_name, node)
@@ -466,7 +466,7 @@ def rescale_no_wf(structure, scale):
 
     return rescaled_structure
 
-@wf
+@calcfunction
 def rescale(inp_structure, scale):
     """
     Rescales a crystal structure. Keeps the provanance in the database.
@@ -483,7 +483,7 @@ def rescale(inp_structure, scale):
     return rescale_no_wf(inp_structure, scale)
 
 
-@wf
+@calcfunction
 def get_primitive_structure(structure, return_all):
     """
     calls get_explicit_kpoints_path which gives primitive structure
