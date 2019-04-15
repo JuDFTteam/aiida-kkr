@@ -88,7 +88,7 @@ class Test_voronoi_calculation(object):
         builder.metadata.options = options
         builder.parameters = ParaNode
         builder.structure = Cu
-        #builder.submit_test()
+        builder.metadata.dry_run = True
         from aiida.engine import run
         run(builder)
 

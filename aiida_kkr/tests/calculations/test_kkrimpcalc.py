@@ -54,7 +54,7 @@ class Test_kkrimp_calculation(object):
         builder.impurity_potential = startpot_imp_sfd
         builder.metadata.options = options
         builder.parameters = ParamsKKRimp
-        #builder.submit_test()
+        builder.metadata.dry_run = True
         from aiida.engine import run
         run(builder)
 

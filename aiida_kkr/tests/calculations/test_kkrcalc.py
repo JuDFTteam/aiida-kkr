@@ -51,7 +51,7 @@ class Test_kkr_calculation(object):
         builder.metadata.options = options
         builder.parameters = params_node
         builder.parent_folder = voro_calc.outputs.remote_folder
-        #builder.submit_test()
+        builder.metadata.dry_run = True
         from aiida.engine import run
         run(builder)
 
@@ -80,7 +80,7 @@ class Test_kkr_calculation(object):
         builder.metadata.options = options
         builder.parameters = params_node
         builder.parent_folder = kkr_calc.outputs.remote_folder
-        #builder.submit_test()
+        builder.metadata.dry_run = True
         from aiida.engine import run
         run(builder)
 
@@ -116,7 +116,7 @@ class Test_kkr_calculation(object):
         builder.parameters = params_node
         builder.parent_folder = kkr_calc.outputs.remote_folder
         builder.impurity_info = imp_info
-        #builder.submit_test()
+        builder.metadata.dry_run = True
         from aiida.engine import run
         run(builder)
 
@@ -151,7 +151,7 @@ class Test_kkr_calculation(object):
         builder.parameters = params_node
         builder.parent_folder = kkr_calc.outputs.remote_folder
         builder.kpoints = kpoints
-        #builder.submit_test()
+        builder.metadata.dry_run = True
         from aiida.engine import run
         run(builder)
 
