@@ -539,17 +539,20 @@ class plot_kkr(object):
                     if ne>1:
                         dispersionplot(f, newfig=True, ptitle=ptitle, **kwargs)
                         # add plot labels
-                        #ilbl = node.inputs.kpoints.get_attr('label_numbers')
-                        #slbl = node.inputs.kpoints.get_attr('labels')
-                        #ilbl = array(ilbl)
-                        #slbl = array(slbl)
-                        #m_overlap = where(abs(ilbl[1:]-ilbl[:-1])== 1)
-                        #if len(m_overlap[0])>0:
-                        #    for i in m_overlap[0]:
-                        #        slbl[i+1] = '\n'+slbl[i+1]
-                        #xticks(ilbl, slbl)
-                        #xlabel('')
-                        #[axvline(i, color='grey', ls=':') for i in ilbl]
+                        try:
+                            ilbl = node.inputs.kpoints.get_attr('label_numbers')
+                            slbl = node.inputs.kpoints.get_attr('labels')
+                            ilbl = array(ilbl)
+                            slbl = array(slbl)
+                            m_overlap = where(abs(ilbl[1:]-ilbl[:-1])== 1)
+                            if len(m_overlap[0])>0:
+                                for i in m_overlap[0]:
+                                    slbl[i+1] = '\n'+slbl[i+1]
+                            xticks(ilbl, slbl)
+                            xlabel('')
+                            [axvline(i, color='grey', ls=':') for i in ilbl]
+                        except:
+                            xlabel('id_kpt')
 
         # dos only if qdos was not plotted already
         if has_dos and not has_qdos:

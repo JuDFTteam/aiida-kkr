@@ -29,7 +29,7 @@ class Test_plot_kkr(object):
         basic_test('b4745834-93ff-4ac5-88a4-337a1de57168', strucplot=False, noshow=True)
         return gcf()
 
-    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='qdos.png')
+    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='qdos.png', remove_text=True)
     def test_plot_qdos(self):
         # load necessary files from db_dump files
         from aiida.orm.importexport import import_data
