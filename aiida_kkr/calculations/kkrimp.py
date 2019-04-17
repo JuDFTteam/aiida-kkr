@@ -18,6 +18,7 @@ from masci_tools.io.common_functions import search_string
 from aiida_kkr.calculations.voro import VoronoiCalculation
 import os
 from numpy import array, sqrt, sum, where
+import six
 from six.moves import range
 
 Dict = DataFactory('dict')
@@ -35,120 +36,88 @@ __contributors__ = ("Philipp Rüßmann")
 
 class KkrimpCalculation(CalcJob):
     """
-    AiiDA calculation plugin for a KKR calculation.
+    AiiDA calculation plugin for a KKRimp calculation.
     """
 
-    def _init_internal_params(self):
+    # calculation plugin version
+    _CALCULATION_PLUGIN_VERSION = __version__
+
+    # List of mandatory input files
+    _CONFIG = 'config.cfg'
+    _POTENTIAL = 'potential'
+    _KKRFLEX_GREEN = KkrCalculation()._KKRFLEX_GREEN
+    _KKRFLEX_TMAT = KkrCalculation()._KKRFLEX_TMAT
+    _KKRFLEX_ATOMINFO = KkrCalculation()._KKRFLEX_ATOMINFO
+    _KKRFLEX_INTERCELL_REF = KkrCalculation()._KKRFLEX_INTERCELL_REF
+    _KKRFLEX_INTERCELL_CMOMS = KkrCalculation()._KKRFLEX_INTERCELL_CMOMS
+
+    # List of optional input files (may be mandatory for some setting in inputputcard)
+    _SHAPEFUN = 'shapefun'
+    _KKRFLEX_ANGLE = 'kkrflex_angle'
+    _KKRFLEX_LLYFAC = 'kkrflex_llyfac'
+
+    # full list of kkrflex files
+    _ALL_KKRFLEX_FILES = KkrCalculation()._ALL_KKRFLEX_FILES
+    _ALL_KKRFLEX_FILES.append(_KKRFLEX_ANGLE)
+    _ALL_KKRFLEX_FILES.append(_KKRFLEX_LLYFAC)
+
+    # List of output files that should always be present
+    _OUT_POTENTIAL = 'out_potential'
+    _OUTPUT_000 = 'out_log.000.txt'
+    _OUT_TIMING_000 = 'out_timing.000.txt'
+    _OUT_ENERGYSP = 'out_energysp_eV'
+    _OUT_ENERGYSP_PER_ATOM = 'out_energysp_per_atom_eV'
+    _OUT_ENERGYTOT = 'out_energytotal_eV'
+    _OUT_ENERGYTOT_PER_ATOM =  'out_energytotal_per_atom_eV'
+
+    # Lift of output files that are retrieved if special conditions are fulfilled
+    _OUT_JIJDIJ = 'out_JijDij'
+    _OUT_JIJDIJ_LOCAL = 'out_JijDij_local'
+    _OUT_JIJMAT = 'out_Jijmatrix'
+    _OUT_JIJMAT_LOCAL = 'out_Jijmatrix_local'
+    _OUT_LDOS_BASE = 'out_ldos.atom=%2i_spin%i.dat'
+    _OUT_LDOS_INTERPOL_BASE = 'out_ldos.interpol.atom=%2i_spin%i.dat'
+    _OUT_LMDOS_BASE = 'out_lmdos.atom=%2i_spin%i.dat'
+    _OUT_LMDOS_INTERPOL_BASE = 'out_lmdos.interpol.atom=%2i_spin%i.dat'
+    _OUT_MAGNETICMOMENTS = 'out_magneticmoments'
+    _OUT_ORBITALMOMENTS = 'out_orbitalmoments'
+
+    # template.product entry point defined in setup.json
+    _default_parser = 'kkr.kkrimpparser'
+
+    # default names used within aiida (verdi calculation out(in)putcat)
+    _OUTPUT_FILE_NAME = 'out_kkrimp'
+    _INPUT_FILE_NAME = _CONFIG
+    _DEFAULT_OUTPUT_FILE = _OUTPUT_FILE_NAME # will be shown with outputcat
+    _DEFAULT_INPUT_FILE = _INPUT_FILE_NAME # will be shown with inputcat
+
+    @classmethod
+    def define(cls,spec):
         """
         Init internal parameters at class load time
         """
+        
         # reuse base class function
-        super(KkrimpCalculation, self)._init_internal_params()
+        super(KkrimpCalculation, cls).define(spec)
+        # now define input files and parser
+        spec.input('metadata.options.parser_name', valid_type=six.string_types, default=cls._default_parser, non_db=True)
+        spec.input('metadata.options.input_filename', valid_type=six.string_types, default=cls._DEFAULT_INPUT_FILE , non_db=True)       
+        spec.input('metadata.options.output_filename', valid_type=six.string_types, default=cls._DEFAULT_OUTPUT_FILE, non_db=True)
+        # define input nodes (optional ones have required=False)
+        spec.input('parameters', valid_type=Dict, required=True, help='Use a node that specifies the input parameters (calculation settings).')
+        spec.input('host_Greenfunction_folder', valid_type=RemoteData, required=True, help='Use a node that specifies the host KKR calculation contaning the host Green function and tmatrix (KkrCalculation with impurity_info input).')
+        spec.input('impurity_potential', valid_type=SinglefileData, required=True, help='Use a node that contains the input potential.')
+        spec.input('parent_calc_folder', valid_type=RemoteData, required=True, help='Use a node that specifies a parent KKRimp calculation.')
+        spec.input('impurity_info', valid_type=Dict, required=True, help='Use a parameter node that specifies properties for a immpurity calculation.')
+        # define outputs
+        spec.output('output_parameters', valid_type=Dict, required=True, help='results of the KKRimp calculation')
+        spec.default_output_node = 'output_parameters'
+        # define exit codes, also used in parser
+        #TBD
+       
+       
 
-        # calculation plugin version
-        self._CALCULATION_PLUGIN_VERSION = __version__
-
-        # List of mandatory input files
-        self._CONFIG = 'config.cfg'
-        self._POTENTIAL = 'potential'
-        self._KKRFLEX_GREEN = KkrCalculation()._KKRFLEX_GREEN
-        self._KKRFLEX_TMAT = KkrCalculation()._KKRFLEX_TMAT
-        self._KKRFLEX_ATOMINFO = KkrCalculation()._KKRFLEX_ATOMINFO
-        self._KKRFLEX_INTERCELL_REF = KkrCalculation()._KKRFLEX_INTERCELL_REF
-        self._KKRFLEX_INTERCELL_CMOMS = KkrCalculation()._KKRFLEX_INTERCELL_CMOMS
-
-        # List of optional input files (may be mandatory for some setting in inputputcard)
-        self._SHAPEFUN = 'shapefun'
-        self._KKRFLEX_ANGLE = 'kkrflex_angle'
-        self._KKRFLEX_LLYFAC = 'kkrflex_llyfac'
-
-        # full list of kkrflex files
-        self._ALL_KKRFLEX_FILES = KkrCalculation()._ALL_KKRFLEX_FILES
-        self._ALL_KKRFLEX_FILES.append(self._KKRFLEX_ANGLE)
-        self._ALL_KKRFLEX_FILES.append(self._KKRFLEX_LLYFAC)
-
-        # List of output files that should always be present
-        self._OUT_POTENTIAL = 'out_potential'
-        self._OUTPUT_000 = 'out_log.000.txt'
-        self._OUT_TIMING_000 = 'out_timing.000.txt'
-        self._OUT_ENERGYSP = 'out_energysp_eV'
-        self._OUT_ENERGYSP_PER_ATOM = 'out_energysp_per_atom_eV'
-        self._OUT_ENERGYTOT = 'out_energytotal_eV'
-        self._OUT_ENERGYTOT_PER_ATOM =  'out_energytotal_per_atom_eV'
-
-        # Lift of output files that are retrieved if special conditions are fulfilled
-        self._OUT_JIJDIJ = 'out_JijDij'
-        self._OUT_JIJDIJ_LOCAL = 'out_JijDij_local'
-        self._OUT_JIJMAT = 'out_Jijmatrix'
-        self._OUT_JIJMAT_LOCAL = 'out_Jijmatrix_local'
-        self._OUT_LDOS_BASE = 'out_ldos.atom=%2i_spin%i.dat'
-        self._OUT_LDOS_INTERPOL_BASE = 'out_ldos.interpol.atom=%2i_spin%i.dat'
-        self._OUT_LMDOS_BASE = 'out_lmdos.atom=%2i_spin%i.dat'
-        self._OUT_LMDOS_INTERPOL_BASE = 'out_lmdos.interpol.atom=%2i_spin%i.dat'
-        self._OUT_MAGNETICMOMENTS = 'out_magneticmoments'
-        self._OUT_ORBITALMOMENTS = 'out_orbitalmoments'
-
-        # template.product entry point defined in setup.json
-        self._default_parser = 'kkr.kkrimpparser'
-
-        # default names used within aiida (verdi calculation out(in)putcat)
-        self._OUTPUT_FILE_NAME = 'out_kkrimp'
-        self._INPUT_FILE_NAME = self._CONFIG
-        self._DEFAULT_OUTPUT_FILE = self._OUTPUT_FILE_NAME # will be shown with outputcat
-        self._DEFAULT_INPUT_FILE = self._INPUT_FILE_NAME # will be shown with inputcat
-
-    @classproperty
-    def _use_methods(cls):
-        """
-        Add use_* methods for calculations.
-
-        Code below enables the usage
-        my_calculation.use_parameters(my_parameters)
-        """
-        use_dict = JobCalculation._use_methods
-        use_dict.update({
-            "parameters": {
-                'valid_types': Dict,
-                'additional_parameter': None,
-                'linkname': 'parameters',
-                'docstring':
-                ("Use a node that specifies the input parameters (calculation settings).")
-                },
-            "host_Greenfunction_folder": {
-                'valid_types': RemoteData,
-                'additional_parameter': None,
-                'linkname': 'GFhost_folder',
-                'docstring':
-                ("Use a node that specifies the host KKR calculation contaning "
-                 "the host Green function and tmatrix (KkrCalculation with "
-                 "impurity_info input).")
-                },
-            "impurity_potential": {
-                'valid_types': SinglefileData,
-                'additional_parameter': None,
-                'linkname': 'potential',
-                'docstring':
-                ("Use a node contains the input potential.")
-                },
-            "parent_calc_folder": {
-                'valid_types': RemoteData,
-                'additional_parameter': None,
-                'linkname': 'parent_calc_folder',
-                'docstring':
-                ("Use a node that specifies a parent KKRimp calculation.")
-                },
-            "impurity_info": {
-                'valid_types': Dict,
-                'additional_parameter': None,
-                'linkname': 'impurity_info',
-                'docstring':
-                ("Use a Parameter node that specifies properties "
-                 "for a impurity calculation.")
-                }
-            })
-        return use_dict
-
-    def _prepare_for_submission(self, tempfolder, inputdict):
+    def prepare_for_submission(self, tempfolder, inputdict):
         """
         Create input files.
 
