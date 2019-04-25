@@ -254,7 +254,7 @@ class KkrimpCalculation(CalcJob):
             raise InputValidationError("host_Greenfunction_folder not of type RemoteData") 
         
         # extract parent calculation
-        parent_calcs = host_parent.get_inputs(node_type=RemoteData)
+        parent_calcs = host_parent.get_incoming(node_class=CalcJob)
         n_parents = len(parent_calcs)
         if n_parents != 1:
             raise UniquenessError(
@@ -570,7 +570,7 @@ class KkrimpCalculation(CalcJob):
             potfile = impurity_potential.open(impurity_potential.filename)
         elif parent_calc_folder is not None:
             self.logger.info('parent_calc_folder {} {}'.format(parent_calc_folder, parent_calc_folder.get_inputs_dict()))
-            retrieved = parent_calc_folder.get_inputs(node_type=CalcJob)[0].get_outputs_dict().get('retrieved', None)
+            retrieved = parent_calc_folder.get_incoming(node_class=CalcJob)[0].get_outputs_dict().get('retrieved', None)
             self.logger.info('potfile {} {}'.format(retrieved, self._OUT_POTENTIAL))
             potfile = retrieved.open(self._OUT_POTENTIAL)
         else:
