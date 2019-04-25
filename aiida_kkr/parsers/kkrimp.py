@@ -31,10 +31,6 @@ class KkrimpParser(Parser):
         Initialize the instance of KkrimpParser
         """
 
-        # check for valid input
-        #if not isinstance(calc, KkrimpCalculation):
-        #    raise InputValidationError("Input calc must be a KkrimpCalculation")
-
         self._ParserVersion = __version__
 
         #reuse init of base class
