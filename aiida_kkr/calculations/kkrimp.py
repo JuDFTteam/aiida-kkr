@@ -247,16 +247,14 @@ class KkrimpCalculation(CalcJob):
             * InputValidationError, if host_Greenfunction does not have an input node impurity_info
             * InputValidationError, if host_Greenfunction was not a KKRFLEX calculation
         """
-        # get host_parent node and check consistency
-        try:
-            host_parent = inputdict.pop(self.get_linkname('host_Greenfunction_folder'))
-        except KeyError:
-            raise InputValidationError("No host_Greenfunction_folder specified for this calculation")
-        # check host parent type
+        
+        # get mandatory input nodes (extract host_Greenfunction_folder)
+        host_parent = self.inputs.host_Greenfunction_folder
         if not isinstance(host_parent, RemoteData):
-            raise InputValidationError("host_Greenfunction_folder not of type RemoteData")
+            raise InputValidationError("host_Greenfunction_folder not of type RemoteData") 
+        
         # extract parent calculation
-        parent_calcs = host_parent.get_inputs(node_type=JobCalculation)
+        parent_calcs = host_parent.get_inputs(node_type=CalcJob)
         n_parents = len(parent_calcs)
         if n_parents != 1:
             raise UniquenessError(
@@ -264,23 +262,24 @@ class KkrimpCalculation(CalcJob):
                     "calculation{}, while it should have a single parent"
                     "".format(n_parents, "" if n_parents == 0 else "s"))
         else:
-            parent_calc = parent_calcs[0]
-
+            parent_calc = parent_calcs[0]       
         # extract impurity_info
-        try:
-            imp_info_inputnode = inputdict.pop(self.get_linkname('impurity_info'))
+        if 'impurity_info' in self.inputs:
+            imp_info_inputnode = self.inputs.impurity_info
             if not isinstance(imp_info_inputnode, Dict):
-                raise InputValidationError("impurity_info not of type Dict")
+                raise InputValidationError("impurity_info not of type Dict") 
             imp_info = parent_calc.get_inputs_dict().get('impurity_info', None)
             if imp_info is None:
                 raise InputValidationError("host_Greenfunction calculation does not have an input node impurity_info")
             found_impurity_inputnode = True
             found_host_parent = True
-        except KeyError:
+        else:
             imp_info = parent_calc.get_inputs_dict().get('impurity_info', None)
             if imp_info is None:
                 raise InputValidationError("host_Greenfunction calculation does not have an input node impurity_info")
-            found_impurity_inputnode = False
+            found_impurity_inputnode = False            
+
+
         # if impurity input is seperate input, check if it is the same as
         # the one from the parent calc (except for 'Zimp'). If that's not the
         # case, raise an error
@@ -354,7 +353,7 @@ class KkrimpCalculation(CalcJob):
         except:
             structure, voro_parent = None, None
         if structure is None:
-            raiseInputValidationError("No structure node found from host GF parent")
+            raise InputValidationError("No structure node found from host GF parent")
 
         return imp_info, kkrflex_file_paths, shapefun_path, shapes, parent_calc, params_host_calc, structure
 
