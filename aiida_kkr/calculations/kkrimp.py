@@ -104,11 +104,11 @@ class KkrimpCalculation(CalcJob):
         spec.input('metadata.options.input_filename', valid_type=six.string_types, default=cls._DEFAULT_INPUT_FILE , non_db=True)       
         spec.input('metadata.options.output_filename', valid_type=six.string_types, default=cls._DEFAULT_OUTPUT_FILE, non_db=True)
         # define input nodes (optional ones have required=False)
-        spec.input('parameters', valid_type=Dict, required=True, help='Use a node that specifies the input parameters (calculation settings).')
+        spec.input('parameters', valid_type=Dict, required=False, help='Use a node that specifies the input parameters (calculation settings).')
         spec.input('host_Greenfunction_folder', valid_type=RemoteData, required=True, help='Use a node that specifies the host KKR calculation contaning the host Green function and tmatrix (KkrCalculation with impurity_info input).')
-        spec.input('impurity_potential', valid_type=SinglefileData, required=True, help='Use a node that contains the input potential.')
-        spec.input('parent_calc_folder', valid_type=RemoteData, required=True, help='Use a node that specifies a parent KKRimp calculation.')
-        spec.input('impurity_info', valid_type=Dict, required=True, help='Use a parameter node that specifies properties for a immpurity calculation.')
+        spec.input('impurity_potential', valid_type=SinglefileData, required=False, help='Use a node that contains the input potential.')
+        spec.input('parent_calc_folder', valid_type=RemoteData, required=False, help='Use a node that specifies a parent KKRimp calculation.')
+        spec.input('impurity_info', valid_type=Dict, required=False, help='Use a parameter node that specifies properties for a immpurity calculation.')
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the KKRimp calculation')
         spec.default_output_node = 'output_parameters'
@@ -229,7 +229,7 @@ class KkrimpCalculation(CalcJob):
     #####################################################
     # helper functions
 
-    def _get_and_verify_hostfiles(self, inputdict):
+    def _get_and_verify_hostfiles(self):
         """
         Check inputdict for host_Greenfunction_folder and extract impurity_info, paths to kkrflex-files and path of shapefun file
 
@@ -359,7 +359,7 @@ class KkrimpCalculation(CalcJob):
         return imp_info, kkrflex_file_paths, shapefun_path, shapes, parent_calc, params_host_calc, structure
 
 
-    def _check_and_extract_input_nodes(self, inputdict):
+    def _check_and_extract_input_nodes(self):
         """
         Extract input nodes from inputdict and check consitency of input nodes
         :param inputdict: dict of inputnodes
@@ -373,41 +373,39 @@ class KkrimpCalculation(CalcJob):
             * impurity_potential (SinglefileData): single file data node containing the starting potential for the impurity calculation
             * parent_calc_folder (RemoteData): remote directory of a parent KKRimp calculation
         """
-        # 1. extract parameters, optional (defaults extracted from host calculation)
-        try:
-            parameters = inputdict.pop(self.get_linkname('parameters'))
+        
+        # get mandatory input nodes (extract code)
+        code = self.inputs.code
+        
+        # now check for optional nodes
+        if 'parameters' in self.inputs:
+            parameters = self.inputs.parameters
             if not isinstance(parameters, Dict):
                 raise InputValidationError("parameters not of type Dict")
-        except KeyError:
-            self.logger.info("No parameters specified for this calculation, use defaults")
+        else:
             parameters = None
         if parameters is not None: # convert to kkrparams instance
-            parameters = kkrparams(params_type='kkrimp', **parameters.get_dict())
-        # 2. extract code
-        try:
-            code = inputdict.pop(self.get_linkname('code'))
-        except KeyError:
-            raise InputValidationError("No code specified for this calculation")
-        # 3. get hostfiles
-        imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, structure = self._get_and_verify_hostfiles(inputdict)
+            parameters = kkrparams(params_type='kkrimp', **parameters.get_dict())        
+        
+        # get hostfiles
+        imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, structure = self._get_and_verify_hostfiles()
 
-        # 4. check impurity potential or parent calc input
-        # imp potential
-        try:
-            impurity_potential = inputdict.pop(self.get_linkname('impurity_potential'))
+        # check impurity potential or parent calculation input
+        # impurity_potential
+        if 'impurity_potential' in self.inputs:
+            impurity_potential = self.inputs.impurity_potential
             if not isinstance(impurity_potential, SinglefileData):
-                raise InputValidationError("impurity_potential not of type SinglefileData")
-            found_imp_pot = True
-        except KeyError:
+                raise InputValidationError("impurity_potential not of type SinglefileData")            
+        else:
             impurity_potential = None
             found_imp_pot = False
-        # parent calc folder
-        try:
-            parent_calc_folder = inputdict.pop(self.get_linkname('parent_calc_folder'))
+        # parent calculation folder
+        if 'parent_calc_folder' in self.inputs:
+            parent_calc_folder = self.inputs.parent_calc_folder
             if not isinstance(parent_calc_folder, RemoteData):
-                raise InputValidationError("parent_calc_folder not of type RemoteData")
+                raise InputValidationError("parent_calc_folder not of type RemoteData")    
             found_parent_calc = True
-        except KeyError:
+        else:
             parent_calc_folder = None
             found_parent_calc = False
         # consistency checks
@@ -416,12 +414,14 @@ class KkrimpCalculation(CalcJob):
                                        "Please provide either impurity_potential or parent_calc_folder.")
         elif found_parent_calc and found_imp_pot:
             raise InputValidationError("Both impurity_potential and parent_calc_folder specified for this calculation.\n"
-                                       "Please provide one one, i.e. either impurity_potential or parent_calc_folder.")
-        # 5. anything left that is unknown?
-        if inputdict:
-            raise ValidationError("Unknown inputs: {}".format(inputdict))
-        # Done checking inputdict, returning ...
-        return parameters, code, imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, impurity_potential, parent_calc_folder, structure
+                                       "Please provide one one, i.e. either impurity_potential or parent_calc_folder.")    
+        
+        # Done checking inputs, returning...    
+        return parameters, code, imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, impurity_potential, parent_calc_folder, structure            
+            
+#        # 5. anything left that is unknown?
+#        if inputdict:
+#            raise ValidationError("Unknown inputs: {}".format(inputdict))
 
 
     def _extract_and_write_config(self, parent_calc_folder, params_host, parameters, tempfolder, GFhost_folder):
