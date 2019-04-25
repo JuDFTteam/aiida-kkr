@@ -158,7 +158,7 @@ class KkrimpParser(Parser):
 
         # now parse file output
         out_dict = {'parser_version': self._ParserVersion,
-                    'calculation_plugin_version': self._calc._CALCULATION_PLUGIN_VERSION}
+                    'calculation_plugin_version': KkrimpCalculation._CALCULATION_PLUGIN_VERSION}
 
         success, msg_list, out_dict = kkrimp_parser_functions().parse_kkrimp_outputfile(out_dict, files)
 
