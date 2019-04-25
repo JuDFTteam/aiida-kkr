@@ -262,7 +262,7 @@ class KkrimpCalculation(CalcJob):
                     "calculation{}, while it should have a single parent"
                     "".format(n_parents, "" if n_parents == 0 else "s"))
         else:
-            parent_calc = parent_calcs[0]       
+            parent_calc = parent_calcs.first().node       
         # extract impurity_info
         if 'impurity_info' in self.inputs:
             imp_info_inputnode = self.inputs.impurity_info
