@@ -255,7 +255,7 @@ class KkrimpCalculation(CalcJob):
         
         # extract parent calculation
         parent_calcs = host_parent.get_incoming(node_class=CalcJob)
-        n_parents = len(parent_calcs)
+        n_parents = len(parent_calcs.all_link_labels())
         if n_parents != 1:
             raise UniquenessError(
                     "Input RemoteData is child of {} "
