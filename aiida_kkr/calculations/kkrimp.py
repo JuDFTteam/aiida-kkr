@@ -117,7 +117,7 @@ class KkrimpCalculation(CalcJob):
        
        
 
-    def prepare_for_submission(self, tempfolder, inputdict):
+    def prepare_for_submission(self, tempfolder):
         """
         Create input files.
 
