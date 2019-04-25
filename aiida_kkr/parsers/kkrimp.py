@@ -68,7 +68,7 @@ class KkrimpParser(Parser):
 #            return success, node_list
 
         # check what is inside the folder
-        list_of_files = out_folder.repository.list_object_names()
+        list_of_files = out_folder._repository.list_object_names()
 
         file_errors = []
         files = {}
