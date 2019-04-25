@@ -127,7 +127,7 @@ class KkrimpCalculation(CalcJob):
                 be returned by get_inputs_dict
         """
         # Check inputdict and extrace nodes
-        tmp = self._check_and_extract_input_nodes(inputdict)
+        tmp = self._check_and_extract_input_nodes()
         parameters = tmp[0]
         code = tmp[1]
         imp_info = tmp[2]

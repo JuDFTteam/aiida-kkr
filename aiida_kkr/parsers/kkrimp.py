@@ -42,7 +42,7 @@ class KkrimpParser(Parser):
 
 
     # pylint: disable=protected-access
-    def parse_with_retrieved(self, retrieved):
+    def parse(self, **kwargs):
         """
         Parse output data folder, store results in database.
 
@@ -60,13 +60,15 @@ class KkrimpParser(Parser):
 
         # Check that the retrieved folder is there
         try:
-            out_folder = retrieved[self._calc._get_linkname_retrieved()]
-        except KeyError:
-            self.logger.error("No retrieved folder found")
-            return success, node_list
+            out_folder = self.retrieved
+        except exceptions.NotExistent:
+            return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
+#        except KeyError:
+#            self.logger.error("No retrieved folder found")
+#            return success, node_list
 
         # check what is inside the folder
-        list_of_files = out_folder.get_folder_list()
+        list_of_files = out_folder.repository.list_object_names()
 
         file_errors = []
         files = {}
@@ -79,80 +81,80 @@ class KkrimpParser(Parser):
         # 2: warning, is inspected and checked for consistency with read-in
         #    out_dict values (e.g. nspin, newsosol, ...)
 
-        # we need at least the output file name as defined in calcs.py
-        if self._calc._DEFAULT_OUTPUT_FILE not in list_of_files:
-            msg = "Output file '{}' not found in list of files: {}".format(self._calc._DEFAULT_OUTPUT_FILE, list_of_files)
-            self.logger.error(msg)
-        try:
-            filepath = out_folder.get_abs_path(self._calc._DEFAULT_OUTPUT_FILE)
-            files['outfile'] = filepath
-        except OSError:
-            file_errors.append((1, msg))
-            files['outfile'] = None
-        # collect list of files
-        try:
-            fname = self._calc._OUTPUT_000
-            filepath = out_folder.get_abs_path(fname)
+        if KkrimpCalculation._DEFAULT_OUTPUT_FILE not in list_of_files:
+            msg = "Output file '{}' not found in list of files: {}".format(KkrimpCalculation._DEFAULT_OUTPUT_FILE, list_of_files)
+        
+    
+        if KkrimpCalculation._DEFAULT_OUTPUT_FILE in out_folder.list_object_names():
+            outfile = out_folder.open(KkrimpCalculation._DEFAULT_OUTPUT_FILE)
+        else:
+            file_errors.append((1,msg))
+            outfile = None
+            
+        fname = KkrimpCalculation._OUTPUT_000
+        if fname in out_folder.list_object_names():
+            filepath = out_folder.open(fname)
             files['out_log'] = filepath
-        except OSError:
+        else:
             file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
             files['out_log'] = None
-        try:
-            fname = self._calc._OUT_POTENTIAL
-            filepath = out_folder.get_abs_path(fname)
+        fname = KkrimpCalculation._OUT_POTENTIAL
+        if fname in out_folder.list_object_names():
+            filepath = out_folder.open(fname)
             files['out_pot'] = filepath
-        except OSError:
+        else:
             file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
             files['out_pot'] = None
-        try:
-            fname = self._calc._OUT_TIMING_000
-            filepath = out_folder.get_abs_path(fname)
+        fname = KkrimpCalculation._OUT_TIMING_000
+        if fname in out_folder.list_object_names():
+            filepath = out_folder.open(fname)
             files['out_timing'] = filepath
-        except OSError:
+        else:
             file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
-            files['out_timing'] = None
-        try:
-            fname = self._calc._OUT_ENERGYSP_PER_ATOM
-            filepath = out_folder.get_abs_path(fname)
+            files['out_timing'] = None 
+        fname = KkrimpCalculation._OUT_ENERGYSP_PER_ATOM
+        if fname in out_folder.list_object_names():
+            filepath = out_folder.open(fname)
             files['out_enersp_at'] = filepath
-        except OSError:
+        else:
             file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
             files['out_enersp_at'] = None
-        try:
-            fname = self._calc._OUT_ENERGYTOT_PER_ATOM
-            filepath = out_folder.get_abs_path(fname)
+        fname = KkrimpCalculation._OUT_ENERGYTOT_PER_ATOM
+        if fname in out_folder.list_object_names():
+            filepath = out_folder.open(fname)
             files['out_enertot_at'] = filepath
-        except OSError:
+        else:
             file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
             files['out_enertot_at'] = None
-        try:
-            fname = self._calc._KKRFLEX_LLYFAC
-            filepath = out_folder.get_abs_path(fname)
+        fname = KkrimpCalculation._KKRFLEX_LLYFAC
+        if fname in out_folder.list_object_names():
+            filepath = out_folder.open(fname)
             files['kkrflex_llyfac'] = filepath
-        except OSError:
+        else:
             file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
             files['kkrflex_llyfac'] = None
-        try:
-            fname = self._calc._KKRFLEX_ANGLE
-            filepath = out_folder.get_abs_path(fname)
+        fname = KkrimpCalculation._KKRFLEX_ANGLE
+        if fname in out_folder.list_object_names():
+            filepath = out_folder.open(fname)
             files['kkrflex_angles'] = filepath
-        except OSError:
+        else:
             file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
             files['kkrflex_angles'] = None
-        try:
-            fname = self._calc._OUT_MAGNETICMOMENTS
-            filepath = out_folder.get_abs_path(fname)
+        fname = KkrimpCalculation._OUT_MAGNETICMOMENTS
+        if fname in out_folder.list_object_names():
+            filepath = out_folder.open(fname)
             files['out_spinmoms'] = filepath
-        except OSError:
+        else:
             file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
             files['out_spinmoms'] = None
-        try:
-            fname = self._calc._OUT_ORBITALMOMENTS
-            filepath = out_folder.get_abs_path(fname)
+        fname = KkrimpCalculation._OUT_ORBITALMOMENTS
+        if fname in out_folder.list_object_names():
+            filepath = out_folder.open(fname)
             files['out_orbmoms'] = filepath
-        except OSError:
+        else:
             file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
             files['out_orbmoms'] = None
+
 
         # now parse file output
         out_dict = {'parser_version': self._ParserVersion,
@@ -174,8 +176,6 @@ class KkrimpParser(Parser):
         out_dict['parser_errors'] = msg_list
 
         #create output node and link
-        output_data = Dict(dict=out_dict)
-        link_name = self.get_linkname_outparams()
-        node_list = [(link_name, output_data)]
+        self.out('output_parameters', Dict(dict=out_dict))
 
         return success, node_list
