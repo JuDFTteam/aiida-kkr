@@ -45,11 +45,11 @@ class KkrimpCalculation(CalcJob):
     # List of mandatory input files
     _CONFIG = 'config.cfg'
     _POTENTIAL = 'potential'
-    _KKRFLEX_GREEN = KkrCalculation()._KKRFLEX_GREEN
-    _KKRFLEX_TMAT = KkrCalculation()._KKRFLEX_TMAT
-    _KKRFLEX_ATOMINFO = KkrCalculation()._KKRFLEX_ATOMINFO
-    _KKRFLEX_INTERCELL_REF = KkrCalculation()._KKRFLEX_INTERCELL_REF
-    _KKRFLEX_INTERCELL_CMOMS = KkrCalculation()._KKRFLEX_INTERCELL_CMOMS
+    _KKRFLEX_GREEN = KkrCalculation._KKRFLEX_GREEN
+    _KKRFLEX_TMAT = KkrCalculation._KKRFLEX_TMAT
+    _KKRFLEX_ATOMINFO = KkrCalculation._KKRFLEX_ATOMINFO
+    _KKRFLEX_INTERCELL_REF = KkrCalculation._KKRFLEX_INTERCELL_REF
+    _KKRFLEX_INTERCELL_CMOMS = KkrCalculation._KKRFLEX_INTERCELL_CMOMS
 
     # List of optional input files (may be mandatory for some setting in inputputcard)
     _SHAPEFUN = 'shapefun'
@@ -57,7 +57,7 @@ class KkrimpCalculation(CalcJob):
     _KKRFLEX_LLYFAC = 'kkrflex_llyfac'
 
     # full list of kkrflex files
-    _ALL_KKRFLEX_FILES = KkrCalculation()._ALL_KKRFLEX_FILES
+    _ALL_KKRFLEX_FILES = KkrCalculation._ALL_KKRFLEX_FILES
     _ALL_KKRFLEX_FILES.append(_KKRFLEX_ANGLE)
     _ALL_KKRFLEX_FILES.append(_KKRFLEX_LLYFAC)
 
@@ -314,7 +314,7 @@ class KkrimpCalculation(CalcJob):
         # check if host parent was KKRFLEX calculation
         hostfolderpath = parent_calc.outputs.retrieved.folder.abspath
         hostfolderpath = os.path.join(hostfolderpath, 'path')
-        input_file = os.path.join(hostfolderpath, KkrCalculation()._DEFAULT_INPUT_FILE)
+        input_file = os.path.join(hostfolderpath, KkrCalculation._DEFAULT_INPUT_FILE)
         params_host_calc = kkrparams(params_type='kkr') # initialize kkrparams instance to use read_keywords_from_inputcard
         params_host_calc.read_keywords_from_inputcard(inputcard=input_file)
 
@@ -336,7 +336,7 @@ class KkrimpCalculation(CalcJob):
                 kkrflex_file_paths[file] = file_abspath
 
         # extract absolute path of host shapefun
-        file_abspath = os.path.join(hostfolderpath, KkrCalculation()._SHAPEFUN)
+        file_abspath = os.path.join(hostfolderpath, KkrCalculation._SHAPEFUN)
         if os.path.exists(file_abspath):
             shapefun_path = file_abspath
         else:
@@ -506,7 +506,7 @@ class KkrimpCalculation(CalcJob):
         change kkrflex_atominfo to match impurity case
         """
         # read in atominfo file as it is written out
-        with open(kkrflex_file_paths.get(KkrCalculation()._KKRFLEX_ATOMINFO)) as file:
+        with open(kkrflex_file_paths.get(KkrCalculation._KKRFLEX_ATOMINFO)) as file:
             atominfo = file.readlines()
 
         #TODO implement logic to extract this info from imp_info
@@ -514,7 +514,7 @@ class KkrimpCalculation(CalcJob):
 
         # read scoef for comparison with Rimp_rel
         scoef = []
-        with open(tempfolder.open(KkrCalculation()._SCOEF), 'r') as file:
+        with open(tempfolder.open(KkrCalculation._SCOEF), 'r') as file:
             Nscoef = int(file.readline().split()[0])
             for iline in range(Nscoef):
                 tmpline = file.readline().split()
@@ -559,7 +559,7 @@ class KkrimpCalculation(CalcJob):
         cylinder_orient = imp_info_dict.get('cylinder_orient', [0., 0., 1.])
         ilayer_center = imp_info_dict.get('ilayer_center', 0)
         # first create scoef file
-        with tempfolder.open(KkrCalculation()._SCOEF, u'w') as scoef_file:
+        with tempfolder.open(KkrCalculation._SCOEF, u'w') as scoef_file:
             make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center)
         # now create impurity shapefun
         with tempfolder.open(self._SHAPEFUN) as shapefun_new:
