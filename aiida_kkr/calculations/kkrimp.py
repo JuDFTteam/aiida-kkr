@@ -12,7 +12,7 @@ from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.plugins import DataFactory
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.calculations.kkr import KkrCalculation
-from aiida_kkr.tools.tools_kkrimp import modify_potential
+from masci_tools.io.modify_potential import modify_potential
 from aiida_kkr.tools.tools_kkrimp import make_scoef
 from masci_tools.io.common_functions import search_string
 from aiida_kkr.calculations.voro import VoronoiCalculation
@@ -334,7 +334,7 @@ class KkrimpCalculation(CalcJob):
             raise InputValidationError("host_Greenfunction calculation was not a KKRFLEX run")
 
             
-        kkflex_file_paths = {}
+        kkrflex_file_paths = {}
         for file in self._ALL_KKRFLEX_FILES:
             if file in hostfolder.list_object_names():
                 kkrflex_file_paths[file] = hostfolder
@@ -413,7 +413,8 @@ class KkrimpCalculation(CalcJob):
         if 'impurity_potential' in self.inputs:
             impurity_potential = self.inputs.impurity_potential
             if not isinstance(impurity_potential, SinglefileData):
-                raise InputValidationError("impurity_potential not of type SinglefileData")            
+                raise InputValidationError("impurity_potential not of type SinglefileData")
+	    found_imp_pot = True            
         else:
             impurity_potential = None
             found_imp_pot = False
@@ -581,8 +582,8 @@ class KkrimpCalculation(CalcJob):
         with tempfolder.open(KkrCalculation._SCOEF, u'w') as scoef_file:
             make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center)
         # now create impurity shapefun
-        with tempfolder.open(KkrCalculation._SHAPEFUN) as shapefun_new:
-            with shapefun.open(KkrCalculation._SHAPEFUN) as shapefun_file:
+        with tempfolder.open(KkrimpCalculation._SHAPEFUN, u'w') as shapefun_new:
+            with shapefun.open(KkrimpCalculation._SHAPEFUN, u'w') as shapefun_file:
                 modify_potential().shapefun_from_scoef(scoef_file, shapefun_file, shapes, shapefun_new)
 
         # find path to input potential
