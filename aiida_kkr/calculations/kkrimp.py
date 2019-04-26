@@ -334,10 +334,10 @@ class KkrimpCalculation(CalcJob):
             raise InputValidationError("host_Greenfunction calculation was not a KKRFLEX run")
 
             
-         kkflex_file_paths = {}
-         for file in self._ALL_KKRFLEX_FILES:
-             if file in hostfolder.list_object_names():
-                 kkrflex_file_paths[file] = hostfolder
+        kkflex_file_paths = {}
+        for file in self._ALL_KKRFLEX_FILES:
+            if file in hostfolder.list_object_names():
+                kkrflex_file_paths[file] = hostfolder
             
             
 #        # extract absolute paths of kkrflex_* files

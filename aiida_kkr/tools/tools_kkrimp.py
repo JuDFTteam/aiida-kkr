@@ -11,7 +11,6 @@ from __future__ import unicode_literals
 from builtins import object, str
 from six.moves import range
 from six.moves import input
-from aiida_kkr.calculations.kkr import KkrCalculation
 from masci_tools.io.common_functions import open_general
 
 
@@ -38,17 +37,14 @@ class modify_potential(object):
         return check1
 
     def _read_input(self, filepath):
-         file = filepath.open(KkrCalculation._SHAPEFUN)
-         data = file.readlines()
-         mode = 'shape'
-#        with open_general(filepath) as f:
-#            data = f.readlines()
-#            filepathname = f.name
+        with open_general(filepath) as f:
+            data = f.readlines()
+            filepathname = f.name
         
-#        if 'shapefun' in filepathname:
-#            mode = 'shape'
-#        else:
-#            mode = 'pot'
+        if 'shapefun' in filepathname:
+            mode = 'shape'
+        else:
+            mode = 'pot'
 
         # read file
         index1=[];index2=[]
