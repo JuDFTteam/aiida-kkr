@@ -153,8 +153,8 @@ class KkrimpCalculation(CalcJob):
         for key in list(kkrflex_file_paths.keys()):
             if key!=self._KKRFLEX_ATOMINFO:
                 src_path = kkrflex_file_paths[key]
-                dst_path = key
-                local_copy_list.append((src_path, dst_path))
+                filename = key
+                local_copy_list.append((src_path.uuid, filename, filename))
 
         retrieve_list = [self._OUTPUT_FILE_NAME, self._CONFIG, self._KKRFLEX_ATOMINFO,
                          self._SHAPEFUN, self._KKRFLEX_ANGLE, self._KKRFLEX_LLYFAC,
@@ -317,10 +317,9 @@ class KkrimpCalculation(CalcJob):
             else:
                 raise InputValidationError("impurity_info nodes (input and GF calc) are not compatible")
 
-        # check if host parent was KKRFLEX calculation
-        hostfolderpath = parent_calc.outputs.retrieved.folder.abspath
-        hostfolderpath = os.path.join(hostfolderpath, 'path')
-        input_file = os.path.join(hostfolderpath, KkrCalculation._DEFAULT_INPUT_FILE)
+         # check if host parent was KKRFLEX calculation
+        hostfolder = parent_calc.outputs.retrieved
+        input_file = hostfolder.open(KkrCalculation._DEFAULT_INPUT_FILE)
         params_host_calc = kkrparams(params_type='kkr') # initialize kkrparams instance to use read_keywords_from_inputcard
         params_host_calc.read_keywords_from_inputcard(inputcard=input_file)
 
@@ -334,19 +333,33 @@ class KkrimpCalculation(CalcJob):
         if not host_ok:
             raise InputValidationError("host_Greenfunction calculation was not a KKRFLEX run")
 
-        # extract absolute paths of kkrflex_* files
-        kkrflex_file_paths = {}
-        for file in self._ALL_KKRFLEX_FILES:
-            file_abspath = os.path.join(hostfolderpath, file)
-            if os.path.exists(file_abspath):
-                kkrflex_file_paths[file] = file_abspath
+            
+         kkflex_file_paths = {}
+         for file in self._ALL_KKRFLEX_FILES:
+             if file in hostfolder.list_object_names():
+                 kkrflex_file_paths[file] = hostfolder
+            
+            
+#        # extract absolute paths of kkrflex_* files
+#        kkrflex_file_paths = {}
+#        for file in self._ALL_KKRFLEX_FILES:
+#            file_abspath = os.path.join(hostfolderpath, file)
+#            if os.path.exists(file_abspath):
+#                kkrflex_file_paths[file] = file_abspath
 
-        # extract absolute path of host shapefun
-        file_abspath = os.path.join(hostfolderpath, KkrCalculation._SHAPEFUN)
-        if os.path.exists(file_abspath):
-            shapefun_path = file_abspath
+
+        shapefun_path = {}
+        if KkrCalculation._SHAPEFUN in hostfolder.list_object_names():
+            shapefun_path = hostfolder
         else:
             shapefun_path = None
+        #TODO: same as above
+#        # extract absolute path of host shapefun
+#        file_abspath = os.path.join(hostfolderpath, KkrCalculation._SHAPEFUN)
+#        if os.path.exists(file_abspath):
+#            shapefun_path = file_abspath
+#        else:
+#            shapefun_path = None
 
         # extract shapes array from parameters read from inputcard
         shapes = params_host_calc.get_dict().get('<SHAPE>', None)
@@ -512,7 +525,7 @@ class KkrimpCalculation(CalcJob):
         change kkrflex_atominfo to match impurity case
         """
         # read in atominfo file as it is written out
-        with open(kkrflex_file_paths.get(KkrCalculation._KKRFLEX_ATOMINFO)) as file:
+        with kkrflex_file_paths.open(KkrCalculation._KKRFLEX_ATOMINFO) as file:
             atominfo = file.readlines()
 
         #TODO implement logic to extract this info from imp_info
