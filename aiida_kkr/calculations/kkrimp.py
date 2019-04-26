@@ -581,8 +581,9 @@ class KkrimpCalculation(CalcJob):
         with tempfolder.open(KkrCalculation._SCOEF, u'w') as scoef_file:
             make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center)
         # now create impurity shapefun
-        with tempfolder.open(self._SHAPEFUN) as shapefun_new:
-            modify_potential().shapefun_from_scoef(scoef_file, shapefun, shapes, shapefun_new)
+        with tempfolder.open(KkrCalculation._SHAPEFUN) as shapefun_new:
+            with shapefun.open(KkrCalculation._SHAPEFUN) as shapefun_file:
+                modify_potential().shapefun_from_scoef(scoef_file, shapefun_file, shapes, shapefun_new)
 
         # find path to input potential
         if impurity_potential is not None:
