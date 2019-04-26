@@ -268,13 +268,19 @@ class KkrimpCalculation(CalcJob):
             imp_info_inputnode = self.inputs.impurity_info
             if not isinstance(imp_info_inputnode, Dict):
                 raise InputValidationError("impurity_info not of type Dict") 
-            imp_info = parent_calc.get_inputs_dict().get('impurity_info', None)
+            if 'impurity_info' in parent_calc.get_incoming().all_link_labels():
+	    	imp_info = parent_calc.get_incoming().get_node_by_label('impurity_info')
+	    else:
+		imp_info = None
             if imp_info is None:
                 raise InputValidationError("host_Greenfunction calculation does not have an input node impurity_info")
             found_impurity_inputnode = True
             found_host_parent = True
         else:
-            imp_info = parent_calc.get_inputs_dict().get('impurity_info', None)
+            if 'impurity_info' in parent_calc.get_incoming().all_link_labels():
+            	imp_info = parent_calc.get_incoming().get_node_by_label('impurity_info')
+	    else:
+		imp_info = None
             if imp_info is None:
                 raise InputValidationError("host_Greenfunction calculation does not have an input node impurity_info")
             found_impurity_inputnode = False            
@@ -481,7 +487,7 @@ class KkrimpCalculation(CalcJob):
 
         # overwrite keys if found in parent_calc
         if parent_calc_folder is not None:
-            params_parent = parent_calc_folder.get_inputs_dict().get('parameters', None)
+            params_parent = parent_calc_folder.get_incoming().get_node_by_label('parameters')
         else:
             params_parent = None
         if params_parent is not None:
@@ -569,7 +575,7 @@ class KkrimpCalculation(CalcJob):
         if impurity_potential is not None:
             potfile = impurity_potential.open(impurity_potential.filename)
         elif parent_calc_folder is not None:
-            self.logger.info('parent_calc_folder {} {}'.format(parent_calc_folder, parent_calc_folder.get_inputs_dict()))
+            self.logger.info('parent_calc_folder {} {}'.format(parent_calc_folder, parent_calc_folder.get_incoming().all_link_labels()))
             retrieved = parent_calc_folder.get_incoming(node_class=CalcJob)[0].get_outputs_dict().get('retrieved', None)
             self.logger.info('potfile {} {}'.format(retrieved, self._OUT_POTENTIAL))
             potfile = retrieved.open(self._OUT_POTENTIAL)
