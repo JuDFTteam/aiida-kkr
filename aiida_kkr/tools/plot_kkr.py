@@ -146,7 +146,7 @@ class plot_kkr(object):
         # basic aiida nodes
         if isinstance(node, DataFactory('structure')):
             if return_name_only: return 'struc'
-            self.plot_struc(node)
+            self.plot_struc(node, **kwargs)
         elif isinstance(node, DataFactory('dict')):
             if return_name_only: return 'para'
             print('node dict:')
@@ -268,7 +268,9 @@ class plot_kkr(object):
             structure = stmp
         # now construct ase object and use ase's viewer
         ase_atoms = structure.get_ase()
-        print("plotting structure using ase's `view`")
+        if 'silent' in kwargs:
+            silent = kwargs.pop('silent')
+        print("plotting structure using ase's `view` with kwargs={}".format(kwargs))
         view(ase_atoms, **kwargs)
 
     def dosplot(self, d, struc, nofig, all_atoms, l_channels, **kwargs):
@@ -497,7 +499,7 @@ class plot_kkr(object):
 
         # plot structure
         if strucplot:
-            self.plot_struc(node)
+            self.plot_struc(node, **kwargs)
 
         if 'label' in list(kwargs.keys()):
             label = kwargs.pop('label')
@@ -570,7 +572,7 @@ class plot_kkr(object):
 
         # plot structure
         if strucplot:
-            self.plot_struc(node)
+            self.plot_struc(node, **kwargs)
 
         outdict = node.outputs.output_parameters.get_dict()
         # TODO maybe plot some output of voronoi
@@ -625,7 +627,7 @@ class plot_kkr(object):
 
         # plot structure
         if strucplot:
-            self.plot_struc(node)
+            self.plot_struc(node, **kwargs)
 
         # extract structure (neede in dosplot to extract number of atoms and number of spins)
         struc, voro_parent = VoronoiCalculation.find_parent_structure(node)
@@ -645,7 +647,7 @@ class plot_kkr(object):
                 d = link_triple.node
             elif link_triple.link_label=='last_doscal_dosdata_interpol':
                 d_int = link_triple.node
-            elif 'CALL' in link_triple.link_label:
+            elif 'CALL_WORK' in link_triple.link_label:
                 if link_triple.link_label=='kkr_dos_wc':
                     for link_triple2 in node.get_outgoing().all():
                         if link_triple2.link_label=='dos_data':
@@ -713,7 +715,7 @@ class plot_kkr(object):
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
         # plot structure
         if strucplot:
-            self.plot_struc(struc)
+            self.plot_struc(struc, **kwargs)
 
         # next extract information from outputs
         niter_calcs = [0]
@@ -771,7 +773,7 @@ class plot_kkr(object):
 
         # plot structure
         if strucplot:
-            self.plot_struc(node)
+            self.plot_struc(node, **kwargs)
 
         # remove unused things from kwargs
         if 'label' in list(kwargs.keys()): label=kwargs.pop('label')
@@ -796,9 +798,9 @@ class plot_kkr(object):
         plotted_kkr_scf = False
         plotted_kkr_start = False
         outdict = node.get_outgoing()
-        for key in sort(outdict.all_link_labels()):
-            if key!='CALL':
-                tmpnode = outdict.get_node_by_label(key)
+        for key in outdict.all():
+            if key.link_label!='CALL_CALC':
+                tmpnode = key.node
                 try:
                     tmplabel = tmpnode.process_label
                 except:

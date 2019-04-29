@@ -1,5 +1,11 @@
 """
-Parsers provided by the plugin
+Parsers provided by the aiida-kkr plugin
 
 Register parsers via the "aiida.parsers" entry point in setup.json.
 """
+# import all calculations here to expose them in `aiida_kkr.parsers` directly
+from .voro import VoronoiParser
+from .kkr import KkrParser
+# broken at the moment
+#from .kkrimp import KkrimpParser
+#from .kkrimporter import KkrImporterParser

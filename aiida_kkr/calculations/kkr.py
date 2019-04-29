@@ -8,7 +8,7 @@ import os
 from numpy import pi, array
 from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode
-from aiida_kkr.calculations.voro import VoronoiCalculation
+from .voro import VoronoiCalculation
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import InputValidationError, ValidationError
 from aiida.common.datastructures import CalcInfo, CodeInfo

@@ -4,30 +4,26 @@
 In this module you find the base workflow for a dos calculation and
 some helper methods to do so with AiiDA
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
+from __future__ import print_function, division, absolute_import
+from six.moves import range
+import os
+from numpy import where
+from masci_tools.io.kkr_params import kkrparams
+from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
 from aiida.orm import Code
 from aiida.plugins import DataFactory
-from aiida.engine import WorkChain, while_, if_, ToContext
-from aiida.engine import submit
-from aiida.engine import workfunction as wf
+from aiida.engine import WorkChain, while_, if_, ToContext, submit, calcfunction
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
-from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.workflows.dos import kkr_dos_wc
 from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_params,
                                                   update_params_wf, get_inputs_voronoi)
-from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
-from numpy import where
-from six.moves import range
-import os
 
 
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.1"
+__version__ = "0.9.2"
 __contributors__ = u"Philipp Rüßmann"
 
 StructureData = DataFactory('structure')
@@ -66,7 +62,7 @@ class kkr_startpot_wc(WorkChain):
     _options_default = {'queue_name' : '',                        # Queue name to submit jobs to
                         'resources': {"num_machines": 1},         # resources to allowcate for the job
                         'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)
-                        'use_mpi' : False,                        # execute KKR with mpi or without
+                        'use_mpi' : True,                         # execute KKR with mpi or without
                         'custom_scheduler_commands' : '',         # some additional scheduler commands
                         }
     # add defaults of dos_params since they are passed onto that workflow
@@ -633,34 +629,6 @@ class kkr_startpot_wc(WorkChain):
         if not self.ctx.voro_ok or not self.ctx.doscheck_ok:
             self.ctx.successful = False
 
-        # create dict to store results of workflow output
-        res_node_dict = {}
-        res_node_dict['workflow_name'] = self.__class__.__name__
-        res_node_dict['workflow_version'] = self._workflowversion
-        res_node_dict['successful'] = self.ctx.successful
-        res_node_dict['list_of_errors'] = self.ctx.errors
-        res_node_dict['use_mpi'] = self.ctx.use_mpi
-        res_node_dict['resources'] = self.ctx.resources
-        res_node_dict['max_wallclock_seconds'] = self.ctx.walltime_sec
-        res_node_dict['queue_name'] = self.ctx.queue
-        res_node_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
-        res_node_dict['dos_params'] = self.ctx.dos_params_dict
-        res_node_dict['description'] = self.ctx.description_wf
-        res_node_dict['label'] = self.ctx.label_wf
-        res_node_dict['last_rclustz'] = self.ctx.r_cls
-        res_node_dict['min_num_atoms_in_cluster'] = self.ctx.nclsmin
-        res_node_dict['factor_rcls_increase'] = self.ctx.fac_clsincrease
-        res_node_dict['last_iteration'] = self.ctx.iter
-        res_node_dict['max_iterations'] = self.ctx.Nrerun
-        res_node_dict['last_voro_ok'] = self.ctx.voro_ok
-        res_node_dict['last_dos_ok'] = self.ctx.doscheck_ok
-        res_node_dict['starting_fermi_energy'] = self.ctx.efermi
-
-
-        res_node = Dict(dict=res_node_dict)
-        res_node.label = 'vorostart_wc_results'
-        res_node.description = ''
-
         self.report("INFO: create vorostart results nodes.")
 
         # voronoi outputs
@@ -724,6 +692,33 @@ class kkr_startpot_wc(WorkChain):
                 if dosdata_interpol is not None:
                     dosnodes_present = True
 
+        # create dict to store results of workflow output
+        res_node_dict = {}
+        res_node_dict['workflow_name'] = self.__class__.__name__
+        res_node_dict['workflow_version'] = self._workflowversion
+        res_node_dict['successful'] = self.ctx.successful
+        res_node_dict['list_of_errors'] = self.ctx.errors
+        res_node_dict['use_mpi'] = self.ctx.use_mpi
+        res_node_dict['resources'] = self.ctx.resources
+        res_node_dict['max_wallclock_seconds'] = self.ctx.walltime_sec
+        res_node_dict['queue_name'] = self.ctx.queue
+        res_node_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
+        res_node_dict['dos_params'] = self.ctx.dos_params_dict
+        res_node_dict['description'] = self.ctx.description_wf
+        res_node_dict['label'] = self.ctx.label_wf
+        res_node_dict['last_rclustz'] = self.ctx.r_cls
+        res_node_dict['min_num_atoms_in_cluster'] = self.ctx.nclsmin
+        res_node_dict['factor_rcls_increase'] = self.ctx.fac_clsincrease
+        res_node_dict['last_iteration'] = self.ctx.iter
+        res_node_dict['max_iterations'] = self.ctx.Nrerun
+        res_node_dict['last_voro_ok'] = self.ctx.voro_ok
+        res_node_dict['last_dos_ok'] = self.ctx.doscheck_ok
+        res_node_dict['starting_fermi_energy'] = self.ctx.efermi
+        # create output Dict node
+        res_node = Dict(dict=res_node_dict)
+        res_node.label = 'vorostart_wc_results'
+        res_node.description = ''
+
         # fill output_nodes dict with
         self.out('results_vorostart_wc', res_node)
         if dosnodes_present:
@@ -738,7 +733,7 @@ class kkr_startpot_wc(WorkChain):
         self.report("INFO: done with kkr_startpot workflow!\n")
 
 
-@wf
+@calcfunction
 def update_voro_input(params_old, updatenode, voro_output):
     """
     Pseudo wf used to keep track of updated parameters in voronoi calculation.

@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.1"
+__version__ = "0.9.2"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -114,7 +114,7 @@ class kkr_scf_wc(WorkChain):
     _options_default = {'queue_name' : '',                         # Queue name to submit jobs too
                         'resources': {"num_machines": 1},          # resources to allowcate for the job
                         'max_wallclock_seconds' : 60*60,           # walltime after which the job gets killed (gets parsed to KKR)
-                        'use_mpi' : False,                         # execute KKR with mpi or without
+                        'use_mpi' : True,                          # execute KKR with mpi or without
                         'custom_scheduler_commands' : ''           # some additional scheduler commands
                         }
     # set these keys from defaults in kkr_startpot workflow since they are only passed onto that workflow

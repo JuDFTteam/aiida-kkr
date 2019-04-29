@@ -66,7 +66,7 @@ class kkr_imp_sub_wc(WorkChain):
                         'resources': {"num_machines": 1},         # resources to allowcate for the job
                         'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)}
                         'custom_scheduler_commands' : '',         # some additional scheduler commands
-                        'use_mpi' : False}                        # execute KKR with mpi or without
+                        'use_mpi' : True}                         # execute KKR with mpi or without
 
     _wf_default = {'kkr_runmax': 5,                           # Maximum number of kkr jobs/starts (defauld iterations per start)
                    'threshold_aggressive_mixing': 5*10**-2,   # threshold after which agressive mixing is used

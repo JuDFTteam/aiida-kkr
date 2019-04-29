@@ -22,7 +22,7 @@ from aiida.common.exceptions import InputValidationError
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.4"
 __contributors__ = u"Fabian Bertoldo"
 
 # ToDo: add more default values to wf_parameters
@@ -58,7 +58,7 @@ class kkr_flex_wc(WorkChain):
                         'resources': {"num_machines": 1},         # resources to allowcate for the job
                         'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)}
                         'custom_scheduler_commands' : '',         # some additional scheduler commands
-                        'use_mpi' : False}                        # execute KKR with mpi or without
+                        'use_mpi' : True}                         # execute KKR with mpi or without
 
     _wf_default = {'ef_shift': 0. ,                                  # set costum absolute E_F (in eV)
                    'dos_params': {'nepts': 61,                       # DOS params: number of points in contour

@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.4"
 __contributors__ = u"Fabian Bertoldo"
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -67,7 +67,7 @@ class kkr_imp_wc(WorkChain):
                         'resources': {"num_machines": 1},                           # resources to allowcate for the job
                         'max_wallclock_seconds' : 60*60,                            # walltime after which the job gets killed (gets parsed to KKR)}
                         'custom_scheduler_commands' : '',                           # some additional scheduler commands
-                        'use_mpi' : False}                                          # execute KKR with mpi or without
+                        'use_mpi' : True}                                           # execute KKR with mpi or without
 
     _wf_default = {'nspin':  1,                                                   # non-magnetic calculation, set nspin = 2 for magnetic case
                    'kkr_runmax': 3,                         # Maximum number of kkr jobs/starts (defauld iterations per start)

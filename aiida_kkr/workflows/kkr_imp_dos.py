@@ -16,7 +16,7 @@ from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
+__version__ = "0.3"
 __contributors__ = u"Fabian Bertoldo"
 
 #TODO: improve workflow output node structure
@@ -54,7 +54,7 @@ class kkr_imp_dos_wc(WorkChain):
                         'resources': {"num_machines": 1},         # resources to allocate for the job
                         'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)}
                         'custom_scheduler_commands' : '',         # some additional scheduler commands
-                        'use_mpi' : False}                        # execute KKR with mpi or without
+                        'use_mpi' : True}                         # execute KKR with mpi or without
 
     _wf_default = {'ef_shift': 0. ,                                  # set costum absolute E_F (in eV)
                    'dos_params': {'nepts': 61,                       # DOS params: number of points in contour

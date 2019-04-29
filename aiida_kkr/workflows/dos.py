@@ -25,7 +25,7 @@ from aiida.common.exceptions import InputValidationError
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5"
+__version__ = "0.6"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -59,7 +59,7 @@ class kkr_dos_wc(WorkChain):
     _options_default = {'queue_name' : '',                        # Queue name to submit jobs too
                         'resources': {"num_machines": 1},         # resources to allowcate for the job
                         'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)
-                        'use_mpi' : False,                        # execute KKR with mpi or without
+                        'use_mpi' : True,                         # execute KKR with mpi or without
                         'custom_scheduler_commands' : '',         # some additional scheduler commands
                         }
 
