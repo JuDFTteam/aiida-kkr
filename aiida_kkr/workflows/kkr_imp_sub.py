@@ -404,15 +404,11 @@ class kkr_imp_sub_wc(WorkChain):
                 do_kkr_step = do_kkr_step & True
             else:
                 do_kkr_step = False
-#                self.report('ERROR: {}'.format(self.exit_codes.ERROR_MAX_STEPS_REACHED))
-#                return self.exit_codes.ERROR_MAX_STEPS_REACHED
 
         self.report("INFO: done checking condition for kkr step (result={})".format(do_kkr_step))
 
         if not do_kkr_step:
             self.report("INFO: Stopreason={}".format(stopreason))
-
-#        self.report("INFO: kkr_higher_accuracy = {}".format(self.ctx.kkr_higher_accuracy))
 
         return do_kkr_step
 

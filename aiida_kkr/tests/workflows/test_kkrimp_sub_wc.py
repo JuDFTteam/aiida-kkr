@@ -72,7 +72,7 @@ class Test_kkrimp_scf_workflow():
         print(builder)
         out = run(builder)
 
-        n = out['calculation_info']
+        n = out['workflow_info']
         n = n.get_dict()
 
         assert n.get('successful')

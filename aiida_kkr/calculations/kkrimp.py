@@ -6,6 +6,7 @@ Input plug-in for a KKRimp calculation.
 from __future__ import print_function
 from __future__ import absolute_import
 from aiida.engine import CalcJob
+from aiida.orm import CalcJobNode
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError, UniquenessError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
@@ -380,8 +381,6 @@ class KkrimpCalculation(CalcJob):
         # now check for optional nodes
         if 'parameters' in self.inputs:
             parameters = self.inputs.parameters
-            if not isinstance(parameters, Dict):
-                raise InputValidationError("parameters not of type Dict")
         else:
             parameters = None
         if parameters is not None: # convert to kkrparams instance
@@ -394,8 +393,6 @@ class KkrimpCalculation(CalcJob):
         # impurity_potential
         if 'impurity_potential' in self.inputs:
             impurity_potential = self.inputs.impurity_potential
-            if not isinstance(impurity_potential, SinglefileData):
-                raise InputValidationError("impurity_potential not of type SinglefileData")
 	    found_imp_pot = True            
         else:
             impurity_potential = None
@@ -403,8 +400,6 @@ class KkrimpCalculation(CalcJob):
         # parent calculation folder
         if 'parent_calc_folder' in self.inputs:
             parent_calc_folder = self.inputs.parent_calc_folder
-            if not isinstance(parent_calc_folder, RemoteData):
-                raise InputValidationError("parent_calc_folder not of type RemoteData")    
             found_parent_calc = True
         else:
             parent_calc_folder = None
@@ -419,10 +414,6 @@ class KkrimpCalculation(CalcJob):
         
         # Done checking inputs, returning...    
         return parameters, code, imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, impurity_potential, parent_calc_folder, structure            
-            
-#        # 5. anything left that is unknown?
-#        if inputdict:
-#            raise ValidationError("Unknown inputs: {}".format(inputdict))
 
 
     def _extract_and_write_config(self, parent_calc_folder, params_host, parameters, tempfolder, GFhost_folder):
@@ -481,13 +472,15 @@ class KkrimpCalculation(CalcJob):
         # now set runflags
         params_kkrimp.set_value('RUNFLAG', runflag)
 
-        # overwrite keys if found in parent_calc
+        # overwrite keys if found in parent_calc (previous KKRimp calculation)
+        # here `parent_calc_folder` is the `remote` output node of the previous KKRimp calculation
         if parent_calc_folder is not None:
-            params_parent = parent_calc_folder.get_incoming().get_node_by_label('parameters')
+            parent_calc = parent_calc_folder.get_incoming().get_node_by_label('remote_folder')
+            params_parent = parent_calc.get_incoming().get_node_by_label('parameters')
         else:
             params_parent = None
         if params_parent is not None:
-            params_parent = kkrparams(params_type='kkr', **params_parent.get_dict())
+            params_parent = kkrparams(params_type='kkrimp', **params_parent.get_dict())
             for (key, val) in params_parent.get_set_values():
                 self._check_key_setting_consistency(params_kkrimp, key, val)
                 params_kkrimp.set_value(key, val)
@@ -574,7 +567,7 @@ class KkrimpCalculation(CalcJob):
             potfile_name, potfile_folder = impurity_potential.filename, impurity_potential
         elif parent_calc_folder is not None:
             self.logger.info('parent_calc_folder {} {}'.format(parent_calc_folder, parent_calc_folder.get_incoming().all_link_labels()))
-            retrieved = parent_calc_folder.get_incoming(node_class=CalcJob)[0].get_outputs_dict().get('retrieved', None)
+            retrieved = parent_calc_folder.get_incoming(node_class=CalcJobNode).first().node.get_outgoing().get_node_by_label('retrieved')
             self.logger.info('potfile {} {}'.format(retrieved, self._OUT_POTENTIAL))
             potfile_name, potfile_folder = self._OUT_POTENTIAL, retrieved
         else:
