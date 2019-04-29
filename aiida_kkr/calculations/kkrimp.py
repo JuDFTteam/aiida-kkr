@@ -269,18 +269,18 @@ class KkrimpCalculation(CalcJob):
             if not isinstance(imp_info_inputnode, Dict):
                 raise InputValidationError("impurity_info not of type Dict") 
             if 'impurity_info' in parent_calc.get_incoming().all_link_labels():
-	    	imp_info = parent_calc.get_incoming().get_node_by_label('impurity_info')
-	    else:
-		imp_info = None
+                imp_info = parent_calc.get_incoming().get_node_by_label('impurity_info')
+            else:
+                imp_info = None
             if imp_info is None:
                 raise InputValidationError("host_Greenfunction calculation does not have an input node impurity_info")
             found_impurity_inputnode = True
             found_host_parent = True
         else:
             if 'impurity_info' in parent_calc.get_incoming().all_link_labels():
-            	imp_info = parent_calc.get_incoming().get_node_by_label('impurity_info')
-	    else:
-		imp_info = None
+                imp_info = parent_calc.get_incoming().get_node_by_label('impurity_info')
+            else:
+                imp_info = None
             if imp_info is None:
                 raise InputValidationError("host_Greenfunction calculation does not have an input node impurity_info")
             found_impurity_inputnode = False            
@@ -396,7 +396,7 @@ class KkrimpCalculation(CalcJob):
         # impurity_potential
         if 'impurity_potential' in self.inputs:
             impurity_potential = self.inputs.impurity_potential
-	    found_imp_pot = True            
+            found_imp_pot = True            
         else:
             impurity_potential = None
             found_imp_pot = False
