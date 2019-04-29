@@ -46,6 +46,7 @@ install: # python installations
   # at the moment need to install masci-tools manually since it is not uploaded to pypi yet
   - pip install -e git+https://github.com/JuDFTteam/masci-tools@develop#egg=masci-tools.git
   - pip install -e .
+  - reentry scan
   - pip install codecov
 env:
   - TEST_TYPE="unittests"
