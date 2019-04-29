@@ -45,6 +45,7 @@ install: # python installations
   - pip install pip==18.1
   # at the moment need to install masci-tools manually since it is not uploaded to pypi yet
   - pip install -e git+https://github.com/JuDFTteam/masci-tools@develop#egg=masci-tools.git
+  - pip install -e git+https://github.com/aiidateam/aiida_core.git@cc38745125f6c54325fbef3f9b7d30876ab57ea8#egg=aiida_core
   - pip install -e .
   - reentry scan
   - pip install codecov
