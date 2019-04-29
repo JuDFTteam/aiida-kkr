@@ -42,8 +42,9 @@ before_install:
   - sudo updatedb
 install: # python installations
   - pip install -U pip wheel setuptools
+  - pip install pip==18.1
   # at the moment need to install masci-tools manually since it is not uploaded to pypi yet
-  - pip install -e git+https://github.com/JuDFTteam/masci-tools@master#egg=masci-tools.git
+  - pip install -e git+https://github.com/JuDFTteam/masci-tools@develop#egg=masci-tools.git
   - pip install -e .
   - pip install codecov
 env:
