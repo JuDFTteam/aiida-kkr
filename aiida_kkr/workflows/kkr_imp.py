@@ -8,7 +8,7 @@ from __future__ import absolute_import
 from aiida.orm import Code, load_node
 from aiida.plugins import DataFactory
 from aiida.engine import WorkChain, ToContext, if_
-from aiida.engine import workfunction as wf
+from aiida.engine import calcfunction
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, neworder_potential_wf
@@ -277,8 +277,8 @@ class kkr_imp_wc(WorkChain):
                     ''.format(self.ctx.use_mpi, self.ctx.resources, self.ctx.walltime_sec,
                               self.ctx.queue, self.ctx.custom_scheduler_commands,
                               self.ctx.description_wf, self.ctx.label_wf,
-                              self.ctx.nspin, self.ctx.voro_params_dict.get_attrs(),
-                              self.ctx.kkrimp_params_dict.get_attrs()))
+                              self.ctx.nspin, self.ctx.voro_params_dict.get_dict(),
+                              self.ctx.kkrimp_params_dict.get_dict()))
 
 
 
@@ -307,7 +307,7 @@ class kkr_imp_wc(WorkChain):
                 return self.exit_codes.ERROR_INVALID_INPUT_CODE
 
         if 'impurity_info' in inputs:
-            self.report('INFO: found the following impurity info node in input: {}'.format(inputs.impurity_info.get_attrs()))
+            self.report('INFO: found the following impurity info node in input: {}'.format(inputs.impurity_info.get_dict()))
 
         if 'remote_data_gf' in inputs and 'remote_data_host' in inputs:
             self.report('INFO: both converged host remote (pid: {}) and GF writeout remote (pid: {}) found in input. '
@@ -385,7 +385,8 @@ class kkr_imp_wc(WorkChain):
             GF_host_calc_pk = self.inputs.remote_data_gf.inputs.remote_folder.pk
             GF_host_calc = load_node(GF_host_calc_pk)
             converged_host_remote = GF_host_calc.inputs.parent_calc_folder
-        prev_kkrparams = converged_host_remote.inputs.remote_folder.inputs.parameters
+        # get previous kkr parameters following remote_folder->calc->parameters links
+        prev_kkrparams = converged_host_remote.get_incoming(link_label_filter='remote_folder').first().node.get_incoming(link_label_filter='parameters').first().node
         calc_params = prev_kkrparams
         structure_host, voro_calc = VoronoiCalculation.find_parent_structure(converged_host_remote)
 
@@ -394,9 +395,9 @@ class kkr_imp_wc(WorkChain):
         self.ctx.voro_calcs = {}
 #        for i in range(2):
         inter_struc = change_struc_imp_aux_wf(structure_host, imp_info)
-        sub_label = 'voroaux calc for Zimp: {} in host-struc'.format(imp_info.get_attr('Zimp')[0])
+        sub_label = 'voroaux calc for Zimp: {} in host-struc'.format(imp_info.get_dict().get('Zimp')[0])
         sub_description = 'Auxiliary voronoi calculation for an impurity with charge '
-        sub_description += '{} in the host structure from pid: {}'.format(imp_info.get_attr('Zimp')[0], converged_host_remote.pk)
+        sub_description += '{} in the host structure from pid: {}'.format(imp_info.get_dict().get('Zimp')[0], converged_host_remote.pk)
 
         future = self.submit(kkr_startpot_wc, label=sub_label, description=sub_description, structure=inter_struc,
                              voronoi=vorocode, kkr=kkrcode, wf_parameters=voro_params, calc_parameters=calc_params,
@@ -404,7 +405,7 @@ class kkr_imp_wc(WorkChain):
 
         tmp_calcname = 'voro_aux_{}'.format(1)
         self.ctx.voro_calcs[tmp_calcname] = future
-        self.report('INFO: running voro aux (Zimp= {}, pid: {})'.format(imp_info.get_attr('Zimp')[0], future.pk))
+        self.report('INFO: running voro aux (Zimp= {}, pid: {})'.format(imp_info.get_dict().get('Zimp')[0], future.pk))
 
         return ToContext(last_voro_calc=future)
 
@@ -421,7 +422,7 @@ class kkr_imp_wc(WorkChain):
 
         # collect all nodes necessary to construct the startpotential
         if self.ctx.do_gf_calc:
-            GF_host_calc_pk = self.ctx.gf_writeout.outputs.workflow_info.get_attr('pk_flexcalc')
+            GF_host_calc_pk = self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc')
             self.report('GF_host_calc_pk: {}'.format(GF_host_calc_pk))
             GF_host_calc = load_node(GF_host_calc_pk)
             converged_host_remote = self.inputs.remote_data_host
@@ -429,11 +430,12 @@ class kkr_imp_wc(WorkChain):
             GF_host_calc_pk = self.inputs.remote_data_gf.inputs.remote_folder.pk
             self.report('GF_host_calc_pk: {}'.format(GF_host_calc_pk))
             GF_host_calc = load_node(GF_host_calc_pk)
-            converged_host_remote = GF_host_calc.inputs.parent_calc_folder
+            # follow parent_calc_folder link up to get remote folder
+            converged_host_remote = GF_host_calc.get_incoming(link_label_filter='parent_calc_folder').first().node
         voro_calc_remote = self.ctx.last_voro_calc.outputs.last_voronoi_remote
         imp_info = self.inputs.impurity_info
 
-        ilayer_cent = imp_info.get_attr('ilayer_center')
+        ilayer_cent = imp_info.get_dict().get('ilayer_center')
 
         # prepare settings dict
         potname_converged = 'potential'
@@ -445,9 +447,9 @@ class kkr_imp_wc(WorkChain):
         else:
             replacelist_pot2 = [[0,2*ilayer_cent],[1,2*ilayer_cent+1]]
         try:
-            neworder_pot1 = [int(i) for i in np.loadtxt(GF_host_calc.outputs.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]
+            neworder_pot1 = [int(i) for i in np.loadtxt(GF_host_calc.outputs.retrieved.open('scoef'), skiprows=1)[:,3]-1]
         except:
-            neworder_pot1 = [int(np.loadtxt(GF_host_calc.outputs.retrieved.get_abs_path('scoef'), skiprows=1)[3]-1)]
+            neworder_pot1 = [int(np.loadtxt(GF_host_calc.outputs.retrieved.open('scoef'), skiprows=1)[3]-1)]
 
         settings_label = 'startpot_KKRimp for imp_info node {}'.format(imp_info.pk)
         settings_description = 'starting potential for impurity info: {}'.format(imp_info)
@@ -508,7 +510,7 @@ class kkr_imp_wc(WorkChain):
 
         self.report('INFO: creating output nodes for the KKR impurity workflow ...')
 
-        last_calc_pk = self.ctx.kkrimp_scf_sub.outputs.workflow_info.get_attr('last_calc_nodeinfo')['pk']
+        last_calc_pk = self.ctx.kkrimp_scf_sub.outputs.workflow_info.get_dict().get('last_calc_nodeinfo')['pk']
         last_calc_output_params = load_node(last_calc_pk).outputs.output_parameters
         last_calc_info = self.ctx.kkrimp_scf_sub.outputs.workflow_info
         res_voro_info = self.ctx.last_voro_calc.outputs.results_vorostart_wc
@@ -518,20 +520,20 @@ class kkr_imp_wc(WorkChain):
         if self.ctx.do_gf_calc:
             outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk, 'auxiliary_voronoi': self.ctx.last_voro_calc.pk,
                                                     'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}
-            outputnode_dict['gf_wc_success'] = self.ctx.gf_writeout.outputs.workflow_info.get_attr('successful')
+            outputnode_dict['gf_wc_success'] = self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('successful')
         else:
             outputnode_dict['used_subworkflows'] = {'auxiliary_voronoi': self.ctx.last_voro_calc.pk, 'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}
-        outputnode_dict['converged'] = last_calc_info.get_attr('convergence_reached')
-        outputnode_dict['number_of_rms_steps'] = len(last_calc_info.get_attr('convergence_values_all_steps'))
-        outputnode_dict['convergence_values_all_steps'] = last_calc_info.get_attr('convergence_values_all_steps')
-        outputnode_dict['impurity_info'] = self.inputs.impurity_info.get_attrs()
-        outputnode_dict['voro_wc_success'] = res_voro_info.get_attr('successful')
-        outputnode_dict['kkrimp_wc_success'] = last_calc_info.get_attr('successful')
-        outputnode_dict['last_calculation_pk'] = last_calc_pk
+        outputnode_dict['converged'] = last_calc_info.get_dict().get('convergence_reached')
+        outputnode_dict['number_of_rms_steps'] = len(last_calc_info.get_dict().get('convergence_values_all_steps'))
+        outputnode_dict['convergence_values_all_steps'] = last_calc_info.get_dict().get('convergence_values_all_steps')
+        outputnode_dict['impurity_info'] = self.inputs.impurity_info.get_dict()
+        outputnode_dict['voro_wc_success'] = res_voro_info.get_dict().get('successful')
+        outputnode_dict['kkrimp_wc_success'] = last_calc_info.get_dict().get('successful')
+        outputnode_dict['last_calculation_uuid'] = load_node(last_calc_pk).uuid
         outputnode_t = Dict(dict=outputnode_dict)
         outputnode_t.label = 'kkrimp_wc_inform'
         outputnode_t.description = 'Contains information for workflow'
-        self.report('INFO: workflow_info node: {}'.format(outputnode_t.get_attrs()))
+        self.report('INFO: workflow_info node: {}'.format(outputnode_t.uuid))
 
         self.out('workflow_info', outputnode_t)
         self.out('last_calc_output_parameters', last_calc_output_params)
@@ -544,7 +546,7 @@ class kkr_imp_wc(WorkChain):
                     '|------------------------------------------------------------------------------------------------------------------|')
 
 
-@wf
+@calcfunction
 def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at center only!
     from aiida.common.constants import elements as PeriodicTableElements
     _atomic_numbers = {data['symbol']: num for num, data in PeriodicTableElements.items()}

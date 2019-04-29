@@ -291,13 +291,13 @@ class KkrimpCalculation(CalcJob):
         # case, raise an error
         if found_impurity_inputnode and found_host_parent:
             #TODO: implement also 'ilayer_center' check
-            if imp_info_inputnode.get_attr('Rcut') == imp_info.get_attr('Rcut'):
+            if imp_info_inputnode.get_dict().get('Rcut') == imp_info.get_dict().get('Rcut'):
                 check_consistency_imp_info = True
                 try:
-                    if (imp_info_inputnode.get_attr('hcut') == imp_info.get_attr('hcut')
-                        and imp_info_inputnode.get_attr('cylinder_orient') == imp_info.get_attr('cylinder_orient')
-                        and imp_info_inputnode.get_attr('Rimp_rel') == imp_info.get_attr('Rimp_rel')
-                        and imp_info_inputnode.get_attr('imp_cls') == imp_info.get_attr('imp_cls')):
+                    if (imp_info_inputnode.get_dict().get('hcut') == imp_info.get_dict().get('hcut')
+                        and imp_info_inputnode.get_dict().get('cylinder_orient') == imp_info.get_dict().get('cylinder_orient')
+                        and imp_info_inputnode.get_dict().get('Rimp_rel') == imp_info.get_dict().get('Rimp_rel')
+                        and imp_info_inputnode.get_dict().get('imp_cls') == imp_info.get_dict().get('imp_cls')):
                         print('impurity_info node from input and from previous GF calculation are compatible')
                         check_consistency_imp_info = True
                     else:
@@ -341,7 +341,10 @@ class KkrimpCalculation(CalcJob):
 
         # extract shapes array from parameters read from inputcard
         shapes = params_host_calc.get_dict().get('<SHAPE>', None)
-        if type(shapes)==int:
+        if shapes is None:
+            # fallback if SHAPES is not explicityl set (assume each atom has it's own shapefun
+            shapes = range(1,params_host_calc.get_dict().get('NAEZ')+1)
+        elif type(shapes)==int:
             shapes = [shapes]
 
         # extract input structure and voro_parent to get shapefun in next step

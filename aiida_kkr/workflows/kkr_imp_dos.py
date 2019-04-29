@@ -260,12 +260,12 @@ class kkr_imp_dos_wc(WorkChain):
         options = self.ctx.options_params_dict
         kkrimpcode = self.inputs.kkrimp
         gf_writeout_wf = self.ctx.gf_writeout
-        gf_writeout_calc = load_node(self.ctx.gf_writeout.outputs.workflow_info.get_attr('pk_flexcalc'))
+        gf_writeout_calc = load_node(self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc'))
         gf_writeout_remote = gf_writeout_wf.outputs.GF_host_remote
         impurity_pot = self.inputs.host_imp_pot
         imps = self.ctx.imp_info
 
-        nspin = gf_writeout_calc.outputs.output_parameters.get_attr('nspin')
+        nspin = gf_writeout_calc.outputs.output_parameters.get_dict().get('nspin')
         self.report('nspin: {}'.format(nspin))
         self.ctx.kkrimp_params_dict = Dict(dict={'nspin': nspin,
                                                           'nsteps': self.ctx.nsteps,
@@ -275,10 +275,10 @@ class kkr_imp_dos_wc(WorkChain):
         kkrimp_params = self.ctx.kkrimp_params_dict
 
         label_imp = 'KKRimp DOS (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {})'.format(
-                    gf_writeout_wf.pk, impurity_pot.pk, imps.get_attr('Zimp'), imps.get_attr('ilayer_center'))
+                    gf_writeout_wf.pk, impurity_pot.pk, imps.get_dict().get('Zimp'), imps.get_dict().get('ilayer_center'))
         description_imp = 'KKRimp DOS run (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {}, R_cut: {})'.format(
-                    gf_writeout_wf.pk, impurity_pot.pk, imps.get_attr('Zimp'), imps.get_attr('ilayer_center'),
-                    imps.get_attr('Rcut'))
+                    gf_writeout_wf.pk, impurity_pot.pk, imps.get_dict().get('Zimp'), imps.get_dict().get('ilayer_center'),
+                    imps.get_dict().get('Rcut'))
 
         future = self.submit(kkr_imp_sub_wc, label=label_imp, description=description_imp,
                              kkrimp=kkrimpcode, options=options,
@@ -297,12 +297,12 @@ class kkr_imp_dos_wc(WorkChain):
 
         self.report('INFO: creating output nodes for the KKR imp DOS workflow ...')
 
-        last_calc_pk = self.ctx.kkrimp_dos.outputs.workflow_info.get_attr('last_calc_nodeinfo')['pk']
+        last_calc_pk = self.ctx.kkrimp_dos.outputs.workflow_info.get_dict().get('last_calc_nodeinfo')['pk']
         last_calc_output_params = load_node(last_calc_pk).outputs.output_parameters
         last_calc_info = self.ctx.kkrimp_dos.outputs.workflow_info
 
         outputnode_dict = {}
-        outputnode_dict['impurity_info'] = self.ctx.imp_info.get_attrs()
+        outputnode_dict['impurity_info'] = self.ctx.imp_info.get_dict()
         outputnode_dict['workflow_name'] = self.__class__.__name__
         outputnode_dict['workflow_version'] = self._workflowversion
         outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk,
@@ -311,7 +311,7 @@ class kkr_imp_dos_wc(WorkChain):
         outputnode_t.label = 'kkr_imp_dos_wc_inform'
         outputnode_t.description = 'Contains information for workflow'
 
-        self.report('INFO: workflow_info node: {}'.format(outputnode_t.get_attrs()))
+        self.report('INFO: workflow_info node: {}'.format(outputnode_t.uuid))
 
         self.out('workflow_info', outputnode_t)
         self.out('last_calc_output_parameters', last_calc_output_params)

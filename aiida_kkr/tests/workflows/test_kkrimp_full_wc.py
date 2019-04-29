@@ -43,7 +43,6 @@ class Test_kkrimp_full_workflow():
         voro_aux_settings['natom_in_cls_min'] = 50
         voro_aux_settings['rclustz'] = 1.5
 
-        options = Dict(dict=options)
         voro_aux_settings = Dict(dict=voro_aux_settings)
         wf_inputs = Dict(dict=wfd)
 
@@ -65,14 +64,14 @@ class Test_kkrimp_full_workflow():
         builder = kkr_imp_wc.get_builder()
         builder.description = descr
         builder.label = label
-        builder.kkrimpcode = KKRimpCode
-        builder.vorocode = VoroCode
-        builder.kkrcode = KKRhostCode
-        builder.options_parameters = options
+        builder.kkrimp = KKRimpCode
+        builder.voronoi = VoroCode
+        builder.kkr = KKRhostCode
+        builder.options = options
         builder.voro_aux_parameters = voro_aux_settings
         builder.wf_parameters = wf_inputs
         builder.impurity_info = imp_info
-        builder.remote_converged_host = kkr_calc_remote
+        builder.remote_data_host = kkr_calc_remote
 
         # now run calculation
         from aiida.engine import run
@@ -85,7 +84,7 @@ class Test_kkrimp_full_workflow():
             assert sub in list(n.get('used_subworkflows').keys())
 
         kkrimp_sub = load_node(n['used_subworkflows']['kkr_imp_sub'])
-        assert kkrimp_sub.outputs.calculation_info.get_attr('successful')
+        assert kkrimp_sub.outputs.workflow_info.get_dict().get('successful')
 
 
 #run test manually
