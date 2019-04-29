@@ -177,7 +177,7 @@ class Test_common_workfunctions(object):
                 l_diff.append([1, i, d1[i]])
 
         assert l_identical ==  [[u'LMAX', 2, 2]]
-        assert sort(l_diff) == sort([[1, u'RMAX', 10.0], [1, u'EMIN', -1.0]])
+        assert l_diff.sort() == [[1, u'RMAX', 10.0], [1, u'EMIN', -1.0]].sort()
         return node1, node2, unode
 
 
@@ -260,6 +260,5 @@ if __name__=='__main__':
     #t3 = t.test_prepare_2Dcalc_wf()
     #t4 = t.test_test_and_get_codenode()
     #t5 = t.test_get_inputs_kkr()
-    #t6 = t.test_get_inputs_voronoi()
     #t7 = t.test_get_parent_paranode()
 #"""
