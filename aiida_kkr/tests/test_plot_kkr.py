@@ -49,12 +49,12 @@ class Test_plot_kkr(object):
 
     @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='scf_grouped.png')
     def test_plot_scf_wc_grouped(self):
-        basic_test(['23d7f92d-b952-4267-95fa-9ebba354ec85', 'c1e70d2b-5142-49d1-8a19-4a8a3b56d9cc', '99f00f1c-21a0-41ae-aaac-4921d16f9ee2'], strucplot=False, noshow=True)
+        basic_test(['23d7f92d-b952-4267-95fa-9ebba354ec85', 'c1e70d2b-5142-49d1-8a19-4a8a3b56d9cc', '99f00f1c-21a0-41ae-aaac-4921d16f9ee2'], strucplot=False, nolegend=True, noshow=True)
         return gcf()
 
     @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='eos.png')
     def test_plot_eos_wc(self):
-        basic_test('58a3e5e4-aeba-400d-a1f4-2f4756bd6f9e', strucplot=False, noshow=True)
+        basic_test('58a3e5e4-aeba-400d-a1f4-2f4756bd6f9e', strucplot=False, nolegend=True, noshow=True)
         return gcf()
 
 

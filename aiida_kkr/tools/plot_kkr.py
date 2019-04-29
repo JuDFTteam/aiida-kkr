@@ -93,6 +93,8 @@ class plot_kkr(object):
         nodeslist = nodesgroups[groupname]
         # take out label from kwargs since it is overwritten
         if 'label' in list(kwargs.keys()): label = kwargs.pop('label')
+        nolegend = False
+        if 'nolegend' in list(kwargs.keys()): nolegend = kwargs.pop('nolegend')
         # open a single new figure for each plot here
         if groupname in ['kkr', 'scf']: figure()
         for node in nodeslist:
@@ -103,12 +105,12 @@ class plot_kkr(object):
                 subplot(2,1,1)
                 self.plot_kkr_single_node(node, only='rms', label='pk= {}'.format(node.pk), **kwargs)
                 xlabel('') # remove overlapping x label in upper plot
-                legend(fontsize='x-small')
+                if not nolegend: legend(fontsize='x-small')
                 title('')
                 subplot(2,1,2)
                 self.plot_kkr_single_node(node, only='neutr', label='pk= {}'.format(node.pk), **kwargs)
                 title('')# remove duplicated plot title of lower plot
-                legend(fontsize='x-small')
+                if not nolegend: legend(fontsize='x-small')
             else:
                 self.plot_kkr_single_node(node, **kwargs)
             print('\n------------------------------------------------------------------\n')
@@ -783,6 +785,8 @@ class plot_kkr(object):
         if 'strucplot' in list(kwargs.keys()): kwargs.pop('strucplot')
         silent = False
         if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
+        nolegend = False
+        if 'nolegend' in list(kwargs.keys()): nolegend = kwargs.pop('nolegend')
 
         # plot convergence behavior
         try:
@@ -816,12 +820,12 @@ class plot_kkr(object):
                     subplot(2,1,1)
                     self.plot_kkr_scf(tmpnode, silent=True, strucplot=False, nofig=True, only='rms', noshow=True, label='pk={}'.format(tmpnode.pk), **kwargs) # scf workflow, rms only
                     xlabel('') # remove overlapping x label in upper plot
-                    legend(loc=3, fontsize='x-small', ncol=2)
+                    if not nolegend: legend(loc=3, fontsize='x-small', ncol=2)
                     # plot charge neutrality
                     subplot(2,1,2)
                     self.plot_kkr_scf(tmpnode, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, label='pk={}'.format(tmpnode.pk), **kwargs) # scf workflow, rms only
                     title('')# remove duplicated plot title of lower plot
-                    legend(loc=3, fontsize='x-small', ncol=2)
+                    if not nolegend: legend(loc=3, fontsize='x-small', ncol=2)
                     plotted_kkr_scf = True
 
         if not (plotted_kkr_scf or plotted_kkr_start):
@@ -855,7 +859,7 @@ class plot_kkr(object):
                 pk = pks[m][0]
                 ie = e[m][0]
                 iv = v[m][0]
-                annotate(s='pk={}'.format(pk), xy=(iv,ie))
+                if not nolegend: annotate(s='pk={}'.format(pk), xy=(iv,ie))
 
             # investigate fit quality by fitting without first/last datapoint
             if len(e)>4:
