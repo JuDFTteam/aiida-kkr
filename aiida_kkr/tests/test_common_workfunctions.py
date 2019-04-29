@@ -177,7 +177,7 @@ class Test_common_workfunctions(object):
                 l_diff.append([1, i, d1[i]])
 
         assert l_identical ==  [[u'LMAX', 2, 2]]
-        assert l_diff == [[1, u'RMAX', 10.0], [1, u'EMIN', -1.0]]
+        assert sort(l_diff) == sort([[1, u'RMAX', 10.0], [1, u'EMIN', -1.0]])
         return node1, node2, unode
 
 
