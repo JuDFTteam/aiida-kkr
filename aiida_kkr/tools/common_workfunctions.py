@@ -10,6 +10,7 @@ from aiida.common.exceptions import InputValidationError
 from aiida.engine import calcfunction
 from aiida.plugins import DataFactory
 from masci_tools.io.kkr_params import kkrparams
+from masci_tools.io.common_functions import open_general
 from six.moves import range
 
 #define aiida structures from DataFactory of aiida
@@ -925,7 +926,7 @@ def kick_out_corestates(potfile, potfile_out, emin):
     # read core states
     nstates, energies, lmoments = get_corestates_from_potential(potfile)
 
-    with open(potfile) as f:
+    with open_general(potfile) as f:
         # read potential file
         txt = f.readlines()
 
@@ -952,7 +953,7 @@ def kick_out_corestates(potfile, potfile_out, emin):
 
         if num_deleted>0:
             # write output potential
-            with open(potfile_out, u'w') as f2:
+            with open_general(potfile_out, u'w') as f2:
                 txt_new = list(array(txt)[all_lines])
                 f2.writelines(txt_new)
 
@@ -973,21 +974,16 @@ def kick_out_corestates_wf(potential_sfd, emin):
 
     SingleFileData = DataFactory('singlefile')
 
-    # get abs path of input potential
-    potfile_path = potential_sfd.get_file_abs_path()
-
     with SandboxFolder() as tmpdir:
-        potfile_out = tmpdir.get_abs_path('')+'potential_deleted_core_states'
-        print(potfile_out)
-        num_deleted = kick_out_corestates(potfile_path, potfile_out, emin)
-        print(num_deleted)
-        if num_deleted>0:
-            potential_nocore_sfd = SingleFileData(file=potfile_out)
-            potential_nocore_sfd.store()
-            print(potential_nocore_sfd)
+        with tmpdir.open('potential_deleted_core_states', 'w') as potfile_out: 
+            with potential_sfd.open(potential_sfd.filename) as potfile_in:
+                num_deleted = kick_out_corestates(potfile_in, potfile_out, emin)
+                if num_deleted>0:
+                    potential_nocore_sfd = SingleFileData(file=potfile_out)
+                    potential_nocore_sfd.store()
 
     # return potential
     if num_deleted>0:
         return potential_nocore_sfd
     else:
-        return potential_sfd
+        return potential_sfd.clone()

@@ -365,9 +365,11 @@ class kkrimp_parser_functions(object):
         niter = len(res.get(search_keys[-2], []))
         if niter>0:
             for key in search_keys[1:6]:
-                res[key] = sum(res[key])/niter
+                if key in res.keys():
+                    res[key] = sum(res[key])/niter
             for key in [search_keys[0], search_keys[-1]]:
-                res[key] = res[key][0]
+                if key in res.keys():
+                    res[key] = res[key][0]
         return res
 
 

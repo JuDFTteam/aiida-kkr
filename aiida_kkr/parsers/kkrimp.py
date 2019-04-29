@@ -44,12 +44,6 @@ class KkrimpParser(Parser):
 
         :param retrieved: a dictionary of retrieved nodes, where
           the key is the link name
-        :returns: a tuple with two values ``(bool, node_list)``,
-          where:
-
-          * ``bool``: variable to tell if the parsing succeeded
-          * ``node_list``: list of new nodes to be stored in the db
-            (as a list of tuples ``(link_name, node)``)
         """
         success = False
         node_list = ()
@@ -59,9 +53,6 @@ class KkrimpParser(Parser):
             out_folder = self.retrieved
         except exceptions.NotExistent:
             return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
-#        except KeyError:
-#            self.logger.error("No retrieved folder found")
-#            return success, node_list
 
         # check what is inside the folder
         list_of_files = out_folder._repository.list_object_names()
@@ -83,6 +74,7 @@ class KkrimpParser(Parser):
     
         if KkrimpCalculation._DEFAULT_OUTPUT_FILE in out_folder.list_object_names():
             outfile = out_folder.open(KkrimpCalculation._DEFAULT_OUTPUT_FILE)
+            files['outfile'] = outfile
         else:
             file_errors.append((1,msg))
             outfile = None
@@ -174,4 +166,3 @@ class KkrimpParser(Parser):
         #create output node and link
         self.out('output_parameters', Dict(dict=out_dict))
 
-        return success, node_list

@@ -351,7 +351,6 @@ class KkrimpCalculation(CalcJob):
 
         # extract shapefun path for read-in
         shapefun_path = {}
-        print(voro_parent)
         if VoronoiCalculation._SHAPEFUN in voro_parent.outputs.retrieved.list_object_names():
             shapefun_path = voro_parent.outputs.retrieved
         else:

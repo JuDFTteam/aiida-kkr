@@ -306,7 +306,6 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.rms = []
         self.ctx.neutr = []
         self.ctx.warnings = []
-        self.ctx.errors = []
         self.ctx.formula = ''
 
         # for results table each list gets one entry per iteration that has been performed
@@ -364,7 +363,6 @@ class kkr_imp_sub_wc(WorkChain):
             self.ctx.last_params = inputs.wf_parameters
         else:
             inputs_ok = False
-            self.report('ERROR: {}'.format(self.exit_codes.ERROR_NO_CALC_PARAMS))
             return self.exit_codes.ERROR_NO_CALC_PARAMS
 
         self.report('INFO: validated input successfully: {}'.format(inputs_ok))
@@ -396,7 +394,7 @@ class kkr_imp_sub_wc(WorkChain):
             do_kkr_step = do_kkr_step & True
 
         # check if previous calculation was successful
-        if self.ctx.loop_count>1 and not self.ctx.last_calc.is_finished_ok():
+        if self.ctx.loop_count>1 and not self.ctx.last_calc.is_finished_ok:
             return self.exit_codes.ERROR_SUB_FAILURE
 
         # next check only needed if another iteration should be done after validating convergence etc. (previous checks)
@@ -465,10 +463,8 @@ class kkr_imp_sub_wc(WorkChain):
                 # check if last_remote has finally been set and abort if this is not the case
                 self.report("INFO: last_remote is still None? {}".format(self.ctx.last_remote is None))
                 self.report("INFO: restart next calculation run from initial inputs")
-#                if self.ctx.last_remote is None:
-#                    error = 'ERROR: last_remote could not be set to a previous succesful calculation. Try restarting the workflow with different inputs'
-#                    self.ctx.errors.append(error)
-#                    return self.exit_codes.ERROR_SETTING_LAST_REMOTE
+                if self.ctx.last_remote is None:
+                    return self.exit_codes.ERROR_SETTING_LAST_REMOTE
 
             # check if mixing strategy should be changed
             last_mixing_scheme = self.ctx.last_params.get_dict()['IMIX']
@@ -528,9 +524,6 @@ class kkr_imp_sub_wc(WorkChain):
                         new_params[key_default] = kkrdefaults.get(key_default)
                         kkrdefaults_updated.append(key_default)
                 if len(kkrdefaults_updated)>0:
-                    error = 'ERROR: Calc_parameters misses keys: {}'.format(missing_list)
-                    self.ctx.errors.append(error)
-                    self.report('ERROR: {}'.format(self.exit_codes.ERROR_MISSING_PARAMS))
                     return self.exit_codes.ERROR_MISSING_PARAMS
                 else:
                     self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
@@ -661,10 +654,7 @@ class kkr_imp_sub_wc(WorkChain):
                 for key, val in new_params.items():
                     para_check.set_value(key, val, silent=True)
             except:
-                error = 'ERROR: parameter update unsuccessful: some key, value pair not valid!'
-                self.ctx.errors.append(error)
-                self.report(error)
-                #return self.exit_codes.ERROR_PARAMETER_UPDATE
+                return self.exit_codes.ERROR_PARAMETER_UPDATE
 
             # step 3:
             self.report("INFO: update parameters to: {}".format(para_check.get_set_values()))
@@ -709,7 +699,7 @@ class kkr_imp_sub_wc(WorkChain):
         if last_remote is None:
             # make sure no core states are in energy contour
             # extract emin from output of GF host calculation
-            GF_out_params = host_GF.inputs.remote_folder.outputs.output_parameters
+            GF_out_params = host_GF.get_incoming(link_label_filter='remote_folder').first().node.outputs.output_parameters
             emin = GF_out_params.get_dict().get('energy_contour_group').get('emin')
             # then use this value to get rid of all core states that are lower than emin (return the same input potential if no states have been removed
             imp_pot = kick_out_corestates_wf(imp_pot, Float(emin))
@@ -759,17 +749,16 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.kkrimp_step_success = True
 
         # check calculation state
-        if not self.ctx.last_calc.is_finished_ok():
+        if not self.ctx.last_calc.is_finished_ok:
             self.ctx.kkrimp_step_success = False
-            self.report('ERROR: {}', self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED)
             return self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED
 
         self.report("INFO: kkrimp_step_success: {}".format(self.ctx.kkrimp_step_success))
 
         # get potential from last calculation
-        retrieved_path = self.ctx.kkr.outputs.retrieved.get_abs_path() # retrieved path
-        pot_path = retrieved_path+'/path/out_potential'
-        self.ctx.last_pot = SinglefileData(file=pot_path)
+        retrieved_folder = self.ctx.kkr.outputs.retrieved
+        with retrieved_folder.open('out_potential') as pot_file:
+            self.ctx.last_pot = SinglefileData(file=pot_file)
 
         # extract convergence info about rms etc. (used to determine convergence behavior)
         try:
@@ -974,7 +963,6 @@ class kkr_imp_sub_wc(WorkChain):
         outputnode_dict['last_remote_nodeinfo'] = {'uuid':last_remote_uuid, 'pk':last_remote_pk}
         outputnode_dict['last_calc_nodeinfo'] = {'uuid':last_calc_uuid, 'pk':last_calc_pk}
         outputnode_dict['pks_all_calcs'] = all_pks
-        outputnode_dict['errors'] = self.ctx.errors
         outputnode_dict['convergence_value'] = last_rms
         outputnode_dict['convergence_values_all_steps'] = array(self.ctx.rms_all_steps)
         outputnode_dict['convergence_values_last_step'] = array(self.ctx.last_rms_all)
