@@ -275,7 +275,7 @@ class plot_kkr(object):
         print("plotting structure using ase's `view` with kwargs={}".format(kwargs))
         view(ase_atoms, **kwargs)
 
-    def dosplot(self, d, struc, nofig, all_atoms, l_channels, **kwargs):
+    def dosplot(self, d, natoms, nofig, all_atoms, l_channels, **kwargs):
         """plot dos from xydata node"""
         from numpy import array, sum
         from matplotlib.pyplot import plot, xlabel, ylabel, gca, figure, legend
@@ -288,7 +288,6 @@ class plot_kkr(object):
         x_all = d.get_x()
         y_all = d.get_y()
 
-        natoms = len(struc.sites)
         nspin = len(y_all[0][1]) // natoms
 
         xlbl = x_all[0]+' ('+x_all[2]+')'
@@ -612,7 +611,7 @@ class plot_kkr(object):
         struc, voro_parent = VoronoiCalculation.find_parent_structure(node.inputs.remote_data)
 
         # do dos plot after data was extracted
-        self.dosplot(d, struc, nofig, all_atoms, l_channels, **kwargs)
+        self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, **kwargs)
 
 
     def plot_kkr_startpot(self, node, **kwargs):
@@ -670,7 +669,7 @@ class plot_kkr(object):
 
         if d is not None:
             # do dos plot after data was extracted
-            self.dosplot(d, struc, nofig, all_atoms, l_channels, **kwargs)
+            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, **kwargs)
 
         # now add lines for emin, core states, EF
 

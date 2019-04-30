@@ -114,6 +114,8 @@ class kkr_flex_wc(WorkChain):
             message='ERROR: calc_parameters given are not consistent! Hint: did you give an unknown keyword?')
         spec.exit_code(105, 'ERROR_CALC_PARAMETERS_INCOMPLETE',
             message='ERROR: calc_parameters misses keys')
+        spec.exit_code(106, 'ERROR_KKR_CALCULATION_FAILED',
+            message='ERROR: KKR calculation to write out kkrflex files unsuccessful')
 
         # specify the outputs
         #spec.output('remote_folder', valid_type=RemoteData)
@@ -289,10 +291,14 @@ class kkr_flex_wc(WorkChain):
             runopt.append('KKRFLEX')
 
         self.report('INFO: RUNOPT set to: {}'.format(runopt))
-        para_check = update_params_wf(self.ctx.input_params_KKR, Dict(dict={'RUNOPT':runopt}))
 
+        para_check = update_params_wf(self.ctx.input_params_KKR, Dict(dict={'RUNOPT':runopt}))
         if 'wf_parameters' in self.inputs:
-            if self.ctx.ef_shift != 0:
+            if self.ctx.dos_run:
+                para_check = update_params_wf(para_check, Dict(dict={'EMIN': self.ctx.dos_params_dict['emin'],
+                    'EMAX': self.ctx.dos_params_dict['emax'], 'NPT2': self.ctx.dos_params_dict['nepts'],
+                    'NPOL': 0, 'NPT1': 0, 'NPT3': 0, 'BZDIVIDE': self.ctx.dos_params_dict['kmesh']}))
+            elif self.ctx.ef_shift != 0:
                 # extract old Fermi energy in Ry
                 remote_data_parent = self.inputs.remote_data
                 ef_old = remote_data_parent.inputs.remote_folder.outputs.output_parameters.get_dict().get('fermi_energy')
@@ -302,12 +308,7 @@ class kkr_flex_wc(WorkChain):
                 ef_new = (ef_old + ef_shift/get_Ry2eV())
                 self.report('INFO: ef_old + ef_shift = ef_new: {} eV + {} eV = {} eV'.format(ef_old*get_Ry2eV(), ef_shift, ef_new*get_Ry2eV()))
                 para_check = update_params_wf(para_check, Dict(dict={'ef_set':ef_new}))
-            if self.ctx.dos_run:
-                para_check = update_params_wf(para_check, Dict(dict={'EMIN': self.ctx.dos_params_dict['emin'],
-                                                                              'EMAX': self.ctx.dos_params_dict['emax'],
-                                                                              'NPT2': self.ctx.dos_params_dict['nepts'],
-                                                                              'NPOL': 0, 'NPT1': 0, 'NPT3': 0,
-                                                                              'BZDIVIDE': self.ctx.dos_params_dict['kmesh']}))
+
         self.report(para_check.get_dict())
 
         #construct the final param node containing all of the params
@@ -355,8 +356,7 @@ class kkr_flex_wc(WorkChain):
         # capture error of unsuccessful flexrun
         if not self.ctx.flexrun.is_finished_ok:
             self.ctx.successful = False
-            error = ('ERROR: KKRFLEX calculation failed somehow')
-            self.ctx.errors.append(error)
+            return self.exit_codes.ERROR_KKR_CALCULATION_FAILED
 
         # create dict to store results of workflow output
         outputnode_dict = {}

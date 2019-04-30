@@ -4,20 +4,19 @@
 In this module you find the base workflow for a impurity DOS calculation and
 some helper methods to do so with AiiDA
 """
-from __future__ import print_function
-
-from __future__ import absolute_import
-from aiida.orm import Code, load_node
+from __future__ import print_function, absolute_import
+from aiida.orm import Code, load_node, CalcJobNode
 from aiida.plugins import DataFactory
 from aiida.engine import if_, ToContext, WorkChain
+from aiida.common import LinkType
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
 
-__copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
+__copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
-__contributors__ = u"Fabian Bertoldo"
+__version__ = "0.4"
+__contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: improve workflow output node structure
 #TODO: generalise search for imp_info and conv_host from startpot
@@ -63,8 +62,6 @@ class kkr_imp_dos_wc(WorkChain):
                                   'emax': 1,  # Ry                   # DOS params: end of energy contour
                                   'kmesh': [30, 30, 30]},            # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
                    'non_spherical': 1,                      # use non-spherical parts of the potential (0 if you don't want that)
-                   'born_iter': 2,                          # number of Born iterations for the non-spherical calculation
-                   'init_pos' : None,                       # position in unit cell where magnetic field is applied [default (None) means apply to all]
                    'spinorbit' : False,                     # SOC calculation (True/False)
                    'newsol' : False }                       # new SOC solver is applied
 
@@ -93,6 +90,8 @@ class kkr_imp_dos_wc(WorkChain):
         spec.input("kkr", valid_type=Code, required=True)
         spec.input("kkrimp", valid_type=Code, required=True)
         spec.input("host_imp_pot", valid_type=SinglefileData, required=True)
+        spec.input("impurity_info", valid_type=Dict, required=False)
+        spec.input("host_remote", valid_type=RemoteData, required=False)
         spec.input("options", valid_type=Dict, required=False,
                        default=Dict(dict=cls._options_default))
         spec.input("wf_parameters", valid_type=Dict, required=False,
@@ -108,8 +107,14 @@ class kkr_imp_dos_wc(WorkChain):
             )
 
         # Define possible exit codes for the workflow
-        #TBD
-
+        spec.exit_code(220, "ERROR_UNKNOWN_PROBLEM", 
+            message="Unknown problem detected.")
+        spec.exit_code(221, "ERROR_NO_PARENT_FOUND", 
+            message="Unable to find the parent remote_data node that led to "
+                    "the input impurity calculation. You need to specify "
+                    "`host_remote` and `impurity_info` nodes.")
+        spec.exit_code(222, "ERROR_GF_WRITEOUT_UNSUCCESFUL", 
+            message="The gf_writeout workflow was not succesful, cannot continue.")
 
         # specify the outputs
         spec.output('workflow_info', valid_type=Dict)
@@ -154,16 +159,11 @@ class kkr_imp_dos_wc(WorkChain):
         self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
 
         # set workflow parameters for the KKR impurity calculation
-        self.ctx.nsteps = 1
-        self.ctx.kkr_runmax = 1
+        self.ctx.nsteps = 1 # always only one step for DOS calculation
+        self.ctx.kkr_runmax = 1 # no restarts for DOS calculation
         self.ctx.non_spherical = wf_dict.get('non_spherical', self._wf_default['non_spherical'])
         self.ctx.spinorbit = wf_dict.get('spinorbit', self._wf_default['spinorbit'])
         self.ctx.newsol = wf_dict.get('newsol', self._wf_default['newsol'])
-        #self.ctx.kkrimp_params_dict = Dict(dict={#'nspin': self.ctx.nspin,
-        #                                                  'nsteps': self.ctx.nsteps,
-        #                                                  'kkr_runmax': self.ctx.kkr_runmax, 'non_spherical': self.ctx.non_spherical,
-        #                                                  'spinorbit': self.ctx.spinorbit, 'newsol': self.ctx.newsol,
-        #                                                  'dosrun': True})
 
         # set workflow label and description
         self.ctx.description_wf = self.inputs.get('description', self._wf_description)
@@ -196,11 +196,23 @@ class kkr_imp_dos_wc(WorkChain):
         inputs_ok = True
 
         if 'host_imp_pot' in inputs:
-            if inputs.host_imp_pot.has_parents == False:
-                self.report('WARNING: startpot has no parent and can not find '
-                            'a converged host RemoteData node')
-                inputs_ok = False
+            # check if input potential has incoming return link
+            if len(inputs.host_imp_pot.get_incoming(link_type=LinkType.RETURN).all()) < 1:
+                self.report("input potential not from kkrimp workflow: take remote_data folder of host system from input")
+                if 'impurity_info' in inputs and 'host_remote' in inputs:
+                    self.ctx.imp_info = inputs.impurity_info
+                    self.ctx.conv_host_remote = inputs.host_remote
+                else:
+                    self.report('WARNING: startpot has no parent and can not find '
+                                'a converged host RemoteData node')
+                    if 'impurity_info' not in inputs:
+                        self.report("`impurity_info` optional input node not given but needed in this case.")
+                    if 'host_remote' not in inputs:
+                        self.report("`host_remote` optional input node not given but needed in this case.")
+                    inputs_ok = False
+                    self.ctx.errors.append(1)
             else:
+                # if return ink is found get input nodes automatically
                 self.report('INFO: get converged host RemoteData node and '
                             'impurity_info node from database')
                 self.ctx.kkr_imp_wf = inputs.host_imp_pot.created_by.called_by
@@ -209,10 +221,6 @@ class kkr_imp_dos_wc(WorkChain):
                 self.ctx.imp_info = self.ctx.kkr_imp_wf.inputs.impurity_info
                 self.report('INFO: found impurity_info node (pk: {})'.format(
                             self.ctx.imp_info.pk))
-#                try:
-#                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inputs.gf_remote
-#                except:
-#                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inputs.remote_converged_host
                 try:
                     self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inputs.remote_data_gf.inputs.remote_folder.inputs.parent_calc_folder.inputs.remote_folder.outputs.remote_folder
                     self.report('INFO: imported converged_host_remote (pk: {}) and '
@@ -242,10 +250,16 @@ class kkr_imp_dos_wc(WorkChain):
         label_gf = 'GF writeout for imp DOS'
         description_gf = 'GF writeout step with energy contour for impurity DOS'
 
-        future = self.submit(kkr_flex_wc, label=label_gf, description=description_gf,
-                             kkr=kkrcode, options=options,
-                             remote_data=converged_host_remote, impurity_info=imp_info,
-                             wf_parameters=wf_params_gf)
+        builder = kkr_flex_wc.get_builder()
+        builder.metadata.label = label_gf
+        builder.metadata.description = description_gf
+        builder.kkr = kkrcode
+        builder.options = options
+        builder.wf_parameters = wf_params_gf
+        builder.remote_data = converged_host_remote
+        builder.impurity_info = imp_info
+
+        future = self.submit(builder)
 
         self.report('INFO: running GF writeout (pid: {})'.format(future.pk))
 
@@ -257,6 +271,10 @@ class kkr_imp_dos_wc(WorkChain):
         Use previous GF step to calculate DOS for the impurity problem
         """
 
+        if not self.ctx.gf_writeout.is_finished_ok:
+            return self.exit_codes.ERROR_GF_WRITEOUT_UNSUCCESFUL
+            
+
         options = self.ctx.options_params_dict
         kkrimpcode = self.inputs.kkrimp
         gf_writeout_wf = self.ctx.gf_writeout
@@ -266,6 +284,7 @@ class kkr_imp_dos_wc(WorkChain):
         imps = self.ctx.imp_info
 
         nspin = gf_writeout_calc.outputs.output_parameters.get_dict().get('nspin')
+        self.ctx.nspin = nspin
         self.report('nspin: {}'.format(nspin))
         self.ctx.kkrimp_params_dict = Dict(dict={'nspin': nspin,
                                                           'nsteps': self.ctx.nsteps,
@@ -280,10 +299,16 @@ class kkr_imp_dos_wc(WorkChain):
                     gf_writeout_wf.pk, impurity_pot.pk, imps.get_dict().get('Zimp'), imps.get_dict().get('ilayer_center'),
                     imps.get_dict().get('Rcut'))
 
-        future = self.submit(kkr_imp_sub_wc, label=label_imp, description=description_imp,
-                             kkrimp=kkrimpcode, options=options,
-                             wf_parameters=kkrimp_params, remote_data_gf=gf_writeout_remote,
-                             host_imp_startpot=impurity_pot)
+        builder = kkr_imp_sub_wc.get_builder()
+        builder.metadata.label = label_imp
+        builder.metadata.description = description_imp
+        builder.kkrimp = kkrimpcode
+        builder.options = options
+        builder.wf_parameters = kkrimp_params
+        builder.remote_data = gf_writeout_remote
+        builder.host_imp_startpot = impurity_pot
+
+        future = self.submit(builder)
 
         self.report('INFO: running DOS step for impurity system (pid: {})'.format(future.pk))
 
@@ -295,10 +320,17 @@ class kkr_imp_dos_wc(WorkChain):
         Return the results and create all of the output nodes
         """
 
+        if self.ctx.errors!=[]:
+            if self.ctx.errors[0]==1:
+                return self.exit_codes.ERROR_NO_PARENT_FOUND
+            else:
+                return self.exit_codes.ERROR_UNKNOWN_PROBLEM
+
         self.report('INFO: creating output nodes for the KKR imp DOS workflow ...')
 
         last_calc_pk = self.ctx.kkrimp_dos.outputs.workflow_info.get_dict().get('last_calc_nodeinfo')['pk']
-        last_calc_output_params = load_node(last_calc_pk).outputs.output_parameters
+        last_calc = load_node(last_calc_pk)
+        last_calc_output_params = last_calc.outputs.output_parameters
         last_calc_info = self.ctx.kkrimp_dos.outputs.workflow_info
 
         outputnode_dict = {}
@@ -311,6 +343,22 @@ class kkr_imp_dos_wc(WorkChain):
         outputnode_t.label = 'kkr_imp_dos_wc_inform'
         outputnode_t.description = 'Contains information for workflow'
 
+        # interpol dos file and store to XyData nodes
+        dos_retrieved = last_calc.outputs.retrieved
+        if 'out_ldos.interpol.atom=01_spin1.dat' in dos_retrieved.list_object_names():
+            kkrflex_writeout = load_node(self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc'))
+            parent_calc_kkr_converged = kkrflex_writeout.inputs.parent_folder.get_incoming(node_class=CalcJobNode).first().node
+            ef = parent_calc_kkr_converged.outputs.output_parameters.get_dict().get('fermi_energy')
+            natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')
+            dosXyDatas = parse_impdosfiles(dos_retrieved, natom, self.ctx.nspin, ef)
+            dos_extracted = True
+        else:
+            dos_extracted = False
+        if dos_extracted:
+            self.out('dos_data', dosXyDatas[0])
+            self.out('dos_data_interpol', dosXyDatas[1])
+ 
+
         self.report('INFO: workflow_info node: {}'.format(outputnode_t.uuid))
 
         self.out('workflow_info', outputnode_t)
@@ -322,3 +370,58 @@ class kkr_imp_dos_wc(WorkChain):
                     '|------------------------------------------------------------------------------------------------------------------|\n'
                     '|-------------------------------------| Done with the KKR imp DOS workflow! |--------------------------------------|\n'
                     '|------------------------------------------------------------------------------------------------------------------|')
+
+def parse_impdosfiles(dos_retrieved, natom, nspin, ef):
+    from masci_tools.io.common_functions import get_Ry2eV, get_ef_from_potfile
+    from numpy import loadtxt, array
+    from aiida.plugins import DataFactory
+    XyData = DataFactory('array.xy')
+
+    # read dos files
+    dos, dos_int = [], []
+    for iatom in range(1, natom+1):
+        for ispin in range(1, nspin+1):
+            with dos_retrieved.open('out_ldos.atom=%0.2i_spin%i.dat'%(iatom, ispin)) as dosfile:
+                tmp = loadtxt(dosfile)
+                dos.append(tmp)
+            with dos_retrieved.open('out_ldos.interpol.atom=%0.2i_spin%i.dat'%(iatom, ispin)) as dosfile:
+                tmp = loadtxt(dosfile)
+                dos_int.append(tmp)
+    dos, dos_int = array(dos), array(dos_int)
+
+    # convert to eV units
+    eVscale = get_Ry2eV()
+    dos[:,:,0] = (dos[:,:,0]-ef)*eVscale
+    dos[:,:,1:] = dos[:,:,1:]/eVscale
+    dos_int[:,:,0] = (dos_int[:,:,0]-ef)*eVscale
+    dos_int[:,:,1:] = dos_int[:,:,1:]/eVscale
+
+    # create output nodes
+    dosnode = XyData()
+    dosnode.label = 'dos_data'
+    dosnode.description = 'Array data containing uniterpolated DOS (i.e. dos at finite imaginary part of energy). 3D array with (atoms, energy point, l-channel) dimensions.'
+    dosnode.set_x(dos[:,:,0], 'E-EF', 'eV')
+
+    name = ['tot', 's', 'p', 'd', 'f', 'g']
+    name = name[:len(dos[0,0,1:])-1]+['ns']
+
+    ylists = [[],[],[]]
+    for l in range(len(name)):
+        ylists[0].append(dos[:,:,1+l])
+        ylists[1].append('dos '+name[l])
+        ylists[2].append('states/eV')
+    dosnode.set_y(ylists[0], ylists[1], ylists[2])
+
+    # node for interpolated DOS
+    dosnode2 = XyData()
+    dosnode2.label = 'dos_interpol_data'
+    dosnode2.description = 'Array data containing iterpolated DOS (i.e. dos at finite imaginary part of energy). 3D array with (atoms, energy point, l-channel) dimensions.'
+    dosnode2.set_x(dos_int[:,:,0], 'E-EF', 'eV')
+    ylists = [[],[],[]]
+    for l in range(len(name)):
+        ylists[0].append(dos_int[:,:,1+l])
+        ylists[1].append('interpolated dos '+name[l])
+        ylists[2].append('states/eV')
+    dosnode2.set_y(ylists[0], ylists[1], ylists[2])
+
+    return dosnode, dosnode2

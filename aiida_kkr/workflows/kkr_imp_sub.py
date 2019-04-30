@@ -143,7 +143,8 @@ class kkr_imp_sub_wc(WorkChain):
                     cls.update_kkrimp_params,
                     cls.run_kkrimp,
                     cls.inspect_kkrimp),
-                cls.return_results))
+                cls.return_results),
+            cls.error_handler)
 
         # exit codes
         spec.exit_code(121, 'ERROR_HOST_IMP_POT_GF',
@@ -173,6 +174,11 @@ class kkr_imp_sub_wc(WorkChain):
         spec.exit_code(130, 'ERROR_LAST_CALC_NOT_FINISHED',
             message="ERROR: Last calculation is not in finished state")
 
+        spec.exit_code(131, "ERROR_NO_CALC_FOUND_FOR_REMOTE_DATA",
+            message="The input `remote_data` node has no valid calculation parent.")
+        spec.exit_code(132, "ERROR_REMOTE_DATA_CALC_UNSUCCESFUL", 
+            message="The parent calculation of the input `remote_data` node was not succesful.")
+
 
         # Define the outputs of the workflow
         spec.output('workflow_info', valid_type=Dict)
@@ -192,7 +198,7 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.loop_count = 0
         self.ctx.last_mixing_scheme = 0
         self.ctx.calcs = []
-        self.ctx.abort = False
+        self.ctx.exit_code = None
         # flags used internally to check whether the individual steps were successful
         self.ctx.kkr_converged = False
         self.ctx.kkr_step_success = False
@@ -335,35 +341,38 @@ class kkr_imp_sub_wc(WorkChain):
         if not 'kkrimp_remote' in inputs:
             if not ('host_imp_startpot' in inputs and 'remote_data' in inputs):
                 inputs_ok = False
-                return self.exit_codes.ERROR_HOST_IMP_POT_GF
+                self.ctx.exit_code = self.exit_codes.ERROR_HOST_IMP_POT_GF
 
         if 'kkr' in inputs:
             try:
                 test_and_get_codenode(inputs.kkr, 'kkr.kkrimp', use_exceptions=True)
             except ValueError:
                 inputs_ok = False
-                return self.exit_codes.ERROR_INVALID_INPUT_KKRIMP
+                self.ctx.exit_code = self.exit_codes.ERROR_INVALID_INPUT_KKRIMP
 
         if 'kkrimp_remote' in inputs:
             self.ctx.start_from_imp_remote = True
             self.ctx.last_remote = inputs.kkrimp_remote
 
-        # set params and remote folder to input
-        #self.ctx.last_remote = inputs.GF_remote_data
+        # check if input remote_data node is fine
+        if 'remote_data' in inputs:
+            if len(inputs.remote_data.get_incoming(link_label_filter='remote_folder').all())<1:
+                self.ctx.exit_code = self.exit_codes.ERROR_NO_CALC_FOUND_FOR_REMOTE_DATA
+            else:
+                if not inputs.remote_data.get_incoming(link_label_filter='remote_folder').first().node.is_finished_ok:
+                    self.ctx.exit_code = self.exit_codes.ERROR_REMOTE_DATA_CALC_UNSUCCESFUL
+            
 
         # set starting potential
         if 'host_imp_startpot' in inputs:
             self.ctx.last_pot = inputs.host_imp_startpot
-
-#        if 'impurity_info' in inputs:
-#            self.ctx.imp_info = inputs.impurity_info
 
         # TBD!!!
         if  'wf_parameters' in inputs:
             self.ctx.last_params = inputs.wf_parameters
         else:
             inputs_ok = False
-            return self.exit_codes.ERROR_NO_CALC_PARAMS
+            self.ctx.exit_code = self.exit_codes.ERROR_NO_CALC_PARAMS
 
         self.report('INFO: validated input successfully: {}'.format(inputs_ok))
 
@@ -973,15 +982,11 @@ class kkr_imp_sub_wc(WorkChain):
                         'converged after {} KKR runs and {} iterations to {} \n'
                         ''.format(last_calc_pk, self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps')), self.ctx.last_rms_all[-1]))
         else: # Termination ok, but not converged yet...
-            if self.ctx.abort: # some error occured, donot use the output.
-                self.report('STATUS/ERROR: I abort, see logs and '
-                            'erros/warning/hints in output_kkr_scf_wc_para')
-            else:
-                self.report('STATUS/WARNING: Done, the maximum number of runs '
-                            'was reached or something failed.\n INFO: The '
-                            'charge density of the KKR calculation pk= '
-                            'after {} KKR runs and {} iterations is {} "me/bohr^3"\n'
-                            ''.format(self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps')), self.ctx.last_rms_all[-1]))
+            self.report('STATUS/WARNING: Done, the maximum number of runs '
+                        'was reached or something failed.\n INFO: The '
+                        'charge density of the KKR calculation pk= '
+                        'after {} KKR runs and {} iterations is {} "me/bohr^3"\n'
+                        ''.format(self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps')), self.ctx.last_rms_all[-1]))
 
         # create results  node
         self.report("INFO: create results nodes") #: {}".format(outputnode_dict))
@@ -1019,3 +1024,9 @@ class kkr_imp_sub_wc(WorkChain):
         self.report(message)
 
         self.report("INFO: done with kkr_scf workflow!\n")
+
+
+    def error_handler(self):
+        """Capture errors raised in validate_input"""
+        if self.ctx.exit_code is not None:
+            return self.ctx.exit_code
