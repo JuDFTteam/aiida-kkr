@@ -77,9 +77,9 @@ class Test_kkrimp_dos_workflow():
         assert 'workflow_info' in out.keys()
         assert 'dos_data' in out.keys()
         assert 'dos_data_interpol' in out.keys()
-        assert len(dos_data_interpol.get_y()) == 5
-        assert len(dos_data_interpol.get_y()[0]) == 3
-        assert len(dos_data_interpol.get_y()[0][0]) == 20
+        assert len(out['dos_data_interpol'].get_y()) == 5
+        assert len(out['dos_data_interpol'].get_y()[0]) == 3
+        assert len(out['dos_data_interpol'].get_y()[0][0]) == 20
 
 
     @pytest.mark.timeout(300, method='thread')
