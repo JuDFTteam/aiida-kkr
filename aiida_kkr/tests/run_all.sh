@@ -44,7 +44,7 @@ echo
 
 if [[ ! -z "$RUN_ALL" ]]; then
   echo "run all tests"
-  pytest --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr --mpl -p no:warnings
+  pytest -sv --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr --mpl -p no:warnings
 else
   # tests without running actual calculations
   if [[ -z "$SKIP_NOWORK" ]]; then

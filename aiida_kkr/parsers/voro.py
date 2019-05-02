@@ -104,6 +104,15 @@ class VoronoiParser(Parser):
         success, msg_list, out_dict = parse_voronoi_output(out_dict, outfile,
                                                            potfile, atominfo,
                                                            radii, inputfile)
+
+        # for some reason python3 has a problem without this:
+        try:
+            from numpy import array
+            tmp = out_dict['core_states_group']['number_of_core_states_per_atom']
+            out_dict['core_states_group']['number_of_core_states_per_atom'] = array(tmp).tolist()
+        except:
+            pass
+
         # add file open errors to parser output of error messages
         for f_err in file_errors:
             msg_list.append(f_err)
