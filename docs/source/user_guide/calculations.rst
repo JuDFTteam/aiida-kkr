@@ -6,6 +6,9 @@ Here the calculations of the aiida-kkr plugin are presented. It is assumed that 
 basic knowledge of python, aiida (e.g. database structure, verdi commands, structure nodes) and
 KKR (e.g. LMAX cutoff, energy contour integration). Also *aiida-kkr* should be installed as well as
 the Voronoi, KKR and KKRimp codes should already be configured.
+
+**In practice, the use of the workflows is more convenient but here the most basic calculations which are used
+underneath in the workflows are introduced step by step.**
     
 In the following the calculation plugins provided by aiida-kkr are introduced at the
 example of bulk Cu.
@@ -30,14 +33,18 @@ functions are created, which are needed for full-potential corrections.
 The voronoi plugin is called ``kkr.voro`` and it has the following input and output nodes:
 
 Three input nodes:
-    * ``parameters`` KKR parameter set for Voronoi calculation (ParameterData)
+    * ``parameters`` KKR parameter set for Voronoi calculation (Dict)
     * ``structure`` structure data node node describing the crystal lattice (StructureData)
     * ``code`` Voronoi code node (code)
 
 Three output nodes:
     * ``remote_folder`` (RemoteData)
     * ``retrieved`` (FolderData)
-    * ``output_parameters`` (ParameterData)
+    * ``output_parameters`` (Dict)
+
+Additional optional input nodes that trigger special behavior of a Voronoi calculation are:
+    * ``parent_KKR`` (RemoteData of a KKR Calculation)
+    * ``potential_overwrite`` (SingleFileData)
 
 Now the basic usage of the voronoi plugin is demonstrated at the example of Cu bulk 
 for which first the aiida structure node and the parameter node containing 
@@ -51,7 +58,7 @@ Input structure node
 First we create an aiida structure::
     
     # get aiida StructureData class:
-    from aiida.orm import DataFactory
+    from aiida.plugins import DataFactory
     StructureData = DataFactory('structure')
 
 Then we create the aiida StructureData node (here for bulk Cu)::
@@ -69,7 +76,7 @@ Input parameter node
 Next we create an empty set of KKR parameters (LMAX cutoff etc. ) for voronoi code::
 
     # load kkrparms class which is a useful tool to create the set of input parameters for KKR-family of calculations
-    from aiida_kkr.tools.kkr_params import kkrparams
+    from masci_tools.io.kkr_params import kkrparams
     params = kkrparams(params_type='voronoi')
     
 .. note:: we can find out which parameters are mandatory to be set using 
@@ -78,10 +85,10 @@ and set at least the mandatory parameters::
 
     params.set_multiple_values(LMAX=2, NSPIN=1, RCLUSTZ=2.3)
     
-finally create an aiida ParameterData node and fill with the dictionary of parameters::
+finally create an aiida Dict node and fill with the dictionary of parameters::
 
-    ParameterData = DataFactory('parameter') # use DataFactory to get ParamerterData class
-    ParaNode = ParameterData(dict=params.get_dict())
+    Dict = DataFactory('dict') # use DataFactory to get ParamerterData class
+    ParaNode = Dict(dict=params.get_dict())
 
     
 Submit calculation
@@ -91,35 +98,52 @@ Now we get the voronoi code::
 
     from aiida.orm import Code # load aiida 'Code' class
     
-    codename = 'voronoi@my_mac'
+    codename = 'voronoi@localhost'
     code = Code.get_from_string(codename)
 
-and create new instance of a VoronoiCalculation::
+.. note:: Make sure that the voronoi code is installed:
+   ``verdi code list`` should give you a list of installed codes where `codename` should be in.
 
-    voro_calc = code.new_calc()
+and create new process builder for a VoronoiCalculation::
 
-and set resources that will be used (here serial job)::
+    builder = code.get_builder()
 
-    voro_calc.set_resources({'num_machines':1, 'tot_num_mpiprocs':1})
+.. note:: This will already set ``builder.code`` to the voronoi code which we loaded above.
+
+and set resources that will be used (here serial job) in the options dict of the metadata::
+
+    builder.metadata.options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1} }
+    
+.. note:: If you use a computer without a default queue you need to set the name of the queue as well:
+    ``builder.metadata.options['queue_name'] = 'th1')``
 
 then set structure and input parameter::
 
-    voro_calc.use_structure(Cu)
-    voro_calc.use_parameters(ParaNode)
-    
-.. note:: If you use a computer without a default queue you need to set the name of the queue as well:
-    ``voro_calc.set_queue_name('th1')``
+    builder.structure = Cu
+    builder.parameters = ParaNode
 
+.. note:: Additionally you could set the ``parent_KKR`` and ``potential_overwrite`` input nodes which trigger special run modes of the voronoi code that are discussed below.
 
-Now we are ready to submit the calculation. For that we first need to store the 
-input nodes nodes and then submit the calculation::
+Now we are ready to submit the calculation::
 
-    voro_calc.store_all()
-    voro_calc.submit()
+    from aiida.engine import submit
+    voro_calc = submit(builder)
 
 .. note:: check calculation state (or use verdi calculation list -a -p1) using 
-          ``voro_calc.get_state()``
-    
+          ``voro_calc.process_state``
+
+
+Voronoi calculation with the ``parent_KKR`` input node
+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+To come ...
+
+
+Voronoi calculation with the ``potential_overwrite`` input node
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+To come ...
+
 
 KKR calculation for bulk and interfaces
 +++++++++++++++++++++++++++++++++++++++
@@ -128,14 +152,14 @@ A KKR calculation is provided by the ``kkr.kkr`` plugin, which has the following
 input and output nodes.
 
 Three input nodes:
-    * ``parameters`` KKR parameter fitting the requirements for a KKR calculation (ParameterData)
+    * ``parameters`` KKR parameter fitting the requirements for a KKR calculation (Dict)
     * ``parent_folder`` parent calulation remote folder node (RemoteFolder)
     * ``code`` KKR code node (code)
 
 Three output nodes:
     * ``remote_folder`` (RemoteData)
     * ``retrieved`` (FolderData)
-    * ``output_parameters`` (ParameterData)
+    * ``output_parameters`` (Dict)
     
 .. note:: The parent calculation can be one of the following:
 
@@ -145,7 +169,7 @@ Three output nodes:
           In case of a continued calculation the voronoi parent is recuresively searched for.
           
 Special features exist where a fourth input node is persent and which triggers special behavior of the KKR calculation:
-    * ``impurity_info`` Node specifying the impurity cluster (*ParameterData*)
+    * ``impurity_info`` Node specifying the impurity cluster (*Dict*)
     * ``kpoints`` Node specifying the kpoints for which the bandstructure is supposed to be calculated (*KpointsData*)
 
 The different possible modes to run a kkr calculation (start from Voronoi calculation,
@@ -158,7 +182,7 @@ Start KKR calculation from voronoi parent
 Reuse settings from voronoi calculation::
 
     voronoi_calc_folder = voro_calc.out.remote_folder
-    voro_params = voro_calc.inp.parameters
+    voro_params = voro_calc.inputs.parameters
 
     
 Now we update the KKR parameter set to meet the requirements for a KKR calculation
@@ -174,25 +198,24 @@ for a KKR calculation and fill the already set values from the previous voronoin
     # choose 20 simple mixing iterations first to preconverge potential (here 5% simple mixing)
     params.set_multiple_values(NSTEPS=20, IMIX=0, STRMIX=0.05)
     
-    # create aiida ParameterData node from the KKR parameters
-    ParaNode = ParameterData(dict=params.get_dict())
+    # create aiida Dict node from the KKR parameters
+    ParaNode = Dict(dict=params.get_dict())
 
 .. note:: You can find out which parameters are missing for the KKR calculation using ``params.get_missing_keys()``
 
 Now we can get the KKR code and create a new calculation instance and set the input nodes accordingly::
 
-    code = Code.get_from_string('KKRcode@my_mac')
-    kkr_calc = code.new_calc()
-    
+    code = Code.get_from_string('KKRcode@localhost')
+    builder = code.get_builder()
+
     # set input Parameter, parent calulation (previous voronoi calculation), computer resources 
-    kkr_calc.use_parameters(ParaNode)
-    kkr_calc.use_parent_folder(voronoi_calc_folder)
-    kkr_calc.set_resources({'num_machines': 1, 'num_mpiprocs_per_machine':1})
+    builder.parameters = ParaNode
+    builder.parent_folder = voronoi_calc_folder
+    builder.metadata.options = {'resources' :{'num_machines': 1, 'num_mpiprocs_per_machine':1}}
 
-We can then run the KKR calculation by again storing the input nodes and submit the calculation::
+We can then run the KKR calculation::
 
-    kkr_calc.store_all()
-    kkr_calc.submit()
+    kkr_calc = submit(builder)
         
 
 .. _KKR_KKR_scf:
@@ -200,33 +223,31 @@ We can then run the KKR calculation by again storing the input nodes and submit 
 Continue KKR calculation from KKR parent calculation
 ----------------------------------------------------
 
-create new KKR calculation instance to continue KKR ontop of a previous KKR calclation::
+First we create a new KKR calculation instance to continue KKR ontop of a previous KKR calclation::
 
-    kkr_calc_continued = code.new_calc()
+    builder = code.get_builder()
 
-reuse old KKR parameters and update scf settings (default is NSTEPS=1, IMIX=0)::
+Next we reuse the old KKR parameters and update scf settings (default is NSTEPS=1, IMIX=0)::
 
     params.set_multiple_values(NSTEPS=50, IMIX=5)
 
-and create aiida ParameterData node::
+and create the aiida Dict node::
 
-    ParaNode = ParameterData(dict=params.get_dict())
+    ParaNode = Dict(dict=params.get_dict())
 
-then set input nodes for calculation::
+Then we set the input nodes for calculation::
 
-    kkr_calc_continued.use_code(code)
-    kkr_calc_continued.use_parameters(ParaNode)
-    kkr_calc_parent_folder = kkr_calc.out.remote_folder # parent remote folder of previous calculation
-    kkr_calc_continued.use_parent_folder(kkr_calc_parent_folder)
-    kkr_calc_continued.set_resources({'num_machines': 1, 'num_mpiprocs_per_machine':1})
+    builder.parameters = ParaNode
+    kkr_calc_parent_folder = kkr_calc.outputs.remote_folder # parent remote folder of previous calculation
+    builder.parent_folder = kkr_calc_parent_folder
+    builder.metadata.options = {'resources': {'num_machines': 1, 'num_mpiprocs_per_machine':1}}
 
 store input nodes and submit calculation::
 
-    kkr_calc_continued.store_all()
-    kkr_calc_continued.submit()
+    kkr_calc_continued = submit(builder)
     
 The finished calculation should have this output node that can be access within 
-python using ``kkr_calc_continued.out.output_parameters.get_dict()``. An excerpt 
+python using ``kkr_calc_continued.outputs.output_parameters.get_dict()``. An excerpt 
 of the ouput dictionary may look like this::
 
     {u'alat_internal': 4.82381975,
@@ -256,32 +277,32 @@ Special run modes: host GF writeout (for KKRimp)
 
 Here we take the remote folder of the converged calculation to reuse settings and write out Green function and tmat of the crystalline host system::
 
-    kkr_converged_parent_folder = kkr_calc_continued.out.remote_folder
+    kkr_converged_parent_folder = kkr_calc_continued.outputs.remote_folder
 
 Now we extract the parameters of the kkr calculation and add the ``KKRFLEX`` run-option::
 
-    kkrcalc_converged = kkr_converged_parent_folder.get_inputs()[0]
-    kkr_params_dict = kkrcalc_converged.inp.parameters.get_dict()
+    kkrcalc_converged = kkr_converged_parent_folder.get_incoming().first().node
+    kkr_params_dict = kkrcalc_converged.inputs.parameters.get_dict()
     kkr_params_dict['RUNOPT'] = ['KKRFLEX']
     
-The parameters dictionary is not passed to the aiida ParameterData node::
+The parameters dictionary is not passed to the aiida Dict node::
 
-    ParaNode = ParameterData(dict=kkr_params_dict)
+    ParaNode = Dict(dict=kkr_params_dict)
     
 Now we create a new KKR calculation and set input nodes::
 
-    code = kkrcalc_converged.get_code() # take the same code as in the calculation before
-    GF_host_calc= code.new_calc()
-    resources = kkrcalc_converged.get_resources()
-    GF_host_calc.set_resources(resources)
-    GF_host_calc.use_parameters(ParaNode)
-    GF_host_calc.use_parent_folder(kkr_converged_parent_folder)
+    code = kkrcalc_converged.inputs.code # take the same code as in the calculation before
+    builder= code.get_builder()
+    resources = kkrcalc_converged.attributes['resources']
+    builder.metadata.options = {'resources': resources}
+    builder.parameters = ParaNode
+    builder.parent_folder = kkr_converged_parent_folder
     # prepare impurity_info node containing the information about the impurity cluster
-    imp_info = ParameterData(dict={'Rcut':1.01, 'ilayer_center': 0, 'Zimp':[79.]})
+    imp_info = Dict(dict={'Rcut':1.01, 'ilayer_center': 0, 'Zimp':[79.]})
     # set impurity info node to calculation
-    GF_host_calc.use_impurity_info(imp_info)
+    builder.impurity_info = imp_info
     
-.. note:: The ``impurity_info`` node should be a ParameterData node and its dictionary should describe 
+.. note:: The ``impurity_info`` node should be a Dict node and its dictionary should describe 
     the impurity cluster using the following parameters:
     
         * ``ilayer_center`` (int) layer index of position in the unit cell that describes the center of the impurity cluster 
@@ -297,9 +318,8 @@ Now we create a new KKR calculation and set input nodes::
     
 The calculation can then be submitted::
 
-    # store input nodes and submit calculation
-    GF_host_calc.store_all()
-    GF_host_calc.submit()
+    # submit calculation
+    GF_host_calc = submit(builder)
 
 Once the calculation has finished the retrieve folder should contain the ``kkrflex_*`` files needed for the impurity calculation.
 
@@ -321,7 +341,7 @@ along high symmetry lines from a structure::
 
     # first extract the structure node from the KKR parent calculation
     from aiida_kkr.calculations.voro import VoronoiCalculation
-    struc, voro_parent = VoronoiCalculation.find_parent_structure(kkr_calc_converged.out.remote_folder)
+    struc, voro_parent = VoronoiCalculation.find_parent_structure(kkr_calc_converged.outputs.remote_folder)
     # then create KpointsData node
     from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
     kpts = get_explicit_kpoints_path(struc).get('explicit_kpoints')
@@ -335,25 +355,24 @@ Then we set the ``kpoints`` input node to a new KKR calculation and change some 
 of the input parameters accordingly (i.e. energy contour like in DOS run)::
 
     # create bandstructure calculation reusing old settings (including same computer and resources in this example)
-    kkrcode = kkr_calc_converged.get_code()
-    kkrcalc = kkrcode.new_calc()
-    kkrcalc.use_kpoints(kpts) # pass kpoints as input
-    kkrcalc.use_parent_folder(kkr_calc_converged.out.remote_folder)
-    kkrcalc.set_resources(kkr_calc_converged.get_resources())
+    kkrcode = kkr_calc_converged.inputs.code
+    builder = kkrcode.get_builder()
+    builder.kpoints = kpts # pass kpoints as input
+    builder.parent_folder = kkr_calc_converged.outputs.remote_folder
+    builder.metadata.options = {'resources': kkr_calc_converged.attributes['resources']}
     # change parameters to qdos settings (E range and number of points)
-    from aiida_kkr.tools.kkr_params import kkrparams
-    qdos_params = kkrparams(**kkr_calc_converged.inp.parameters.get_dict()) # reuse old settings
+    from masci_tools.io.kkr_params import kkrparams
+    qdos_params = kkrparams(**kkr_calc_converged.inputs.parameters.get_dict()) # reuse old settings
     # reuse the same emin/emax settings as in DOS run (extracted from input parameter node)
-    qdos_params.set_multiple_values(EMIN=host_dos_calc.inp.parameters.get_dict().get('EMIN'), 
-                                    EMAX=host_dos_calc.inp.parameters.get_dict().get('EMAX'), 
+    qdos_params.set_multiple_values(EMIN=host_dos_calc.inputs.parameters.get_dict().get('EMIN'), 
+                                    EMAX=host_dos_calc.inputs.parameters.get_dict().get('EMAX'), 
                                     NPT2=100)
-    kkrcalc.use_parameters(ParameterData(dict=qdos_params.get_dict()))
+    builder.parameters = Dict(dict=qdos_params.get_dict())
     
 The calculation is then ready to be submitted::
 
-    # store and submit calculation
-    kkrcalc.store_all()
-    kkrcalc.submit()
+    # submit calculation
+    kkrcalc = submit(builder)
 
 The result of the calculation will then contain the ``qdos.aa.s.dat`` files in the 
 retrieved node, where ``aa`` is the atom index and ``s`` the spin index of all atoms
@@ -380,13 +399,13 @@ Then we set the ``XCLP`` run option and the ``JIJRAD`` parameter (the ``JIJRADXY
 example) in the input node to a new KKR calculation::
 
     # create bandstructure calculation reusing old settings (including same computer and resources in this example)
-    kkrcode = kkr_calc_converged.get_code()
-    kkrcalc = kkrcode.new_calc()
-    kkrcalc.use_parent_folder(kkr_calc_converged.out.remote_folder)
-    kkrcalc.set_resources(kkr_calc_converged.get_resources())
+    kkrcode = kkr_calc_converged.inputs.code
+    builder = kkrcode.get_builder()
+    builder.parent_folder = kkr_calc_converged.outputs.remote_folder
+    builder.metadata.options = {'resources': kkr_calc_converged.attributes['resources']}
     # change parameters to Jij settings ('XCPL' runopt and JIJRAD parameter)
     from aiida_kkr.tools.kkr_params import kkrparams
-    Jij_params = kkrparams(**kkr_calc_converged.inp.parameters.get_dict()) # reuse old settings
+    Jij_params = kkrparams(**kkr_calc_converged.inputs.parameters.get_dict()) # reuse old settings
     # add JIJRAD (remember: in alat units)
     Jij_params.set_value('JIJRAD', 1.5)
     # add 'XCPL' runopt to list of runopts
@@ -394,13 +413,12 @@ example) in the input node to a new KKR calculation::
     runopts.append('XCPL    ')
     Jij_params.set_value('RUNOPT', runopts)
     # now use updated parameters
-    kkrcalc.use_parameters(ParameterData(dict=qdos_params.get_dict()))
+    builder.parameters = Dict(dict=qdos_params.get_dict())
     
 The calculation is then ready to be submitted::
 
-    # store and submit calculation
-    kkrcalc.store_all()
-    kkrcalc.submit()
+    # submit calculation
+    kkrcalc = submit(builder)
 
 The result of the calculation will then contain the ``Jijatom.*`` files in the 
 retrieved node and the ``shells.dat`` files which allows to map the values of the 
@@ -413,7 +431,7 @@ KKR impurity calculation
 Plugin: ``kkr.kkrimp``
 
 Four input nodes:
-    * ``parameters``, optional: KKR parameter fitting the requirements for a KKRimp calculation (ParameterData)
+    * ``parameters``, optional: KKR parameter fitting the requirements for a KKRimp calculation (Dict)
     * Only one of
     
         #. ``impurity_potential``: starting potential for the impurity run (SingleFileData)
@@ -426,7 +444,7 @@ Four input nodes:
 Three output nodes:
     * ``remote_folder`` (RemoteData)
     * ``retrieved`` (FolderData)
-    * ``output_parameters`` (ParameterData)
+    * ``output_parameters`` (Dict)
     
 .. note:: The parent calculation can be one of the following:
 
@@ -472,20 +490,21 @@ We start with the creation of the auxiliary styructure::
             
         return new_struc
 
-    new_struc = change_struc_imp_aux_wf(voro_calc.inp.structure, imp_info)
+    new_struc = change_struc_imp_aux_wf(voro_calc.inputs.structure, imp_info)
+
+.. note:: This functionality is alreadyincorporated in the ``kkr_imp_wc`` workflow.
     
 Then we run the Voronoi calculation for auxiliary structure to create the impurity starting potential::
 
-    codename = 'voronoi@my_mac'
+    codename = 'voronoi@localhost'
     code = Code.get_from_string(codename)
     
-    voro_calc_aux = code.new_calc()
-    voro_calc_aux.set_resources({'num_machines':1, 'tot_num_mpiprocs':1})
-    voro_calc_aux.use_structure(new_struc)
-    voro_calc_aux.use_parameters(kkrcalc_converged.inp.parameters)
+    builder = code.get_builder()
+    builder.metadata.options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}}
+    builder.structure = new_struc
+    builder.parameters = kkrcalc_converged.inputs.parameters
     
-    voro_calc_aux.store_all()
-    voro_calc_aux.submit()
+    voro_calc_aux = submit(builder)
     
 Now we create the impurity starting potential using the converged host potential 
 for the surrounding of the impurity and the new Au impurity startpot::
@@ -494,18 +513,18 @@ for the surrounding of the impurity and the new Au impurity startpot::
 
     potname_converged = kkrcalc_converged._POTENTIAL
     potname_imp = 'potential_imp'
-    neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]
+    neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.outputs.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]
     potname_impvorostart = voro_calc_aux._OUT_POTENTIAL_voronoi
     replacelist_pot2 = [[0,0]]
     
     settings_dict = {'pot1': potname_converged,  'out_pot': potname_imp, 'neworder': neworder_pot1,
                      'pot2': potname_impvorostart, 'replace_newpos': replacelist_pot2, 'label': 'startpot_KKRimp',
                      'description': 'starting potential for Au impurity in bulk Cu'} 
-    settings = ParameterData(dict=settings_dict)
+    settings = Dict(dict=settings_dict)
     
     startpot_Au_imp_sfd = neworder_potential_wf(settings_node=settings, 
-                                                parent_calc_folder=kkrcalc_converged.out.remote_folder, 
-                                                parent_calc_folder2=voro_calc_aux.out.remote_folder)
+                                                parent_calc_folder=kkrcalc_converged.outputs.remote_folder, 
+                                                parent_calc_folder2=voro_calc_aux.outputs.remote_folder)
     
 
 Create and submit initial KKRimp calculation
@@ -516,29 +535,27 @@ to preconverge the impurity potential (Au embedded into Cu ulk host as described
 ``impurity_info`` node)::
 
     # needed to link to host GF writeout calculation
-    GF_host_output_folder = GF_host_calc.out.remote_folder
+    GF_host_output_folder = GF_host_calc.outputs.remote_folder
     
     # create new KKRimp calculation
     from aiida_kkr.calculations.kkrimp import KkrimpCalculation
     kkrimp_calc = KkrimpCalculation()
     
-    kkrimp_code = Code.get_from_string('KKRimp@my_mac')
+    builder = Code.get_from_string('KKRimp@my_mac')
     
-    kkrimp_calc.use_code(kkrimp_code)
-    kkrimp_calc.use_host_Greenfunction_folder(GF_host_output_folder)
-    kkrimp_calc.use_impurity_potential(startpot_Au_imp_sfd)
-    kkrimp_calc.set_resources(resources)
-    kkrimp_calc.set_computer(kkrimp_code.get_computer())
+    builder.code(kkrimp_code)
+    builder.host_Greenfunction_folder = GF_host_output_folder
+    builder.impurity_potential = startpot_Au_imp_sfd
+    builder.resources = resources
     
     # first set 20 simple mixing steps
     kkrimp_params = kkrparams(params_type='kkrimp')
     kkrimp_params.set_multiple_values(SCFSTEPS=20, IMIX=0, MIXFAC=0.05)
-    ParamsKKRimp = ParameterData(dict=kkrimp_params.get_dict())
-    kkrimp_calc.use_parameters(ParamsKKRimp)
+    ParamsKKRimp = Dict(dict=kkrimp_params.get_dict())
+    bilder.parameters = ParamsKKRimp
     
-    # store and submit
-    kkrimp_calc.store_all()
-    kkrimp_calc.submit()
+    # submit calculation
+    kkrimp_calc = submit(builder)
 
 
 Restart KKRimp calculation from KKRimp parent
@@ -548,19 +565,18 @@ Here we demonstrate how to restart a KKRimp calculation from a parent calculatio
 from which the starting potential is extracted autimatically. This is used to compute 
 the converged impurity potential starting from the previous preconvergence step::
 
-    kkrimp_calc_converge = kkrimp_code.new_calc()
-    kkrimp_calc_converge.use_parent_calc_folder(kkrimp_calc.out.remote_folder)
-    kkrimp_calc_converge.set_resources(resources)
-    kkrimp_calc_converge.use_host_Greenfunction_folder(kkrimp_calc.inp.GFhost_folder)
+    builder = kkrimp_code.get_builder()
+    builder.parent_calc_folder = kkrimp_calc.outputs.remote_folder
+    builder.metadata.options = {'resources': resources}
+    builder.host_Greenfunction_folder = kkrimp_calc.inputs.GFhost_folder
     
-    kkrimp_params = kkrparams(params_type='kkrimp', **kkrimp_calc.inp.parameters.get_dict())
+    kkrimp_params = kkrparams(params_type='kkrimp', **kkrimp_calc.inputs.parameters.get_dict())
     kkrimp_params.set_multiple_values(SCFSTEPS=99, IMIX=5, MIXFAC=0.05)
-    ParamsKKRimp = ParameterData(dict=kkrimp_params.get_dict())
-    kkrimp_calc_converge.use_parameters(ParamsKKRimp)
+    ParamsKKRimp = Dict(dict=kkrimp_params.get_dict())
+    builder.parameters = ParamsKKRimp
     
-    # store and submit
-    kkrimp_calc_converge.store_all()
-    kkrimp_calc_converge.submit()
+    # submit
+    kkrimp_calc_converge = submit(builder)
     
 
 Impurity DOS
@@ -570,50 +586,48 @@ create final imp DOS (new host GF for DOS contour, then KKRimp calc using conver
 
 first prepare host GF with DOS contour::
 
-    params = kkrparams(**GF_host_calc.inp.parameters.get_dict())
+    params = kkrparams(**GF_host_calc.inputs.parameters.get_dict())
     params.set_multiple_values(EMIN=-0.2, EMAX=GF_host_calc.res.fermi_energy+0.1, NPOL=0, NPT1=0, NPT2=101, NPT3=0)
-    ParaNode = ParameterData(dict=params.get_dict())
+    ParaNode = Dict(dict=params.get_dict())
     
-    code = GF_host_calc.get_code() # take the same code as in the calculation before
-    GF_host_doscalc= code.new_calc()
+    code = GF_host_calc.inputs.code # take the same code as in the calculation before
+    builder= code.new_calc()
     resources = GF_host_calc.get_resources()
-    GF_host_doscalc.set_resources(resources)
-    GF_host_doscalc.use_parameters(ParaNode)
-    GF_host_doscalc.use_parent_folder(kkr_converged_parent_folder)
-    GF_host_doscalc.use_impurity_info(GF_host_calc.inp.impurity_info)
+    builder.resources = resources
+    builder.parameters = ParaNode
+    builder.parent_folder = kkr_converged_parent_folder
+    builder.impurity_info = GF_host_calc.inputs.impurity_info
     
-    GF_host_doscalc.store_all()
-    GF_host_doscalc.submit()
+    GF_host_doscalc = submit(builder)
     
 Then we run the KKRimp step using the converged potential (via the ``parent_calc_folder`` 
 node) and the host GF which contains the DOS contour information (via ``host_Greenfunction_folder``)::
 
-    kkrimp_doscalc = kkrimp_calc_converge.get_code().new_calc()
-    kkrimp_doscalc.use_host_Greenfunction_folder(GF_host_doscalc.out.remote_folder)
-    kkrimp_doscalc.use_parent_calc_folder(kkrimp_calc_converge.out.remote_folder)
-    kkrimp_doscalc.set_resources(kkrimp_calc_converge.get_resources())
+    builder = kkrimp_calc_converge.inputs.code.get_builder()
+    builder.host_Greenfunction_folder(GF_host_doscalc.outputs.remote_folder)
+    builder.parent_calc_folder(kkrimp_calc_converge.outputs.remote_folder)
+    builder.resources(kkrimp_calc_converge.get_resources())
     
-    params = kkrparams(params_type='kkrimp', **kkrimp_calc_converge.inp.parameters.get_dict())
+    params = kkrparams(params_type='kkrimp', **kkrimp_calc_converge.inputs.parameters.get_dict())
     params.set_multiple_values(RUNFLAG=['lmdos'], SCFSTEPS=1)
-    ParaNode = ParameterData(dict=params.get_dict())
+    ParaNode = Dict(dict=params.get_dict())
     
-    kkrimp_doscalc.use_parameters(ParaNode)
+    builder.parameters(ParaNode)
     
-    kkrimp_doscalc.store_all()
-    kkrimp_doscalc.submit()
+    kkrimp_doscalc = submit(builder)
     
 Finally we plot the DOS::
 
     # get interpolated DOS from GF_host_doscalc calculation:
     from masci_tools.io.common_functions import interpolate_dos
-    dospath_host = GF_host_doscalc.out.retrieved.get_abs_path('')
+    dospath_host = GF_host_doscalc.outputs.retrieved.get_abs_path('')
     ef, dos, dos_interpol = interpolate_dos(dospath_host, return_original=True)
     dos, dos_interpol = dos[0], dos_interpol[0]
     
     # read in impurity DOS
     from numpy import loadtxt
-    impdos0 = loadtxt(kkrimp_doscalc.out.retrieved.get_abs_path('out_lmdos.interpol.atom=01_spin1.dat'))
-    impdos1 = loadtxt(kkrimp_doscalc.out.retrieved.get_abs_path('out_lmdos.interpol.atom=13_spin1.dat'))
+    impdos0 = loadtxt(kkrimp_doscalc.outputs.retrieved.get_abs_path('out_lmdos.interpol.atom=01_spin1.dat'))
+    impdos1 = loadtxt(kkrimp_doscalc.outputs.retrieved.get_abs_path('out_lmdos.interpol.atom=13_spin1.dat'))
     # sum over spins:
     impdos0[:,1:] = impdos0[:,1:]*2
     impdos1[:,1:] = impdos1[:,1:]*2
@@ -643,6 +657,8 @@ Which should look like this:
     
 KKR calculation importer
 ++++++++++++++++++++++++
+
+**Only functional in version below 1.0**
 
 Plugin ``kkr.kkrimporter`` 
 
@@ -728,14 +744,14 @@ After the calculation has finished the following nodes should appear in the aiid
     ##### INPUTS:
     Link label       PK  Type
     ------------  -----  -------------
-    parameters    22120  ParameterData
+    parameters    22120  Dict
     structure     22119  StructureData
     ##### OUTPUTS:
     Link label            PK  Type
     -----------------  -----  -------------
     remote_folder      22122  RemoteData
     retrieved          22123  FolderData
-    output_parameters  22124  ParameterData
+    output_parameters  22124  Dict
     ##### LOGS:
     There are 1 log messages for this calculation
     Run 'verdi calculation logshow 22121' to see them
@@ -747,6 +763,8 @@ Example scripts
 +++++++++++++++
 
 Here is a small collection of example scripts.
+
+**Scripts need to be updated for new version (>1.0)**
 
 Full example Voronoi-KKR-KKRimp
 -------------------------------
@@ -769,7 +787,7 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     from aiida.orm import Code
     from aiida.orm import DataFactory
     StructureData = DataFactory('structure')
-    ParameterData = DataFactory('parameter')
+    Dict = DataFactory('parameter')
     
     # load kkrparms class which is a useful tool to create the set of input parameters for KKR-family of calculations
     from aiida_kkr.tools.kkr_params import kkrparams
@@ -811,8 +829,8 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     # and set at least the mandatory parameters
     params.set_multiple_values(LMAX=2, NSPIN=1, RCLUSTZ=2.3)
     
-    # finally create an aiida ParameterData node and fill with the dictionary of parameters
-    ParaNode = ParameterData(dict=params.get_dict())
+    # finally create an aiida Dict node and fill with the dictionary of parameters
+    ParaNode = Dict(dict=params.get_dict())
     
     # choose a valid installation of the voronoi code
     ### !!! adapt to your code name !!! ###
@@ -839,8 +857,8 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     wait_for_it(voro_calc)
     
     # for future reference
-    voronoi_calc_folder = voro_calc.out.remote_folder
-    voro_params = voro_calc.inp.parameters
+    voronoi_calc_folder = voro_calc.outputs.remote_folder
+    voro_params = voro_calc.inputs.parameters
     
     
     ###################################################
@@ -856,8 +874,8 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     # choose 20 simple mixing iterations first to preconverge potential (here 5% simple mixing)
     params.set_multiple_values(NSTEPS=20, IMIX=0, STRMIX=0.05)
     
-    # create aiida ParameterData node from the KKR parameters
-    ParaNode = ParameterData(dict=params.get_dict())
+    # create aiida Dict node from the KKR parameters
+    ParaNode = Dict(dict=params.get_dict())
     
     # get KKR code and create new calculation instance
     ### !!! use your code name !!! ###
@@ -889,13 +907,13 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     
     # reuse old KKR parameters and update scf settings (default is NSTEPS=1, IMIX=0)
     params.set_multiple_values(NSTEPS=50, IMIX=5)
-    # and create aiida ParameterData node
-    ParaNode = ParameterData(dict=params.get_dict())
+    # and create aiida Dict node
+    ParaNode = Dict(dict=params.get_dict())
     
     # then set input nodes for calculation
     kkr_calc_continued.use_code(code)
     kkr_calc_continued.use_parameters(ParaNode)
-    kkr_calc_parent_folder = kkr_calc.out.remote_folder # parent remote folder of previous calculation
+    kkr_calc_parent_folder = kkr_calc.outputs.remote_folder # parent remote folder of previous calculation
     kkr_calc_continued.use_parent_folder(kkr_calc_parent_folder)
     kkr_calc_continued.set_resources({'num_machines': 1, 'num_mpiprocs_per_machine':1})
     
@@ -915,17 +933,17 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     ###################################################
     
     # take remote folder of converged calculation to reuse setting and write out Green function and tmat of the crystalline host system
-    kkr_converged_parent_folder = kkr_calc_continued.out.remote_folder
+    kkr_converged_parent_folder = kkr_calc_continued.outputs.remote_folder
     
     # extreact kkr calculation from parent calculation folder
     kkrcalc_converged = kkr_converged_parent_folder.get_inputs()[0]
     
     # extract parameters from parent calculation and update RUNOPT for KKRFLEX option
-    kkr_params_dict = kkrcalc_converged.inp.parameters.get_dict()
+    kkr_params_dict = kkrcalc_converged.inputs.parameters.get_dict()
     kkr_params_dict['RUNOPT'] = ['KKRFLEX']
     
-    # create aiida ParameterData node with set parameters that are updated compared to converged parent kkr calculation
-    ParaNode = ParameterData(dict=kkr_params_dict)
+    # create aiida Dict node with set parameters that are updated compared to converged parent kkr calculation
+    ParaNode = Dict(dict=kkr_params_dict)
     
     # create new KKR calculation
     code = kkrcalc_converged.get_code() # take the same code as in the calculation before
@@ -941,7 +959,7 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     # GF_host_calc.set_queue_name('<quene_name>')
     
     # prepare impurity_info node containing the information about the impurity cluster
-    imp_info = ParameterData(dict={'Rcut':1.01, 'ilayer_center':0, 'Zimp':[79.]})
+    imp_info = Dict(dict={'Rcut':1.01, 'ilayer_center':0, 'Zimp':[79.]})
     # set impurity info node to calculation
     GF_host_calc.use_impurity_info(imp_info)
     
@@ -982,7 +1000,7 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     
         return new_struc
     
-    new_struc = change_struc_imp_aux_wf(voro_calc.inp.structure, imp_info)
+    new_struc = change_struc_imp_aux_wf(voro_calc.inputs.structure, imp_info)
     
     # then Voronoi calculation for auxiliary structure
     ### !!! use your code name !!! ###
@@ -991,7 +1009,7 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     voro_calc_aux = code.new_calc()
     voro_calc_aux.set_resources({'num_machines':1, 'tot_num_mpiprocs':1})
     voro_calc_aux.use_structure(new_struc)
-    voro_calc_aux.use_parameters(kkrcalc_converged.inp.parameters)
+    voro_calc_aux.use_parameters(kkrcalc_converged.inputs.parameters)
     voro_calc_aux.store_all()
     voro_calc_aux.submit()
     ### !!! use queue name if necessary !!! ###
@@ -1006,14 +1024,14 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     
     potname_converged = kkrcalc_converged._POTENTIAL
     potname_imp = 'potential_imp'
-    neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.out.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]
+    neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.outputs.retrieved.get_abs_path('scoef'), skiprows=1)[:,3]-1]
     potname_impvorostart = voro_calc_aux._OUT_POTENTIAL_voronoi
     replacelist_pot2 = [[0,0]]
     
     settings_dict = {'pot1': potname_converged,  'out_pot': potname_imp, 'neworder': neworder_pot1,
                      'pot2': potname_impvorostart, 'replace_newpos': replacelist_pot2, 'label': 'startpot_KKRimp',
                      'description': 'starting potential for Au impurity in bulk Cu'}
-    settings = ParameterData(dict=settings_dict)
+    settings = Dict(dict=settings_dict)
     
     startpot_Au_imp_sfd = neworder_potential_wf(settings_node=settings,
                                                 parent_calc_folder=kkrcalc_converged.out.remote_folder,
@@ -1040,7 +1058,7 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     # first set 20 simple mixing steps
     kkrimp_params = kkrparams(params_type='kkrimp')
     kkrimp_params.set_multiple_values(SCFSTEPS=20, IMIX=0, MIXFAC=0.05)
-    ParamsKKRimp = ParameterData(dict=kkrimp_params.get_dict())
+    ParamsKKRimp = Dict(dict=kkrimp_params.get_dict())
     kkrimp_calc.use_parameters(ParamsKKRimp)
     
     # store and submit
@@ -1058,11 +1076,11 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     kkrimp_calc_converge = kkrimp_code.new_calc()
     kkrimp_calc_converge.use_parent_calc_folder(kkrimp_calc.out.remote_folder)
     kkrimp_calc_converge.set_resources(resources)
-    kkrimp_calc_converge.use_host_Greenfunction_folder(kkrimp_calc.inp.GFhost_folder)
+    kkrimp_calc_converge.use_host_Greenfunction_folder(kkrimp_calc.inputs.GFhost_folder)
     
-    kkrimp_params = kkrparams(params_type='kkrimp', **kkrimp_calc.inp.parameters.get_dict())
+    kkrimp_params = kkrparams(params_type='kkrimp', **kkrimp_calc.inputs.parameters.get_dict())
     kkrimp_params.set_multiple_values(SCFSTEPS=99, IMIX=5, MIXFAC=0.05)
-    ParamsKKRimp = ParameterData(dict=kkrimp_params.get_dict())
+    ParamsKKRimp = Dict(dict=kkrimp_params.get_dict())
     kkrimp_calc_converge.use_parameters(ParamsKKRimp)
     
     ### !!! use queue name if necessary !!! ###
@@ -1092,7 +1110,7 @@ Download: :download:`this example script <../examples/kkrimp_dos_example.py>`
         load_dbenv()
     # load essential aiida classes
     from aiida.orm import DataFactory, load_node
-    ParameterData = DataFactory('parameter')
+    Dict = DataFactory('parameter')
     
 
     # some settings:
@@ -1102,8 +1120,8 @@ Download: :download:`this example script <../examples/kkrimp_dos_example.py>`
     kkrimp_calc_converge = load_node(25025)
     
     # derived quantities:
-    GF_host_calc = kkrimp_calc_converge.inp.GFhost_folder.inp.remote_folder
-    kkr_converged_parent_folder = GF_host_calc.inp.parent_calc_folder
+    GF_host_calc = kkrimp_calc_converge.inputs.GFhost_folder.inputs.remote_folder
+    kkr_converged_parent_folder = GF_host_calc.inputs.parent_calc_folder
     
     # helper function
     def wait_for_it(calc, maxwait=300):
@@ -1121,9 +1139,9 @@ Download: :download:`this example script <../examples/kkrimp_dos_example.py>`
     
     # first host GF with DOS contour
     from aiida_kkr.tools.kkr_params import kkrparams
-    params = kkrparams(**GF_host_calc.inp.parameters.get_dict())
+    params = kkrparams(**GF_host_calc.inputs.parameters.get_dict())
     params.set_multiple_values(EMIN=emin, EMAX=GF_host_calc.res.fermi_energy+dE_emax, NPOL=0, NPT1=0, NPT2=npt, NPT3=0)
-    ParaNode = ParameterData(dict=params.get_dict())
+    ParaNode = Dict(dict=params.get_dict())
     
     code = GF_host_calc.get_code() # take the same code as in the calculation before
     GF_host_doscalc= code.new_calc()
@@ -1131,7 +1149,7 @@ Download: :download:`this example script <../examples/kkrimp_dos_example.py>`
     GF_host_doscalc.set_resources(resources)
     GF_host_doscalc.use_parameters(ParaNode)
     GF_host_doscalc.use_parent_folder(kkr_converged_parent_folder)
-    GF_host_doscalc.use_impurity_info(GF_host_calc.inp.impurity_info)
+    GF_host_doscalc.use_impurity_info(GF_host_calc.inputs.impurity_info)
     
     # store and submit
     GF_host_doscalc.store_all()
@@ -1149,9 +1167,9 @@ Download: :download:`this example script <../examples/kkrimp_dos_example.py>`
     kkrimp_doscalc.set_resources(kkrimp_calc_converge.get_resources())
     
     # set to DOS settings
-    params = kkrparams(params_type='kkrimp', **kkrimp_calc_converge.inp.parameters.get_dict())
+    params = kkrparams(params_type='kkrimp', **kkrimp_calc_converge.inputs.parameters.get_dict())
     params.set_multiple_values(RUNFLAG=['lmdos'], SCFSTEPS=1)
-    ParaNode = ParameterData(dict=params.get_dict())
+    ParaNode = Dict(dict=params.get_dict())
     
     kkrimp_doscalc.use_parameters(ParaNode)
     
@@ -1222,7 +1240,7 @@ Download: :download:`this example script <../examples/kkr_bandstruc_example.py>`
     # load essential aiida classes
     from aiida.orm import Code, DataFactory, load_node
     StructureData = DataFactory('structure')
-    ParameterData = DataFactory('parameter')
+    Dict = DataFactory('parameter')
     
     # helper function:
     def wait_for_it(calc, maxwait=300):
@@ -1264,12 +1282,12 @@ Download: :download:`this example script <../examples/kkr_bandstruc_example.py>`
     kkrcalc.set_resources(kkr_calc_converged.get_resources())
     # change parameters to qdos settings (E range and number of points)
     from aiida_kkr.tools.kkr_params import kkrparams
-    qdos_params = kkrparams(**kkr_calc_converged.inp.parameters.get_dict()) # reuse old settings
+    qdos_params = kkrparams(**kkr_calc_converged.inputs.parameters.get_dict()) # reuse old settings
     # reuse the same emin/emax settings as in DOS run (extracted from input parameter node)
-    qdos_params.set_multiple_values(EMIN=host_dos_calc.inp.parameters.get_dict().get('EMIN'), 
-                                    EMAX=host_dos_calc.inp.parameters.get_dict().get('EMAX'), 
+    qdos_params.set_multiple_values(EMIN=host_dos_calc.inputs.parameters.get_dict().get('EMIN'), 
+                                    EMAX=host_dos_calc.inputs.parameters.get_dict().get('EMAX'), 
                                     NPT2=100)
-    kkrcalc.use_parameters(ParameterData(dict=qdos_params.get_dict()))
+    kkrcalc.use_parameters(Dict(dict=qdos_params.get_dict()))
     
     # store and submit calculation
     kkrcalc.store_all()

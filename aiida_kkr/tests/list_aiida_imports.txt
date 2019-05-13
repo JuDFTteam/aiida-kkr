@@ -1,0 +1,65 @@
+tools/common_workfunctions.py:    from aiida.engine.calculation.job import CalcJob
+==> from aiida.engine import CalcJob
+OK
+
+tests/test_entrypoints.py:        from aiida.parsers import ParserFactory
+==> from aiida.plugins import ParserFactory
+OK
+
+parsers/kkr.py:from aiida.orm.nodes.parameter import Dict
+==> from aiida.orm import Dict
+OK
+
+workflows/kkr_scf.py:from aiida.plugins import Code, load_node
+==> from aiida.orm import Code, load_node
+OK
+
+tests/test_entrypoints.py:        from aiida.plugins import Data
+==> from aiida.orm import Data
+OK
+
+tests/test_entrypoints.py:        from aiida.orm import WorkflowFactory
+==> from aiida.plugins import WorkflowFactory
+OK
+
+workflows/dos.py:from aiida.orm import WorkCalculation
+==> from aiida.orm import WorkChainNode
+OK
+
+tools/plot_kkr.py:        from aiida.plugins import Calculation
+==> from aiida.orm import CalculationNode
+OK
+
+tools/plot_kkr.py:        from aiida.orm.node import Node
+==> from aiida.orm import Node
+OK
+
+workflows/kkr_imp.py:from aiida.engine.workfunctions import workfunction as wf
+==> from aiida.engine import workfunction
+OK
+
+workflows/eos.py:from aiida.orm.nodes.base import Float, Bool
+workflows/kkr_imp_sub.py:from aiida.orm.nodes.base import Float
+==> from aiida.orm import Float, Bool
+OK
+
+workflows/gf_writeout.py:from aiida.engine.workchain import WorkChain, ToContext, if_
+==> from aiida.engine import ...
+OK
+
+workflows/eos.py:    from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
+==> from aiida.tools import get_explicit_kpoints_path
+OK
+
+calculations/kkrimporter.py:from aiida.common.datastructures import calc_states
+==> replace with calculation.is_finished_ok check, the rest is taken care of by the engine
+OK
+
+calculations/kkrimporter.py:from aiida.engine.calculation.job import _input_subfolder
+calculations/kkrimporter.py:from aiida.common.links import LinkType
+
+
+tests/dbsetup.py:    from aiida.orm.backend import construct_backend
+
+tests/workflows/dbsetup.py:    from aiida.orm.backend import construct_backend
+tests/workflows/test_scf_wc_simple.py:        from aiida.orm.implementation.django.code import Code

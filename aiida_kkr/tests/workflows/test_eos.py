@@ -5,41 +5,23 @@ from __future__ import print_function
 import pytest
 from aiida_kkr.tests.dbsetup import *
 
-# helper function
-def print_clean_inouts(node):
-    from pprint import pprint
-    inputs = node.get_inputs_dict()
-    outputs = node.get_outputs_dict()
-    for key in outputs.keys():
-        try:
-            int(key.split('_')[-1])
-            has_id = True
-        except:
-            has_id = False
-        if 'CALL' in key or 'CREATE' in key or has_id:
-            outputs.pop(key)
-    print('inputs:')
-    pprint(inputs)
-    print('\noutputs:')
-    pprint(outputs)
-
 
 # tests
 @pytest.mark.usefixtures("aiida_env")
-class Test_scf_workflow():
+class Test_eos_workflow():
     """
     Tests for the scf workfunction
     """
 
-    @pytest.mark.timeout(300, method='thread')
-    def test_scf_wc_Cu_simple(self):
+    @pytest.mark.timeout(500, method='thread')
+    def test_eos_wc_Cu_simple(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
         """
         from aiida.orm import Code, load_node
         from aiida.plugins import DataFactory
         from masci_tools.io.kkr_params import kkrparams
-        from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
+        from aiida_kkr.workflows.eos import kkr_eos_wc
         from pprint import pprint
         from numpy import array
 
@@ -61,22 +43,23 @@ class Test_scf_workflow():
         Cu.append_atom(position=[0.0, 0.0, 0.0], symbols='Cu')
 
         Cu.store()
-        print(Cu)
 
         # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
-        wfd = kkr_scf_wc.get_wf_defaults()
+        wfd, options = kkr_eos_wc.get_wf_defaults()
+        wfd['nsteps'] = 3
+        wfd['settings_kkr_scf']['convergence_criterion'] = 10**-4
+        wfd['settings_kkr_scf']['convergence_setting_fine'] = wfd['settings_kkr_scf']['convergence_setting_coarse']
+        wfd['settings_kkr_scf']['nsteps'] = 80
+        wfd['settings_kkr_scf']['num_rerun'] = 2
+        wfd['settings_kkr_scf']['natom_in_cls_min'] = 20
+        wfd['settings_kkr_startpot']['natom_in_cls_min'] = 20
+        wfd['settings_kkr_startpot']['num_rerun'] = 2
+        wfd['fitfunction'] = 'sj' # for only three points only sj fit works
 
-        wfd['convergence_criterion'] = 10**-4
-        wfd['check_dos'] = False
-        wfd['kkr_runmax'] = 5
-        wfd['nsteps'] = 50
-
-        wfd['num_rerun'] = 2
-        wfd['natom_in_cls_min'] = 20
-
-        KKRscf_wf_parameters = Dict(dict=wfd)
-
-        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
+        KKReos_wf_parameters = Dict(dict=wfd)
+        options['queue_name'] = queuename
+        options['max_wallclock_seconds'] = 5*60
+        options['use_mpi'] = False
         options = Dict(dict=options)
 
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
@@ -86,16 +69,16 @@ class Test_scf_workflow():
         # Finally we use the kkrparams class to prepare a valid set of KKR parameters that are stored as a Dict object for the use in aiida
         ParaNode = Dict(dict=kkrparams(LMAX=2, RMAX=7, GMAX=65, NSPIN=1, RCLUSTZ=1.9).get_dict())
 
-        label = 'KKR-scf for Cu bulk'
-        descr = 'KKR self-consistency workflow for Cu bulk'
+        label = 'KKR-eos for Cu bulk'
+        descr = 'KKR equation of states for Cu bulk'
 
         # create process builder to set parameters
-        builder = kkr_scf_wc.get_builder()
+        builder = kkr_eos_wc.get_builder()
         builder.calc_parameters = ParaNode
         builder.voronoi = VoroCode
         builder.kkr = KKRCode
         builder.structure = Cu
-        builder.wf_parameters = KKRscf_wf_parameters
+        builder.wf_parameters = KKReos_wf_parameters
         builder.options = options
         builder.label = label
         builder.description = descr
@@ -106,7 +89,7 @@ class Test_scf_workflow():
 
         # load node of workflow
         print(out)
-        n = out['output_kkr_scf_wc_ParameterResults']
+        n = out['eos_results']
 
         # get output dictionary
         out = n.get_dict()
@@ -116,32 +99,14 @@ class Test_scf_workflow():
         # finally check some output
         print('\n\ncheck values ...\n-------------------------------------------------')
 
-        print('voronoi_step_success', out['voronoi_step_success'])
-        assert out['voronoi_step_success']
-
-        print('kkr_step_success', out['kkr_step_success'])
-        assert out['kkr_step_success']
-
         print('successful', out['successful'])
         assert out['successful']
 
-        print('error', out['errors'])
-        assert out['errors'] == []
+        print('rms', out['rms'])
+        assert max(out['rms'])<10**-4
 
-        print('warning', out['warnings'])
-        assert out['warnings'] == []
-
-        print('convergence_reached', out['convergence_reached'])
-        assert out['convergence_reached']
-
-        print('convergence_value', out['convergence_value'])
-        assert out['convergence_value'] < 10**-4
-
-        print('charge_neutrality', abs(out['charge_neutrality']))
-        assert abs(out['charge_neutrality']) < 5*10**-4
-
-        print('used_higher_accuracy', out['used_higher_accuracy'])
-        assert out['used_higher_accuracy']
+        print('gs_scale_factor', out['gs_scale_factor'])
+        assert abs(out['gs_scale_factor']-1.07077031740822) < 10**-7
 
         print('\ndone with checks\n')
 
@@ -150,5 +115,5 @@ if __name__=='__main__':
    from aiida import is_dbenv_loaded, load_dbenv
    if not is_dbenv_loaded():
       load_dbenv()
-   Test = Test_scf_workflow()
-   Test.test_scf_wc_Cu_simple()
+   Test = Test_eos_workflow()
+   Test.test_eos_wc_Cu_simple()

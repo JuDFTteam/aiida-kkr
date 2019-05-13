@@ -6,13 +6,12 @@ some helper methods to do so with AiiDA
 """
 from __future__ import print_function
 from __future__ import division
-
-from builtins import range
-from past.utils import old_div
-from aiida.orm import Code, DataFactory, load_node
-from aiida.orm.data.base import Float, Bool
-from aiida.work.workchain import WorkChain, ToContext
-from aiida.work.workfunctions import workfunction as wf
+from __future__ import absolute_import
+from aiida.orm import Code, load_node
+from aiida.plugins import DataFactory
+from aiida.orm import Float, Bool
+from aiida.engine import WorkChain, ToContext
+from aiida.engine import calcfunction
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.tools.common_workfunctions import update_params_wf
@@ -22,6 +21,7 @@ from masci_tools.io.kkr_params import kkrparams
 from masci_tools.io.common_functions import get_Ry2eV
 from ase.eos import EquationOfState
 from numpy import array, mean, std, min, sort
+from six.moves import range
 
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
@@ -33,10 +33,7 @@ __contributors__ = u"Philipp Rüßmann"
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
-ParameterData = DataFactory('parameter')
-KkrProcess = KkrCalculation.process()
-VoronoiProcess = VoronoiCalculation.process()
-
+Dict = DataFactory('dict')
 
 class kkr_eos_wc(WorkChain):
     """
@@ -58,11 +55,11 @@ class kkr_eos_wc(WorkChain):
                         'resources': {"num_machines": 1}, # resources to allocate for the job
                         'max_wallclock_seconds' : 60*60,  # walltime in seconds after which the job gets killed (gets parsed to KKR)
                         'use_mpi' : True,                 # execute KKR with mpi or without
-                        'custom_scheduler_commands' : ''  # some additional scheduler commands (e.g. project numbers in job scripts, OpenMP settings, ...) 
+                        'custom_scheduler_commands' : ''  # some additional scheduler commands (e.g. project numbers in job scripts, OpenMP settings, ...)
                        }
     # workflow settings
     _wf_default = {'scale_range' : [0.94, 1.06],    # range around volume of starting structure which eos is computed
-                   'nsteps': 7,                     # number of calculations around 
+                   'nsteps': 7,                     # number of calculations around
                    'ground_state_structure': True,  # create and return a structure which has the ground state volume determined by the fit used
                    'use_primitive_structure': True, # use seekpath to get primitive structure after scaling to reduce computational time
                    'fitfunction': 'birchmurnaghan', # fitfunction used to determine ground state volume (see ase.eos.EquationOfState class for details)
@@ -85,18 +82,18 @@ class kkr_eos_wc(WorkChain):
     @classmethod
     def define(cls, spec):
         """
-        Defines the outline of the workflow. 
+        Defines the outline of the workflow.
         """
         # Take input of the workflow or use defaults defined above
         super(kkr_eos_wc, cls).define(spec)
-        spec.input("options", valid_type=ParameterData, required=False,         # computer options
-                   default=ParameterData(dict=cls._options_default))
-        spec.input("wf_parameters", valid_type=ParameterData, required=False,   # workfunction settings
-                   default=ParameterData(dict=cls._wf_default))
+        spec.input("options", valid_type=Dict, required=False,         # computer options
+                   default=Dict(dict=cls._options_default))
+        spec.input("wf_parameters", valid_type=Dict, required=False,   # workfunction settings
+                   default=Dict(dict=cls._wf_default))
         spec.input("kkr", valid_type=Code, required=True)                       # KKRhost code
         spec.input("voronoi", valid_type=Code, required=True)                   # voronoi code
         spec.input("structure", valid_type=StructureData, required=True)        # starting structure node
-        spec.input("calc_parameters", valid_type=ParameterData, required=False) # KKR input parameters (lmax etc.)
+        spec.input("calc_parameters", valid_type=Dict, required=False) # KKR input parameters (lmax etc.)
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -117,13 +114,13 @@ class kkr_eos_wc(WorkChain):
         )
 
         # ToDo: improve error codes
-        spec.exit_code(221, 'ERROR_INVALID_INPUT', 
+        spec.exit_code(221, 'ERROR_INVALID_INPUT',
             message="ERROR: inputs invalid")
         spec.exit_code(222, 'ERROR_NOT_ENOUGH_SUCCESSFUL_CALCS',
             message='ERROR: need at least 3 successful calculations')
         spec.exit_code(223, 'ERROR_NSTEPS_TOO_SMALL',
             message='ERROR: nsteps is smaller than 3, need at least three data points to do fitting')
-        spec.exit_code(224, 'ERROR_INVALID_FITFUN', 
+        spec.exit_code(224, 'ERROR_INVALID_FITFUN',
             message='given fitfunction name not valid')
         spec.exit_code(225, 'ERROR_VOROSTART_NOT_SUCCESSFUL',
             message='ERROR: kkr_startpot was not successful. Check you inputs.')
@@ -133,7 +130,7 @@ class kkr_eos_wc(WorkChain):
         """
         initialize context and check input nodes
         """
-        
+
         self.report('INFO: starting KKR eos workflow version {}'.format(self._workflowversion))
 
         # now extract information from input nodes
@@ -182,9 +179,9 @@ class kkr_eos_wc(WorkChain):
             self.exit_codes.ERROR_INVALID_FITFUN
 
         # set scale_factors from scale_range and nsteps
-        self.ctx.scale_factors = [] 
+        self.ctx.scale_factors = []
         for i in range(self.ctx.nsteps):
-            scale_fac = self.ctx.scale_range[0]+old_div(i*(self.ctx.scale_range[1]-self.ctx.scale_range[0]),(self.ctx.nsteps-1))
+            scale_fac = self.ctx.scale_range[0]+i*(self.ctx.scale_range[1]-self.ctx.scale_range[0])/(self.ctx.nsteps-1)
             self.ctx.scale_factors.append(scale_fac)
 
 
@@ -215,11 +212,11 @@ class kkr_eos_wc(WorkChain):
             if key not in set_keys: # skip setting of options (done above already)
                 wfd[key] = vorostart_settings[key]
         scaled_struc = self.ctx.scaled_structures[0]
-        future = self.submit(kkr_startpot_wc, structure=scaled_struc, kkr=self.ctx.kkr, 
-                             voronoi=self.ctx.voro, wf_parameters=ParameterData(dict=wfd), 
-                             calc_parameters=self.ctx.calc_parameters, 
-                             options=self.ctx.wf_options)
-        
+        future = self.submit(kkr_startpot_wc, structure=scaled_struc, kkr=self.ctx.kkr,
+                             voronoi=self.ctx.voro, wf_parameters=Dict(dict=wfd),
+                             calc_parameters=self.ctx.calc_parameters,
+                             options=Dict(dict=self.ctx.wf_options))
+
         self.report('INFO: running kkr_startpot workflow (pk= {})'.format(future.pk))
         self.ctx.sub_wf_ids['kkr_startpot_1'] = future.uuid
 
@@ -234,10 +231,10 @@ class kkr_eos_wc(WorkChain):
         # get output of kkr_startpot
         out_wc = self.ctx.kkr_startpot
         try:
-            res = out_wc.out.results_vorostart_wc
-            voro_params = out_wc.out.last_params_voronoi
-            smallest_voro_remote = out_wc.out.last_voronoi_remote
-            smallest_voro_results = out_wc.out.last_voronoi_results
+            res = out_wc.outputs.results_vorostart_wc
+            voro_params = out_wc.outputs.last_params_voronoi
+            smallest_voro_remote = out_wc.outputs.last_voronoi_remote
+            smallest_voro_results = out_wc.outputs.last_voronoi_results
             vorostart_success = res.get_dict()['successful']
         except AttributeError:
             vorostart_success = False
@@ -257,7 +254,7 @@ class kkr_eos_wc(WorkChain):
         voro_params_with_rmtcore = kkrparams(**voro_params.get_dict())
         voro_params_with_rmtcore.set_value('<RMTCORE>', rmtcore_min)
         voro_params_with_rmtcore_dict = voro_params_with_rmtcore.get_dict()
-        voro_params_with_rmtcore = update_params_wf(voro_params, ParameterData(dict=voro_params_with_rmtcore_dict))
+        voro_params_with_rmtcore = update_params_wf(voro_params, Dict(dict=voro_params_with_rmtcore_dict))
         self.report('INFO: updated kkr_parameters inlcuding RMTCORE setting (uuid={})'.format(voro_params_with_rmtcore.uuid))
 
         # store links to context
@@ -286,12 +283,12 @@ class kkr_eos_wc(WorkChain):
 
         # used to collect all submitted calculations
         calcs = {}
-        
+
         # submit first calculation separately
         self.report('submit calc for scale fac= {} on {}'.format(self.ctx.scale_factors[0], self.ctx.scaled_structures[0].get_formula()))
-        future = self.submit(kkr_scf_wc, kkr=self.ctx.kkr, remote_data=self.ctx.smallest_voro_remote, 
-                             wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run,
-                             options=self.ctx.wf_options)
+        future = self.submit(kkr_scf_wc, kkr=self.ctx.kkr, remote_data=self.ctx.smallest_voro_remote,
+                             wf_parameters=Dict(dict=wfd), calc_parameters=self.ctx.params_kkr_run,
+                             options=Dict(dict=self.ctx.wf_options))
         scale_fac = self.ctx.scale_factors[0]
         calcs['kkr_{}_{}'.format(1, scale_fac)] = future
         self.ctx.sub_wf_ids['kkr_scf_1'] = future.uuid
@@ -301,9 +298,9 @@ class kkr_eos_wc(WorkChain):
             scale_fac = self.ctx.scale_factors[i+1]
             scaled_struc = self.ctx.scaled_structures[i+1]
             self.report('submit calc for scale fac= {} on {}'.format(scale_fac, scaled_struc.get_formula()))
-            future = self.submit(kkr_scf_wc, structure=scaled_struc, kkr=self.ctx.kkr, voronoi=self.ctx.voro, 
-                                 wf_parameters=ParameterData(dict=wfd), calc_parameters=self.ctx.params_kkr_run,
-                                 options=self.ctx.wf_options)
+            future = self.submit(kkr_scf_wc, structure=scaled_struc, kkr=self.ctx.kkr, voronoi=self.ctx.voro,
+                                 wf_parameters=Dict(dict=wfd), calc_parameters=self.ctx.params_kkr_run,
+                                 options=Dict(dict=self.ctx.wf_options))
             calcs['kkr_{}_{}'.format(i+2, scale_fac)] = future
             self.ctx.sub_wf_ids['kkr_scf_{}'.format(i+2)] = future.uuid
 
@@ -329,17 +326,17 @@ class kkr_eos_wc(WorkChain):
             uuid = calc_uuids[iic]
             n = load_node(uuid)
             try:
-                d_result = n.out.output_kkr_scf_wc_ParameterResults.get_dict()
+                d_result = n.outputs.output_kkr_scf_wc_ParameterResults.get_dict()
                 self.report('INFO: extracting output of calculation {}: successful={}, rms={}'.format(uuid, d_result[u'successful'], d_result[u'convergence_value']))
                 if d_result[u'successful']:
                     pk_last_calc = d_result['last_calc_nodeinfo']['pk']
                     n2 = load_node(pk_last_calc)
                     scale = self.ctx.scale_factors[iic]
-                    ener = n2.out.output_parameters.get_dict()['total_energy_Ry']
+                    ener = n2.outputs.output_parameters.get_dict()['total_energy_Ry']
                     rms = d_result[u'convergence_value']
                     scaled_struc = self.ctx.scaled_structures[iic]
                     v = scaled_struc.get_cell_volume()
-                    if rms<=self.ctx.rms_threshold: # only take those calculations which 
+                    if rms<=self.ctx.rms_threshold: # only take those calculations which
                         etot.append([scale, ener, v, rms])
                     else:
                         warn = 'rms of calculation with uuid={} not low enough ({} > {})'.format(uuid, rms, self.ctx.rms_threshold)
@@ -350,11 +347,11 @@ class kkr_eos_wc(WorkChain):
                 self.report('WARNING: {}'.format(warn))
                 self.ctx.warnings.append(warn)
 
-               
+
         # collect calculation outcome
         etot = array(etot)
         self.report('INFO: collected data from calculations= {}'.format(etot))
-        
+
         # check if at least 3 points were successful (otherwise fit does not work)
         if len(etot)<3:
             return self.exit_codes.ERROR_NOT_ENOUGH_SUCCESSFUL_CALCS
@@ -362,10 +359,10 @@ class kkr_eos_wc(WorkChain):
         scalings = etot[:,0]
         rms = etot[:,-1]
         # convert to eV and per atom units
-        etot = old_div(etot,len(scaled_struc.sites)) # per atom values
+        etot = etot/len(scaled_struc.sites) # per atom values
         etot[:,1] = etot[:,1] * get_Ry2eV() # convert energy from Ry to eV
         volumes, energies = etot[:,2], etot[:,1]
-       
+
         # do multiple fits to data
         self.report('INFO: output of fits:')
         self.report('{:18} {:8} {:7} {:7}'.format('fitfunc', 'v0', 'e0', 'B'))
@@ -380,7 +377,7 @@ class kkr_eos_wc(WorkChain):
                 fitdata[fitfunc] = [v0, e0, B]
                 alldat.append([v0, e0, B])
                 self.report('{:16} {:8.3f} {:7.3f} {:7.3f}'.format(fitfunc, v0, e0, B))
-            except RuntimeError:
+            except: # capture all errors and mark fit as unsuccessful
                self.ctx.warnings.append('fit unsuccessful for {} function'.format(fitfunc))
                if fitfunc == self.ctx.fitfunc_gs_out:
                    self.ctx.successful = False
@@ -421,9 +418,9 @@ class kkr_eos_wc(WorkChain):
         outdict['formula'] = self.ctx.structure.get_formula()
         outdict['label'] = self.ctx.label
         if self.ctx.successful and self.ctx.return_gs_struc:
-            # final result: scaling factor for equilibium 
+            # final result: scaling factor for equilibium
             v0, e0, B = self.ctx.fitdata.get(self.ctx.fitfunc_gs_out)
-            scale_fac0 = old_div(v0,self.ctx.structure.get_cell_volume()*len(self.ctx.structure.sites))
+            scale_fac0 = v0/self.ctx.structure.get_cell_volume()*len(self.ctx.structure.sites)
             outdict['gs_scale_factor'] = scale_fac0
             outdict['gs_fitfunction'] = self.ctx.fitfunc_gs_out
             gs_structure = rescale(self.ctx.structure, Float(scale_fac0))
@@ -436,12 +433,12 @@ class kkr_eos_wc(WorkChain):
             outdict['gs_structure_uuid'] = gs_structure.uuid
 
         # create output nodes in dict with link names
-        outnodes = {'eos_results': ParameterData(dict=outdict)}
-        if self.ctx.return_gs_struc:
+        outnodes = {'eos_results': Dict(dict=outdict)}
+        if self.ctx.successful and self.ctx.return_gs_struc:
             outnodes['gs_structure'] = gs_structure
             if self.ctx.use_primitive_structure:
                 outnodes['explicit_kpoints'] = explicit_kpoints
-                outnodes['parameters'] = parameters
+                outnodes['get_explicit_kpoints_path_parameters'] = parameters
         # set out nodes and corresponding link names
         for link_name, node in outnodes.items():
             self.out(link_name, node)
@@ -469,7 +466,7 @@ def rescale_no_wf(structure, scale):
 
     return rescaled_structure
 
-@wf
+@calcfunction
 def rescale(inp_structure, scale):
     """
     Rescales a crystal structure. Keeps the provanance in the database.
@@ -486,13 +483,13 @@ def rescale(inp_structure, scale):
     return rescale_no_wf(inp_structure, scale)
 
 
-@wf
+@calcfunction
 def get_primitive_structure(structure, return_all):
     """
     calls get_explicit_kpoints_path which gives primitive structure
     auxiliary workfunction to keep provenance
     """
-    from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
+    from aiida.tools import get_explicit_kpoints_path
     output = get_explicit_kpoints_path(structure)
     conv_structure = output['conv_structure']
     explicit_kpoints = output['explicit_kpoints']
@@ -502,4 +499,3 @@ def get_primitive_structure(structure, return_all):
         return {'conv_structure':conv_structure, 'explicit_kpoints':explicit_kpoints, 'parameters':parameters, 'primitive_structure':primitive_structure}
     else:
         return primitive_structure
-
