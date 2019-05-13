@@ -2,22 +2,13 @@
 dist: trusty
 language: python
 python:
-  - "2.6"
   - "2.7"
-  - "3.3"
   - "3.4"
   - "3.5"
   - "3.6"
 matrix:
   # mark build as complete as soon as the versions that may not fail is finished
   fast_finish: true
-  # these environment so far are allowed to fail
-  allow_failures:
-    - python: "2.6"
-    - python: "3.3"
-    - python: "3.4"
-    - python: "3.5"
-    - python: "3.6"
 notifications:
   slack:
     on_success: never
@@ -46,9 +37,11 @@ before_install:
   - sudo updatedb
 install: # python installations
   - pip install -U pip wheel setuptools
-  # at the moment need to install masci-tools manually since it is not uploaded to pypi yet
-  - pip install -e git+https://github.com/JuDFTteam/masci-tools@master#egg=masci-tools.git
+  - pip install pip==18.1
+  # at the moment we take this branch which fixes issues encountered in aiida-core due to byte read/write and python2/3 issues
+  - pip install -e git+https://github.com/PhilippRue/aiida_core.git@5d9051124a14fdff8bc79f4bde953f598603d614#egg=aiida_core
   - pip install -e .
+  - reentry scan
   - pip install codecov
 env:
   - TEST_TYPE="unittests"
@@ -63,16 +56,10 @@ script:
   ## First check if rabbitmq communication is working
   #- ./check_pika-rabbitmq.py | tee out_rmq_check
   #- ./verify_rmq_check.py
+  # choose tests to run via environment variables:
+  - export RUN_VORONOI='yes' 
   # Then run all tests
-  - ./run_all.sh
-  #- travis_wait 30 ./run_all.sh
-  # these tests fail at the moment because gfortran is too old
-  #- pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_dos_workflow
-  #- pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_gf_writeout_workflow
-  #- pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_scf_workflow
-  # these are fail because gfortran compilation of kkrimp does not work
-  #- pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_scf_workflow
-  #- pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_full_workflow
+  - bash ./run_all.sh
 after_success:
   - codecov
   #deploy to pypi using poetry
