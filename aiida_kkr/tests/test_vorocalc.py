@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+from __future__ import division
+from builtins import object
+from past.utils import old_div
 import pytest
 
 #TODO
@@ -20,12 +24,12 @@ def wait_for_it(calc, maxwait=300, dT=10):
     wait for maximally <maxwait> seconds and check the calculation's state every <dT> seconds
     """
     from time import sleep
-    nsteps = maxwait/dT
-    print 'waiting for calculation to finish (maximally wait for {} seconds)'.format(maxwait)
+    nsteps = old_div(maxwait,dT)
+    print('waiting for calculation to finish (maximally wait for {} seconds)'.format(maxwait))
     istep = 0
     calcstate = u'UNKNOWN'
     while istep < nsteps:
-        print 'checking status'
+        print('checking status')
         sleep(dT)
         calcstate = calc.get_state()
         istep += 1
@@ -33,16 +37,16 @@ def wait_for_it(calc, maxwait=300, dT=10):
             break
 
     if calcstate == u'FINISHED':
-        print 'calculation reached FINISHED state'
+        print('calculation reached FINISHED state')
     elif calcstate == u'FAILED':
-        print 'calculation in FAILED state'
+        print('calculation in FAILED state')
     else:
-        print 'maximum waiting time exhausted'
+        print('maximum waiting time exhausted')
         
 
 # tests
 @pytest.mark.usefixtures("aiida_env")
-class Test_voronoi_calculation():
+class Test_voronoi_calculation(object):
     """
     Tests for the voronoi calculation
     """
@@ -51,7 +55,7 @@ class Test_voronoi_calculation():
         """
         simple Cu noSOC, FP, lmax2 full example 
         """
-        from aiida.orm import Code, load_node, DataFactory
+        from aiida.orm import Code, DataFactory
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.voro import VoronoiCalculation
        

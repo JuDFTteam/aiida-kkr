@@ -3,7 +3,11 @@
 In this module you find the sub workflow for the kkrimp self consistency cycle  
 and some helper methods to do so with AiiDA
 """
+from __future__ import print_function
+from __future__ import division
 
+from builtins import range
+from past.utils import old_div
 from aiida.orm import Code, DataFactory
 from aiida.orm.data.base import Float
 from aiida.work.workchain import WorkChain, ToContext, while_, if_
@@ -49,12 +53,14 @@ class kkr_imp_sub_wc(WorkChain):
     :param kkrimp: (Code), mandatory; KKRimp code converging the host-imp-potential
     :param remote_data: (RemoteData), mandatory; remote folder of a previous
                            kkrflex calculation containing the flexfiles ...
+    :param kkrimp_remote: (RemoteData), remote folder of a previous kkrimp calculation
     :param impurity_info: (ParameterData), Parameter node with information
                           about the impurity cluster
 
-    :return result_kkr_imp_sub_wc: (ParameterData), Information of workflow results
+    :return workflow_info: (ParameterData), Information of workflow results
                                    like success, last result node, list with 
                                    convergence behavior
+    :return host_imp_pot: (SinglefileData), output potential of the sytem
     """
     
     _workflowversion = __version__
@@ -523,7 +529,7 @@ class kkr_imp_sub_wc(WorkChain):
             if missing_list != []:
                 kkrdefaults = kkrparams.get_KKRcalc_parameter_defaults()[0]
                 kkrdefaults_updated = []
-                for key_default, val_default in kkrdefaults.items():
+                for key_default, val_default in list(kkrdefaults.items()):
                     if key_default in missing_list:
                         new_params[key_default] = kkrdefaults.get(key_default)
                         kkrdefaults_updated.append(key_default)
@@ -658,7 +664,7 @@ class kkr_imp_sub_wc(WorkChain):
 
             # step 2.2 update values
             try:
-                for key, val in new_params.iteritems():
+                for key, val in new_params.items():
                     para_check.set_value(key, val, silent=True)
             except:
                 error = 'ERROR: parameter update unsuccessful: some key, value pair not valid!'
@@ -883,7 +889,7 @@ class kkr_imp_sub_wc(WorkChain):
             # use this trick to avoid division by zero
             if last_rms == 0:
                 last_rms = 10**-16
-            r = last_rms/first_rms
+            r = old_div(last_rms,first_rms)
             self.report("INFO: convergence check: first/last rms {}, {}".format(first_rms, last_rms))
             if r < 1:
                 self.report("INFO: convergence check: rms goes down")

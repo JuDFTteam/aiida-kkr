@@ -4,6 +4,7 @@
     "author_email": "p.ruessmann@fz-juelich.de",
     "description": "AiiDA plugin for the KKR code",
     "url": "https://github.com/JuDFTteam/aiida-kkr",
+    "download_url": "https://github.com/JuDFTteam/aiida-kkr",
     "license": "MIT",
     "classifiers": [
         "License :: OSI Approved :: MIT License",
@@ -14,7 +15,7 @@
         "Topic :: Scientific/Engineering :: Physics",
         "Natural Language :: English"      
     ],
-    "version": "1.1.5",
+    "version": "1.1.6",
     "reentry_register": true,
     "install_requires": [
         "aiida-core == 1.0.0a4",
@@ -22,6 +23,7 @@
         "seekpath",
         "pgtest",
         "pytest-cov >= 2.5.0",
+        "pytest-mpl",
         "sphinx",
         "sphinx_rtd_theme",
         "ase",

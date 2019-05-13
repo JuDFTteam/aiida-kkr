@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from builtins import object
 import pytest
 
 # some global settings
@@ -8,11 +9,11 @@ codename = 'KKRhost@iff003'
 queuename = 'th1_node'
 eps = 10**-14 # threshold for float comparison equivalence
 
-from test_vorocalc import wait_for_it
+from .test_vorocalc import wait_for_it
 
 # tests
 @pytest.mark.usefixtures("aiida_env")
-class Test_kkr_calculation():
+class Test_kkr_calculation(object):
     """
     Tests for the kkr calculation
     """

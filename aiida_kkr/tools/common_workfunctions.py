@@ -3,7 +3,11 @@
 Here workfunctions and normal functions using aiida-stuff (typically used 
 within workfunctions) are collected.
 """
+from __future__ import print_function
+from __future__ import division
 
+from builtins import range
+from past.utils import old_div
 from aiida.common.exceptions import InputValidationError
 from aiida.work import workfunction as wf
 from aiida.orm import DataFactory
@@ -34,19 +38,19 @@ def update_params_wf(parameternode, updatenode):
               new_params_node = update_params_wf(input_node, updated_params)
     """
     updatenode_dict = updatenode.get_dict()
-    if 'nodename' in updatenode_dict.keys():
+    if 'nodename' in list(updatenode_dict.keys()):
         # take nodename out of dict (should only contain valid KKR parameter)
         nodename = updatenode_dict.pop('nodename')
     else:
         nodename = None
-    if 'nodedesc' in updatenode_dict.keys():
+    if 'nodedesc' in list(updatenode_dict.keys()):
         # take nodename out of dict (should only contain valid KKR parameter later on)
         nodedesc = updatenode_dict.pop('nodedesc')
     else:
         nodedesc = None
     
     # do nothing if updatenode is empty
-    if len(updatenode_dict.keys())==0:
+    if len(list(updatenode_dict.keys()))==0:
         print('Input node is empty, do nothing!')
         raise InputValidationError('Nothing to store in input') 
     # 
@@ -85,7 +89,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
     
     # check if input dict contains only values for KKR parameters
     for key in inp_params:
-        if key not in params.values.keys() and key not in _ignored_keys:
+        if key not in list(params.values.keys()) and key not in _ignored_keys:
             print('Input node contains unvalid key "{}"'.format(key))
             raise InputValidationError('unvalid key "{}" in input parameter node'.format(key))
     
@@ -105,7 +109,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
         for key in kwargs:
             # check if value of 'key' should be set (either because it differs from old para node or because it was not set at all)
             update_value = False
-            if key in inp_params.keys():
+            if key in list(inp_params.keys()):
                 if kwargs[key] != inp_params[key]:
                     update_value = True
             else:
@@ -114,7 +118,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
                 params.set_value(key, kwargs[key], silent=True)
                 changed_params[key] = kwargs[key]
                 
-    if len(changed_params.keys())==0:
+    if len(list(changed_params.keys()))==0:
         print('No keys have been changed, return input node')
         return node
             
@@ -209,7 +213,7 @@ def test_and_get_codenode(codenode, expected_code_type, use_exceptions=False):
             if use_exceptions:
                 raise ValueError(msg)
             else:
-                print >> sys.stderr, msg
+                print(msg, file=sys.stderr)
                 sys.exit(1)
         else:
             msg = ("Code not valid, and no valid codes for {}.\n"
@@ -219,7 +223,7 @@ def test_and_get_codenode(codenode, expected_code_type, use_exceptions=False):
             if use_exceptions:
                 raise ValueError(msg)
             else:
-                print >> sys.stderr, msg
+                print(msg, file=sys.stderr)
                 sys.exit(1)
 
     return code
@@ -418,7 +422,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     # maybe do in a differnt way
     
     _atomic_numbers = {data['symbol']: num for num,
-                    data in PeriodicTableElements.iteritems()}
+                    data in PeriodicTableElements.items()}
     
     # KKR wants units in bohr
     bravais = array(structure.cell)*a_to_bohr
@@ -430,7 +434,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
         wmess = 'found alat in input parameters, this will trigger scaling of RMAX, GMAX and RCLUSTZ!'
         print('WARNING: '+wmess)
         warnings.append(wmess)
-    bravais = bravais/alat
+    bravais = old_div(bravais,alat)
     
     sites = structure.sites
     naez = len(sites)
@@ -442,7 +446,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     for site in sites:
         pos = site.position 
         #TODO maybe convert to rel pos and make sure that type is right for script (array or tuple)
-        abspos = array(pos)*a_to_bohr/alat # also in units of alat
+        abspos = old_div(array(pos)*a_to_bohr,alat) # also in units of alat
         positions.append(abspos)
         isite += 1
         sitekind = structure.get_kind(site.kind_name)
@@ -518,25 +522,25 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     # automatically rescale RMAX, GMAX, RCLUSTZ, RCLUSTXY which are scaled with the lattice constant
     if alat_input is not None:
         if input_dict.get('RMAX') is not None:
-            wmess = 'rescale RMAX: {}'.format(alat_input/alat)
+            wmess = 'rescale RMAX: {}'.format(old_div(alat_input,alat))
             print('WARNING: '+wmess)
             warnings.append(wmess)
-            input_dict['RMAX'] = input_dict['RMAX']*alat_input/alat
+            input_dict['RMAX'] = old_div(input_dict['RMAX']*alat_input,alat)
         if input_dict.get('GMAX') is not None:
-            wmess='rescale GMAX: {}'.format(1/(alat_input/alat))
+            wmess='rescale GMAX: {}'.format(old_div(1,(old_div(alat_input,alat))))
             print('WARNING: '+wmess)
             warnings.append(wmess)
-            input_dict['GMAX'] = input_dict['GMAX']*1/(alat_input/alat)
+            input_dict['GMAX'] = old_div(input_dict['GMAX']*1,(old_div(alat_input,alat)))
         if input_dict.get('RCLUSTZ') is not None:
-            wmess='rescale RCLUSTZ: {}'.format(alat_input/alat)
+            wmess='rescale RCLUSTZ: {}'.format(old_div(alat_input,alat))
             print('WARNING: '+wmess)
             warnings.append(wmess)
-            input_dict['RCLUSTZ'] = input_dict['RCLUSTZ']*alat_input/alat
+            input_dict['RCLUSTZ'] = old_div(input_dict['RCLUSTZ']*alat_input,alat)
         if input_dict.get('RCLUSTXY') is not None:
-            wmess='rescale RCLUSTXY: {}'.format(alat_input/alat)
+            wmess='rescale RCLUSTXY: {}'.format(old_div(alat_input,alat))
             print('WARNING: '+wmess)
             warnings.append(wmess)
-            input_dict['RCLUSTXY'] = input_dict['RCLUSTXY']*alat_input/alat
+            input_dict['RCLUSTXY'] = old_div(input_dict['RCLUSTXY']*alat_input,alat)
     
     # empty kkrparams instance (contains formatting info etc.)
     if not isvoronoi:
@@ -545,7 +549,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
         params = kkrparams(params_type='voronoi')
     
     # for KKR calculation set EMIN automatically from parent_calc (always in res.emin of voronoi and kkr) if not provided in input node
-    if ('EMIN' not in input_dict.keys() or input_dict['EMIN'] is None) and parent_calc is not None:
+    if ('EMIN' not in list(input_dict.keys()) or input_dict['EMIN'] is None) and parent_calc is not None:
         wmess='Overwriting EMIN with value from parent calculation'
         print('WARNING: '+wmess)
         warnings.append(wmess)
@@ -557,7 +561,7 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
         params.set_value('EMIN', emin)
         
     # overwrite keywords with input parameter
-    for key in input_dict.keys():
+    for key in list(input_dict.keys()):
         params.set_value(key, input_dict[key], silent=True)
 
     # Write input to file (the parameters that are set here are not allowed to be modfied externally)
@@ -581,10 +585,10 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     rbr = params.get_value('<RBRIGHT>')
     zper_l = params.get_value('ZPERIODL')
     zper_r = params.get_value('ZPERIODR')
-    if rbl is not None: params.set_value('<RBLEFT>', array(rbl)*a_to_bohr/alat)
-    if rbr is not None: params.set_value('<RBRIGHT>', array(rbr)*a_to_bohr/alat)
-    if zper_l is not None: params.set_value('ZPERIODL', array(zper_l)*a_to_bohr/alat)
-    if zper_r is not None: params.set_value('ZPERIODR', array(zper_r)*a_to_bohr/alat)
+    if rbl is not None: params.set_value('<RBLEFT>', old_div(array(rbl)*a_to_bohr,alat))
+    if rbr is not None: params.set_value('<RBRIGHT>', old_div(array(rbr)*a_to_bohr,alat))
+    if zper_l is not None: params.set_value('ZPERIODL', old_div(array(zper_l)*a_to_bohr,alat))
+    if zper_r is not None: params.set_value('ZPERIODR', old_div(array(zper_r)*a_to_bohr,alat))
     
     # write inputfile
     params.fill_keywords_to_inputfile(output=input_filename)
@@ -617,7 +621,7 @@ def check_2Dinput_consistency(structure, parameters):
     
     # check for necessary info in 2D case
     inp_dict = parameters.get_dict()
-    set_keys = [i for i in inp_dict.keys() if inp_dict[i] is not None]
+    set_keys = [i for i in list(inp_dict.keys()) if inp_dict[i] is not None]
     has2Dinfo = True
     for icheck in ['INTERFACE', '<NRBASIS>', '<RBLEFT>', '<RBRIGHT>', 'ZPERIODL', 'ZPERIODR', '<NLBASIS>']:
         if icheck not in set_keys:
@@ -706,7 +710,7 @@ def structure_from_params(parameters):
     #extract weights and sites for CPA calculations
     if natyp==naez:
         weights = [1. for i in range(natyp)]
-        sites = range(1,natyp+1)
+        sites = list(range(1,natyp+1))
     else:
         weights = parameters.get_value('<CPA-CONC>')
         sites = parameters.get_value('<SITE>')
@@ -772,7 +776,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
     from aiida.orm.calculation.job import JobCalculation
     from aiida.orm import DataFactory
     
-    if 'parent_calc_folder2' in kwargs.keys():
+    if 'parent_calc_folder2' in list(kwargs.keys()):
         parent_calc_folder2=kwargs.get('parent_calc_folder2', None)
     else:
         parent_calc_folder2=None
@@ -929,7 +933,7 @@ def kick_out_corestates(potfile, potfile_out, emin):
         
         #get start of each potential part
         istarts = [iline for iline in range(len(txt)) if 'POTENTIAL' in txt[iline]]
-        all_lines = range(len(txt)) # index array
+        all_lines = list(range(len(txt))) # index array
       
         # change list of core states
         for ipot in range(len(nstates)):
@@ -938,7 +942,7 @@ def kick_out_corestates(potfile, potfile_out, emin):
                 if len(m[0])>0:
                     istart = istarts[ipot]
                     # change number of core states in potential
-                    print txt[istart+6]
+                    print(txt[istart+6])
                     txt[istart+6] = '%i 1\n'%(nstates[ipot]-len(m[0]))
                     # now remove energy line accordingly
                     for ie_out in m[0][::-1]:
@@ -976,13 +980,13 @@ def kick_out_corestates_wf(potential_sfd, emin):
 
     with SandboxFolder() as tmpdir:
         potfile_out = tmpdir.get_abs_path('')+'potential_deleted_core_states'
-        print potfile_out
+        print(potfile_out)
         num_deleted = kick_out_corestates(potfile_path, potfile_out, emin)
-        print num_deleted
+        print(num_deleted)
         if num_deleted>0:
             potential_nocore_sfd = SingleFileData(file=potfile_out)
             potential_nocore_sfd.store()
-            print potential_nocore_sfd
+            print(potential_nocore_sfd)
     
     # return potential
     if num_deleted>0:

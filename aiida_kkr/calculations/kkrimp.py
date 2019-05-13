@@ -2,7 +2,9 @@
 """
 Input plug-in for a KKRimp calculation.
 """
+from __future__ import print_function
 
+from builtins import range
 from aiida.orm.calculation.job import JobCalculation
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError, UniquenessError)
@@ -180,7 +182,7 @@ class KkrimpCalculation(JobCalculation):
         
         # prepare copy and retrieve lists
         local_copy_list = [(potfile, self._POTENTIAL)]
-        for key in kkrflex_file_paths.keys():
+        for key in list(kkrflex_file_paths.keys()):
             if key!=self._KKRFLEX_ATOMINFO:
                 src_path = kkrflex_file_paths[key]
                 dst_path = key
@@ -353,7 +355,7 @@ class KkrimpCalculation(JobCalculation):
         params_host_calc = kkrparams(params_type='kkr') # initialize kkrparams instance to use read_keywords_from_inputcard
         params_host_calc.read_keywords_from_inputcard(inputcard=input_file)
         
-        if 'RUNOPT' not in params_host_calc.get_dict().keys():
+        if 'RUNOPT' not in list(params_host_calc.get_dict().keys()):
             host_ok = False
         elif 'KKRFLEX' not in params_host_calc.get_dict().get('RUNOPT', []):
             host_ok = False

@@ -3,6 +3,7 @@
 In this module you find the total workflow for a kkr impurity calculation  
 and some helper methods to do so with AiiDA
 """
+from __future__ import print_function
 
 from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, ToContext, if_
@@ -38,15 +39,21 @@ class kkr_imp_wc(WorkChain):
     and impurity_info node), or with a converged host potential and impurity 
     startpotentials, ... to calculate the converged host-impurity potential of the system.
 
-    :param options_parameters: (ParameterData), Workchain specifications
+    :param options: (ParameterData), Workchain specifications
     :param wf_parameters: (ParameterData), specifications for the kkr impurity workflow
     :param voro_aux_parameters: (ParameterData), specification for the auxiliary voronoi calculation for the impurity
-    :param kkrimpcode: (Code), mandatory: KKRimp code converging the host-imp-potential
-    :param kkrcode: (Code), mandatory: KKR code for calculation the host potential
-    :param vorocode: (Code), mandatory: Voronoi code to generate the impurity startpot
-    :param GF_remote_data: (RemoteData): remote folder of a previous kkrflex calculation containing the flexfiles ...
+    :param kkrimp: (Code), mandatory: KKRimp code converging the host-imp-potential
+    :param kkr: (Code), mandatory: KKR code for calculation the host potential
+    :param voronoi: (Code), mandatory: Voronoi code to generate the impurity startpot
+    :param remote_data_gf: (RemoteData): remote folder of a previous kkrflex 
+                                         calculation containing the flexfiles ...
+    :param remote_data_host: (RemoteData): remote folder of a converged KKR 
+                                           host calculation
 
-    :return result_kkr_imp_wc: (ParameterData), Information of workflow results
+    :return workflow_info: (ParameterData), Information of workflow results
+    :return last_calc_output_parameters: (ParameterData), output parameters of 
+                                         the last called calculation
+    :return last_calc_info: (ParameterData), information of the last called calculation
     """
     
     
@@ -539,7 +546,7 @@ class kkr_imp_wc(WorkChain):
 @wf     
 def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at center only!
     from aiida.common.constants import elements as PeriodicTableElements
-    _atomic_numbers = {data['symbol']: num for num, data in PeriodicTableElements.iteritems()}
+    _atomic_numbers = {data['symbol']: num for num, data in PeriodicTableElements.items()}
 
     new_struc = StructureData(cell=struc.cell)
     isite = 0

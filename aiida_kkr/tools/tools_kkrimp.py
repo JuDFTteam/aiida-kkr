@@ -6,11 +6,17 @@ Tools for the impurity caluclation plugin and its workflows
 """
 #use print('message') instead of print 'message' in python 2.7 as well:
 from __future__ import print_function
+from __future__ import division
 # redefine raw_input for python 3/2.7 compatilbility
+from builtins import str
+from builtins import input
+from builtins import range
+from past.utils import old_div
+from builtins import object
 from sys import version_info
 if version_info[0] >= 3:
     def raw_input(msg):
-        return input(msg)
+        return eval(input(msg))
          
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH,"
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -19,7 +25,7 @@ __version__ = "0.3"
 __contributors__ = u"Philipp Rüßmann"
 
 
-class modify_potential():
+class modify_potential(object):
     """
     Class for old modify potential script, ported from modify_potential script, initially by D. Bauer
     """
@@ -85,7 +91,7 @@ class modify_potential():
         """
         index1, index2, data = self._read_input(shapefun_path)
         
-        order=range(len(index1))
+        order=list(range(len(index1)))
                
         natomtemp = int(open(scoefpath).readlines()[0])
         filedata=open(scoefpath).readlines()[1:natomtemp+1]
@@ -170,7 +176,7 @@ class modify_potential():
         
         
         
-class kkrimp_parser_functions():
+class kkrimp_parser_functions(object):
     """
     Class of parser functions for KKRimp calculation
     
@@ -363,7 +369,7 @@ class kkrimp_parser_functions():
         niter = len(res.get(search_keys[-2], []))
         if niter>0:
             for key in search_keys[1:6]:
-                res[key] = sum(res[key])/niter
+                res[key] = old_div(sum(res[key]),niter)
             for key in [search_keys[0], search_keys[-1]]:
                 res[key] = res[key][0]
         return res
@@ -630,7 +636,7 @@ class kkrimp_parser_functions():
         try:
             result_WS, result_tot, result_C = get_charges_per_atom(files['out_log'])
             niter = len(out_dict['convergence_group']['rms_all_iterations'])
-            natyp = int(len(result_tot)/niter)
+            natyp = int(old_div(len(result_tot),niter))
             out_dict['total_charge_per_atom'] = result_WS[-natyp:]
             out_dict['charge_core_states_per_atom'] = result_C[-natyp:]
             # this check deals with the DOS case where output is slightly different
@@ -686,11 +692,11 @@ class kkrimp_parser_functions():
             
         #convert arrays to lists
         from numpy import ndarray
-        for key in out_dict.keys():
+        for key in list(out_dict.keys()):
             if type(out_dict[key])==ndarray:
                 out_dict[key] = list(out_dict[key])
             elif type(out_dict[key])==dict:
-                for subkey in out_dict[key].keys():
+                for subkey in list(out_dict[key].keys()):
                     if type(out_dict[key][subkey])==ndarray:
                         out_dict[key][subkey] = (out_dict[key][subkey]).tolist()
                         
@@ -733,7 +739,7 @@ def get_structure_data(structure):
     
     #get the connection between coordination number and element symbol
     _atomic_numbers = {data['symbol']:num for num,
-                data in PeriodicTableElements.iteritems()}    
+                data in PeriodicTableElements.items()}    
     
 
     #convert units from Å to Bohr (KKR needs Bohr)
@@ -752,7 +758,7 @@ def get_structure_data(structure):
     m = len(structure.sites) #needed to do the indexing of atoms
     for site in sites:
         for j in range(3):
-            a[k][j] = site.position[j]*a_to_bohr/alat          
+            a[k][j] = old_div(site.position[j]*a_to_bohr,alat)          
         sitekind = structure.get_kind(site.kind_name)
         naez = n - m
         m = m - 1
@@ -920,15 +926,15 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
     #========================================================
     #spherical approach (same distance in all three directions)
     if clust_shape == 'spherical':
-        box_1 = int(radius/(structure.cell_lengths[0]*a_to_bohr/alat) + 1)
-        box_2 = int(radius/(structure.cell_lengths[1]*a_to_bohr/alat) + 1)
-        box_3 = int(radius/(structure.cell_lengths[2]*a_to_bohr/alat) + 1)
+        box_1 = int(old_div(radius,(old_div(structure.cell_lengths[0]*a_to_bohr,alat))) + 1)
+        box_2 = int(old_div(radius,(old_div(structure.cell_lengths[1]*a_to_bohr,alat))) + 1)
+        box_3 = int(old_div(radius,(old_div(structure.cell_lengths[2]*a_to_bohr,alat))) + 1)
     #cylindrical shape (different distances for the different directions)
     elif clust_shape == 'cylindrical':
         maxval = max(h/2., radius)
-        box_1 = int(maxval/(structure.cell_lengths[0]*a_to_bohr/alat) + 1)
-        box_2 = int(maxval/(structure.cell_lengths[1]*a_to_bohr/alat) + 1)
-        box_3 = int(maxval/(structure.cell_lengths[2]*a_to_bohr/alat) + 1)  
+        box_1 = int(old_div(maxval,(old_div(structure.cell_lengths[0]*a_to_bohr,alat))) + 1)
+        box_2 = int(old_div(maxval,(old_div(structure.cell_lengths[1]*a_to_bohr,alat))) + 1)
+        box_3 = int(old_div(maxval,(old_div(structure.cell_lengths[2]*a_to_bohr,alat))) + 1)  
     #================================================================================================================
   
     #create array of all the atoms in an expanded system
@@ -937,12 +943,12 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
         for n in range(-box, box + 1):
             for m in range(-box, box + 1):
                 for l in range(-box, box + 1):
-                    x_temp = np.append(x_temp, [[x[j][0] + (n*structure.cell[0][0] + m*structure.cell[1][0] + 
-                                                     l*structure.cell[2][0])*a_to_bohr/alat, 
-                                                 x[j][1] + (n*structure.cell[0][1] + m*structure.cell[1][1] + 
-                                                     l*structure.cell[2][1])*a_to_bohr/alat,
-                                                 x[j][2] + (n*structure.cell[0][2] + m*structure.cell[1][2] + 
-                                                     l*structure.cell[2][2])*a_to_bohr/alat, 
+                    x_temp = np.append(x_temp, [[x[j][0] + old_div((n*structure.cell[0][0] + m*structure.cell[1][0] + 
+                                                     l*structure.cell[2][0])*a_to_bohr,alat), 
+                                                 x[j][1] + old_div((n*structure.cell[0][1] + m*structure.cell[1][1] + 
+                                                     l*structure.cell[2][1])*a_to_bohr,alat),
+                                                 x[j][2] + old_div((n*structure.cell[0][2] + m*structure.cell[1][2] + 
+                                                     l*structure.cell[2][2])*a_to_bohr,alat), 
                                                  x[j][3], x[j][4], 0.]], axis = 0)
       
     #x_temp now contains all the atoms and their positions regardless if they are bigger or smaller than the cutoff

@@ -1,4 +1,6 @@
+from __future__ import print_function
 
+from builtins import range
 import os
 
 
@@ -40,10 +42,10 @@ def prepare_computer(computername, workdir):
         comp = b.computers.create(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir=workdir)
         comp.set_default_mpiprocs_per_machine(4)
         comp.store()
-        print 'computer stored now cofigure'
+        print('computer stored now cofigure')
         comp.configure()
     else:
-        print 'found computer in database'
+        print('found computer in database')
     # return computer
     return comp
 

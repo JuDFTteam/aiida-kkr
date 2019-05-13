@@ -4,6 +4,7 @@
 In this module you find the base workflow for a impurity DOS calculation and
 some helper methods to do so with AiiDA
 """
+from __future__ import print_function
 
 from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import if_, ToContext, WorkChain
@@ -30,14 +31,16 @@ class kkr_imp_dos_wc(WorkChain):
     Workchain of a DOS calculation for an impurity system starting from a
     converged impurity calculation or workflow
     
-    :param options_parameters: (ParameterData), computer options
+    :param options: (ParameterData), computer options
     :param wf_parameters: (ParameterData), specifications for the DOS
-    :param kkrcode: (Code), mandatory: KKR code for gf_writeout step
-    :param kkrimpcode: (Code), mandatory: KKRimp code for DOS calculation
+    :param kkr: (Code), mandatory: KKR code for gf_writeout step
+    :param kkrimp: (Code), mandatory: KKRimp code for DOS calculation
     :param imp_host_pot: (SinglefileData), mandatory: impurity startpotential
     
-    :param workflow_info: (ParameterData), general information on the work-
-                          flow success
+    :return workflow_info: (ParameterData), Information on workflow results
+    :return last_calc_output_parameters: (ParameterData), output parameters of 
+                                         the last called calculation
+    :return last_calc_info: (ParameterData), information of the last called calculation
     """
     
     _workflowversion = __version__

@@ -4,7 +4,11 @@
 In this module you find the base workflow for converging a kkr calculation and
 some helper methods to do so with AiiDA
 """
+from __future__ import print_function
+from __future__ import division
 
+from builtins import range
+from past.utils import old_div
 from aiida.orm import Code, DataFactory, load_node
 from aiida.work.workchain import WorkChain, while_, if_, ToContext
 from aiida.work import workfunction as wf
@@ -115,7 +119,7 @@ class kkr_scf_wc(WorkChain):
                         'custom_scheduler_commands' : ''           # some additional scheduler commands
                         }
     # set these keys from defaults in kkr_startpot workflow since they are only passed onto that workflow
-    for key, value in kkr_startpot_wc.get_wf_defaults(silent=True).iteritems():
+    for key, value in kkr_startpot_wc.get_wf_defaults(silent=True).items():
         if key in ['dos_params', 'fac_cls_increase', 'r_cls', 'natom_in_cls_min', 'delta_e_min', 'threshold_dos_zero', 'check_dos']:
             _wf_default[key] = value
 
@@ -446,13 +450,13 @@ class kkr_scf_wc(WorkChain):
             params = ParameterData(dict=defaults)
             params.label = 'default values'
         newparams = {}
-        for key, val in defaults.iteritems():
+        for key, val in defaults.items():
             if params.get_dict().get(key, None) is None:
                 if key != 'RCLUSTZ': # this one is automatically set by kkr_startpot_wc so we skip it here
                     newparams[key] = val
                     self.report("INFO: Automatically added default values to KKR parameters: {} {}".format(key, val))
         if newparams!={}:
-            for key, val in params.get_dict().iteritems():
+            for key, val in params.get_dict().items():
                 if val is not None:
                     newparams[key] = val
             updatenode = ParameterData(dict=newparams)
@@ -464,7 +468,7 @@ class kkr_scf_wc(WorkChain):
         if self.ctx.mag_init:
             input_dict = params.get_dict()
             para_check = kkrparams()
-            for key, val in input_dict.iteritems():
+            for key, val in input_dict.items():
                 para_check.set_value(key, val, silent=True)
             nspin_in = para_check.get_value('NSPIN')
             if nspin_in is None:
@@ -487,8 +491,8 @@ class kkr_scf_wc(WorkChain):
         if 'wf_parameters' in self.inputs:
             wf_params_input = self.inputs.wf_parameters.get_dict()
             num_updated = 0
-            for key in sub_wf_params_dict.keys():
-                if key in wf_params_input.keys():
+            for key in list(sub_wf_params_dict.keys()):
+                if key in list(wf_params_input.keys()):
                     val = wf_params_input[key]
                     sub_wf_params_dict[key] = val
                     num_updated += 1
@@ -670,7 +674,7 @@ class kkr_scf_wc(WorkChain):
             para_check = kkrparams()
 
             # step 1.1: try to fill keywords
-            for key, val in input_dict.iteritems():
+            for key, val in input_dict.items():
                 para_check.set_value(key, val, silent=True)
 
             # init new_params dict where updated params are collected
@@ -681,7 +685,7 @@ class kkr_scf_wc(WorkChain):
             if missing_list != []:
                 kkrdefaults = kkrparams.get_KKRcalc_parameter_defaults()[0]
                 kkrdefaults_updated = []
-                for key_default, val_default in kkrdefaults.items():
+                for key_default, val_default in list(kkrdefaults.items()):
                     if key_default in missing_list:
                         new_params[key_default] = kkrdefaults.get(key_default)
                         kkrdefaults_updated.append(key_default)
@@ -797,7 +801,7 @@ class kkr_scf_wc(WorkChain):
 
             # step 2.2 update values
             try:
-                for key, val in new_params.iteritems():
+                for key, val in new_params.items():
                     para_check.set_value(key, val, silent=True)
             except:
                 return self.exit_codes.ERROR_PARAM_UPDATE_FAILED
@@ -984,7 +988,7 @@ class kkr_scf_wc(WorkChain):
                 first_neutr = 10**-16
             if first_rms == 0:
                 first_rms = 10**-16
-            r, n = last_rms/first_rms, last_neutr/first_neutr
+            r, n = old_div(last_rms,first_rms), old_div(last_neutr,first_neutr)
             self.report("INFO convergence check: first/last rms {}, {}; first/last neutrality {}, {}".format(first_rms, last_rms, first_neutr, last_neutr))
             if r < 1 and n < 1:
                 self.report("INFO convergence check: both rms and neutrality go down")
@@ -1172,7 +1176,7 @@ class kkr_scf_wc(WorkChain):
         else:
             outdict = create_scf_result_node(outpara=outputnode_t)
 
-        for link_name, node in outdict.iteritems():
+        for link_name, node in outdict.items():
             #self.report("INFO: storing node {} {} with linkname {}".format(type(node), node, link_name))
             self.out(link_name, node)
 
@@ -1224,7 +1228,7 @@ class kkr_scf_wc(WorkChain):
 
             # step 1 try to fill keywords
             try:
-                for key, val in input_dict.iteritems():
+                for key, val in input_dict.items():
                     para_check.set_value(key, val, silent=True)
             except:
                 return self.exit_codes.ERROR_CALC_PARAMTERS_INCONSISTENT
@@ -1330,7 +1334,7 @@ class kkr_scf_wc(WorkChain):
                 return self.exit_codes.ERROR_DOS_RUN_UNSUCCESFUL
 
             # deal with snpin==1 or 2 cases and check negtive DOS
-            for iatom in range(natom/nspin):
+            for iatom in range(old_div(natom,nspin)):
                 for ispin in range(nspin):
                     x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
                     if nspin == 2 and ispin == 0:
@@ -1346,7 +1350,7 @@ class kkr_scf_wc(WorkChain):
             totdos = dosdata_interpol.get_y()[0][1] # shape= natom*nspin, nept
             Ry2eV = get_Ry2eV()
 
-            for iatom in range(natom/nspin):
+            for iatom in range(old_div(natom,nspin)):
                 for ispin in range(nspin):
                     x, y = ener[iatom*nspin+ispin], totdos[iatom*nspin+ispin]
                     xrel = abs(x-(self.ctx.dos_params_dict['emin']-self.ctx.efermi)*Ry2eV)
@@ -1378,7 +1382,7 @@ def create_scf_result_node(**kwargs):
     has_final_dos = False
     has_last_InputParameters = False
 
-    for key, val in kwargs.iteritems():
+    for key, val in kwargs.items():
         if key == 'outpara': #  should always be there
             outpara = val
             has_last_outpara = True

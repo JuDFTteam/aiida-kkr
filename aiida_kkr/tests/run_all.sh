@@ -4,7 +4,7 @@ mkdir -p '.aiida';
 #pytest -sv
 
 # tests without running actual calculations
-pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=workflows --ignore=jukkr
+pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=workflows --ignore=jukkr --mpl -p no:warnings
 
 # test running full workflows, need compiled codes and execute them
 pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_vorostart_workflow

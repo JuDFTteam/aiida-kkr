@@ -2,7 +2,9 @@
 """
 Input plug-in for a KKR calculation.
 """
+from __future__ import print_function
 
+from builtins import range
 import os
 from numpy import pi, array
 
@@ -234,7 +236,7 @@ class KkrCalculation(JobCalculation):
             raise InputValidationError("No parameter node found of parent calculation.")
             
         # check if no keys are illegally overwritten (i.e. compare with keys in self._do_never_modify)
-        for key in parameters.get_dict().keys():
+        for key in list(parameters.get_dict().keys()):
             value = parameters.get_dict()[key]
             #self.logger.info("Checking {} {}".format(key, value))
             if not value is None:
@@ -369,7 +371,7 @@ class KkrCalculation(JobCalculation):
             if change_values != []:
                 new_params = {}
                 #{'nodename': 'changed_params_qdos', 'nodedesc': 'Changed parameters to mathc qdos mode. Changed values: {}'.format(change_values)}
-                for key, val in parameters.get_dict().iteritems():
+                for key, val in parameters.get_dict().items():
                     new_params[key] = val
                 for key, val in change_values:
                     new_params[key] = val
@@ -499,10 +501,10 @@ class KkrCalculation(JobCalculation):
         # 1. dos calculation, add *dos* files if NPOL==0
         retrieve_dos_files = False
         print('NPOL in parameter input:', parameters.get_dict()['NPOL'])
-        if 'NPOL' in  parameters.get_dict().keys():
+        if 'NPOL' in  list(parameters.get_dict().keys()):
             if parameters.get_dict()['NPOL'] == 0:
                 retrieve_dos_files = True
-        if 'TESTOPT' in  parameters.get_dict().keys():
+        if 'TESTOPT' in  list(parameters.get_dict().keys()):
             testopts = parameters.get_dict()['TESTOPT']
             if testopts is not None :
                 stripped_test_opts = [i.strip() for i in testopts]
@@ -519,7 +521,7 @@ class KkrCalculation(JobCalculation):
             
         # 2. KKRFLEX calculation
         retrieve_kkrflex_files = False
-        if 'RUNOPT' in  parameters.get_dict().keys():
+        if 'RUNOPT' in  list(parameters.get_dict().keys()):
             runopts = parameters.get_dict()['RUNOPT']
             if runopts is not None :
                 stripped_run_opts = [i.strip() for i in runopts]
@@ -532,7 +534,7 @@ class KkrCalculation(JobCalculation):
             
         # 3. qdos claculation
         retrieve_qdos_files = False
-        if 'RUNOPT' in  parameters.get_dict().keys():
+        if 'RUNOPT' in  list(parameters.get_dict().keys()):
             runopts = parameters.get_dict()['RUNOPT']
             if runopts is not None :
                 stripped_run_opts = [i.strip() for i in runopts]
@@ -548,7 +550,7 @@ class KkrCalculation(JobCalculation):
             
         # 4. Jij calculation
         retrieve_Jij_files = False
-        if 'RUNOPT' in  parameters.get_dict().keys():
+        if 'RUNOPT' in  list(parameters.get_dict().keys()):
             runopts = parameters.get_dict()['RUNOPT']
             if runopts is not None :
                 stripped_run_opts = [i.strip() for i in runopts]
