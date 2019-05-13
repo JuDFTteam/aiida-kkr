@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 export AIIDA_PATH='.';
 mkdir -p '.aiida';
 
