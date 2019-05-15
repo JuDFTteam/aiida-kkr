@@ -937,16 +937,14 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
 
     #create array of all the atoms in an expanded system
     box = max(box_1, box_2, box_3)
+    cell = np.array(structure.cell)*a_to_bohr/alat
     for j in range(len(x)):
         for n in range(-box, box + 1):
             for m in range(-box, box + 1):
                 for l in range(-box, box + 1):
-                    x_temp = np.append(x_temp, [[x[j][0] + (n*structure.cell[0][0] + m*structure.cell[1][0] +
-                                                     l*structure.cell[2][0])*a_to_bohr/alat,
-                                                 x[j][1] + (n*structure.cell[0][1] + m*structure.cell[1][1] +
-                                                     l*structure.cell[2][1])*a_to_bohr/alat,
-                                                 x[j][2] + (n*structure.cell[0][2] + m*structure.cell[1][2] +
-                                                     l*structure.cell[2][2])*a_to_bohr/alat,
+                    x_temp = np.append(x_temp, [[x[j][0] + (n*cell[0][0] + m*cell[1][0] + l*cell[2][0]),
+                                                 x[j][1] + (n*cell[0][1] + m*cell[1][1] + l*cell[2][1]),
+                                                 x[j][2] + (n*cell[0][2] + m*cell[1][2] + l*cell[2][2]),
                                                  x[j][3], x[j][4], 0.]], axis = 0)
 
     #x_temp now contains all the atoms and their positions regardless if they are bigger or smaller than the cutoff

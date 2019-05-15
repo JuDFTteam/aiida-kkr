@@ -262,7 +262,7 @@ class plot_kkr(object):
             for site in structure.sites:
                 k = structure.get_kind(site.kind_name)
                 pos = site.position
-                if not k.has_vacancies():
+                if not k.has_vacancies:
                     stmp.append_atom(position=pos, symbols=k.symbol)
                 else:
                     print("removing atom", site)
