@@ -390,6 +390,7 @@ class plot_kkr(object):
 
     def get_rms_kkrcalc(self, node, title=None):
         """extract rms etc from kkr Calculation. Works for both finished and still running Calculations."""
+        from aiida.engine import ProcessState
         from plumpy import ProcessState
         from masci_tools.io.common_functions import search_string
 
@@ -410,7 +411,7 @@ class plot_kkr(object):
 
             figure(); subplot(1,2,1); plot(rms_all); twinx(); plot(neutr_all,'r'); subplot(1,2,2); plot(m)
             """
-        elif node.get_attr('state') in [u'WITHSCHEDULER', u'RETRIEVING']:
+        elif node.process_state in [ProcessState.FINISHED, ProcessState.RUNNING]:
             # extract info needed to open transport
             c = node.get_code()
             comp = c.get_computer()
@@ -522,47 +523,48 @@ class plot_kkr(object):
         from masci_tools.vis.kkr_plot_dos import dosplot
         from matplotlib.pyplot import show, figure, title, xticks, xlabel, axvline
 
-        retlist = node.outputs.retrieved.list_object_names()
-        has_dos = 'dos.atom1' in retlist
-        has_qvec = 'qvec.dat' in retlist
-
-        # remove already automatically set things from kwargs
-        if 'ptitle' in list(kwargs.keys()):
-            ptitle = kwargs.pop('ptitle')
-        else:
-            ptitle = 'pk= {}'.format(node.pk)
-        if 'newfig' in list(kwargs.keys()): kwargs.pop('newfig')
-
-        # qdos
-        if has_qvec:
-            has_qdos = 'qdos.01.1.dat' in retlist
-            if has_qdos:
-                with node.outputs.retrieved.open('qdos.01.1.dat', mode='r') as f:
-                    ne = len(set(loadtxt(f)[:,0]))
-                    if ne>1:
-                        dispersionplot(f, newfig=True, ptitle=ptitle, **kwargs)
-                        # add plot labels
-                        try:
-                            ilbl = node.inputs.kpoints.get_attr('label_numbers')
-                            slbl = node.inputs.kpoints.get_attr('labels')
-                            ilbl = array(ilbl)
-                            slbl = array(slbl)
-                            m_overlap = where(abs(ilbl[1:]-ilbl[:-1])== 1)
-                            if len(m_overlap[0])>0:
-                                for i in m_overlap[0]:
-                                    slbl[i+1] = '\n'+slbl[i+1]
-                            xticks(ilbl, slbl)
-                            xlabel('')
-                            [axvline(i, color='grey', ls=':') for i in ilbl]
-                        except:
-                            xlabel('id_kpt')
-
-        # dos only if qdos was not plotted already
-        if has_dos and not has_qdos:
-            with node.outputs.retrieved.open('dos.atom1', mode='r') as f:
-                figure()
-                dosplot(f, **kwargs)
-                title(ptitle)
+        if node.is_finished_ok:
+            retlist = node.outputs.retrieved.list_object_names()
+            has_dos = 'dos.atom1' in retlist
+            has_qvec = 'qvec.dat' in retlist
+            
+            # remove already automatically set things from kwargs
+            if 'ptitle' in list(kwargs.keys()):
+                ptitle = kwargs.pop('ptitle')
+            else:
+                ptitle = 'pk= {}'.format(node.pk)
+            if 'newfig' in list(kwargs.keys()): kwargs.pop('newfig')
+            
+            # qdos
+            if has_qvec:
+                has_qdos = 'qdos.01.1.dat' in retlist
+                if has_qdos:
+                    with node.outputs.retrieved.open('qdos.01.1.dat', mode='r') as f:
+                        ne = len(set(loadtxt(f)[:,0]))
+                        if ne>1:
+                            dispersionplot(f, newfig=True, ptitle=ptitle, **kwargs)
+                            # add plot labels
+                            try:
+                                ilbl = node.inputs.kpoints.get_attr('label_numbers')
+                                slbl = node.inputs.kpoints.get_attr('labels')
+                                ilbl = array(ilbl)
+                                slbl = array(slbl)
+                                m_overlap = where(abs(ilbl[1:]-ilbl[:-1])== 1)
+                                if len(m_overlap[0])>0:
+                                    for i in m_overlap[0]:
+                                        slbl[i+1] = '\n'+slbl[i+1]
+                                xticks(ilbl, slbl)
+                                xlabel('')
+                                [axvline(i, color='grey', ls=':') for i in ilbl]
+                            except:
+                                xlabel('id_kpt')
+            
+            # dos only if qdos was not plotted already
+            if has_dos and not has_qdos:
+                with node.outputs.retrieved.open('dos.atom1', mode='r') as f:
+                    figure()
+                    dosplot(f, **kwargs)
+                    title(ptitle)
 
 
     def plot_voro_calc(self, node, **kwargs):
@@ -688,21 +690,26 @@ class plot_kkr(object):
 
         if d is not None:
             axvline(0, color='k', ls='--', label='EF')
+            tit_add = ''
             if emin is not None: axvline(emin, color='r', ls='--', label='emin')
             if ef_Ry is not None and len(ecore_max)>0:
-                axvline((ecore_max[0]-ef_Ry)*get_Ry2eV(), color='b', ls='--', label='ecore_max')
+                if abs((ecore_max[0]-ef_Ry)*get_Ry2eV()-emin)<20:
+                    axvline((ecore_max[0]-ef_Ry)*get_Ry2eV(), color='b', ls='--', label='ecore_max')
+                else:
+                    tit_add = '; E_core<=%.2feV'%((ecore_max[0]-ef_Ry)*get_Ry2eV())
                 if len(ecore_max)>1:
-                    [axvline((i-ef_Ry)*get_Ry2eV(), color='b', ls='--') for i in ecore_max[1:]]
+                    [axvline((i-ef_Ry)*get_Ry2eV(), color='b', ls='--') for i in ecore_max[1:] if abs((i-ef_Ry)*get_Ry2eV()-emin)<20]
             if emin is not None: legend(loc=3, fontsize='x-small')
 
-            title(struc.get_formula())
+            title(struc.get_formula()+', starting potential'+tit_add)
 
 
     def plot_kkr_scf(self, node, **kwargs):
         """plot outputs of a kkr_scf_wc workflow"""
+        from aiida.orm import CalcJobNode
         from aiida_kkr.calculations.kkr import KkrCalculation
         from numpy import sort
-        from matplotlib.pyplot import axvline, axhline
+        from matplotlib.pyplot import axvline, axhline, subplot
 
         # structure plot only if structure is in inputs
         try:
@@ -729,14 +736,15 @@ class plot_kkr(object):
             rms_goal = None
             # deal with unfinished workflow
             rms, neutr, etot, efermi = [], [], [], []
-            outdict = node.get_outgoing()
-            for key in sort(outdict.all_link_labels()):
-                if isinstance(outdict[key], KkrCalculation):
-                    kkrcalc = outdict[key]
+            outdict = node.get_outgoing(node_class=CalcJobNode)
+            for key in outdict.all():
+                if isinstance(key.node, KkrCalculation):
+                    kkrcalc = key.node
                     rms_tmp, neutr_tmp, etot_tmp, efermi_tmp, ptitle_tmp = self.get_rms_kkrcalc(kkrcalc)
-                    niter_calcs.append(len(rms_tmp))
-                    rms += rms_tmp
-                    neutr += neutr_tmp
+                    if len(rms_tmp)>0:
+                        niter_calcs.append(len(rms_tmp))
+                        rms += rms_tmp
+                        neutr += neutr_tmp
 
         # extract options from kwargs
         nofig = False
@@ -745,6 +753,10 @@ class plot_kkr(object):
         if 'logscale' in list(kwargs.keys()): logscale = kwargs.pop('logscale')
         only = None
         if 'only' in list(kwargs.keys()): only = kwargs.pop('only')
+        if 'subplot' in list(kwargs.keys()):
+            subplots = kwargs.pop('subplot')
+        else:
+            subplots = None
         if 'label' in list(kwargs.keys()):
             label = kwargs.pop('label')
         else:
@@ -752,6 +764,8 @@ class plot_kkr(object):
 
         # extract rms from calculations and plot
         if len(rms)>0:
+            if subplots is not None:
+                subplot(subplots[0], subplots[1], subplots[2])
             self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
             if only == 'rms' and rms_goal is not None: axhline(rms_goal, color='grey', ls='--')
             tmpsum = 0
@@ -759,12 +773,17 @@ class plot_kkr(object):
                 for i in niter_calcs:
                     tmpsum+=i
                     axvline(tmpsum, color='k', ls=':')
+            did_plot = True
+        else:
+            did_plot = False
+
+        return did_plot
 
 
     def plot_kkr_eos(self, node, **kwargs):
         """plot outputs of a kkr_eos workflow"""
         from numpy import sort, array, where
-        from matplotlib.pyplot import figure, subplot, title, xlabel, legend, axvline, plot, annotate
+        from matplotlib.pyplot import figure, title, xlabel, legend, axvline, plot, annotate
         from aiida.orm import load_node
         from aiida_kkr.workflows.voro_start import kkr_startpot_wc
         from ase.eos import EquationOfState
@@ -812,19 +831,16 @@ class plot_kkr(object):
                     self.plot_kkr_startpot(tmpnode, strucplot=False, silent=True, **kwargs)
                     plotted_kkr_start = True
                 elif tmplabel == u'kkr_scf_wc':
-                    if not fig_open:
-                        figure()
-                        fig_open = True
                     # plot rms
-                    subplot(2,1,1)
-                    self.plot_kkr_scf(tmpnode, silent=True, strucplot=False, nofig=True, only='rms', noshow=True, label='pk={}'.format(tmpnode.pk), **kwargs) # scf workflow, rms only
-                    xlabel('') # remove overlapping x label in upper plot
-                    if not nolegend: legend(loc=3, fontsize='x-small', ncol=2)
+                    did_plot = self.plot_kkr_scf(tmpnode, silent=True, strucplot=False, nofig=(not fig_open), only='rms', noshow=True, label='pk={}'.format(tmpnode.pk), subplot=(2,1,1), **kwargs) # scf workflow, rms only
+                    if not fig_open:
+                        fig_open = True
+                    if did_plot: xlabel('') # remove overlapping x label in upper plot
+                    if did_plot and not nolegend: legend(loc=3, fontsize='x-small', ncol=2)
                     # plot charge neutrality
-                    subplot(2,1,2)
-                    self.plot_kkr_scf(tmpnode, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, label='pk={}'.format(tmpnode.pk), **kwargs) # scf workflow, rms only
-                    title('')# remove duplicated plot title of lower plot
-                    if not nolegend: legend(loc=3, fontsize='x-small', ncol=2)
+                    self.plot_kkr_scf(tmpnode, silent=True, strucplot=False, nofig=True, only='neutr', noshow=True, label='pk={}'.format(tmpnode.pk), subplot=(2,1,2), **kwargs) # scf workflow, rms only
+                    if did_plot: title('') # remove overlapping title
+                    if did_plot and  not nolegend: legend(loc=3, fontsize='x-small', ncol=2)
                     plotted_kkr_scf = True
 
         if not (plotted_kkr_scf or plotted_kkr_start):
