@@ -386,12 +386,10 @@ class plot_kkr(object):
             else:
                 raise ValueError('`only` can only be `rms or `neutr` but got {}'.format(only))
         title(ptitle)
-        subplots_adjust(right=0.85)
 
     def get_rms_kkrcalc(self, node, title=None):
         """extract rms etc from kkr Calculation. Works for both finished and still running Calculations."""
         from aiida.engine import ProcessState
-        from plumpy import ProcessState
         from masci_tools.io.common_functions import search_string
 
         rms, neutr, etot, efermi = [], [], [], []
@@ -411,21 +409,19 @@ class plot_kkr(object):
 
             figure(); subplot(1,2,1); plot(rms_all); twinx(); plot(neutr_all,'r'); subplot(1,2,2); plot(m)
             """
-        elif node.process_state in [ProcessState.FINISHED, ProcessState.RUNNING]:
+        elif node.process_state in [ProcessState.WAITING, ProcessState.FINISHED, ProcessState.RUNNING]:
             # extract info needed to open transport
-            c = node.get_code()
-            comp = c.get_computer()
-            authinfo = comp.get_authinfo(c.get_user())
+            c = node.inputs.code
+            comp = c.computer
+            authinfo = comp.get_authinfo(c.user)
             transport = authinfo.get_transport()
 
             out_kkr = ''
 
             # now get contents of out_kkr using remote call of 'cat'
             with transport as open_transport:
-                path = node.get_attr('remote_workdir')
-                if 'out_kkr' in transport.listdir(path):
-                    out_kkr = transport.exec_command_wait('cat '+path+'/out_kkr')
-                    out_kkr = out_kkr[1].split('\n')
+                if 'out_kkr' in node.outputs.remote_folder.list_object_names():
+                    out_kkr = node.outputs.remote_folder.open('out_kkr').readlines()
 
             # now extract rms, charge neutrality, total energy and value of Fermi energy
             itmp = 0
@@ -457,7 +453,7 @@ class plot_kkr(object):
                     tmpval = float(tmpline.split('FERMI')[1].split()[0].replace('D', 'e'))
                     efermi.append(tmpval)
         else:
-            print('no rms extracted')
+            print('no rms extracted', node.process_state)
 
         return rms, neutr, etot, efermi, ptitle
 
@@ -713,10 +709,10 @@ class plot_kkr(object):
 
     def plot_kkr_scf(self, node, **kwargs):
         """plot outputs of a kkr_scf_wc workflow"""
-        from aiida.orm import CalcJobNode
+        from aiida.orm import CalcJobNode, load_node
         from aiida_kkr.calculations.kkr import KkrCalculation
         from numpy import sort
-        from matplotlib.pyplot import axvline, axhline, subplot
+        from matplotlib.pyplot import axvline, axhline, subplot, figure
 
         # structure plot only if structure is in inputs
         try:
@@ -744,9 +740,11 @@ class plot_kkr(object):
             # deal with unfinished workflow
             rms, neutr, etot, efermi = [], [], [], []
             outdict = node.get_outgoing(node_class=CalcJobNode)
-            for key in outdict.all():
-                if isinstance(key.node, KkrCalculation):
-                    kkrcalc = key.node
+            pks_calcs = sort([i.node.pk for i in outdict.all()])
+            for pk in pks_calcs:
+                node = load_node(pk)
+                if node.process_label==u'KkrCalculation':
+                    kkrcalc = node
                     rms_tmp, neutr_tmp, etot_tmp, efermi_tmp, ptitle_tmp = self.get_rms_kkrcalc(kkrcalc)
                     if len(rms_tmp)>0:
                         niter_calcs.append(len(rms_tmp))
@@ -771,9 +769,11 @@ class plot_kkr(object):
 
         # extract rms from calculations and plot
         if len(rms)>0:
+            if not nofig:
+                figure()
             if subplots is not None:
                 subplot(subplots[0], subplots[1], subplots[2])
-            self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
+            self.rmsplot(rms, neutr, True, ptitle, logscale, only, label=label)
             if only == 'rms' and rms_goal is not None: axhline(rms_goal, color='grey', ls='--')
             tmpsum = 0
             if not nofig and len(niter_calcs)>1:
@@ -839,8 +839,8 @@ class plot_kkr(object):
                     plotted_kkr_start = True
                 elif tmplabel == u'kkr_scf_wc':
                     # plot rms
-                    did_plot = self.plot_kkr_scf(tmpnode, silent=True, strucplot=False, nofig=(not fig_open), only='rms', noshow=True, label='pk={}'.format(tmpnode.pk), subplot=(2,1,1), **kwargs) # scf workflow, rms only
-                    if not fig_open:
+                    did_plot = self.plot_kkr_scf(tmpnode, silent=True, strucplot=False, nofig=fig_open, only='rms', noshow=True, label='pk={}'.format(tmpnode.pk), subplot=(2,1,1), **kwargs) # scf workflow, rms only
+                    if did_plot and not fig_open:
                         fig_open = True
                     if did_plot: xlabel('') # remove overlapping x label in upper plot
                     if did_plot and not nolegend: legend(loc=3, fontsize='x-small', ncol=2)
