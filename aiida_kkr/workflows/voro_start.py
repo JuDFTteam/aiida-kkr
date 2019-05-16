@@ -491,12 +491,14 @@ class kkr_startpot_wc(WorkChain):
         if self.ctx.check_dos:
             self.report("INFO: Doing DOS calculation in iteration {}".format(self.ctx.iter))
             # take subset of input and prepare parameter node for dos workflow
-            wfdospara_dict = {'queue_name' : self.ctx.queue,
-                              'resources': self.ctx.resources,
-                              'max_wallclock_seconds' : self.ctx.max_wallclock_seconds,
-                              'use_mpi' : self.ctx.use_mpi,
-                              'custom_scheduler_commands' : self.ctx.custom_scheduler_commands,
-                              'dos_params' : self.ctx.dos_params_dict}
+            options_dict =  {'queue_name' : self.ctx.queue,
+                             'resources': self.ctx.resources,
+                             'max_wallclock_seconds' : self.ctx.max_wallclock_seconds,
+                             'use_mpi' : self.ctx.use_mpi,
+                             'custom_scheduler_commands' : self.ctx.custom_scheduler_commands}
+            options_node = Dict(dict=options_dict)
+            options_node.label = 'options'
+            wfdospara_dict = {'dos_params' : self.ctx.dos_params_dict}
             wfdospara_node = Dict(dict=wfdospara_dict)
             wfdospara_node.label = 'DOS params'
             wfdospara_node.description = 'DOS parameters passed from kkr_startpot_wc input to DOS sub-workflow'
@@ -506,7 +508,7 @@ class kkr_startpot_wc(WorkChain):
             wf_label= 'DOS calculation'
             wf_desc = 'subworkflow of a DOS calculation that perform a singe-shot KKR calc.'
             future = submit(kkr_dos_wc, kkr=code, remote_data=remote,
-                            wf_parameters=wfdospara_node,
+                            wf_parameters=wfdospara_node, options=options_node,
                             label=wf_label, description=wf_desc)
 
             return ToContext(doscal=future)

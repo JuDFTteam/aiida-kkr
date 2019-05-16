@@ -311,7 +311,7 @@ class kkr_dos_wc(WorkChain):
         if not self.ctx.dosrun.is_finished_ok:
             self.ctx.successful = False
             error = ('ERROR: DOS calculation failed somehow it is '
-                    'in state {}'.format(self.ctx.dosrun.calc_state))
+                    'in state {}'.format(self.ctx.dosrun.process_state))
             self.ctx.errors.append(error)
 
         # create dict to store results of workflow output
