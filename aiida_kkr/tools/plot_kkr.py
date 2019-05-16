@@ -604,21 +604,23 @@ class plot_kkr(object):
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
         if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
 
-        if interpol:
-            d = node.outputs.dos_data_interpol
-        else:
-            d = node.outputs.dos_data
+        if node.is_finished_ok:
+            if interpol:
+                d = node.outputs.dos_data_interpol
+            else:
+                d = node.outputs.dos_data
 
-        # extract structure (neede in dosplot to extract number of atoms and number of spins)
-        struc, voro_parent = VoronoiCalculation.find_parent_structure(node.inputs.remote_data)
-
-        # do dos plot after data was extracted
-        self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, **kwargs)
+            # extract structure (neede in dosplot to extract number of atoms and number of spins)
+            struc, voro_parent = VoronoiCalculation.find_parent_structure(node.inputs.remote_data)
+            
+            # do dos plot after data was extracted
+            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, **kwargs)
 
 
     def plot_kkr_startpot(self, node, **kwargs):
         """plot output of kkr_startpot_wc workflow"""
         from aiida_kkr.calculations.voro import VoronoiCalculation
+        from aiida.common import exceptions
         from matplotlib.pyplot import axvline, legend, title
         from masci_tools.io.common_functions import get_Ry2eV
 
@@ -638,7 +640,12 @@ class plot_kkr(object):
         if not silent:
             # print results
             print('results:')
-            self.plot_kkr_single_node(node.outputs.results_vorostart_wc, noshow=True, silent=True)
+            try:
+                res_node = node.outputs.results_vorostart_wc
+            except exceptions.NotExistent:
+                res_node = None
+            if res_node is not None:
+                self.plot_kkr_single_node(res_node, noshow=True, silent=True)
 
         # plot starting DOS
 
