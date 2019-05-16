@@ -315,13 +315,6 @@ def get_inputs_common(calculation, code, remote, structure, options, label, desc
     if not options:
         options = {}
 
-    #for key, val in options.iteritems():
-    #    if val==None:
-    #        #leave them out, otherwise the dict schema won't validate
-    #        continue
-    #    else:
-    #        inputs.options[key] = val
-
     if description:
         inputs.metadata.description = description
     else:
@@ -333,8 +326,12 @@ def get_inputs_common(calculation, code, remote, structure, options, label, desc
         inputs.metadata.label = ''
 
     if serial:
-        options['withmpi'] = False # for now
+        # overwrite settings for serial run 
+        options['withmpi'] = False
         options['resources'] = {"num_machines": 1}
+    else:
+        # otherwise assume MPI parallelism
+        options['withmpi'] = True
 
     if options:
         inputs.metadata.options = options
