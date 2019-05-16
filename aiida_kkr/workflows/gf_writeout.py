@@ -155,7 +155,7 @@ class kkr_flex_wc(WorkChain):
         # ToDo: arrange option assignment differently (look at scf.py from aiida-fleur)
         self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
-        self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
+        self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
 
@@ -174,7 +174,7 @@ class kkr_flex_wc(WorkChain):
                     'queue name: {}\n'
                     'scheduler command: {}\n'
                     'description: {}\n'
-                    'label: {}\n'.format(self.ctx.use_mpi, self.ctx.resources, self.ctx.walltime_sec,
+                    'label: {}\n'.format(self.ctx.use_mpi, self.ctx.resources, self.ctx.max_wallclock_seconds,
                                          self.ctx.queue, self.ctx.custom_scheduler_commands,
                                          self.ctx.description_wf, self.ctx.label_wf))
 
@@ -332,7 +332,7 @@ class kkr_flex_wc(WorkChain):
         remote = self.inputs.remote_data
         params = self.ctx.flex_kkrparams
         imp_info = self.inputs.impurity_info
-        options = {"max_wallclock_seconds": self.ctx.walltime_sec,
+        options = {"max_wallclock_seconds": self.ctx.max_wallclock_seconds,
                    "resources": self.ctx.resources,
                    "queue_name": self.ctx.queue}
         if self.ctx.custom_scheduler_commands:
@@ -364,7 +364,7 @@ class kkr_flex_wc(WorkChain):
         outputnode_dict['workflow_version'] = self._workflowversion
         outputnode_dict['use_mpi'] = self.ctx.use_mpi
         outputnode_dict['resources'] = self.ctx.resources
-        outputnode_dict['max_wallclock_seconds'] = self.ctx.walltime_sec
+        outputnode_dict['max_wallclock_seconds'] = self.ctx.max_wallclock_seconds
         outputnode_dict['queue_name'] = self.ctx.queue
         outputnode_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
         outputnode_dict['successful'] = self.ctx.successful

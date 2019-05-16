@@ -147,11 +147,11 @@ class kkr_imp_dos_wc(WorkChain):
         # set values, or defaults
         self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
-        self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
+        self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
         self.ctx.options_params_dict = Dict(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources,
-                                                           'max_wallclock_seconds': self.ctx.walltime_sec, 'queue_name': self.ctx.queue,
+                                                           'max_wallclock_seconds': self.ctx.max_wallclock_seconds, 'queue_name': self.ctx.queue,
                                                            'custom_scheduler_commands': self.ctx.custom_scheduler_commands})
 
         # set workflow parameters for the KKR imputrity calculations
@@ -177,7 +177,7 @@ class kkr_imp_dos_wc(WorkChain):
                     'queue name: {}\n'
                     'scheduler command: {}\n'
                     'description: {}\n'
-                    'label: {}\n'.format(self.ctx.use_mpi, self.ctx.resources, self.ctx.walltime_sec,
+                    'label: {}\n'.format(self.ctx.use_mpi, self.ctx.resources, self.ctx.max_wallclock_seconds,
                                          self.ctx.queue, self.ctx.custom_scheduler_commands,
                                          self.ctx.description_wf, self.ctx.label_wf))
 

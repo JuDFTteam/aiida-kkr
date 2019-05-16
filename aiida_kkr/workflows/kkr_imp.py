@@ -200,10 +200,10 @@ class kkr_imp_wc(WorkChain):
         # set option parameters from input, or defaults
         self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
-        self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
+        self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
-        self.ctx.options_params_dict = Dict(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources, 'max_wallclock_seconds': self.ctx.walltime_sec,
+        self.ctx.options_params_dict = Dict(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources, 'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
                                                            'queue_name': self.ctx.queue, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands})
 
         # set label and description of the workflow
@@ -221,7 +221,7 @@ class kkr_imp_wc(WorkChain):
         self.ctx.voro_check_dos = voro_aux_dict.get('check_dos', self._voro_aux_default['check_dos'])
         self.ctx.voro_delta_e_min_core_states = voro_aux_dict.get('delta_e_min_core_states', self._voro_aux_default['delta_e_min_core_states'])
         # set up new parameter dict to pass to voronoi subworkflow later
-        self.ctx.voro_params_dict = Dict(dict={'queue_name': self.ctx.queue, 'resources': self.ctx.resources, 'walltime_sec': self.ctx.walltime_sec,
+        self.ctx.voro_params_dict = Dict(dict={'queue_name': self.ctx.queue, 'resources': self.ctx.resources, 'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
                                                         'use_mpi': self.ctx.use_mpi, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
                                                         'dos_params': self.ctx.voro_dos_params, 'num_rerun': self.ctx.voro_num_rerun,
                                                         'fac_cls_increase': self.ctx.voro_fac_cls_increase, 'r_cls': self.ctx.voro_r_cls,
@@ -274,7 +274,7 @@ class kkr_imp_wc(WorkChain):
                     'nspin: {}\n'
                     'parameters for the voroaux calculation: {}\n'
                     'parameters for the kkrimp scf: {}\n'
-                    ''.format(self.ctx.use_mpi, self.ctx.resources, self.ctx.walltime_sec,
+                    ''.format(self.ctx.use_mpi, self.ctx.resources, self.ctx.max_wallclock_seconds,
                               self.ctx.queue, self.ctx.custom_scheduler_commands,
                               self.ctx.description_wf, self.ctx.label_wf,
                               self.ctx.nspin, self.ctx.voro_params_dict.get_dict(),

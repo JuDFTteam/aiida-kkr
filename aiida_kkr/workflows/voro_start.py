@@ -171,7 +171,7 @@ class kkr_startpot_wc(WorkChain):
         # set values, or defaults for computer options
         self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
-        self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
+        self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
 
@@ -223,7 +223,7 @@ class kkr_startpot_wc(WorkChain):
                     'min. dist in DOS contour to emin/emax: {} eV\n'
                     'threshold where DOS is zero: {} states/eV\n'
                     'minimal distance of highest core state from EMIN: {} Ry\n'.format(self.ctx.use_mpi,
-                                              self.ctx.resources, self.ctx.walltime_sec,
+                                              self.ctx.resources, self.ctx.max_wallclock_seconds,
                                               self.ctx.queue, self.ctx.custom_scheduler_commands,
                                               self.ctx.description_wf, self.ctx.label_wf,
                                               self.ctx.dos_params_dict, self.ctx.Nrerun,
@@ -376,7 +376,7 @@ class kkr_startpot_wc(WorkChain):
 
         # run voronoi step
         if not skip_voro:
-            options = {"max_wallclock_seconds": self.ctx.walltime_sec,
+            options = {"max_wallclock_seconds": self.ctx.max_wallclock_seconds,
                        "resources": self.ctx.resources,
                        "queue_name" : self.ctx.queue}
 
@@ -493,7 +493,7 @@ class kkr_startpot_wc(WorkChain):
             # take subset of input and prepare parameter node for dos workflow
             wfdospara_dict = {'queue_name' : self.ctx.queue,
                               'resources': self.ctx.resources,
-                              'max_wallclock_seconds' : self.ctx.walltime_sec,
+                              'max_wallclock_seconds' : self.ctx.max_wallclock_seconds,
                               'use_mpi' : self.ctx.use_mpi,
                               'custom_scheduler_commands' : self.ctx.custom_scheduler_commands,
                               'dos_params' : self.ctx.dos_params_dict}
@@ -700,7 +700,7 @@ class kkr_startpot_wc(WorkChain):
         res_node_dict['list_of_errors'] = self.ctx.errors
         res_node_dict['use_mpi'] = self.ctx.use_mpi
         res_node_dict['resources'] = self.ctx.resources
-        res_node_dict['max_wallclock_seconds'] = self.ctx.walltime_sec
+        res_node_dict['max_wallclock_seconds'] = self.ctx.max_wallclock_seconds
         res_node_dict['queue_name'] = self.ctx.queue
         res_node_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
         res_node_dict['dos_params'] = self.ctx.dos_params_dict

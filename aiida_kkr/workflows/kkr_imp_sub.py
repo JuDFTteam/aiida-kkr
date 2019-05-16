@@ -230,7 +230,7 @@ class kkr_imp_sub_wc(WorkChain):
         # set option parameters from input, or defaults
         self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
-        self.ctx.walltime_sec = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
+        self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
 
@@ -296,7 +296,7 @@ class kkr_imp_sub_wc(WorkChain):
                     'SOC calculation: {}\n'
                     'write out orbital moments: {}\n'
                     ''.format(self.ctx.use_mpi, self.ctx.max_number_runs,
-                                self.ctx.resources, self.ctx.walltime_sec,
+                                self.ctx.resources, self.ctx.max_wallclock_seconds,
                                 self.ctx.queue, self.ctx.custom_scheduler_commands,
                                 self.ctx.description_wf, self.ctx.label_wf,
                                 self.ctx.strmix, self.ctx.nsteps, self.ctx.nspin,
@@ -695,7 +695,7 @@ class kkr_imp_sub_wc(WorkChain):
         imp_pot = self.ctx.last_pot
         last_remote = self.ctx.last_remote
 
-        options = {"max_wallclock_seconds": self.ctx.walltime_sec,
+        options = {"max_wallclock_seconds": self.ctx.max_wallclock_seconds,
                    "resources": self.ctx.resources,
                    "queue_name" : self.ctx.queue}
         if self.ctx.custom_scheduler_commands:
