@@ -346,7 +346,7 @@ class KkrCalculation(CalcJob):
                 copylist = self._copy_filelist_kkr
                 # TODO ggf copy remotely from remote node if present ...
 
-            if parent_calc.process_class == VoronoiCalculation:
+            elif parent_calc.process_class == VoronoiCalculation:
                 copylist = [parent_calc.process_class._SHAPEFUN]
                 # copy either overwrite potential or voronoi output potential
                 # (voronoi caclualtion retreives only one of the two)
@@ -355,25 +355,24 @@ class KkrCalculation(CalcJob):
                 else:
                     copylist.append(parent_calc.process_class._OUT_POTENTIAL_voronoi)
 
-            """ # comment out at the moment since importer does not work anyways
             #change copylist in case the calculation starts from an imported calculation
-            if parent_calc.get_parser_name() == 'kkr.kkrimporterparser':
-                copylist = []
-                if not self._OUT_POTENTIAL in outfolder.list_object_names():
-                    copylist.append(self._POTENTIAL)
-                else:
+            else: #if parent_calc.process_class == KkrImporterCalculation:
+                if self._OUT_POTENTIAL in outfolder.list_object_names():
                     copylist.append(self._OUT_POTENTIAL)
+                else:
+                    copylist.append(self._POTENTIAL)
                 if self._SHAPEFUN in outfolder.list_object_names():
                     copylist.append(self._SHAPEFUN)
-            """
 
             # create local_copy_list from copylist and change some names automatically
             for file1 in copylist:
-                filename = file1
                 # deal with special case that file is written to another name
                 if (file1 == 'output.pot' or file1 == self._OUT_POTENTIAL or
-                   (parent_calc.process_class == VoronoiCalculation and file1 == parent_calc.process_class._POTENTIAL_IN_OVERWRITE)):
+                    (parent_calc.process_class == VoronoiCalculation and
+                     file1 == parent_calc.process_class._POTENTIAL_IN_OVERWRITE) ):
                     filename = self._POTENTIAL
+                else:
+                    filename = file1
                 # now add to copy list
                 local_copy_list.append((outfolder.uuid, file1, filename))
 

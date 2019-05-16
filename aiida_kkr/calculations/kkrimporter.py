@@ -6,16 +6,16 @@ Plug-in to import a KKR calculation. This is based on the PwImmigrantCalculation
 from __future__ import absolute_import
 import os
 from aiida.plugins import DataFactory
-from aiida.engine.calculation.job import _input_subfolder
-from aiida.common.utils import classproperty
-from aiida.common.folders import SandboxFolder
-from aiida.common.exceptions import InputValidationError, InvalidOperation
-from aiida.common.datastructures import calc_states
-from aiida.common.links import LinkType
+#from aiida.engine.calculation.job import _input_subfolder
+#from aiida.common.utils import classproperty
+#from aiida.common.folders import SandboxFolder
+#from aiida.common.exceptions import InputValidationError, InvalidOperation
+#from aiida.common.datastructures import calc_states
+#from aiida.common.links import LinkType
 from .kkr import KkrCalculation
-from masci_tools.io.kkr_params import kkrparams
-from aiida_kkr.tools.common_workfunctions import structure_from_params
-from six.moves import range
+#from masci_tools.io.kkr_params import kkrparams
+#from aiida_kkr.tools.common_workfunctions import structure_from_params
+#from six.moves import range
 
 
 #define aiida structures from DataFactory of aiida
@@ -62,6 +62,8 @@ class KkrImporterCalculation(KkrCalculation):
         # parser
         self._default_parser = 'kkr.kkrimporterparser'
 
+    # not working at the moment
+    '''
     @classproperty
     def _use_methods(cls):
         """
@@ -476,3 +478,4 @@ class KkrImporterCalculation(KkrCalculation):
     @_OUTPUT_FILE_NAMES.setter
     def _OUTPUT_FILE_NAMES(self, value):
         self._set_attr('output_file_names', value)
+    '''
