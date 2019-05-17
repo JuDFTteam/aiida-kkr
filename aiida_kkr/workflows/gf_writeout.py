@@ -100,6 +100,8 @@ class kkr_flex_wc(WorkChain):
             cls.start,
             if_(cls.validate_input)(
                 cls.set_params_flex,
+                # TODO: encapsulate this in restarting mechanism (should be a base class of workflows that start calculations)
+                # i.e. use base_restart_calc workchain as parent
                 cls.get_flex), # calculate host GF and kkr-flexfiles
             cls.return_results)
 

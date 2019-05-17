@@ -96,6 +96,8 @@ class kkr_dos_wc(WorkChain):
                 # set DOS contour in parameter node
                 cls.set_params_dos,
                 # calculate DOS and interpolate result
+                # TODO: encapsulate get_dos in restarting mechanism (should be a base class of workflows that start calculations)
+                # i.e. use base_restart_calc workchain as parent
                 cls.get_dos),
             #  collect results and store DOS output as ArrayData node (dos, lmdos, dos.interpolate, ...)
             cls.return_results
@@ -296,6 +298,9 @@ class kkr_dos_wc(WorkChain):
         # run the DOS calculation
         self.report('INFO: doing calculation')
         dosrun = self.submit(KkrCalculation, **inputs)
+
+        # for restart workflow:
+        self.ctx.last_calc = dosrun
 
         return ToContext(dosrun=dosrun)
 

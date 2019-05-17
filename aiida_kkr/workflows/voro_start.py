@@ -131,6 +131,8 @@ class kkr_startpot_wc(WorkChain):
             # check if another iteration is done (in case of either voro_ok, doscheck_ok is False)
             while_(cls.do_iteration_check)(
                 # run voronoi calculation
+                # TODO: encapsulate this in restarting mechanism (should be a base class of workflows that start calculations)
+                # i.e. use base_restart_calc workchain as parent
                 cls.run_voronoi,
                 # check voronoi output (also sets ctx.voro_ok)
                 if_(cls.check_voronoi)(

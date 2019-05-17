@@ -140,6 +140,8 @@ class kkr_imp_sub_wc(WorkChain):
             if_(cls.validate_input)(
                 while_(cls.condition)(
                     cls.update_kkrimp_params,
+                    # TODO: encapsulate this in restarting mechanism (should be a base class of workflows that start calculations)
+                    # i.e. use base_restart_calc workchain as parent
                     cls.run_kkrimp,
                     cls.inspect_kkrimp),
                 cls.return_results),

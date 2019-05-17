@@ -167,6 +167,8 @@ class kkr_scf_wc(WorkChain):
                 # update parameters for kkr step using previous output(s)
                 cls.update_kkr_params,
                 # run kkr step
+                # TODO: encapsulate this in restarting mechanism (should be a base class of workflows that start calculations)
+                # i.e. use base_restart_calc workchain as parent
                 cls.run_kkr,
                 # check results for convergence and collect some intermediate results
                 cls.inspect_kkr),
