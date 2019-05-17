@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.3"
+__version__ = "0.9.4"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -600,8 +600,15 @@ class kkr_scf_wc(WorkChain):
         if self.ctx.loop_count != 1:
             # first determine if previous step was successful (otherwise try to find some rms value and decrease mixing to try again)
             if not self.ctx.kkr_step_success:
-                decrease_mixing_fac = True
-                self.report("INFO: last KKR calculation failed. trying decreasing mixfac")
+                try:
+                    # check if calculation did start (maybe cluster had some hiccup)
+                    calc = self.ctx.calcs[-1]
+                    has_output_node = len(calc.get_outgoing(link_label_filter='output_parameters').all())>0
+                    self.report("INFO: last KKR calculation failed. Probably because the cluster had some issue. Try to resubmit the same calculation")
+                except:
+                    # otherwise try to decrease the mixing factor
+                    decrease_mixing_fac = True
+                    self.report("INFO: last KKR calculation failed. Trying to decrease mixfac")
 
             convergence_on_track = self.convergence_on_track()
 
@@ -862,7 +869,7 @@ class kkr_scf_wc(WorkChain):
             found_last_calc_output = False
         self.report("INFO: found_last_calc_output: {}".format(found_last_calc_output))
 
-        # try yo extract remote folder
+        # try to extract remote folder
         try:
             self.ctx.last_remote = self.ctx.kkr.outputs.remote_folder
         except:
