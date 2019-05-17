@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.2"
+__version__ = "0.9.3"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -119,7 +119,7 @@ class kkr_scf_wc(WorkChain):
                         }
     # set these keys from defaults in kkr_startpot workflow since they are only passed onto that workflow
     for key, value in kkr_startpot_wc.get_wf_defaults(silent=True).items():
-        if key in ['dos_params', 'fac_cls_increase', 'r_cls', 'natom_in_cls_min', 'delta_e_min', 'threshold_dos_zero', 'check_dos']:
+        if key in ['dos_params', 'fac_cls_increase', 'natom_in_cls_min', 'delta_e_min', 'threshold_dos_zero', 'check_dos']:
             _wf_default[key] = value
 
 
@@ -963,9 +963,7 @@ class kkr_scf_wc(WorkChain):
         # first check if previous calculation was stopped due to reaching the QBOUND limit
         try:
             calc_reached_qbound = self.ctx.last_calc.outputs.output_parameters.get_dict()['convergence_group']['calculation_converged']
-        except AttributeError: # captures error when last_calc dies not have an output node
-            calc_reached_qbound = False
-        except KeyError: # captures
+        except: # captures error when last_calc dies not have an output node
             calc_reached_qbound = False
 
         if self.ctx.kkr_step_success and not calc_reached_qbound:

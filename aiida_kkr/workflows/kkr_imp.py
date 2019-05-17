@@ -20,8 +20,8 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4"
-__contributors__ = u"Fabian Bertoldo"
+__version__ = "0.5"
+__contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
 #TODO: maybe work on a clearer outputnode structure
@@ -84,7 +84,6 @@ class kkr_imp_wc(WorkChain):
                    'mag_init' : False,                      # initialize and converge magnetic calculation
                    'hfield' : [0.1, 10], # Ry               # external magnetic field used in initialization step
                    'init_pos' : None,                       # position in unit cell where magnetic field is applied [default (None) means apply to all]
-                   'r_cls' : 1.3, # alat                    # default cluster radius, is increased iteratively
                    'calc_orbmom' : False,                   # defines of orbital moments will be calculated and written out
                    'spinorbit' : False,                     # SOC calculation (True/False)
                    'newsol' : False }                       # new SOC solver is applied
@@ -96,7 +95,6 @@ class kkr_imp_wc(WorkChain):
                                          'kmesh': [50, 50, 50]},                # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
                         'num_rerun' : 4,                           # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
                         'fac_cls_increase' : 1.3, # alat           # factor by which the screening cluster is increased each iteration (up to num_rerun times)
-                        'r_cls' : 1.3,            # alat           # default cluster radius, is increased iteratively
                         'natom_in_cls_min' : 79,                   # minimum number of atoms in screening cluster
                         'delta_e_min' : 1., # eV                   # minimal distance in DOS contour to emin and emax in eV
                         'threshold_dos_zero' : 10**-3,             #states/eV
@@ -214,7 +212,6 @@ class kkr_imp_wc(WorkChain):
         self.ctx.voro_dos_params = voro_aux_dict.get('dos_params', self._voro_aux_default['dos_params'])
         self.ctx.voro_num_rerun = voro_aux_dict.get('num_rerun', self._voro_aux_default['num_rerun'])
         self.ctx.voro_fac_cls_increase = voro_aux_dict.get('fac_cls_increase', self._voro_aux_default['fac_cls_increase'])
-        self.ctx.voro_r_cls = voro_aux_dict.get('r_cls', self._voro_aux_default['r_cls'])
         self.ctx.voro_natom_in_cls_min = voro_aux_dict.get('natom_in_cls_min', self._voro_aux_default['natom_in_cls_min'])
         self.ctx.voro_delta_e_min = voro_aux_dict.get('delta_e_min', self._voro_aux_default['delta_e_min'])
         self.ctx.voro_threshold_dos_zero = voro_aux_dict.get('threshold_dos_zero', self._voro_aux_default['threshold_dos_zero'])
@@ -224,7 +221,7 @@ class kkr_imp_wc(WorkChain):
         self.ctx.voro_params_dict = Dict(dict={'queue_name': self.ctx.queue, 'resources': self.ctx.resources, 'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
                                                         'use_mpi': self.ctx.use_mpi, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
                                                         'dos_params': self.ctx.voro_dos_params, 'num_rerun': self.ctx.voro_num_rerun,
-                                                        'fac_cls_increase': self.ctx.voro_fac_cls_increase, 'r_cls': self.ctx.voro_r_cls,
+                                                        'fac_cls_increase': self.ctx.voro_fac_cls_increase,
                                                         'natom_in_cls_min': self.ctx.voro_natom_in_cls_min, 'delta_e_min': self.ctx.voro_delta_e_min,
                                                         'threshold_dos_zero': self.ctx.voro_threshold_dos_zero, 'check_dos': self.ctx.voro_check_dos,
                                                         'delta_e_min_core_states': self.ctx.voro_delta_e_min_core_states})
@@ -245,7 +242,6 @@ class kkr_imp_wc(WorkChain):
         self.ctx.mag_init = wf_dict.get('mag_init', self._wf_default['mag_init'])
         self.ctx.hfield = wf_dict.get('hfield', self._wf_default['hfield'])
         self.ctx.init_pos = wf_dict.get('init_pos', self._wf_default['init_pos'])
-        self.ctx.r_cls = wf_dict.get('r_cls', self._wf_default['r_cls'])
         self.ctx.calc_orbmom = wf_dict.get('calc_orbmom', self._wf_default['calc_orbmom'])
         self.ctx.spinorbit = wf_dict.get('spinorbit', self._wf_default['spinorbit'])
         self.ctx.newsol = wf_dict.get('newsol', self._wf_default['newsol'])
@@ -257,7 +253,7 @@ class kkr_imp_wc(WorkChain):
                                                           'aggrmix': self.ctx.aggrmix, 'non_spherical': self.ctx.non_spherical,
                                                           'broyden_number': self.ctx.broyden_number, 'born_iter': self.ctx.born_iter,
                                                           'mag_init': self.ctx.mag_init, 'hfield': self.ctx.hfield, 'init_pos': self.ctx.init_pos,
-                                                          'r_cls': self.ctx.r_cls, 'calc_orbmom': self.ctx.calc_orbmom,
+                                                          'calc_orbmom': self.ctx.calc_orbmom,
                                                           'spinorbit': self.ctx.spinorbit, 'newsol': self.ctx.newsol})
 
 

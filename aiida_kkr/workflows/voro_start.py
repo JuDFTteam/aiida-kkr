@@ -7,7 +7,7 @@ some helper methods to do so with AiiDA
 from __future__ import print_function, division, absolute_import
 from six.moves import range
 import os
-from numpy import where
+from numpy import where, array
 from masci_tools.io.kkr_params import kkrparams
 from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
 from aiida.orm import Code
@@ -16,6 +16,7 @@ from aiida.engine import WorkChain, while_, if_, ToContext, submit, calcfunction
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.workflows.dos import kkr_dos_wc
+from aiida_kkr.tools import find_cluster_radius
 from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_params,
                                                   update_params_wf, get_inputs_voronoi)
 
@@ -23,7 +24,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.2"
+__version__ = "0.10.0"
 __contributors__ = u"Philipp Rüßmann"
 
 StructureData = DataFactory('structure')
@@ -51,8 +52,7 @@ class kkr_startpot_wc(WorkChain):
 
     _workflowversion = __version__
     _wf_default = {'num_rerun' : 4,                          # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
-                   'fac_cls_increase' : 1.3, # alat          # factor by which the screening cluster is increased each iteration (up to num_rerun times)
-                   'r_cls' : 1.3,            # alat          # default cluster radius, is increased iteratively
+                   'fac_cls_increase' : 1.15, # alat         # factor by which the screening cluster is increased each iteration (up to num_rerun times)
                    'natom_in_cls_min' : 79,                  # minimum number of atoms in screening cluster
                    'delta_e_min' : 1., # eV                  # minimal distance in DOS contour to emin and emax in eV
                    'threshold_dos_zero' : 10**-2, #states/eV #
@@ -194,10 +194,12 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.dos_check_fail_reason = None
 
         # some physical parameters that are reused
-        self.ctx.r_cls = wf_dict.get('r_cls', self._wf_default['r_cls'])
         self.ctx.nclsmin = wf_dict.get('natom_in_cls_min', self._wf_default['natom_in_cls_min'])
         self.ctx.fac_clsincrease = wf_dict.get('fac_cls_increase', self._wf_default['fac_cls_increase'])
         self.ctx.efermi = None
+
+        # find starting cluster radius
+        self.ctx.r_cls = find_cluster_radius(self.inputs.structure, self.ctx.nclsmin/1.15, nbins=100)[1] # find cluster radius (in alat units)
 
         # difference in eV to emin (e_fermi) if emin (emax) are larger (smaller) than emin (e_fermi)
         self.ctx.delta_e = wf_dict.get('delta_e_min', self._wf_default['delta_e_min'])
@@ -535,7 +537,7 @@ class kkr_startpot_wc(WorkChain):
                     self.report("ERROR: DOS wf output contains errors: {}".format(dos_outdict['list_of_errors']))
                     self.ctx.doscheck_ok = False
                     return self.exit_codes.ERROR_DOSRUN_FAILED
-            except AttributeError:
+            except:
                 self.ctx.doscheck_ok = False
                 return self.exit_codes.ERROR_DOSRUN_FAILED
 

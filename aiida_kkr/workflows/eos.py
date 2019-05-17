@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7"
+__version__ = "0.8"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -236,7 +236,7 @@ class kkr_eos_wc(WorkChain):
             smallest_voro_remote = out_wc.outputs.last_voronoi_remote
             smallest_voro_results = out_wc.outputs.last_voronoi_results
             vorostart_success = res.get_dict()['successful']
-        except AttributeError:
+        except:
             vorostart_success = False
 
         if vorostart_success:
@@ -342,7 +342,7 @@ class kkr_eos_wc(WorkChain):
                         warn = 'rms of calculation with uuid={} not low enough ({} > {})'.format(uuid, rms, self.ctx.rms_threshold)
                         self.report('WARNING: {}'.format(warn))
                         self.ctx.warnings.append(warn)
-            except AttributeError:
+            except:
                 warn = 'calculation with uuid={} not successful'.format(uuid)
                 self.report('WARNING: {}'.format(warn))
                 self.ctx.warnings.append(warn)

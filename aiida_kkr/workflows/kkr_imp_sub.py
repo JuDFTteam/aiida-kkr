@@ -19,8 +19,8 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4"
-__contributors__ = u"Fabian Bertoldo"
+__version__ = "0.5"
+__contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
 #TODO: edit inspect_kkrimp function
@@ -83,7 +83,6 @@ class kkr_imp_sub_wc(WorkChain):
                    'mag_init' : False,                        # initialize and converge magnetic calculation
                    'hfield' : [0.1, 10], # Ry                      # external magnetic field used in initialization step
                    'init_pos' : None,                         # position in unit cell where magnetic field is applied [default (None) means apply to all]
-                   'r_cls' : 1.3, # alat                       # default cluster radius, is increased iteratively
                    'calc_orbmom' : False,                     # defines of orbital moments will be calculated and written out
                    'spinorbit' : False,                       # SOC calculation (True/False)
                    'newsol' : False,                           # new SOC solver is applied
