@@ -8,7 +8,7 @@
 
 # aiida-kkr
 
-AiiDA plugin for the KKR codes plus workflows and utility.
+[AiiDA](https://aiida.net) plugin for the [KKR codes](jukkr.fz-juelich.de) plus workflows and utility.
 
 ## Features
 
@@ -40,7 +40,8 @@ $ reentry scan -r aiida
 
 # Usage and Documentation
 
-See http://aiida-kkr.readthedocs.io for user's guide and API reference.
+* see http://aiida-kkr.readthedocs.io for user's guide and API reference.
+* check out http://judft.de and https://jukkr.fz-juelich.de for information of the KKR codes used by the plugin
 
 # Contribting guide
 
