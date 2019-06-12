@@ -24,7 +24,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.0"
+__version__ = "0.10.1"
 __contributors__ = u"Philipp Rüßmann"
 
 StructureData = DataFactory('structure')
@@ -296,6 +296,8 @@ class kkr_startpot_wc(WorkChain):
             #  set last_params accordingly (used below for provenance tracking)
             self.ctx.last_params = params
 
+        self.report("INFO: input params: {}".format(params.get_dict()))
+
         # check if RCLUSTZ is set and use setting from wf_parameters instead (calls update_params_wf to keep track of provenance)
         updated_params = False
         update_list = []
@@ -304,6 +306,7 @@ class kkr_startpot_wc(WorkChain):
             kkr_para.set_value(key, val, silent=True)
         set_vals = kkr_para.get_set_values()
         set_vals = [keyvalpair[0] for keyvalpair in set_vals]
+        default_values = kkrparams.get_KKRcalc_parameter_defaults()[0]
         if 'RCLUSTZ' in set_vals:
             rcls_input = params.get_dict()['RCLUSTZ']
             # set r_cls by default or from input in first iteration
@@ -325,14 +328,19 @@ class kkr_startpot_wc(WorkChain):
         elif self.ctx.check_dos: # add only if doscheck is done
             updated_params = True
             update_list.append('RMAX')
-            rmax_input = kkrparams.get_KKRcalc_parameter_defaults()[0].get('RMAX')
+            rmax_input = kkrparams.default_values.get('RMAX')
         if 'GMAX' in set_vals:
             update_list.append('GMAX')
             gmax_input = params.get_dict()['GMAX']
         elif self.ctx.check_dos: # add only if doscheck is done
             updated_params = True
             update_list.append('GMAX')
-            gmax_input = kkrparams.get_KKRcalc_parameter_defaults()[0].get('GMAX')
+            gmax_input = kkrparams.default_values.get('GMAX')
+        # check if any mandatory keys are not set and set them with the default values if missing in input parameters
+        for key, value in default_values.items():
+          if key not in update_list and key not in set_vals:
+              self.report("INFO: setting {} to default value {}".format(key, value))
+              kkr_para.set_value(key, value)
 
         # check if emin should be changed:
         skip_voro = False
