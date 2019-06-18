@@ -17,7 +17,7 @@ from masci_tools.io.common_functions import open_general
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH,"
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.5"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -729,21 +729,11 @@ def get_structure_data(structure):
 
     #import packages
     from aiida.common.constants import elements as PeriodicTableElements
-    from masci_tools.io.common_functions import get_Ang2aBohr, get_alat_from_bravais
     import numpy as np
-
-    #list of globally used constants
-    a_to_bohr = get_Ang2aBohr()
 
     #get the connection between coordination number and element symbol
     _atomic_numbers = {data['symbol']:num for num,
                 data in PeriodicTableElements.items()}
-
-
-    #convert units from Å to Bohr (KKR needs Bohr)
-    bravais = np.array(structure.cell)*a_to_bohr
-    alat = get_alat_from_bravais(bravais, is3D=structure.pbc[2])
-    #bravais = bravais/alat
 
     #initialize the array that will be returned later (it will be a (# of atoms in the cell) x 6-matrix)
     a = np.zeros((len(structure.sites),6))
@@ -756,7 +746,7 @@ def get_structure_data(structure):
     m = len(structure.sites) #needed to do the indexing of atoms
     for site in sites:
         for j in range(3):
-            a[k][j] = site.position[j]*a_to_bohr/alat
+            a[k][j] = site.position[j]
         sitekind = structure.get_kind(site.kind_name)
         naez = n - m
         m = m - 1
@@ -901,43 +891,34 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
     """
 
     #import packages
-    from masci_tools.io.common_functions import get_Ang2aBohr, get_alat_from_bravais
     import numpy as np
     import math
-
-    #list of globally used constants
-    a_to_bohr = get_Ang2aBohr()
-
-    #conversion into units of the lattice constant
-    bravais = np.array(structure.cell)*a_to_bohr
-    alat = get_alat_from_bravais(bravais, is3D=structure.pbc[2])
 
     #obtain cutoff distance from radius and h
     dist_cut = max(radius, h)
 
     #initialize arrays and reference the system
     x = select_reference(structure_array, i)
-    center = x[i]
     x_temp = np.array([x[i]])
 
     #calculate needed amount of boxes in all three directions
     #========================================================
     #spherical approach (same distance in all three directions)
     if clust_shape == 'spherical':
-        box_1 = int(radius/(structure.cell_lengths[0]*a_to_bohr/alat) + 1)
-        box_2 = int(radius/(structure.cell_lengths[1]*a_to_bohr/alat) + 1)
-        box_3 = int(radius/(structure.cell_lengths[2]*a_to_bohr/alat) + 1)
+        box_1 = int(radius/structure.cell_lengths[0] + 1)
+        box_2 = int(radius/structure.cell_lengths[1] + 1)
+        box_3 = int(radius/structure.cell_lengths[2] + 1)
     #cylindrical shape (different distances for the different directions)
     elif clust_shape == 'cylindrical':
         maxval = max(h/2., radius)
-        box_1 = int(maxval/(structure.cell_lengths[0]*a_to_bohr/alat) + 1)
-        box_2 = int(maxval/(structure.cell_lengths[1]*a_to_bohr/alat) + 1)
-        box_3 = int(maxval/(structure.cell_lengths[2]*a_to_bohr/alat) + 1)
+        box_1 = int(maxval/structure.cell_lengths[0] + 1)
+        box_2 = int(maxval/structure.cell_lengths[1] + 1)
+        box_3 = int(maxval/structure.cell_lengths[2] + 1)
     #================================================================================================================
 
     #create array of all the atoms in an expanded system
     box = max(box_1, box_2, box_3)
-    cell = np.array(structure.cell)*a_to_bohr/alat
+    cell = np.array(structure.cell)
     for j in range(len(x)):
         for n in range(-box, box + 1):
             for m in range(-box, box + 1):
@@ -1018,18 +999,21 @@ def write_scoef(x_res, path):
             file.write(str("{0:26.19e}".format(x_res[i][5])))
             file.write("\n")
 
-def make_scoef(structure, radius, path, h=-1., vector=[0., 0., 1.], i=0):
+def make_scoef(structure, radius, path, h=-1., vector=[0., 0., 1.], i=0, alat_input=None):
     """
     Creates the 'scoef' file for a certain structure. Needed to conduct an impurity KKR calculation.
 
     :param structure: input structure of the StructureData type.
-    :param radius: input cutoff radius in units of the lattice constant.
+    :param radius: input cutoff radius in Ang. units.
     :param h: height of the cutoff cylinder (negative for spherical cluster shape). For negative values, clust_shape
               will be automatically assumed as 'spherical'. If there will be given a h > 0, the clust_shape
               will be 'cylindrical'.
     :param vector: orientation vector of the cylinder (just for clust_shape='cylindrical').
     :param i: atom index around which the cluster should be centered. Default: 0 (first atom in the structure).
+    :param alat_input: input lattice constant. If `None` use the lattice constant that is automatically found. Otherwise rescale everything.
     """
+    from masci_tools.io.common_functions import get_alat_from_bravais, get_aBohr2Ang
+    from numpy import array
 
     #shape of the cluster is specified
     if h < 0.:
@@ -1042,6 +1026,16 @@ def make_scoef(structure, radius, path, h=-1., vector=[0., 0., 1.], i=0):
 
     #creates an array with all the atoms within a certain cluster shape and size with respect to atom i
     c = find_neighbors(structure, structure_array, i, radius, clust_shape, h, vector)
+
+    # convert to internal units (units of the lattice constant)
+    alat = get_alat_from_bravais(array(structure.cell), structure.pbc[2])
+    if alat_input is not None:
+        # use input lattice constant instead of automatically found alat
+        alat = alat_input*get_aBohr2Ang()
+    # now take out alat factor
+    c[:,:3] = c[:,:3] / alat # rescale atom positions
+    c[:,-1] = c[:,-1] / alat # rescale distances
+
 
     #writes out the 'scoef'-file
     write_scoef(c, path)

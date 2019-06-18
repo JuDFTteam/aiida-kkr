@@ -33,7 +33,7 @@ KpointsData = DataFactory('array.kpoints')
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.8"
+__version__ = "0.9"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -223,6 +223,9 @@ class KkrCalculation(CalcJob):
 
         ###################################
 
+        # check whether or not the alat from the input parameters are used (this enters as a scaling factor for some parameters)
+        use_alat_input = parameters.get_dict().get('use_input_alat', False)
+
         # prepare scoef file if impurity_info was given
         write_scoef = False
         runopt = parameters.get_dict().get('RUNOPT', None)
@@ -259,7 +262,13 @@ class KkrCalculation(CalcJob):
             else:
                 print('Input parameters for make_scoef read in correctly!')
                 with tempfolder.open(self._SCOEF, 'w') as scoef_file:
-                    make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center)
+                    if use_alat_input:
+                        alat_input = parameters.get_dict().get('ALATBASIS', None) / get_Ang2aBohr()
+                        self.logger.info('alat_input is '+str(alat_input))
+                    else:
+                        self.logger.info('alat_input is None')
+                        alat_input = None
+                    make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center, alat_input)
         elif write_scoef:
             self.logger.info('Need to write scoef file but no impurity_info given!')
             raise ValidationError('Found RUNOPT KKRFLEX but no impurity_info in inputs')
@@ -277,9 +286,6 @@ class KkrCalculation(CalcJob):
             # extract shapes from input parameters node constructed by kkrimporter calculation
             shapes = voro_parent.inputs.parameters.get_dict().get('<SHAPE>')
         self.logger.info('Extracted shapes: {}'.format(shapes))
-
-        #
-        use_alat_input = parameters.get_dict().get('use_input_alat', False)
 
         # qdos option, ensure low T, E-contour, qdos run option and write qvec.dat file
         if found_kpath:
