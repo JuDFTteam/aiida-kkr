@@ -1010,7 +1010,7 @@ def make_scoef(structure, radius, path, h=-1., vector=[0., 0., 1.], i=0, alat_in
               will be 'cylindrical'.
     :param vector: orientation vector of the cylinder (just for clust_shape='cylindrical').
     :param i: atom index around which the cluster should be centered. Default: 0 (first atom in the structure).
-    :param alat_input: input lattice constant. If `None` use the lattice constant that is automatically found. Otherwise rescale everything.
+    :param alat_input: input lattice constant in Ang. If `None` use the lattice constant that is automatically found. Otherwise rescale everything.
     """
     from masci_tools.io.common_functions import get_alat_from_bravais, get_aBohr2Ang
     from numpy import array
@@ -1031,7 +1031,7 @@ def make_scoef(structure, radius, path, h=-1., vector=[0., 0., 1.], i=0, alat_in
     alat = get_alat_from_bravais(array(structure.cell), structure.pbc[2])
     if alat_input is not None:
         # use input lattice constant instead of automatically found alat
-        alat = alat_input*get_aBohr2Ang()
+        alat = alat_input
     # now take out alat factor
     c[:,:3] = c[:,:3] / alat # rescale atom positions
     c[:,-1] = c[:,-1] / alat # rescale distances

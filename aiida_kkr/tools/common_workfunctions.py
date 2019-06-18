@@ -424,11 +424,11 @@ def generate_inputcard_from_structure(parameters, structure, input_filename, par
     alat_input = parameters.get_dict().get('ALATBASIS')
     if use_input_alat and alat_input is not None:
         alat = alat_input
-    else:
-        alat = get_alat_from_bravais(bravais, is3D=structure.pbc[2])
         wmess = 'found alat in input parameters, this will trigger scaling of RMAX, GMAX and RCLUSTZ!'
         print('WARNING: '+wmess)
         warnings.append(wmess)
+    else:
+        alat = get_alat_from_bravais(bravais, is3D=structure.pbc[2])
     bravais = bravais/alat
 
     sites = structure.sites
