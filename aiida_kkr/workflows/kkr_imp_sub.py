@@ -7,7 +7,7 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 from aiida.plugins import DataFactory
-from aiida.orm import Float, Code
+from aiida.orm import Float, Code, CalcJobNode
 from aiida.engine import WorkChain, ToContext, while_, if_
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
@@ -19,7 +19,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5"
+__version__ = "0.6.0"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -68,51 +68,39 @@ class kkr_imp_sub_wc(WorkChain):
                         'custom_scheduler_commands' : '',         # some additional scheduler commands
                         'use_mpi' : True}                         # execute KKR with mpi or without
 
-    _wf_default = {'kkr_runmax': 5,                           # Maximum number of kkr jobs/starts (defauld iterations per start)
-                   'threshold_aggressive_mixing': 5*10**-2,   # threshold after which agressive mixing is used
-                   'convergence_criterion' : 3*10**-2,        # Stop if charge denisty is converged below this value
-                   'mixreduce': 0.5,                          # reduce mixing factor by this factor if calculaito fails due to too large mixing
-                   'strmix': 0.03,                            # mixing factor of simple mixing
-                   'aggressive_mix': 3,                       # type of aggressive mixing (3: broyden's 1st, 4: broyden's 2nd, 5: generalized anderson)
-                   'aggrmix': 0.01,                           # mixing factor of aggressive mixing
-                   'nsteps': 10,                              # number of iterations done per KKR calculation
-                   'nspin': 1,                                # NSPIN can either be 1 or 2
-                   'non-spherical': 1,                        # use non-spherical parts of the potential (0 if you don't want that)
-                   'broyden-number': 20,                      # number of potentials to 'remember' for Broyden's mixing
-                   'born-iter': 2,                            # number of Born iterations for the non-spherical calculation
-                   'mag_init' : False,                        # initialize and converge magnetic calculation
-                   'hfield' : [0.1, 10], # Ry                      # external magnetic field used in initialization step
-                   'init_pos' : None,                         # position in unit cell where magnetic field is applied [default (None) means apply to all]
-                   'calc_orbmom' : False,                     # defines of orbital moments will be calculated and written out
-                   'spinorbit' : False,                       # SOC calculation (True/False)
-                   'newsol' : False,                           # new SOC solver is applied
-                   'dos_run': False,                          # specify if DOS should be calculated (!KKRFLEXFILES with energy contour necessary as GF_remote_data!)
-                   'mesh_params': { 'NPAN_LOG': 8,
-                                    'NPAN_EQ': 5,
-                                    'NCHEB': 7}
-#                   # Some parameter for direct solver (same as in host code)
-#                   'NPAN_LOGPANELFAC': 2,
-#                   'RADIUS_LOGPANELS': 0.6,                   # where to set change of logarithmic to linear radial mesh
-#                   'RADIUS_MIN': -1,
-#                   'NPAN_LOG': 15,                            # number of panels in log mesh
-#                   'NPAN_EQ': 5,                              # number of panels in linear mesh
-#                   'NCHEB': 15                                # number of chebychev polynomials in each panel (total number of points in radial mesh NCHEB*(NPAN_LOG+NPAN_EQ))
+    _wf_default = {'kkr_runmax': 5,                               # Maximum number of kkr jobs/starts (defauld iterations per start)
+                   'convergence_criterion' : 1*10**-7,            # Stop if charge denisty is converged below this value
+                   'mixreduce': 0.5,                              # reduce mixing factor by this factor if calculaito fails due to too large mixing
+                   'threshold_aggressive_mixing': 1*10**-2,       # threshold after which agressive mixing is used
+                   'strmix': 0.03,                                # mixing factor of simple mixing
+                   'nsteps': 50,                                  # number of iterations done per KKR calculation
+                   'aggressive_mix': 5,                           # type of aggressive mixing (3: broyden's 1st, 4: broyden's 2nd, 5: generalized anderson)
+                   'aggrmix': 0.05,                               # mixing factor of aggressive mixing
+                   'broyden-number': 20,                          # number of potentials to 'remember' for Broyden's mixing
+                   'mag_init' : False,                            # initialize and converge magnetic calculation
+                   'hfield' : [0.02, 5], # Ry                     # external magnetic field used in initialization step
+                   'init_pos' : None,                             # position in unit cell where magnetic field is applied [default (None) means apply to all]
+                   'dos_run': False,                              # specify if DOS should be calculated (!KKRFLEXFILES with energy contour necessary as GF_remote_data!)
+#                   # Some parameter for direct solver (if None, use the same as in host code, otherwise overwrite)
+                   'accuracy_params': {'RADIUS_LOGPANELS': None,  # where to set change of logarithmic to linear radial mesh
+                                       'NPAN_LOG': None,          # number of panels in log mesh
+                                       'NPAN_EQ': None,           # number of panels in linear mesh
+                                       'NCHEB': None}             # number of chebychev polynomials in each panel (total number of points in radial mesh NCHEB*(NPAN_LOG+NPAN_EQ))
                    }
 
 
 
     @classmethod
-    def get_wf_defaults(self):
+    def get_wf_defaults(self, silent=False):
         """
         Print and return _wf_defaults dictionary. Can be used to easily create
         set of wf_parameters.
 
         returns _wf_defaults
         """
-
-        print('Version of workflow: {}'.format(self._workflowversion))
+        if not silent:
+            print('Version of workflow: {}'.format(self._workflowversion))
         return self._wf_default
-
 
 
     @classmethod
@@ -249,10 +237,7 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.type_aggressive_mixing = wf_dict.get('aggressive_mix', self._wf_default['aggressive_mix'])
         self.ctx.aggrmix = wf_dict.get('aggrmix', self._wf_default['aggrmix'])
         self.ctx.nsteps = wf_dict.get('nsteps', self._wf_default['nsteps'])
-        self.ctx.nspin = wf_dict.get('nspin', self._wf_default['nspin'])
-        self.ctx.spherical = wf_dict.get('non-spherical', self._wf_default['non-spherical'])
         self.ctx.broyden_num = wf_dict.get('broyden-number', self._wf_default['broyden-number'])
-        self.ctx.born_iter = wf_dict.get('born-iter', self._wf_default['born-iter'])
 
         # initial magnetization
         self.ctx.mag_init = wf_dict.get('mag_init', self._wf_default['mag_init'])
@@ -260,11 +245,8 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.xinit = wf_dict.get('init_pos', self._wf_default['init_pos'])
         self.ctx.mag_init_step_success = False
 
-        # SOC
-        self.ctx.calc_orbmom = wf_dict.get('calc_orbmom', self._wf_default['calc_orbmom'])
-        self.ctx.spinorbit = wf_dict.get('spinorbit', self._wf_default['spinorbit'])
-        self.ctx.newsol = wf_dict.get('newsol', self._wf_default['newsol'])
-        self.ctx.mesh_params = wf_dict.get('mesh_params', self._wf_default['mesh_params'])
+        # accuracy parameter
+        self.ctx.mesh_params = wf_dict.get('accuracy_params', self._wf_default['accuracy_params'])
 
         # DOS
         self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
@@ -283,7 +265,6 @@ class kkr_imp_sub_wc(WorkChain):
                     '\nMixing parameter\n'
                     'Straight mixing factor: {}\n'
                     'Nsteps scf cycle: {}\n'
-                    'Nspin: {}\n'
                     'threshold_aggressive_mixing: {}\n'
                     'Aggressive mixing technique: {}\n'
                     'Aggressive mixing factor: {}\n'
@@ -293,19 +274,15 @@ class kkr_imp_sub_wc(WorkChain):
                     'init magnetism in first step: {}\n'
                     'init magnetism, hfield: {}\n'
                     'init magnetism, init_pos: {}\n'
-                    'use new SOC solver: {}\n'
-                    'SOC calculation: {}\n'
-                    'write out orbital moments: {}\n'
                     ''.format(self.ctx.use_mpi, self.ctx.max_number_runs,
-                                self.ctx.resources, self.ctx.max_wallclock_seconds,
-                                self.ctx.queue, self.ctx.custom_scheduler_commands,
-                                self.ctx.description_wf, self.ctx.label_wf,
-                                self.ctx.strmix, self.ctx.nsteps, self.ctx.nspin,
-                                self.ctx.threshold_aggressive_mixing,
-                                self.ctx.type_aggressive_mixing, self.ctx.aggrmix,
-                                self.ctx.mixreduce, self.ctx.convergence_criterion,
-                                self.ctx.mag_init, self.ctx.hfield, self.ctx.xinit,
-                                self.ctx.newsol, self.ctx.spinorbit, self.ctx.calc_orbmom)
+                              self.ctx.resources, self.ctx.max_wallclock_seconds,
+                              self.ctx.queue, self.ctx.custom_scheduler_commands,
+                              self.ctx.description_wf, self.ctx.label_wf,
+                              self.ctx.strmix, self.ctx.nsteps,
+                              self.ctx.threshold_aggressive_mixing,
+                              self.ctx.type_aggressive_mixing, self.ctx.aggrmix,
+                              self.ctx.mixreduce, self.ctx.convergence_criterion,
+                              self.ctx.mag_init, self.ctx.hfield, self.ctx.xinit)
                     )
 
         # return para/vars
@@ -497,6 +474,16 @@ class kkr_imp_sub_wc(WorkChain):
         if self.ctx.loop_count > 1:
             last_rms = self.ctx.last_rms_all[-1]
 
+        # extract values from host calculation
+        host_GF_calc = self.inputs.remote_data.get_incoming(node_class=CalcJobNode).first().node
+        host_GF_outparams = host_GF_calc.outputs.output_parameters.get_dict()
+        host_GF_inparams = host_GF_calc.inputs.parameters.get_dict()
+        nspin = host_GF_outparams.get('nspin')
+        non_spherical = host_GF_inparams.get('INS')
+        if non_spherical is None:
+            non_spherical = kkrparams.get_KKRcalc_parameter_defaults()[0].get('INS')
+        self.ctx.spinorbit = host_GF_outparams.get('use_newsosol')
+
         # if needed update parameters
         if decrease_mixing_fac or switch_agressive_mixing or switch_higher_accuracy or initial_settings or self.ctx.mag_init:
             if initial_settings:
@@ -507,15 +494,9 @@ class kkr_imp_sub_wc(WorkChain):
                 description = ''
 
             # step 1: extract info from last input parameters and check consistency
-#            params = self.ctx.last_params
-#            input_dict = params.get_dict()
             para_check = kkrparams(params_type='kkrimp')
             para_check.get_all_mandatory()
             self.report('INFO: get kkrimp keywords')
-
-            # step 1.1: try to fill keywords
-            #for key, val in input_dict.iteritems():
-            #    para_check.set_value(key, val, silent=True)
 
             # init new_params dict where updated params are collected
             new_params = {}
@@ -542,7 +523,6 @@ class kkr_imp_sub_wc(WorkChain):
             strmixfac = self.ctx.strmix
             aggrmixfac = self.ctx.aggrmix
             nsteps = self.ctx.nsteps
-            nspin = self.ctx.nspin
 
             # TODO: maybe add decrease mixing factor option as in kkr_scf wc
             # step 2.1 fill new_params dict with values to be updated
@@ -570,33 +550,31 @@ class kkr_imp_sub_wc(WorkChain):
             # add number of scf steps, spin
             new_params['SCFSTEPS'] = nsteps
             new_params['NSPIN'] = nspin
-            new_params['INS'] = self.ctx.spherical
+            new_params['INS'] = non_spherical
 
             # add ldos runoption if dos_run = True
             if self.ctx.dos_run:
-                new_params['RUNFLAG'] = ['ldos']
+                runflags = new_params.get('RUNFLAG', []) + ['ldos']
+                new_params['RUNFLAG'] = runflags
                 new_params['SCFSTEPS'] = 1
 
             # add newsosol
-            if self.ctx.newsol:
-                new_params['TESTFLAG'] = ['tmatnew']
-            else:
-                new_params['TESTFLAG'] = []
-
             if self.ctx.spinorbit:
+                testflags = new_params.get('TESTFLAG', []) + ['tmatnew']
+                new_params['TESTFLAG'] = testflags
                 new_params['SPINORBIT'] = 1
                 new_params['NCOLL'] = 1
-                new_params['NCHEB'] = self.ctx.mesh_params['NCHEB']
-                new_params['NPAN_LOG'] = self.ctx.mesh_params['NPAN_LOG']
-                new_params['NPAN_EQ'] = self.ctx.mesh_params['NPAN_EQ']
+                if self.ctx.mesh_params.get('RADIUS_LOGPANELS', None) is not None: new_params['RADIUS_LOGPANELS'] = self.ctx.mesh_params['RADIUS_LOGPANELS']
+                if self.ctx.mesh_params.get('NCHEB', None) is not None: new_params['NCHEB'] = self.ctx.mesh_params['NCHEB']
+                if self.ctx.mesh_params.get('NPAN_LOG', None) is not None: new_params['NPAN_LOG'] = self.ctx.mesh_params['NPAN_LOG']
+                if self.ctx.mesh_params.get('NPAN_EQ', None) is not None: new_params['NPAN_EQ'] = self.ctx.mesh_params['NPAN_EQ']
+                new_params['CALCORBITALMOMENT'] = 1
             else:
                 new_params['SPINORBIT'] = 0
                 new_params['NCOLL'] = 0
-
-            if self.ctx.calc_orbmom:
-                new_params['CALCORBITALMOMENT'] = 1
-            else:
                 new_params['CALCORBITALMOMENT'] = 0
+                new_params['TESTFLAG'] = []
+
 
             # set mixing schemes and factors
             if last_mixing_scheme == 3 or last_mixing_scheme == 4:
@@ -618,13 +596,6 @@ class kkr_imp_sub_wc(WorkChain):
 #                description += ' using higher accuracy settings goven in convergence_setting_fine'
 #            else:
 #                convergence_settings = self.ctx.convergence_setting_coarse
-
-#            # slightly increase temperature if previous calculation was unsuccessful for the second time
-#            if decrease_mixing_fac and not self.convergence_on_track():
-#                self.report('INFO: last calculation did not converge and convergence not on track. Try to increase temperature by 50K.')
-#                convergence_settings['tempr'] += 50.
-#                label += ' TEMPR+50K'
-#                description += ' with increased temperature of 50K'
 
             # add convergence settings
             if self.ctx.loop_count == 1 or self.ctx.last_mixing_scheme == 0:
@@ -775,16 +746,9 @@ class kkr_imp_sub_wc(WorkChain):
             found_last_calc_output = False
         self.report("INFO: found_last_calc_output: {}".format(found_last_calc_output))
 
-        # try yo extract remote folder
+        # try to extract remote folder
         try:
             self.ctx.last_remote = self.ctx.kkr.outputs.remote_folder
-           # elif 'kkrimp_remote' in self.inputs:
-           #     self.ctx.last_remote = self.inputs.kkrimp_remote
-            #else:
-            #    self.ctx.last_remote = None
-                #self.ctx.kkrimp_step_success = False
-                #else:
-                #    self.ctx.last_remote = self.inputs.GF_remote_data
         except:
             self.ctx.last_remote = None
             self.ctx.kkrimp_step_success = False
@@ -1005,7 +969,6 @@ class kkr_imp_sub_wc(WorkChain):
         message += "| irun | success | isteps | imix | mixfac | qbound  |       rms       |                pk and uuid                  |\n"
         message += "|      |         |        |      |        |         | first  |  last  |                                             |\n"
         message += "|------|---------|--------|------|--------|---------|--------|--------|---------------------------------------------|\n"
-        #| %6i  | %9s     | %8i    | %6i  | %.2e   | %.3e    | %.2e   |  %.2e  |
         KKR_steps_stats = self.ctx.KKR_steps_stats
         for irun in range(len(KKR_steps_stats.get('success'))):
             message += "|%6i|%9s|%8i|%6i|%.2e|%.3e|%.2e|%.2e|"%(irun+1,

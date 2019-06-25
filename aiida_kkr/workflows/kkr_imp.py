@@ -11,7 +11,7 @@ from aiida.engine import WorkChain, ToContext, if_
 from aiida.engine import calcfunction
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from masci_tools.io.kkr_params import kkrparams
-from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, neworder_potential_wf
+from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, neworder_potential_wf, update_params_wf
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5"
+__version__ = "0.6.0"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -63,59 +63,27 @@ class kkr_imp_wc(WorkChain):
     _wf_description = 'Workflow for a KKRimp calculation'
 
 
-    _options_default = {'queue_name' : '',                                          # Queue name to submit jobs too
-                        'resources': {"num_machines": 1},                           # resources to allowcate for the job
-                        'max_wallclock_seconds' : 60*60,                            # walltime after which the job gets killed (gets parsed to KKR)}
-                        'custom_scheduler_commands' : '',                           # some additional scheduler commands
-                        'use_mpi' : True}                                           # execute KKR with mpi or without
+    _options_default = {'queue_name' : '',                           # Queue name to submit jobs too
+                        'resources': {"num_machines": 1},            # resources to allowcate for the job
+                        'max_wallclock_seconds' : 60*60,             # walltime after which the job gets killed (gets parsed to KKR)}
+                        'custom_scheduler_commands' : '',            # some additional scheduler commands
+                        'use_mpi' : True}                            # execute KKR with mpi or without
 
-    _wf_default = {'nspin':  1,                                                   # non-magnetic calculation, set nspin = 2 for magnetic case
-                   'kkr_runmax': 3,                         # Maximum number of kkr jobs/starts (defauld iterations per start)
-                   'threshold_aggressive_mixing': 5*10**-2, # threshold after which agressive mixing is used
-                   'convergence_criterion' : 3*10**-2,      # Stop if charge denisty is converged below this value
-                   'mixreduce': 0.5,                        # reduce mixing factor by this factor if calculaito fails due to too large mixing
-                   'strmix': 0.03,                          # mixing factor of simple mixing
-                   'aggressive_mix': 3,                     # type of aggressive mixing (3: broyden's 1st, 4: broyden's 2nd, 5: generalized anderson)
-                   'aggrmix': 0.01,                         # mixing factor of aggressive mixing
-                   'nsteps': 20,                            # number of iterations done per KKR calculation
-                   'non_spherical': 1,                      # use non-spherical parts of the potential (0 if you don't want that)
-                   'broyden_number': 20,                    # number of potentials to 'remember' for Broyden's mixing
-                   'born_iter': 2,                          # number of Born iterations for the non-spherical calculation
-                   'mag_init' : False,                      # initialize and converge magnetic calculation
-                   'hfield' : [0.1, 10], # Ry               # external magnetic field used in initialization step
-                   'init_pos' : None,                       # position in unit cell where magnetic field is applied [default (None) means apply to all]
-                   'calc_orbmom' : False,                   # defines of orbital moments will be calculated and written out
-                   'spinorbit' : False,                     # SOC calculation (True/False)
-                   'newsol' : False }                       # new SOC solver is applied
-
-    _voro_aux_default = {'dos_params' : {'nepts': 61,                           # DOS params: number of points in contour
-                                         'tempr': 200, # K                      # DOS params: temperature
-                                         'emin': -1, # Ry                       # DOS params: start of energy contour
-                                         'emax': 1,  # Ry                       # DOS params: end of energy contour
-                                         'kmesh': [50, 50, 50]},                # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
-                        'num_rerun' : 4,                           # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
-                        'fac_cls_increase' : 1.3, # alat           # factor by which the screening cluster is increased each iteration (up to num_rerun times)
-                        'natom_in_cls_min' : 79,                   # minimum number of atoms in screening cluster
-                        'delta_e_min' : 1., # eV                   # minimal distance in DOS contour to emin and emax in eV
-                        'threshold_dos_zero' : 10**-3,             #states/eV
-                        'check_dos': True,                         # logical to determine if DOS is computed and checked
-                        'delta_e_min_core_states' : 1.0  # Ry     # minimal distance of start of energy contour to highest lying core state in Ry
-                        }
-
+    _wf_default = kkr_imp_sub_wc.get_wf_defaults(silent=True)        # settings for sub workflow (impurity convergence)
+    _voro_aux_default = kkr_startpot_wc.get_wf_defaults(silent=True) # settings for vorostart workflow, used to generate starting potential
 
 
     @classmethod
-    def get_wf_defaults(self):
+    def get_wf_defaults(self, silent=False):
         """
         Print and return _wf_defaults dictionary. Can be used to easily create
         set of wf_parameters.
 
         returns _wf_defaults
         """
-
-        print('Version of workflow: {}'.format(self._workflowversion))
+        if not silent:
+            print('Version of workflow: {}'.format(self._workflowversion))
         return self._options_default, self._wf_default, self._voro_aux_default
-
 
 
     @classmethod
@@ -127,15 +95,26 @@ class kkr_imp_wc(WorkChain):
         super(kkr_imp_wc, cls).define(spec)
 
         # define the inputs of the workflow
-        spec.input("voronoi", valid_type=Code, required=True)
-        spec.input("kkrimp", valid_type=Code, required=True)
-        spec.input("impurity_info", valid_type=Dict, required=True)
-        spec.input("kkr", valid_type=Code, required=True)
-        spec.input("remote_data_host", valid_type=RemoteData, required=False)
-        spec.input("remote_data_gf", valid_type=RemoteData, required=False)
-        spec.input("options", valid_type=Dict, required=False)
-        spec.input("voro_aux_parameters", valid_type=Dict, required=False)
-        spec.input("wf_parameters", valid_type=Dict, required=False)
+        spec.input("kkr", valid_type=Code, required=True,
+                   help="KKRhost code used to run GF writeout step.")
+        spec.input("voronoi", valid_type=Code, required=True,
+                   help="Voronoi code used to create the impurity starting potential.")
+        spec.input("kkrimp", valid_type=Code, required=True,
+                   help="KKRimp code used to converge the impurity calculation")
+        spec.input("impurity_info", valid_type=Dict, required=True,
+                   help="Information of the impurity like position in the unit cell, screening cluster, atom type.")
+        spec.input("remote_data_host", valid_type=RemoteData, required=False,
+                   help="RemoteData node of the converged host calculation. Used to write out the host Green function.")
+        spec.input("remote_data_gf", valid_type=RemoteData, required=False,
+                   help="RemoteData node of precomputed host Green function.")
+        spec.input("options", valid_type=Dict, required=False,
+                   help="Options for running the codes (walltime etc.).")
+        spec.input("voro_aux_parameters", valid_type=Dict, required=False,
+                   help="Parameters for the auxiliary voronoi starting potential workflow.")
+        spec.input("wf_parameters", valid_type=Dict, required=False,
+                   help="Parameters for the KKRimp selfconsistency workflow.")
+        spec.input("voro_params_overwrite", valid_type=Dict, required=False,
+                   help="If given, overwrite the some parameters used as input for auxiliary voronoi calculation of starting potential.")
 
 
         # structure of the workflow
@@ -194,6 +173,12 @@ class kkr_imp_wc(WorkChain):
             voro_aux_dict = self._voro_aux_default
             self.report('INFO: using default workflow parameters for auxiliary voronoi calculation')
 
+        # get parameters that will be added/overwritten for voronoi run
+        if 'voro_params_overwrite' in self.inputs:
+            self.ctx.change_voro_params = self.inputs.voro_params_overwrite.get_dict()
+        else:
+            self.ctx.change_voro_params = {}
+
 
         # set option parameters from input, or defaults
         self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
@@ -202,7 +187,7 @@ class kkr_imp_wc(WorkChain):
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
         self.ctx.options_params_dict = Dict(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources, 'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
-                                                           'queue_name': self.ctx.queue, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands})
+                                                  'queue_name': self.ctx.queue, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands})
 
         # set label and description of the workflow
         self.ctx.description_wf = self.inputs.get('description', 'Workflow for a KKR impurity calculation starting from a host-impurity potential')
@@ -219,42 +204,35 @@ class kkr_imp_wc(WorkChain):
         self.ctx.voro_delta_e_min_core_states = voro_aux_dict.get('delta_e_min_core_states', self._voro_aux_default['delta_e_min_core_states'])
         # set up new parameter dict to pass to voronoi subworkflow later
         self.ctx.voro_params_dict = Dict(dict={'queue_name': self.ctx.queue, 'resources': self.ctx.resources, 'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
-                                                        'use_mpi': self.ctx.use_mpi, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
-                                                        'dos_params': self.ctx.voro_dos_params, 'num_rerun': self.ctx.voro_num_rerun,
-                                                        'fac_cls_increase': self.ctx.voro_fac_cls_increase,
-                                                        'natom_in_cls_min': self.ctx.voro_natom_in_cls_min, 'delta_e_min': self.ctx.voro_delta_e_min,
-                                                        'threshold_dos_zero': self.ctx.voro_threshold_dos_zero, 'check_dos': self.ctx.voro_check_dos,
-                                                        'delta_e_min_core_states': self.ctx.voro_delta_e_min_core_states})
+                                               'use_mpi': self.ctx.use_mpi, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
+                                               'dos_params': self.ctx.voro_dos_params, 'num_rerun': self.ctx.voro_num_rerun,
+                                               'fac_cls_increase': self.ctx.voro_fac_cls_increase,
+                                               'natom_in_cls_min': self.ctx.voro_natom_in_cls_min, 'delta_e_min': self.ctx.voro_delta_e_min,
+                                               'threshold_dos_zero': self.ctx.voro_threshold_dos_zero, 'check_dos': self.ctx.voro_check_dos,
+                                               'delta_e_min_core_states': self.ctx.voro_delta_e_min_core_states})
 
         # set workflow parameters for the KKR impurity calculation
-        self.ctx.nspin = wf_dict.get('nspin', self._wf_default['nspin'])
-        self.ctx.nsteps = wf_dict.get('nsteps', self._wf_default['nsteps'])
         self.ctx.kkr_runmax = wf_dict.get('kkr_runmax', self._wf_default['kkr_runmax'])
-        self.ctx.threshold_aggressive_mixing = wf_dict.get('threshold_aggressive_mixing', self._wf_default['threshold_aggressive_mixing'])
         self.ctx.convergence_criterion = wf_dict.get('convergence_criterion', self._wf_default['convergence_criterion'])
         self.ctx.mixreduce = wf_dict.get('mixreduce', self._wf_default['mixreduce'])
+        self.ctx.threshold_aggressive_mixing = wf_dict.get('threshold_aggressive_mixing', self._wf_default['threshold_aggressive_mixing'])
         self.ctx.strmix = wf_dict.get('strmix', self._wf_default['strmix'])
+        self.ctx.nsteps = wf_dict.get('nsteps', self._wf_default['nsteps'])
         self.ctx.aggressive_mix = wf_dict.get('aggressive_mix', self._wf_default['aggressive_mix'])
         self.ctx.aggrmix = wf_dict.get('aggrmix', self._wf_default['aggrmix'])
-        self.ctx.non_spherical = wf_dict.get('non_spherical', self._wf_default['non_spherical'])
-        self.ctx.broyden_number = wf_dict.get('broyden_number', self._wf_default['broyden_number'])
-        self.ctx.born_iter = wf_dict.get('born_iter', self._wf_default['born_iter'])
+        self.ctx.broyden_number = wf_dict.get('broyden-number', self._wf_default['broyden-number'])
         self.ctx.mag_init = wf_dict.get('mag_init', self._wf_default['mag_init'])
         self.ctx.hfield = wf_dict.get('hfield', self._wf_default['hfield'])
         self.ctx.init_pos = wf_dict.get('init_pos', self._wf_default['init_pos'])
-        self.ctx.calc_orbmom = wf_dict.get('calc_orbmom', self._wf_default['calc_orbmom'])
-        self.ctx.spinorbit = wf_dict.get('spinorbit', self._wf_default['spinorbit'])
-        self.ctx.newsol = wf_dict.get('newsol', self._wf_default['newsol'])
+        self.ctx.accuracy_params = wf_dict.get('accuracy_params', self._wf_default['accuracy_params'])
         # set up new parameter dict to pass to kkrimp subworkflow later
-        self.ctx.kkrimp_params_dict = Dict(dict={'nspin': self.ctx.nspin, 'nsteps': self.ctx.nsteps, 'kkr_runmax': self.ctx.kkr_runmax,
-                                                          'threshold_aggressive_mixing': self.ctx.threshold_aggressive_mixing,
-                                                          'convergence_criterion': self.ctx.convergence_criterion, 'mixreduce': self.ctx.mixreduce,
-                                                          'strmix': self.ctx.strmix, 'aggressive_mix': self.ctx.aggressive_mix,
-                                                          'aggrmix': self.ctx.aggrmix, 'non_spherical': self.ctx.non_spherical,
-                                                          'broyden_number': self.ctx.broyden_number, 'born_iter': self.ctx.born_iter,
-                                                          'mag_init': self.ctx.mag_init, 'hfield': self.ctx.hfield, 'init_pos': self.ctx.init_pos,
-                                                          'calc_orbmom': self.ctx.calc_orbmom,
-                                                          'spinorbit': self.ctx.spinorbit, 'newsol': self.ctx.newsol})
+        self.ctx.kkrimp_params_dict = Dict(dict={'nsteps': self.ctx.nsteps, 'kkr_runmax': self.ctx.kkr_runmax,
+                                                 'threshold_aggressive_mixing': self.ctx.threshold_aggressive_mixing,
+                                                 'convergence_criterion': self.ctx.convergence_criterion, 'mixreduce': self.ctx.mixreduce,
+                                                 'strmix': self.ctx.strmix, 'aggressive_mix': self.ctx.aggressive_mix,
+                                                 'aggrmix': self.ctx.aggrmix, 'broyden-number': self.ctx.broyden_number,
+                                                 'mag_init': self.ctx.mag_init, 'hfield': self.ctx.hfield, 'init_pos': self.ctx.init_pos,
+                                                 'accuracy_params': self.ctx.accuracy_params})
 
 
         # report the chosen parameters to the user
@@ -267,13 +245,12 @@ class kkr_imp_wc(WorkChain):
                     'scheduler command: {}\n'
                     'description: {}\n'
                     'label: {}\n'
-                    'nspin: {}\n'
                     'parameters for the voroaux calculation: {}\n'
                     'parameters for the kkrimp scf: {}\n'
                     ''.format(self.ctx.use_mpi, self.ctx.resources, self.ctx.max_wallclock_seconds,
                               self.ctx.queue, self.ctx.custom_scheduler_commands,
                               self.ctx.description_wf, self.ctx.label_wf,
-                              self.ctx.nspin, self.ctx.voro_params_dict.get_dict(),
+                              self.ctx.voro_params_dict.get_dict(),
                               self.ctx.kkrimp_params_dict.get_dict()))
 
 
@@ -320,9 +297,11 @@ class kkr_imp_wc(WorkChain):
                 self.report(self.exit_codes.ERROR_MISSING_KKRCODE)
                 return self.exit_codes.ERROR_MISSING_KKRCODE
         elif 'remote_data_gf' in inputs:
+            remote_data_gf_node = load_node(inputs.remote_data_gf.pk)
+            pk_kkrflex_writeoutcalc = remote_data_gf_node.get_incoming(link_label_filter=u'remote_folder').first().node.pk
             self.report('INFO: found remote_data node (pid: {}) from previous KKRFLEX calculation (pid: {}) in input. '
                         'Skip GF writeout step and start workflow by auxiliary voronoi calculations.'
-                        .format(inputs.remote_data_gf.pk, inputs.remote_data_gf.inputs.remote_folder.pk))
+                        .format(inputs.remote_data_gf.pk, pk_kkrflex_writeoutcalc))
             do_gf_calc = False
         else:
             inputs_ok = False
@@ -378,22 +357,40 @@ class kkr_imp_wc(WorkChain):
             converged_host_remote = self.inputs.remote_data_host
         else:
             self.report('INFO: get converged host remote from GF_host_calc and graph to extract structure for Voronoi calculation')
-            GF_host_calc_pk = self.inputs.remote_data_gf.inputs.remote_folder.pk
-            GF_host_calc = load_node(GF_host_calc_pk)
-            converged_host_remote = GF_host_calc.inputs.parent_calc_folder
+            remote_data_gf_node = load_node(self.inputs.remote_data_gf.pk)
+            GF_host_calc = remote_data_gf_node.get_incoming(link_label_filter=u'remote_folder').first().node
+            converged_host_remote = GF_host_calc.inputs.parent_folder
+
         # get previous kkr parameters following remote_folder->calc->parameters links
         prev_kkrparams = converged_host_remote.get_incoming(link_label_filter='remote_folder').first().node.get_incoming(link_label_filter='parameters').first().node
         calc_params = prev_kkrparams
+
+        # add or overwrite some parameters (e.g. things that are only used by voronoi)
+        calc_params_dict = calc_params.get_dict()
+        changed_params = False
+        for key, val in self.ctx.change_voro_params.items():
+            if key in ['RUNOPT', 'TESTOPT']:
+                opt_old = calc_params_dict.get(key, [])
+                if type(val)!=list: val = [val]
+                val = opt_old + val
+            calc_params_dict[key] = val
+            changed_params = True
+        if changed_params:
+            updatenode = Dict(dict=calc_params_dict)
+            updatenode.label = 'Changed params for voroaux: {}'.format(self.ctx.change_voro_params)
+            updatenode.description = 'Overwritten voronoi input parameter from kkr_imp_wc input.'
+            calc_params = update_params_wf(calc_params, updatenode)
+
+        # find host structure
         structure_host, voro_calc = VoronoiCalculation.find_parent_structure(converged_host_remote)
 
         # for every impurity, generate a structure and launch the voronoi workflow
         # to get the auxiliary impurity startpotentials
         self.ctx.voro_calcs = {}
-#        for i in range(2):
         inter_struc = change_struc_imp_aux_wf(structure_host, imp_info)
-        sub_label = 'voroaux calc for Zimp: {} in host-struc'.format(imp_info.get_dict().get('Zimp')[0])
+        sub_label = 'voroaux calc for Zimp: {} in host-struc'.format(imp_info.get_dict().get('Zimp'))
         sub_description = 'Auxiliary voronoi calculation for an impurity with charge '
-        sub_description += '{} in the host structure from pid: {}'.format(imp_info.get_dict().get('Zimp')[0], converged_host_remote.pk)
+        sub_description += '{} in the host structure from pid: {}'.format(imp_info.get_dict().get('Zimp'), converged_host_remote.pk)
 
         future = self.submit(kkr_startpot_wc, label=sub_label, description=sub_description, structure=inter_struc,
                              voronoi=vorocode, kkr=kkrcode, wf_parameters=voro_params, calc_parameters=calc_params,
@@ -401,7 +398,7 @@ class kkr_imp_wc(WorkChain):
 
         tmp_calcname = 'voro_aux_{}'.format(1)
         self.ctx.voro_calcs[tmp_calcname] = future
-        self.report('INFO: running voro aux (Zimp= {}, pid: {})'.format(imp_info.get_dict().get('Zimp')[0], future.pk))
+        self.report('INFO: running voro aux (Zimp= {}, pid: {})'.format(imp_info.get_dict().get('Zimp'), future.pk))
 
         return ToContext(last_voro_calc=future)
 
@@ -414,8 +411,6 @@ class kkr_imp_wc(WorkChain):
         KKR impurity sub workflow
         """
 
-        nspin = self.ctx.nspin
-
         # collect all nodes necessary to construct the startpotential
         if self.ctx.do_gf_calc:
             GF_host_calc_pk = self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc')
@@ -423,13 +418,14 @@ class kkr_imp_wc(WorkChain):
             GF_host_calc = load_node(GF_host_calc_pk)
             converged_host_remote = self.inputs.remote_data_host
         else:
-            GF_host_calc_pk = self.inputs.remote_data_gf.inputs.remote_folder.pk
-            self.report('GF_host_calc_pk: {}'.format(GF_host_calc_pk))
-            GF_host_calc = load_node(GF_host_calc_pk)
-            # follow parent_calc_folder link up to get remote folder
-            converged_host_remote = GF_host_calc.get_incoming(link_label_filter='parent_calc_folder').first().node
+            remote_data_gf_node = load_node(self.inputs.remote_data_gf.pk)
+            GF_host_calc = remote_data_gf_node.get_incoming(link_label_filter=u'remote_folder').first().node
+            self.report('GF_host_calc_pk: {}'.format(GF_host_calc.pk))
+            # follow parent_folder link up to get remote folder
+            converged_host_remote = GF_host_calc.get_incoming(link_label_filter='parent_folder').first().node
         voro_calc_remote = self.ctx.last_voro_calc.outputs.last_voronoi_remote
         imp_info = self.inputs.impurity_info
+        nspin = GF_host_calc.outputs.output_parameters.get_dict().get('nspin')
 
         ilayer_cent = imp_info.get_dict().get('ilayer_center')
 
@@ -450,8 +446,8 @@ class kkr_imp_wc(WorkChain):
         settings_label = 'startpot_KKRimp for imp_info node {}'.format(imp_info.pk)
         settings_description = 'starting potential for impurity info: {}'.format(imp_info)
         settings = Dict(dict={'pot1': potname_converged,  'out_pot': potname_imp, 'neworder': neworder_pot1,
-                                       'pot2': potname_impvorostart, 'replace_newpos': replacelist_pot2, 'label': settings_label,
-                                       'description': settings_description})
+                              'pot2': potname_impvorostart, 'replace_newpos': replacelist_pot2, 'label': settings_label,
+                              'description': settings_description})
         startpot_kkrimp = neworder_potential_wf(settings_node=settings, parent_calc_folder=converged_host_remote,
                                                 parent_calc_folder2=voro_calc_remote)
 
@@ -461,7 +457,7 @@ class kkr_imp_wc(WorkChain):
         self.report('INFO: created startpotential (pid: {}) for the impurity calculation '
                     'by using information of the GF host calculation (pid: {}), the potential of the '
                     'converged host system (remote pid: {}) and the potential of the auxiliary voronoi '
-                    'calculation (remote pid: {})'.format(startpot_kkrimp.pk, GF_host_calc_pk, converged_host_remote.pk, self.ctx.last_voro_calc.pk))
+                    'calculation (remote pid: {})'.format(startpot_kkrimp.pk, GF_host_calc.pk, converged_host_remote.pk, self.ctx.last_voro_calc.pk))
 
 
 
@@ -560,7 +556,9 @@ def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at ce
         else:
             zatom = _atomic_numbers[kind.get_symbols_string()]
         if isite == imp_info.get_dict().get('ilayer_center'):
-            zatom = imp_info.get_dict().get('Zimp')[0]
+            zatom = imp_info.get_dict().get('Zimp')
+            if type(zatom)==list:
+              zatom = zatom[0] # here this works for single impurity only!
         symbol = PeriodicTableElements.get(zatom).get('symbol')
         new_struc.append_atom(position=pos, symbols=symbol)
         isite += 1

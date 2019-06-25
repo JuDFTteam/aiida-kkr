@@ -15,7 +15,7 @@ from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4"
+__version__ = "0.5.0"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: improve workflow output node structure
@@ -55,15 +55,13 @@ class kkr_imp_dos_wc(WorkChain):
                         'custom_scheduler_commands' : '',         # some additional scheduler commands
                         'use_mpi' : True}                         # execute KKR with mpi or without
 
-    _wf_default = {'ef_shift': 0. ,                                  # set costum absolute E_F (in eV)
-                   'dos_params': {'nepts': 61,                       # DOS params: number of points in contour
-                                  'tempr': 200, # K                  # DOS params: temperature
-                                  'emin': -1, # Ry                   # DOS params: start of energy contour
-                                  'emax': 1,  # Ry                   # DOS params: end of energy contour
-                                  'kmesh': [30, 30, 30]},            # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
-                   'non_spherical': 1,                      # use non-spherical parts of the potential (0 if you don't want that)
-                   'spinorbit' : False,                     # SOC calculation (True/False)
-                   'newsol' : False }                       # new SOC solver is applied
+    _wf_default = {'ef_shift': 0. ,                               # set custom absolute E_F (in eV)
+                   'dos_params': {'nepts': 61,                    # DOS params: number of points in contour
+                                  'tempr': 200, # K               # DOS params: temperature
+                                  'emin': -1, # Ry                # DOS params: start of energy contour
+                                  'emax': 1,  # Ry                # DOS params: end of energy contour
+                                  'kmesh': [30, 30, 30]}          # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
+                  }
 
 
 
@@ -161,9 +159,6 @@ class kkr_imp_dos_wc(WorkChain):
         # set workflow parameters for the KKR impurity calculation
         self.ctx.nsteps = 1 # always only one step for DOS calculation
         self.ctx.kkr_runmax = 1 # no restarts for DOS calculation
-        self.ctx.non_spherical = wf_dict.get('non_spherical', self._wf_default['non_spherical'])
-        self.ctx.spinorbit = wf_dict.get('spinorbit', self._wf_default['spinorbit'])
-        self.ctx.newsol = wf_dict.get('newsol', self._wf_default['newsol'])
 
         # set workflow label and description
         self.ctx.description_wf = self.inputs.get('description', self._wf_description)
@@ -288,8 +283,7 @@ class kkr_imp_dos_wc(WorkChain):
         self.report('nspin: {}'.format(nspin))
         self.ctx.kkrimp_params_dict = Dict(dict={'nspin': nspin,
                                                           'nsteps': self.ctx.nsteps,
-                                                          'kkr_runmax': self.ctx.kkr_runmax, 'non_spherical': self.ctx.non_spherical,
-                                                          'spinorbit': self.ctx.spinorbit, 'newsol': self.ctx.newsol,
+                                                          'kkr_runmax': self.ctx.kkr_runmax,
                                                           'dos_run': True})
         kkrimp_params = self.ctx.kkrimp_params_dict
 

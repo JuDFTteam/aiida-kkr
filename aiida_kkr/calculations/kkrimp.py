@@ -30,7 +30,7 @@ SinglefileData = DataFactory('singlefile')
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.3.1"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -129,21 +129,14 @@ class KkrimpCalculation(CalcJob):
         """
         # Check inputdict and extrace nodes
         tmp = self._check_and_extract_input_nodes()
-        parameters = tmp[0]
-        code = tmp[1]
-        imp_info = tmp[2]
-        kkrflex_file_paths = tmp[3]
-        shapefun_path = tmp[4]
-        shapes = tmp[5]
-        host_parent_calc = tmp[6]
-        params_host = tmp[7]
-        impurity_potential = tmp[8]
-        parent_calc_folder = tmp[9]
-        structure = tmp[10]
+        parameters, code, imp_info = tmp[0], tmp[1], tmp[2]
+        kkrflex_file_paths, shapefun_path, shapes =  tmp[3], tmp[4], tmp[5]
+        host_parent_calc, params_host, impurity_potential = tmp[6], tmp[7], tmp[8]
+        parent_calc_folder, structure = tmp[9], tmp[10]
 
         # Prepare input files for KKRimp calculation
         # 1. fill kkr params for KKRimp, write config file and eventually also kkrflex_llyfac file
-        self._extract_and_write_config(parent_calc_folder, params_host, parameters, tempfolder, tempfolder)
+        self._extract_and_write_config(parent_calc_folder, params_host, parameters, tempfolder, kkrflex_file_paths[KkrCalculation._KKRFLEX_ATOMINFO])
         # 2. write shapefun from impurity info and host shapefun and copy imp. potential
         potfile_name, potfile_folder = self._get_pot_and_shape(imp_info, shapefun_path, shapes, impurity_potential, parent_calc_folder, tempfolder, structure)
         # 3. change kkrflex_atominfo to match impurity case
@@ -522,6 +515,7 @@ class KkrimpCalculation(CalcJob):
         # find replaceZimp list from Zimp and Rimp_rel
         imp_info_dict = imp_info.get_dict()
         Zimp_list = imp_info_dict.get(u'Zimp')
+        if type(Zimp_list)!=list: Zimp_list = [Zimp_list] # fast fix for cases when Zimp is not a list but a single value
         Rimp_rel_list = imp_info_dict.get(u'Rimp_rel', [[0,0,0]])
         for iatom in range(len(Zimp_list)):
             rtmp = Rimp_rel_list[iatom]
