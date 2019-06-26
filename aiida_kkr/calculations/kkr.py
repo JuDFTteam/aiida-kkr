@@ -300,7 +300,7 @@ class KkrCalculation(CalcJob):
             tempr = parameters.get_dict().get('TEMPR')
             if tempr is None or tempr>100.:
                 change_values.append(['TEMPR', 50.])
-            N1 = parameters.get_dict().get('TEMPR')
+            N1 = parameters.get_dict().get('NPT1')
             if N1 is None or N1>0:
                 change_values.append(['NPT1', 0])
             N2 = parameters.get_dict().get('NPT2')
