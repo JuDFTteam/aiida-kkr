@@ -10,6 +10,21 @@ mkdir -p '.aiida';
 # RUN_ALL       to run all tests
 # if the environment variable is unset or the empty string then the corresponding tests will be ignored 
 
+usage(){
+  echo "$0 usage:" && grep " .)\ #" $0; exit 0;
+}
+
+addopt=""
+while getopts vh option; do
+  case $option in
+    v) # Add verbosity flags '-sv' to pytest run
+       addopt=" -sv " && echo "Found -v flag: adding option '$addopt' to pytest execution" ;;
+    h) # Display help
+       usage
+  esac
+done
+
+
 # print settings before starting the tests
 echo "Test settings"
 echo "============="
@@ -43,13 +58,14 @@ echo
 # Now run tests
 
 if [[ ! -z "$RUN_ALL" ]]; then
-  echo "run all tests"
-  pytest --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr --mpl -p no:warnings
+  echo "run all tests (first workflows then non-workflows tools etc)"
+  pytest --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr -k workflows # run workflows first
+  pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr --ignore=workflows --mpl -p no:warnings $addopt # then run non-workflow tests
 else
   # tests without running actual calculations
   if [[ -z "$SKIP_NOWORK" ]]; then
     echo "run non-workflow tests"
-    pytest --cov-report=term-missing --cov=aiida_kkr --ignore=workflows --ignore=jukkr --mpl -p no:warnings
+    pytest --cov-report=term-missing --cov=aiida_kkr --ignore=workflows --ignore=jukkr --mpl -p no:warnings $addopt
   else
     echo "skipping tests that are not workflows"
   fi
@@ -60,7 +76,7 @@ else
 
   if [[ ! -z "$RUN_VORONOI" ]]; then
     echo "run vorostart workflow test"
-    pytest -sv --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_vorostart_workflow
+    pytest -sv --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_vorostart_workflow $addopt
   else
     echo "skipping vorostart workflow test"
   fi
@@ -69,25 +85,25 @@ else
 
   if [[ ! -z "$RUN_KKRHOST" ]]; then
     echo "run kkr_dos workflow test"
-    pytest -sv --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_dos_workflow
+    pytest -sv --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_dos_workflow $addopt
   else
     echo "skipping kkr_dos workflow test"
   fi
   if [[ ! -z "$RUN_KKRHOST" ]]; then
     echo "run kkr_gf_writeout workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_gf_writeout_workflow
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_gf_writeout_workflow $addopt
   else
     echo "skipping kkr_gf_writeout workflow test"
   fi
   if [[ ! -z "$RUN_VORONOI" ]] && [[ ! -z "$RUN_KKRHOST" ]]; then
     echo "run kkr_scf workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_scf_workflow
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_scf_workflow $addopt
   else
     echo "skipping kkr_scf workflow test"
   fi
   if [[ ! -z "$RUN_VORONOI" ]] && [[ ! -z "$RUN_KKRHOST" ]]; then
     echo "run kkr_eos workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_eos_workflow
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_eos_workflow $addopt
   else
     echo "skipping kkr_eos workflow test"
   fi
@@ -96,19 +112,19 @@ else
 
   if [[ ! -z "$RUN_KKRIMP" ]]; then
     echo "run kkrimp_scf workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_scf_workflow
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_scf_workflow $addopt
   else
     echo "skipping kkrimp_scf workflow test"
   fi
   if [[ ! -z "$RUN_KKRIMP" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ ! -z "$RUN_VORONOI" ]]; then
     echo "run kkrimp_full workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_full_workflow
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_full_workflow $addopt
   else
     echo "skipping kkrimp_full workflow test"
   fi
   if [[ ! -z "$RUN_KKRIMP" ]] && [[ ! -z "$RUN_KKRHOST" ]]; then
     echo "run kkrimp_dos workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_dos_workflow
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_dos_workflow $addopt
   else
     echo "skipping kkrimp_dos workflow test"
   fi

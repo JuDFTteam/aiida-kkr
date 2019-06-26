@@ -5,9 +5,9 @@ In this module you find the base workflow for a impurity DOS calculation and
 some helper methods to do so with AiiDA
 """
 from __future__ import print_function, absolute_import
-from aiida.orm import Code, load_node, CalcJobNode
+from aiida.orm import Code, load_node, CalcJobNode, Float, Int
 from aiida.plugins import DataFactory
-from aiida.engine import if_, ToContext, WorkChain
+from aiida.engine import if_, ToContext, WorkChain, calcfunction
 from aiida.common import LinkType
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
@@ -15,7 +15,7 @@ from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: improve workflow output node structure
@@ -25,6 +25,7 @@ __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 Dict = DataFactory('dict')
 RemoteData = DataFactory('remote')
 SinglefileData = DataFactory('singlefile')
+XyData = DataFactory('array.xy')
 
 
 class kkr_imp_dos_wc(WorkChain):
@@ -118,6 +119,8 @@ class kkr_imp_dos_wc(WorkChain):
         spec.output('workflow_info', valid_type=Dict)
         spec.output('last_calc_output_parameters', valid_type=Dict)
         spec.output('last_calc_info', valid_type=Dict)
+        spec.output('dos_data', valid_type=XyData)
+        spec.output('dos_data_interpol', valid_type=XyData)
 
 
     def start(self):
@@ -336,6 +339,7 @@ class kkr_imp_dos_wc(WorkChain):
         outputnode_t = Dict(dict=outputnode_dict)
         outputnode_t.label = 'kkr_imp_dos_wc_inform'
         outputnode_t.description = 'Contains information for workflow'
+        outputnode_t.store()
 
         # interpol dos file and store to XyData nodes
         dos_retrieved = last_calc.outputs.retrieved
@@ -344,13 +348,13 @@ class kkr_imp_dos_wc(WorkChain):
             parent_calc_kkr_converged = kkrflex_writeout.inputs.parent_folder.get_incoming(node_class=CalcJobNode).first().node
             ef = parent_calc_kkr_converged.outputs.output_parameters.get_dict().get('fermi_energy')
             natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')
-            dosXyDatas = parse_impdosfiles(dos_retrieved, natom, self.ctx.nspin, ef)
+            dosXyDatas = parse_impdosfiles(dos_retrieved, Int(natom), Int(self.ctx.nspin), Float(ef))
             dos_extracted = True
         else:
             dos_extracted = False
         if dos_extracted:
-            self.out('dos_data', dosXyDatas[0])
-            self.out('dos_data_interpol', dosXyDatas[1])
+            self.out('dos_data', dosXyDatas['dos_data'])
+            self.out('dos_data_interpol', dosXyDatas['dos_data_interpol'])
  
 
         self.report('INFO: workflow_info node: {}'.format(outputnode_t.uuid))
@@ -365,16 +369,15 @@ class kkr_imp_dos_wc(WorkChain):
                     '|-------------------------------------| Done with the KKR imp DOS workflow! |--------------------------------------|\n'
                     '|------------------------------------------------------------------------------------------------------------------|')
 
+@calcfunction
 def parse_impdosfiles(dos_retrieved, natom, nspin, ef):
     from masci_tools.io.common_functions import get_Ry2eV, get_ef_from_potfile
     from numpy import loadtxt, array
-    from aiida.plugins import DataFactory
-    XyData = DataFactory('array.xy')
 
     # read dos files
     dos, dos_int = [], []
-    for iatom in range(1, natom+1):
-        for ispin in range(1, nspin+1):
+    for iatom in range(1, natom.value+1):
+        for ispin in range(1, nspin.value+1):
             with dos_retrieved.open('out_ldos.atom=%0.2i_spin%i.dat'%(iatom, ispin)) as dosfile:
                 tmp = loadtxt(dosfile)
                 dos.append(tmp)
@@ -385,9 +388,9 @@ def parse_impdosfiles(dos_retrieved, natom, nspin, ef):
 
     # convert to eV units
     eVscale = get_Ry2eV()
-    dos[:,:,0] = (dos[:,:,0]-ef)*eVscale
+    dos[:,:,0] = (dos[:,:,0]-ef.value)*eVscale
     dos[:,:,1:] = dos[:,:,1:]/eVscale
-    dos_int[:,:,0] = (dos_int[:,:,0]-ef)*eVscale
+    dos_int[:,:,0] = (dos_int[:,:,0]-ef.value)*eVscale
     dos_int[:,:,1:] = dos_int[:,:,1:]/eVscale
 
     # create output nodes
@@ -418,4 +421,6 @@ def parse_impdosfiles(dos_retrieved, natom, nspin, ef):
         ylists[2].append('states/eV')
     dosnode2.set_y(ylists[0], ylists[1], ylists[2])
 
-    return dosnode, dosnode2
+    output = {'dos_data': dosnode, 'dos_data_interpol': dosnode2}
+
+    return output

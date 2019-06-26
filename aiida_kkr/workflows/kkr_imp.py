@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -331,8 +331,14 @@ class kkr_imp_wc(WorkChain):
         sub_label = 'GF writeout (conv. host pid: {}, imp_info pid: {})'.format(converged_host_remote.pk, imp_info.pk)
         sub_description = 'GF writeout sub workflow for kkrimp_wc using converged host remote data (pid: {}) and impurity_info node (pid: {})'.format(converged_host_remote.pk, imp_info.pk)
 
-        future = self.submit(kkr_flex_wc, label=sub_label, description=sub_description, kkr=kkrcode, options=options,
-                             remote_data=converged_host_remote, impurity_info=imp_info)
+        builder = kkr_flex_wc.get_builder()
+        builder.metadata.label = sub_label
+        builder.metadata.description = sub_description
+        builder.kkr = kkrcode
+        builder.options = options
+        builder.remote_data = converged_host_remote
+        builder.impurity_info = imp_info
+        future = self.submit(builder)
 
         self.report('INFO: running GF writeout (pid: {})'.format(future.pk))
 
@@ -392,9 +398,17 @@ class kkr_imp_wc(WorkChain):
         sub_description = 'Auxiliary voronoi calculation for an impurity with charge '
         sub_description += '{} in the host structure from pid: {}'.format(imp_info.get_dict().get('Zimp'), converged_host_remote.pk)
 
-        future = self.submit(kkr_startpot_wc, label=sub_label, description=sub_description, structure=inter_struc,
-                             voronoi=vorocode, kkr=kkrcode, wf_parameters=voro_params, calc_parameters=calc_params,
-                             options=self.ctx.options_params_dict)
+        builder = kkr_startpot_wc.get_builder()
+        builder.metadata.label = sub_label
+        builder.metadata.description = sub_description
+        builder.structure = inter_struc
+        builder.voronoi = vorocode
+        builder.kkr = kkrcode
+        builder.wf_parameters = voro_params
+        builder.calc_parameters = calc_params
+        builder.options = self.ctx.options_params_dict
+        future = self.submit(builder)
+
 
         tmp_calcname = 'voro_aux_{}'.format(1)
         self.ctx.voro_calcs[tmp_calcname] = future
@@ -485,9 +499,16 @@ class kkr_imp_wc(WorkChain):
         sub_label = 'kkrimp_sub scf wf (GF host remote: {}, imp_info: {})'.format(gf_remote.pk, self.inputs.impurity_info.pk)
         sub_description = 'convergence of the host-impurity potential (pk: {}) using GF remote (pk: {})'.format(startpot.pk, gf_remote.pk)
 
-        future = self.submit(kkr_imp_sub_wc, label=sub_label, description=sub_description,
-                             kkrimp=kkrimpcode, options=options, impurity_info=imp_info,
-                             host_imp_startpot=startpot, remote_data=gf_remote, wf_parameters=kkrimp_params)
+        builder = kkr_imp_sub_wc.get_builder()
+        builder.metadata.label=sub_label
+        builder.metadata.description=sub_description
+        builder.kkrimp=kkrimpcode
+        builder.options=options
+        builder.impurity_info=imp_info
+        builder.host_imp_startpot=startpot
+        builder.remote_data=gf_remote
+        builder.wf_parameters=kkrimp_params
+        future = self.submit(builder)
 
         self.report('INFO: running kkrimp_sub_wf (startpot: {}, GF_remote: {}, wf pid: {})'.format(startpot.pk, gf_remote.pk, future.pk))
 
@@ -525,6 +546,7 @@ class kkr_imp_wc(WorkChain):
         outputnode_t = Dict(dict=outputnode_dict)
         outputnode_t.label = 'kkrimp_wc_inform'
         outputnode_t.description = 'Contains information for workflow'
+        outputnode_t.store()
         self.report('INFO: workflow_info node: {}'.format(outputnode_t.uuid))
 
         self.out('workflow_info', outputnode_t)

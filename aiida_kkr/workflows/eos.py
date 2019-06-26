@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.8"
+__version__ = "0.8.1"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -94,6 +94,12 @@ class kkr_eos_wc(WorkChain):
         spec.input("voronoi", valid_type=Code, required=True)                   # voronoi code
         spec.input("structure", valid_type=StructureData, required=True)        # starting structure node
         spec.input("calc_parameters", valid_type=Dict, required=False) # KKR input parameters (lmax etc.)
+
+        # define output nodes
+        spec.output("eos_results", valid_type=Dict, required=True)
+        spec.output("gs_structure", valid_type=StructureData, required=False)
+        spec.output("explicit_kpoints", required=False)
+        spec.output("get_explicit_kpoints_path_parameters", valid_type=Dict, required=False)
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -433,7 +439,9 @@ class kkr_eos_wc(WorkChain):
             outdict['gs_structure_uuid'] = gs_structure.uuid
 
         # create output nodes in dict with link names
-        outnodes = {'eos_results': Dict(dict=outdict)}
+        outnode = Dict(dict=outdict)
+        outnode.store()
+        outnodes = {'eos_results': outnode}
         if self.ctx.successful and self.ctx.return_gs_struc:
             outnodes['gs_structure'] = gs_structure
             if self.ctx.use_primitive_structure:

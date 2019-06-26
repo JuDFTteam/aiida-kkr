@@ -11,7 +11,7 @@ class Test_kkrimp_scf_workflow():
     Tests for the kkrimp_scf workflow
     """
 
-    @pytest.mark.timeout(300, method='thread')
+    @pytest.mark.timeout(600, method='thread')
     def test_kkrimp_sub_wc(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
@@ -44,7 +44,7 @@ class Test_kkrimp_scf_workflow():
         # import previous GF writeout
         from aiida.orm.importexport import import_data
         import_data('files/db_dump_kkrflex_create.tar.gz')
-        GF_host_calc = load_node('de9b5093-25e7-407e-939e-9282c4431343')
+        GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
 
         # now create a SingleFileData node containing the impurity starting potential
         from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
@@ -59,8 +59,8 @@ class Test_kkrimp_scf_workflow():
 
         # create process builder to set parameters
         builder = kkr_imp_sub_wc.get_builder()
-        builder.description = descr
-        builder.label = label
+        builder.metadata.description = descr
+        builder.metadata.label = label
         builder.kkrimp = KKRimpCode
         builder.options = options
         builder.remote_data = GF_host_calc.outputs.remote_folder

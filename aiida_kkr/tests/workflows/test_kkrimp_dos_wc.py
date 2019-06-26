@@ -42,7 +42,7 @@ class Test_kkrimp_dos_workflow():
         # import previous GF writeout
         from aiida.orm.importexport import import_data
         import_data('files/db_dump_kkrflex_create.tar.gz')
-        GF_host_calc = load_node('de9b5093-25e7-407e-939e-9282c4431343')
+        GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
 
         # now create a SingleFileData node containing the impurity starting potential
         from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
@@ -55,6 +55,10 @@ class Test_kkrimp_dos_workflow():
         label = 'kkrimp_dos Cu host_in_host'
         descr = 'kkrimp_dos workflow for Cu bulk'
 
+        imp_info = GF_host_calc.inputs.impurity_info.get_dict()
+        imp_info ['Rcut'] = 2.5533
+        print(imp_info)
+
         # create process builder to set parameters
         builder = kkr_imp_dos_wc.get_builder()
         builder.metadata.description = descr
@@ -64,7 +68,7 @@ class Test_kkrimp_dos_workflow():
         builder.kkrimp = KKRimpCode
         builder.host_imp_pot = startpot_imp_sfd
         builder.wf_parameters = Dict(dict=wfd)
-        builder.impurity_info = GF_host_calc.inputs.impurity_info
+        builder.impurity_info = Dict(dict=imp_info)
         builder.host_remote = GF_host_calc.outputs.remote_folder
 
         # now run calculation

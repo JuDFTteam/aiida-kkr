@@ -97,8 +97,8 @@ class Test_scf_workflow():
         builder.structure = Cu
         builder.wf_parameters = KKRscf_wf_parameters
         builder.options = options
-        builder.label = label
-        builder.description = descr
+        builder.metadata.label = label
+        builder.metadata.description = descr
 
         # now run calculation
         from aiida.engine import run

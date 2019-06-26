@@ -63,8 +63,8 @@ class Test_dos_workflow():
 
         # create process builder to set parameters
         builder = kkr_dos_wc.get_builder()
-        builder.description = descr
-        builder.label = label
+        builder.metadata.description = descr
+        builder.metadata.label = label
         builder.kkr = KKRCode
         builder.wf_parameters = params_dos
         builder.options = options

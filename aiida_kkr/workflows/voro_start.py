@@ -24,7 +24,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.1"
+__version__ = "0.10.2"
 __contributors__ = u"Philipp Rüßmann"
 
 StructureData = DataFactory('structure')
@@ -732,6 +732,7 @@ class kkr_startpot_wc(WorkChain):
         res_node = Dict(dict=res_node_dict)
         res_node.label = 'vorostart_wc_results'
         res_node.description = ''
+        res_node.store()
 
         # fill output_nodes dict with
         self.out('results_vorostart_wc', res_node)

@@ -80,8 +80,8 @@ class Test_eos_workflow():
         builder.structure = Cu
         builder.wf_parameters = KKReos_wf_parameters
         builder.options = options
-        builder.label = label
-        builder.description = descr
+        builder.metadata.label = label
+        builder.metadata.description = descr
 
         # now run calculation
         from aiida.engine import run

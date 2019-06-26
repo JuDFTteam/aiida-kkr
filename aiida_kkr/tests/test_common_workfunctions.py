@@ -189,7 +189,7 @@ class Test_common_workfunctions(object):
         from aiida.orm.importexport import import_data
         Dict = DataFactory('dict')
         import_data('files/db_dump_kkrflex_create.tar.gz')
-        GF_host_calc = load_node('de9b5093-25e7-407e-939e-9282c4431343').outputs
+        GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6').outputs
         neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.retrieved.open('scoef'), skiprows=1)[:,3]-1]
         settings_dict = {'pot1': 'out_potential',  'out_pot': 'potential_imp', 'neworder': neworder_pot1}
         settings = Dict(dict=settings_dict)

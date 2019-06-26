@@ -19,7 +19,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -577,7 +577,7 @@ class kkr_imp_sub_wc(WorkChain):
 
 
             # set mixing schemes and factors
-            if last_mixing_scheme == 3 or last_mixing_scheme == 4:
+            if last_mixing_scheme > 2:
                 new_params['ITDBRY'] = self.ctx.broyden_num
                 new_params['IMIX'] = last_mixing_scheme
                 new_params['MIXFAC'] = aggrmixfac
@@ -734,7 +734,7 @@ class kkr_imp_sub_wc(WorkChain):
 
         # get potential from last calculation
         retrieved_folder = self.ctx.kkr.outputs.retrieved
-        with retrieved_folder.open('out_potential') as pot_file:
+        with retrieved_folder.open('out_potential', 'rb') as pot_file:
             self.ctx.last_pot = SinglefileData(file=pot_file)
 
         # extract convergence info about rms etc. (used to determine convergence behavior)
@@ -797,7 +797,7 @@ class kkr_imp_sub_wc(WorkChain):
 
         if self.ctx.last_mixing_scheme == 0:
             mixfac = self.ctx.strmix
-        elif self.ctx.last_mixing_scheme == 3 or self.ctx.last_mixing_scheme == 4:
+        elif self.ctx.last_mixing_scheme > 2:
             mixfac = self.ctx.aggrmix
 
         if self.ctx.kkr_higher_accuracy:
@@ -958,6 +958,7 @@ class kkr_imp_sub_wc(WorkChain):
         outputnode_t = Dict(dict=outputnode_dict)
         outputnode_t.label = 'kkr_scf_wc_results'
         outputnode_t.description = 'Contains results of workflow (e.g. workflow version number, info about success of wf, lis tof warnings that occured during execution, ...)'
+        outputnode_t.store()
 
         self.out('workflow_info', outputnode_t)
         self.out('host_imp_pot', self.ctx.last_pot)

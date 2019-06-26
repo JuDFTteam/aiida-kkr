@@ -25,13 +25,14 @@ from aiida.common.exceptions import InputValidationError
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6"
+__version__ = "0.6.1"
 __contributors__ = u"Philipp Rüßmann"
 
 
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
 Dict = DataFactory('dict')
+XyData = DataFactory('array.xy')
 
 class kkr_dos_wc(WorkChain):
     """
@@ -86,6 +87,11 @@ class kkr_dos_wc(WorkChain):
                    default=Dict(dict=cls._wf_default))
         spec.input("remote_data", valid_type=RemoteData, required=True)
         spec.input("kkr", valid_type=Code, required=True)
+
+        # define outputs
+        spec.output("results_wf", valid_type=Dict, required=True)
+        spec.output("dos_data", valid_type=XyData, required=False)
+        spec.output("dos_data_interpol", valid_type=XyData, required=False)
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -342,7 +348,6 @@ class kkr_dos_wc(WorkChain):
         outputnode = Dict(dict=outputnode_dict)
         outputnode.label = 'kkr_scf_wc_results'
         outputnode.description = ''
-        outputnode.store()
 
         self.report("INFO: create dos results nodes: outputnode={}".format(outputnode))
         try:
@@ -368,6 +373,7 @@ class kkr_dos_wc(WorkChain):
                 outdict['dos_data_interpol'] = dosXyDatas[1]
 
         for link_name, node in outdict.items():
+            if not node.is_stored: node.store()
             self.out(link_name, node)
 
         self.report("INFO: done with DOS workflow!\n")
@@ -379,8 +385,6 @@ def parse_dosfiles(dosfolder):
     """
     from masci_tools.io.common_functions import interpolate_dos
     from masci_tools.io.common_functions import get_Ry2eV
-    from aiida.plugins import DataFactory
-    XyData = DataFactory('array.xy')
 
     eVscale = get_Ry2eV()
 

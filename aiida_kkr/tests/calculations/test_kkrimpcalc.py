@@ -26,7 +26,7 @@ class Test_kkrimp_calculation(object):
         # first load parent voronoi calculation
         from aiida.orm.importexport import import_data
         import_data('files/db_dump_kkrflex_create.tar.gz')
-        GF_host_calc = load_node('de9b5093-25e7-407e-939e-9282c4431343') #'9459b4ea-ead5-4268-aa29-1c5e18654d77')
+        GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
 
         # prepare computer and code (needed so that
         prepare_code(kkrimp_codename, codelocation, computername, workdir)

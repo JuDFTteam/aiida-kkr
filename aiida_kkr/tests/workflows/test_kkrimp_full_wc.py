@@ -11,7 +11,7 @@ class Test_kkrimp_full_workflow():
     Tests for the full kkrimp_scf workflow with GF writeout and voroaux steps
     """
 
-    @pytest.mark.timeout(300, method='thread')
+    @pytest.mark.timeout(600, method='thread')
     def test_kkrimp_full_wc(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
@@ -51,7 +51,7 @@ class Test_kkrimp_full_workflow():
         KKRimpCode = Code.get_from_string(kkrimp_codename+'@'+computername)
         VoroCode = Code.get_from_string(voro_codename+'@'+computername)
 
-        imp_info = Dict(dict={'Rcut':1.01, 'ilayer_center': 0, 'Zimp':[30.]})
+        imp_info = Dict(dict={'Rcut':2.5533, 'ilayer_center': 0, 'Zimp':[30.]})
 
         from aiida.orm.importexport import import_data
         import_data('files/db_dump_kkrcalc.tar.gz')
@@ -62,8 +62,8 @@ class Test_kkrimp_full_workflow():
 
         # create process builder to set parameters
         builder = kkr_imp_wc.get_builder()
-        builder.description = descr
-        builder.label = label
+        builder.metadata.description = descr
+        builder.metadata.label = label
         builder.kkrimp = KKRimpCode
         builder.voronoi = VoroCode
         builder.kkr = KKRhostCode

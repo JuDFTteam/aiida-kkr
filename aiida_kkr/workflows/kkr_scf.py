@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.5"
+__version__ = "0.9.6"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -44,6 +44,7 @@ __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
 Dict = DataFactory('dict')
+XyData = DataFactory('array.xy')
 
 class kkr_scf_wc(WorkChain):
     """
@@ -150,6 +151,16 @@ class kkr_scf_wc(WorkChain):
         spec.input("remote_data", valid_type=RemoteData, required=False)
         spec.input("voronoi", valid_type=Code, required=False)
         spec.input("kkr", valid_type=Code, required=True)
+
+        # define output nodes
+        spec.output("output_kkr_scf_wc_ParameterResults", valid_type=Dict, required=True)
+        spec.output("last_calc_out", valid_type=Dict, required=False)
+        spec.output("last_RemoteData", valid_type=RemoteData, required=False)
+        spec.output("last_InputParameters", valid_type=Dict, required=False)
+        spec.output("results_vorostart", valid_type=Dict, required=False)
+        spec.output("starting_dosdata_interpol", valid_type=XyData, required=False)
+        spec.output("final_dosdata_interpol", valid_type=XyData, required=False)
+
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -508,10 +519,16 @@ class kkr_scf_wc(WorkChain):
 
         wf_label= 'kkr_startpot (voronoi)'
         wf_desc = 'subworkflow to set up the input of a KKR calculation'
-        future = self.submit(kkr_startpot_wc, kkr=kkrcode, voronoi=voronoicode,
-                             calc_parameters=params, wf_parameters=sub_wf_params,
-                             structure=structure, label=wf_label, description=wf_desc,
-                             options=self.ctx.options_params_dict)
+        builder = kkr_startpot_wc.get_builder()
+        builder.kkr = kkrcode
+        builder.voronoi = voronoicode
+        builder.calc_parameters = params
+        builder.wf_parameters = sub_wf_params
+        builder.structure = structure
+        builder.metadata.label = wf_label
+        builder.metadata.description = wf_desc
+        builder.options = self.ctx.options_params_dict
+        future = self.submit(builder)
 
         return ToContext(voronoi=future, last_calc=future)
 

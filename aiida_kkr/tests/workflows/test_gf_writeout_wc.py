@@ -37,7 +37,7 @@ class Test_gf_writeout_workflow():
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
         KKRCode = Code.get_from_string(kkr_codename+'@'+computername)
 
-        imp_info = Dict(dict={'Rcut':1.01, 'ilayer_center': 0, 'Zimp':[79.]})
+        imp_info = Dict(dict={'Rcut':2.5533, 'ilayer_center': 0, 'Zimp':[29.]})
 
         label = 'GF_writeout Cu bulk'
         descr = 'GF_writeout workflow for Cu bulk'
@@ -48,8 +48,8 @@ class Test_gf_writeout_workflow():
 
         # create process builder to set parameters
         builder = kkr_flex_wc.get_builder()
-        builder.description = descr
-        builder.label = label
+        builder.metadata.description = descr
+        builder.metadata.label = label
         builder.kkr = KKRCode
         builder.options = options
         builder.remote_data = kkr_calc_remote

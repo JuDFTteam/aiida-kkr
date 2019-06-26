@@ -851,7 +851,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
                                               replace_from_pot2=replace_newpos)
 
         # store output potential to SingleFileData
-        output_potential_sfd_node = SingleFileData(file=tempfolder.open(out_pot))
+        output_potential_sfd_node = SingleFileData(file=tempfolder.open(out_pot, u'rb'))
 
         lbl = settings_dict.get('label', None)
         if lbl is not None:
