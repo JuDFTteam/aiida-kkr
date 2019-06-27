@@ -25,7 +25,7 @@ from aiida.common.exceptions import InputValidationError
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -115,6 +115,7 @@ class kkr_dos_wc(WorkChain):
         spec.exit_code(163, 'ERROR_CALC_PARAMETERS_INVALID', 'calc_parameters given are not consistent! Hint: did you give an unknown keyword?')
         spec.exit_code(164, 'ERROR_CALC_PARAMETERS_INCOMPLETE', 'calc_parameters not complete')
         spec.exit_code(165, 'ERROR_DOS_PARAMS_INVALID', 'dos_params given in wf_params are not valid')
+        spec.exit_code(166, 'ERROR_DOS_CALC_FAILED', 'KKR dos calculation failed')
 
 
     def start(self):
@@ -264,6 +265,9 @@ class kkr_dos_wc(WorkChain):
                     key = 'BZDIVIDE'
                 elif key=='nepts':
                     key = 'NPT2'
+                    # add IEMXD which has to be big enough
+                    print('setting IEMXD', val)
+                    para_check.set_value('IEMXD', val, silent=True)
                 elif key=='emin':
                     key = 'EMIN'
                 elif key=='emax':
@@ -323,7 +327,9 @@ class kkr_dos_wc(WorkChain):
             self.ctx.successful = False
             error = ('ERROR: DOS calculation failed somehow it is '
                     'in state {}'.format(self.ctx.dosrun.process_state))
+            self.report(error)
             self.ctx.errors.append(error)
+            return self.exit_codes.ERROR_DOS_CALC_FAILED
 
         # create dict to store results of workflow output
         outputnode_dict = {}

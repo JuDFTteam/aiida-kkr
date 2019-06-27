@@ -22,7 +22,7 @@ from aiida.common.exceptions import InputValidationError
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4"
+__version__ = "0.4.1"
 __contributors__ = u"Fabian Bertoldo"
 
 # ToDo: add more default values to wf_parameters
@@ -299,7 +299,8 @@ class kkr_flex_wc(WorkChain):
             if self.ctx.dos_run:
                 para_check = update_params_wf(para_check, Dict(dict={'EMIN': self.ctx.dos_params_dict['emin'],
                     'EMAX': self.ctx.dos_params_dict['emax'], 'NPT2': self.ctx.dos_params_dict['nepts'],
-                    'NPOL': 0, 'NPT1': 0, 'NPT3': 0, 'BZDIVIDE': self.ctx.dos_params_dict['kmesh']}))
+                    'NPOL': 0, 'NPT1': 0, 'NPT3': 0, 'BZDIVIDE': self.ctx.dos_params_dict['kmesh'],
+                    'IEMXD': self.ctx.dos_params_dict['nepts']}))
             elif self.ctx.ef_shift != 0:
                 # extract old Fermi energy in Ry
                 remote_data_parent = self.inputs.remote_data

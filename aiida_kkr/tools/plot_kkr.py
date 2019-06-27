@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4"
+__version__ = "0.4.1"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -30,8 +30,10 @@ class plot_kkr(object):
     :type interpol: bool
     :param all_atoms: plot all atoms in DOS plots (default: False, i.e. plot total DOS only)
     :type all_atoms: bool
-    :param l_channels: plot l-channels in addition to total DOS (default: True)
+    :param l_channels: plot l-channels in addition to total DOS (default: True, i.e. plot all l-channels)
     :type l_channels: bool
+    :param sum_spins: sum up both spin channels or plot both? (default: False, i.e. plot both spin channels)
+    :type sum_spins: bool
     :param logscale: plot rms and charge neutrality curves on a log-scale (default: True)
     :type locscale: bool
 
@@ -275,7 +277,7 @@ class plot_kkr(object):
         print("plotting structure using ase's `view` with kwargs={}".format(kwargs))
         view(ase_atoms, **kwargs)
 
-    def dosplot(self, d, natoms, nofig, all_atoms, l_channels, **kwargs):
+    def dosplot(self, d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, **kwargs):
         """plot dos from xydata node"""
         from numpy import array, sum
         from matplotlib.pyplot import plot, xlabel, ylabel, gca, figure, legend
@@ -289,6 +291,8 @@ class plot_kkr(object):
         y_all = d.get_y()
 
         nspin = len(y_all[0][1]) // natoms
+        nspin2 = len(y_all[0][1]) // natoms # copy of nspin becaus nspin is reset to 1 if sum_spins is set to True
+        if sum_spins: nspin = 1
 
         xlbl = x_all[0]+' ('+x_all[2]+')'
 
@@ -312,17 +316,21 @@ class plot_kkr(object):
             ylbl = 'DOS ('+y2[2]+')'
             # take data
             y2 = y2[1].copy()
-            y2 = y2.reshape(natoms, nspin, -1)
+            y2 = y2.reshape(natoms, nspin2, -1)
             x = x_all[1].copy()
 
             for ispin in range(nspin):
                 if not all_atoms:
                     y = [sum(y2[:,ispin,:], axis=0)] # artificial list so that y[iatom] works later on
+                    if sum_spins and nspin2==2:
+                        y[0] = -y[0] + sum(y2[:,1,:], axis=0)
                     natoms2 = 1
                     yladd = ''
                 else:
                     natoms2 = natoms
                     y = y2[:,ispin,:]
+                    if sum_spins and nspin2==2:
+                        y = -y + y2[:,1,:]
 
                 for iatom in range(natoms2):
                     yladd = y_all[il][0].replace('dos ', '')
@@ -332,10 +340,15 @@ class plot_kkr(object):
                         yladd=''
                     xplt = x[iatom*nspin+ispin]
                     yplt = y[iatom]
+                    if not switch_xy:
+                        plot(xplt, yplt, label=yladd, **kwargs)
+                        xlabel(xlbl)
+                        ylabel(ylbl)
+                    else:
+                        plot(yplt, xplt, label=yladd, **kwargs)
+                        xlabel(ylbl)
+                        ylabel(xlbl)
 
-                    plot(xplt, yplt, label=yladd, **kwargs)
-                    xlabel(xlbl)
-                    ylabel(ylbl)
         legend(fontsize='x-small')
 
     def rmsplot(self, rms, neutr, nofig, ptitle, logscale, only=None, **kwargs):
@@ -420,8 +433,9 @@ class plot_kkr(object):
 
             # now get contents of out_kkr using remote call of 'cat'
             with transport as open_transport:
-                if 'out_kkr' in node.outputs.remote_folder.list_object_names():
-                    out_kkr = node.outputs.remote_folder.open('out_kkr').readlines()
+                if 'remote_folder' in node.outputs:
+                    if 'out_kkr' in node.outputs.remote_folder.list_object_names():
+                        out_kkr = node.outputs.remote_folder.open('out_kkr').readlines()
 
             # now extract rms, charge neutrality, total energy and value of Fermi energy
             itmp = 0
@@ -538,7 +552,7 @@ class plot_kkr(object):
                     with node.outputs.retrieved.open('qdos.01.1.dat', mode='r') as f:
                         ne = len(set(loadtxt(f)[:,0]))
                         if ne>1:
-                            dispersionplot(f, newfig=True, ptitle=ptitle, **kwargs)
+                            dispersionplot(f, newfig=(not nofig), ptitle=ptitle, logscale=logscale, **kwargs)
                             # add plot labels
                             try:
                                 ilbl = node.inputs.kpoints.get_attr('label_numbers')
@@ -558,7 +572,7 @@ class plot_kkr(object):
             # dos only if qdos was not plotted already
             if has_dos and not has_qdos:
                 with node.outputs.retrieved.open('dos.atom1', mode='r') as f:
-                    figure()
+                    if not nofig: figure()
                     dosplot(f, **kwargs)
                     title(ptitle)
 
@@ -591,10 +605,12 @@ class plot_kkr(object):
         from aiida_kkr.calculations.voro import VoronoiCalculation
 
         # extract all options that should not be passed on to plot function
-        interpol, all_atoms, l_channels = True, False, True
+        interpol, all_atoms, l_channels, sum_spins, switch_xy = True, False, True, False, False
         if 'interpol' in list(kwargs.keys()): interpol = kwargs.pop('interpol')
         if 'all_atoms' in list(kwargs.keys()): all_atoms = kwargs.pop('all_atoms')
         if 'l_channels' in list(kwargs.keys()): l_channels = kwargs.pop('l_channels')
+        if 'sum_spins' in list(kwargs.keys()): sum_spins = kwargs.pop('sum_spins')
+        if 'switch_xy' in list(kwargs.keys()): switch_xy = kwargs.pop('switch_xy')
         nofig = False
         if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
@@ -610,7 +626,7 @@ class plot_kkr(object):
             struc, voro_parent = VoronoiCalculation.find_parent_structure(node.inputs.remote_data)
             
             # do dos plot after data was extracted
-            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, **kwargs)
+            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, **kwargs)
 
 
     def plot_kkr_startpot(self, node, **kwargs):
@@ -662,10 +678,12 @@ class plot_kkr(object):
                             d_int = link_triple2.node
 
         # extract all options that should not be passed on to plot function
-        interpol, all_atoms, l_channels = True, False, True
+        interpol, all_atoms, l_channels, sum_spins, switch_xy = True, False, True, False, False
         if 'interpol' in list(kwargs.keys()): interpol = kwargs.pop('interpol')
         if 'all_atoms' in list(kwargs.keys()): all_atoms = kwargs.pop('all_atoms')
         if 'l_channels' in list(kwargs.keys()): l_channels = kwargs.pop('l_channels')
+        if 'sum_spins' in list(kwargs.keys()): sum_spins = kwargs.pop('sum_spins')
+        if 'switch_xy' in list(kwargs.keys()): switch_xy = kwargs.pop('switch_xy')
         nofig = False
         if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
 
@@ -674,7 +692,7 @@ class plot_kkr(object):
 
         if d is not None:
             # do dos plot after data was extracted
-            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, **kwargs)
+            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, **kwargs)
 
         # now add lines for emin, core states, EF
 

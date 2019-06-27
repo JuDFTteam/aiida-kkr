@@ -20,7 +20,7 @@
     "reentry_register": true,
     "install_requires": [
         "aiida-core >= 1.0.0b4,<2.0.0",
-        "masci-tools >= 0.3.4",
+        "masci-tools >= 0.3.6",
         "seekpath",
         "pgtest",
         "pytest-cov >= 2.5.0",

@@ -66,7 +66,7 @@ class Test_kkrimp_dos_workflow():
         builder.options = options
         builder.kkr = KKRCode
         builder.kkrimp = KKRimpCode
-        builder.host_imp_pot = startpot_imp_sfd
+        builder.imp_pot_sfd = startpot_imp_sfd
         builder.wf_parameters = Dict(dict=wfd)
         builder.impurity_info = Dict(dict=imp_info)
         builder.host_remote = GF_host_calc.outputs.remote_folder

@@ -11,11 +11,12 @@ from aiida.engine import if_, ToContext, WorkChain, calcfunction
 from aiida.common import LinkType
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
+from aiida_kkr.workflows.dos import kkr_dos_wc
 
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: improve workflow output node structure
@@ -57,13 +58,12 @@ class kkr_imp_dos_wc(WorkChain):
                         'use_mpi' : True}                         # execute KKR with mpi or without
 
     _wf_default = {'ef_shift': 0. ,                               # set custom absolute E_F (in eV)
-                   'dos_params': {'nepts': 61,                    # DOS params: number of points in contour
-                                  'tempr': 200, # K               # DOS params: temperature
-                                  'emin': -1, # Ry                # DOS params: start of energy contour
-                                  'emax': 1,  # Ry                # DOS params: end of energy contour
-                                  'kmesh': [30, 30, 30]}          # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
                   }
 
+    # add defaults of dos_params since they are passed onto that workflow
+    for key, value in kkr_dos_wc.get_wf_defaults(silent=True).items():
+        if key == 'dos_params':
+            _wf_default[key] = value
 
 
     @classmethod
@@ -86,15 +86,35 @@ class kkr_imp_dos_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_imp_dos_wc, cls).define(spec)
 
-        spec.input("kkr", valid_type=Code, required=True)
-        spec.input("kkrimp", valid_type=Code, required=True)
-        spec.input("host_imp_pot", valid_type=SinglefileData, required=True)
-        spec.input("impurity_info", valid_type=Dict, required=False)
-        spec.input("host_remote", valid_type=RemoteData, required=False)
+        spec.input("kkr", valid_type=Code, required=False,
+                   help="KKRhost code, needed if gf_dos_remote is not given.")
+        spec.input("kkrimp", valid_type=Code, required=True,
+                   help="KKRimp code, always needed.")
         spec.input("options", valid_type=Dict, required=False,
-                       default=Dict(dict=cls._options_default))
+                   default=Dict(dict=cls._options_default),
+                   help="Computer options (resources, quene name, etc.).")
         spec.input("wf_parameters", valid_type=Dict, required=False,
-                       default=Dict(dict=cls._wf_default))
+                   default=Dict(dict=cls._wf_default),
+                   help="DOS workflow parameters (energy range, etc.).")
+        spec.input("host_remote", valid_type=RemoteData, required=False,
+                   help="RemoteData node of the (converged) host calculation.")
+        spec.input("gf_dos_remote", valid_type=RemoteData, required=False,
+                   help="RemoteData node of precomputed host GF for DOS energy contour.")
+        spec.input("kkrimp_remote", valid_type=RemoteData, required=False,
+                   help="RemoteData node of previous (converged) KKRimp calculation.")
+        spec.input("imp_pot_sfd", valid_type=SinglefileData, required=False,
+                   help="impurity potential single file data. Needs also impurity_info node.")
+        spec.input("impurity_info", valid_type=Dict, required=False,
+                   help="impurity info node that specifies the relation between imp_pot_sfd to the host system. Mandatory if imp_pot_sfd is given.")
+
+        # specify the outputs
+        spec.output('workflow_info', valid_type=Dict)
+        spec.output('last_calc_output_parameters', valid_type=Dict)
+        spec.output('last_calc_info', valid_type=Dict)
+        spec.output('dos_data', valid_type=XyData)
+        spec.output('dos_data_interpol', valid_type=XyData)
+        spec.output('gf_dos_remote', valid_type=XyData, required=False,
+                    help="RemoteData node of the computed host GF.")
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -114,13 +134,6 @@ class kkr_imp_dos_wc(WorkChain):
                     "`host_remote` and `impurity_info` nodes.")
         spec.exit_code(222, "ERROR_GF_WRITEOUT_UNSUCCESFUL", 
             message="The gf_writeout workflow was not succesful, cannot continue.")
-
-        # specify the outputs
-        spec.output('workflow_info', valid_type=Dict)
-        spec.output('last_calc_output_parameters', valid_type=Dict)
-        spec.output('last_calc_info', valid_type=Dict)
-        spec.output('dos_data', valid_type=XyData)
-        spec.output('dos_data_interpol', valid_type=XyData)
 
 
     def start(self):
@@ -167,6 +180,9 @@ class kkr_imp_dos_wc(WorkChain):
         self.ctx.description_wf = self.inputs.get('description', self._wf_description)
         self.ctx.label_wf = self.inputs.get('label', self._wf_label)
 
+        # whether or not to compute the GF writeout step
+        self.ctx.skip_gfstep = False
+
 
         self.report('INFO: use the following parameter:\n'
                     'use_mpi: {}\n'
@@ -193,9 +209,9 @@ class kkr_imp_dos_wc(WorkChain):
         inputs = self.inputs
         inputs_ok = True
 
-        if 'host_imp_pot' in inputs:
+        if 'imp_pot_sfd' in inputs:
             # check if input potential has incoming return link
-            if len(inputs.host_imp_pot.get_incoming(link_type=LinkType.RETURN).all()) < 1:
+            if len(inputs.imp_pot_sfd.get_incoming(link_type=LinkType.RETURN).all()) < 1:
                 self.report("input potential not from kkrimp workflow: take remote_data folder of host system from input")
                 if 'impurity_info' in inputs and 'host_remote' in inputs:
                     self.ctx.imp_info = inputs.impurity_info
@@ -213,7 +229,7 @@ class kkr_imp_dos_wc(WorkChain):
                 # if return ink is found get input nodes automatically
                 self.report('INFO: get converged host RemoteData node and '
                             'impurity_info node from database')
-                self.ctx.kkr_imp_wf = inputs.host_imp_pot.created_by.called_by
+                self.ctx.kkr_imp_wf = inputs.imp_pot_sfd.created_by.called_by
                 self.report('INFO: found underlying kkr impurity workflow '
                             '(pk: {})'.format(self.ctx.kkr_imp_wf.pk))
                 self.ctx.imp_info = self.ctx.kkr_imp_wf.inputs.impurity_info
@@ -238,30 +254,31 @@ class kkr_imp_dos_wc(WorkChain):
         Start GF writeout step with DOS energy contour
         """
 
-        options = self.ctx.options_params_dict
-        kkrcode = self.inputs.kkr
-        converged_host_remote = self.ctx.conv_host_remote
-        imp_info = self.ctx.imp_info
-
-        wf_params_gf = Dict(dict={'ef_shift':self.ctx.ef_shift, 'dos_run':True,
-                                           'dos_params':self.ctx.dos_params_dict})
-        label_gf = 'GF writeout for imp DOS'
-        description_gf = 'GF writeout step with energy contour for impurity DOS'
-
-        builder = kkr_flex_wc.get_builder()
-        builder.metadata.label = label_gf
-        builder.metadata.description = description_gf
-        builder.kkr = kkrcode
-        builder.options = options
-        builder.wf_parameters = wf_params_gf
-        builder.remote_data = converged_host_remote
-        builder.impurity_info = imp_info
-
-        future = self.submit(builder)
-
-        self.report('INFO: running GF writeout (pid: {})'.format(future.pk))
-
-        return ToContext(gf_writeout=future)
+        if not self.ctx.skip_gfstep:
+            options = self.ctx.options_params_dict
+            kkrcode = self.inputs.kkr
+            converged_host_remote = self.ctx.conv_host_remote
+            imp_info = self.ctx.imp_info
+            
+            wf_params_gf = Dict(dict={'ef_shift':self.ctx.ef_shift, 'dos_run':True,
+                                      'dos_params':self.ctx.dos_params_dict})
+            label_gf = 'GF writeout for imp DOS'
+            description_gf = 'GF writeout step with energy contour for impurity DOS'
+            
+            builder = kkr_flex_wc.get_builder()
+            builder.metadata.label = label_gf
+            builder.metadata.description = description_gf
+            builder.kkr = kkrcode
+            builder.options = options
+            builder.wf_parameters = wf_params_gf
+            builder.remote_data = converged_host_remote
+            builder.impurity_info = imp_info
+            
+            future = self.submit(builder)
+            
+            self.report('INFO: running GF writeout (pid: {})'.format(future.pk))
+            
+            return ToContext(gf_writeout=future)
 
 
     def run_imp_dos(self):
@@ -269,31 +286,38 @@ class kkr_imp_dos_wc(WorkChain):
         Use previous GF step to calculate DOS for the impurity problem
         """
 
-        if not self.ctx.gf_writeout.is_finished_ok:
-            return self.exit_codes.ERROR_GF_WRITEOUT_UNSUCCESFUL
+        if not self.ctx.skip_gfstep:
+            # use computed gf_writeout
+            if not self.ctx.gf_writeout.is_finished_ok:
+                return self.exit_codes.ERROR_GF_WRITEOUT_UNSUCCESFUL
+            gf_writeout_wf = self.ctx.gf_writeout
+            gf_writeout_calc = load_node(self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc'))
+            gf_writeout_remote = gf_writeout_wf.outputs.GF_host_remote
+            self.ctx.pk_flexcalc = self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc')
+        else:
+            # use gf_writeout from input
+            gf_writeout_remote = self.inputs.gf_dos_remote
+            gf_writeout_calc = gf_writeout_remote.get_incoming(node_class=CalcJobNode).first().node
+            self.ctx.pk_flexcalc = gf_writeout_calc.pk
             
 
         options = self.ctx.options_params_dict
         kkrimpcode = self.inputs.kkrimp
-        gf_writeout_wf = self.ctx.gf_writeout
-        gf_writeout_calc = load_node(self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc'))
-        gf_writeout_remote = gf_writeout_wf.outputs.GF_host_remote
-        impurity_pot = self.inputs.host_imp_pot
+        impurity_pot = self.inputs.imp_pot_sfd
         imps = self.ctx.imp_info
-
         nspin = gf_writeout_calc.outputs.output_parameters.get_dict().get('nspin')
         self.ctx.nspin = nspin
         self.report('nspin: {}'.format(nspin))
         self.ctx.kkrimp_params_dict = Dict(dict={'nspin': nspin,
-                                                          'nsteps': self.ctx.nsteps,
-                                                          'kkr_runmax': self.ctx.kkr_runmax,
-                                                          'dos_run': True})
+                                                 'nsteps': self.ctx.nsteps,
+                                                 'kkr_runmax': self.ctx.kkr_runmax,
+                                                 'dos_run': True})
         kkrimp_params = self.ctx.kkrimp_params_dict
 
         label_imp = 'KKRimp DOS (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {})'.format(
-                    gf_writeout_wf.pk, impurity_pot.pk, imps.get_dict().get('Zimp'), imps.get_dict().get('ilayer_center'))
+                    gf_writeout_calc.pk, impurity_pot.pk, imps.get_dict().get('Zimp'), imps.get_dict().get('ilayer_center'))
         description_imp = 'KKRimp DOS run (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {}, R_cut: {})'.format(
-                    gf_writeout_wf.pk, impurity_pot.pk, imps.get_dict().get('Zimp'), imps.get_dict().get('ilayer_center'),
+                    gf_writeout_calc.pk, impurity_pot.pk, imps.get_dict().get('Zimp'), imps.get_dict().get('ilayer_center'),
                     imps.get_dict().get('Rcut'))
 
         builder = kkr_imp_sub_wc.get_builder()
@@ -334,8 +358,11 @@ class kkr_imp_dos_wc(WorkChain):
         outputnode_dict['impurity_info'] = self.ctx.imp_info.get_dict()
         outputnode_dict['workflow_name'] = self.__class__.__name__
         outputnode_dict['workflow_version'] = self._workflowversion
-        outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk,
-                                                'impurity_dos': self.ctx.kkrimp_dos.pk}
+        if not self.ctx.skip_gfstep:
+            outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk}
+        else:
+            outputnode_dict['used_subworkflows'] = {}
+        outputnode_dict['used_subworkflows']['impurity_dos'] = self.ctx.kkrimp_dos.pk
         outputnode_t = Dict(dict=outputnode_dict)
         outputnode_t.label = 'kkr_imp_dos_wc_inform'
         outputnode_t.description = 'Contains information for workflow'
@@ -344,7 +371,7 @@ class kkr_imp_dos_wc(WorkChain):
         # interpol dos file and store to XyData nodes
         dos_retrieved = last_calc.outputs.retrieved
         if 'out_ldos.interpol.atom=01_spin1.dat' in dos_retrieved.list_object_names():
-            kkrflex_writeout = load_node(self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc'))
+            kkrflex_writeout = load_node(self.ctx.pk_flexcalc)
             parent_calc_kkr_converged = kkrflex_writeout.inputs.parent_folder.get_incoming(node_class=CalcJobNode).first().node
             ef = parent_calc_kkr_converged.outputs.output_parameters.get_dict().get('fermi_energy')
             natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')

@@ -933,7 +933,7 @@ class kkr_scf_wc(WorkChain):
         # TODO: extract something else (maybe total energy, charge neutrality, magnetisation)?
 
         # store some statistics used to print table in the end of the report
-        self.ctx.KKR_steps_stats['success'].append(self.ctx.kkr_step_success)
+        self.ctx.KKR_steps_stats['success'] = self.ctx.KKR_steps_stats.get('success', []).append(self.ctx.kkr_step_success)
         try:
             isteps = self.ctx.last_calc.outputs.output_parameters.get_dict()['convergence_group']['number_of_iterations']
         except:
@@ -966,17 +966,17 @@ class kkr_scf_wc(WorkChain):
         else:
             qbound = self.ctx.threshold_switch_high_accuracy
 
-        self.ctx.KKR_steps_stats['isteps'].append(isteps)
-        self.ctx.KKR_steps_stats['imix'].append(self.ctx.last_mixing_scheme)
-        self.ctx.KKR_steps_stats['mixfac'].append(mixfac)
-        self.ctx.KKR_steps_stats['qbound'].append(qbound)
-        self.ctx.KKR_steps_stats['high_sett'].append(self.ctx.kkr_higher_accuracy)
-        self.ctx.KKR_steps_stats['first_rms'].append(first_rms)
-        self.ctx.KKR_steps_stats['last_rms'].append(last_rms)
-        self.ctx.KKR_steps_stats['first_neutr'].append(first_neutr)
-        self.ctx.KKR_steps_stats['last_neutr'].append(last_neutr)
-        self.ctx.KKR_steps_stats['pk'].append(self.ctx.last_calc.pk)
-        self.ctx.KKR_steps_stats['uuid'].append(self.ctx.last_calc.uuid)
+        self.ctx.KKR_steps_stats['isteps'] = self.ctx.KKR_steps_stats.get('isteps', []).append(isteps)
+        self.ctx.KKR_steps_stats['imix'] = self.ctx.KKR_steps_stats.get('imix', []).append(self.ctx.last_mixing_scheme)
+        self.ctx.KKR_steps_stats['mixfac'] = self.ctx.KKR_steps_stats.get('mixfac', []).append(mixfac)
+        self.ctx.KKR_steps_stats['qbound'] = self.ctx.KKR_steps_stats.get('qbound', []).append(qbound)
+        self.ctx.KKR_steps_stats['high_sett'] = self.ctx.KKR_steps_stats.get('high_sett', []).append(self.ctx.kkr_higher_accuracy)
+        self.ctx.KKR_steps_stats['first_rms'] = self.ctx.KKR_steps_stats.get('first_rms', []).append(first_rms)
+        self.ctx.KKR_steps_stats['last_rms'] = self.ctx.KKR_steps_stats.get('last_rms', []).append(last_rms)
+        self.ctx.KKR_steps_stats['first_neutr'] = self.ctx.KKR_steps_stats.get('first_neutr', []).append(first_neutr)
+        self.ctx.KKR_steps_stats['last_neutr'] = self.ctx.KKR_steps_stats.get('last_neutr', []).append(last_neutr)
+        self.ctx.KKR_steps_stats['pk'] = self.ctx.KKR_steps_stats.get('pk', []).append(self.ctx.last_calc.pk)
+        self.ctx.KKR_steps_stats['uuid'] = self.ctx.KKR_steps_stats.get('uuid', []).append(self.ctx.last_calc.uuid)
 
         self.report("INFO: done inspecting kkr results step")
 
