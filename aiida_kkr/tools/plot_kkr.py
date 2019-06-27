@@ -338,6 +338,7 @@ class plot_kkr(object):
                         yladd+=', atom='+str(iatom+1)
                     elif ispin>0:
                         yladd=''
+                    if 'label' in kwargs: yladd = kwargs.pop('label')
                     xplt = x[iatom*nspin+ispin]
                     yplt = y[iatom]
                     if not switch_xy:
