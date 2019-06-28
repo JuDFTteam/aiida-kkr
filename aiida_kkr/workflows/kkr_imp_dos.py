@@ -229,17 +229,19 @@ class kkr_imp_dos_wc(WorkChain):
                 # if return ink is found get input nodes automatically
                 self.report('INFO: get converged host RemoteData node and '
                             'impurity_info node from database')
-                self.ctx.kkr_imp_wf = inputs.imp_pot_sfd.created_by.called_by
+                self.ctx.kkr_imp_wf = inputs.imp_pot_sfd.get_incoming().first().node
                 self.report('INFO: found underlying kkr impurity workflow '
                             '(pk: {})'.format(self.ctx.kkr_imp_wf.pk))
                 self.ctx.imp_info = self.ctx.kkr_imp_wf.inputs.impurity_info
                 self.report('INFO: found impurity_info node (pk: {})'.format(
                             self.ctx.imp_info.pk))
-                try:
-                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inputs.remote_data_gf.inputs.remote_folder.inputs.parent_calc_folder.inputs.remote_folder.outputs.remote_folder
+                if 'remote_data' in self.ctx.kkr_imp_wf.inputs:
+                    remote_data_gf_writeout = self.ctx.kkr_imp_wf.inputs.remote_data
+                    gf_writeout_calc = remote_data_gf_writeout.get_incoming(node_class=CalcJobNode).first().node
+                    self.ctx.conv_host_remote = gf_writeout_calc.inputs.parent_folder
                     self.report('INFO: imported converged_host_remote (pk: {}) and '
                                 'impurity_info from database'.format(self.ctx.conv_host_remote.pk))
-                except:
+                else:
                     self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inputs.gf_remote.inputs.remote_folder.inputs.parent_calc_folder.inputs.remote_folder.outputs.remote_folder
                     self.report('INFO: imported converged_host_remote (pk: {}) and '
                                 'impurity_info from database'.format(self.ctx.conv_host_remote.pk))
@@ -304,6 +306,7 @@ class kkr_imp_dos_wc(WorkChain):
         options = self.ctx.options_params_dict
         kkrimpcode = self.inputs.kkrimp
         impurity_pot = self.inputs.imp_pot_sfd
+        # or from remoteData node of previous KKRimp calc
         imps = self.ctx.imp_info
         nspin = gf_writeout_calc.outputs.output_parameters.get_dict().get('nspin')
         self.ctx.nspin = nspin

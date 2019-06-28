@@ -87,6 +87,11 @@ class Test_kkrimp_dos_workflow():
 
 
     @pytest.mark.timeout(300, method='thread')
+    def test_dos_reuse_gf_writeout(self):
+        pass
+
+
+    @pytest.mark.timeout(300, method='thread')
     def test_dos_from_kkrimp_sub(self):
         pass
 
@@ -102,6 +107,7 @@ if __name__=='__main__':
       load_dbenv()
    Test = Test_kkrimp_dos_workflow()
    Test.test_dos_startpot_wc()
+   Test.test_dos_reuse_gf_writeout()
    Test.test_dos_from_kkrimp_sub()
    Test.test_dos_from_kkrimp_full()
 

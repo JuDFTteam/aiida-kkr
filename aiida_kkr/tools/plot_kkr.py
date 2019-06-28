@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -310,6 +310,13 @@ class plot_kkr(object):
             pcycle_default = cycler('color', pcycle_values)
         gca().set_prop_cycle(pcycle_default)
 
+        if 'label' in kwargs:
+            labels_all = kwargs.pop('label')
+            if type(labels_all)!=list:
+                labels_all = [labels_all for i in range(natoms)]
+        else:
+            labels_all = None
+
         for il in range(lmax):
             y2 = y_all[il]
             # extract label
@@ -338,7 +345,8 @@ class plot_kkr(object):
                         yladd+=', atom='+str(iatom+1)
                     elif ispin>0:
                         yladd=''
-                    if 'label' in kwargs: yladd = kwargs.pop('label')
+                    if labels_all is not None and ispin==0:
+                        yladd = labels_all[iatom]
                     xplt = x[iatom*nspin+ispin]
                     yplt = y[iatom]
                     if not switch_xy:

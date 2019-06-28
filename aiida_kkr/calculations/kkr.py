@@ -33,7 +33,7 @@ KpointsData = DataFactory('array.kpoints')
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.1"
+__version__ = "0.10.2"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -330,7 +330,7 @@ class KkrCalculation(CalcJob):
                 alat_input = parameters.get_dict().get('ALATBASIS')
             else:
                 alat_input = alat
-            kpath_array = kpath_array * (alat_input/alat) / get_Ang2aBohr()
+            kpath_array = kpath_array * (alat_input/alat) / get_Ang2aBohr() / (2*pi/alat)
             # now write file
             qvec = ['%i\n'%len(kpath_array)]
             qvec+=['%e %e %e\n'%(kpt[0], kpt[1], kpt[2]) for kpt in kpath_array]
