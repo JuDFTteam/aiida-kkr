@@ -19,11 +19,11 @@ from aiida.orm import WorkChainNode
 from aiida.common.exceptions import InputValidationError
 
 
-__copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
+__copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.1"
-__contributors__ = u"Fabian Bertoldo"
+__version__ = "0.4.2"
+__contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 # ToDo: add more default values to wf_parameters
 
@@ -94,6 +94,8 @@ class kkr_flex_wc(WorkChain):
         spec.input("wf_parameters", valid_type=Dict, required=False)
         spec.input("remote_data", valid_type=RemoteData, required=True)
         spec.input("impurity_info", valid_type=Dict, required=True)
+        spec.input("params_kkr_overwrite", valid_type=Dict, required=False,
+                   help="Set some input parameters of the KKR calculation.")
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -284,23 +286,37 @@ class kkr_flex_wc(WorkChain):
                 label = 'add_defaults_'
                 descr = 'added missing default keys, '
 
-        runopt = para_check.get_dict().get('RUNOPT', [])
-        #self.report(para_check.get_dict())
+        # updatedict contains all things that will be updated with update_params_wf later on
+        updatedict = {}
+
+        runopt = para_check.get_dict().get('RUNOPT', None)
         if runopt == None:
             runopt = []
+
+        # overwrite some parameters of the KKR calculation by hand before setting mandatory keys
+        if "params_kkr_overwrite" in self.inputs:
+            for key, val in self.inputs.params_kkr_overwrite:
+                if key != runopt:
+                    updatedict[key] = val
+                else:
+                    runopt = val
+                self.report('INFO: overwriting KKR parameter: {} with {} from params_kkr_overwrite input node'.format(key, value))
+
         runopt = [i.strip() for i in runopt]
         if 'KKRFLEX' not in runopt:
             runopt.append('KKRFLEX')
 
+        updatedict['RUNOPT'] = runopt
+
         self.report('INFO: RUNOPT set to: {}'.format(runopt))
 
-        para_check = update_params_wf(self.ctx.input_params_KKR, Dict(dict={'RUNOPT':runopt}))
         if 'wf_parameters' in self.inputs:
             if self.ctx.dos_run:
-                para_check = update_params_wf(para_check, Dict(dict={'EMIN': self.ctx.dos_params_dict['emin'],
-                    'EMAX': self.ctx.dos_params_dict['emax'], 'NPT2': self.ctx.dos_params_dict['nepts'],
-                    'NPOL': 0, 'NPT1': 0, 'NPT3': 0, 'BZDIVIDE': self.ctx.dos_params_dict['kmesh'],
-                    'IEMXD': self.ctx.dos_params_dict['nepts']}))
+                for key, val in {'EMIN': self.ctx.dos_params_dict['emin'], 'EMAX': self.ctx.dos_params_dict['emax'], 
+                                 'NPT2': self.ctx.dos_params_dict['nepts'], 'NPOL': 0, 'NPT1': 0, 'NPT3': 0, 
+                                 'BZDIVIDE': self.ctx.dos_params_dict['kmesh'], 'IEMXD': self.ctx.dos_params_dict['nepts'],
+                                 'TEMPR': self.ctx.dos_params_dict['tempr']}.items():
+                    updatedict[key] = val
             elif self.ctx.ef_shift != 0:
                 # extract old Fermi energy in Ry
                 remote_data_parent = self.inputs.remote_data
@@ -310,18 +326,17 @@ class kkr_flex_wc(WorkChain):
                 # calculate new Fermi energy in Ry
                 ef_new = (ef_old + ef_shift/get_Ry2eV())
                 self.report('INFO: ef_old + ef_shift = ef_new: {} eV + {} eV = {} eV'.format(ef_old*get_Ry2eV(), ef_shift, ef_new*get_Ry2eV()))
-                para_check = update_params_wf(para_check, Dict(dict={'ef_set':ef_new}))
-
-        self.report(para_check.get_dict())
+                updatedict['ef_set'] = ef_new
 
         #construct the final param node containing all of the params
-        updatenode = Dict(dict=para_check.get_dict())
+        updatenode = Dict(dict=updatedict)
         updatenode.label = label+'KKRparam_flex'
         updatenode.description = descr+'KKR parameter node extracted from parent parameters and wf_parameter and options input node.'
         paranode_flex = update_params_wf(self.ctx.input_params_KKR, updatenode)
         self.ctx.flex_kkrparams = paranode_flex
         self.ctx.flex_runopt = runopt
 
+        self.report('INFO: Updated params= {}'.format(paranode_flex.get_dict()))
 
 
     def get_flex(self):

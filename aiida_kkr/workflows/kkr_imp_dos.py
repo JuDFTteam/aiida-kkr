@@ -16,7 +16,7 @@ from aiida_kkr.workflows.dos import kkr_dos_wc
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: improve workflow output node structure
@@ -106,6 +106,8 @@ class kkr_imp_dos_wc(WorkChain):
                    help="impurity potential single file data. Needs also impurity_info node.")
         spec.input("impurity_info", valid_type=Dict, required=False,
                    help="impurity info node that specifies the relation between imp_pot_sfd to the host system. Mandatory if imp_pot_sfd is given.")
+        spec.input("params_kkr_overwrite", valid_type=Dict, required=False,
+                   help="Set some input parameters of the KKR calculation.")
 
         # specify the outputs
         spec.output('workflow_info', valid_type=Dict)
@@ -275,6 +277,8 @@ class kkr_imp_dos_wc(WorkChain):
             builder.wf_parameters = wf_params_gf
             builder.remote_data = converged_host_remote
             builder.impurity_info = imp_info
+            if "params_kkr_overwrite" in self.inputs:
+                builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
             
             future = self.submit(builder)
             

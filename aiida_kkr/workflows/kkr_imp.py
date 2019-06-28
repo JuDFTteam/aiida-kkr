@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -115,6 +115,8 @@ class kkr_imp_wc(WorkChain):
                    help="Parameters for the KKRimp selfconsistency workflow.")
         spec.input("voro_params_overwrite", valid_type=Dict, required=False,
                    help="If given, overwrite the some parameters used as input for auxiliary voronoi calculation of starting potential.")
+        spec.input("params_kkr_overwrite", valid_type=Dict, required=False,
+                   help="Set some input parameters of the KKR calculation.")
 
 
         # structure of the workflow
@@ -338,6 +340,8 @@ class kkr_imp_wc(WorkChain):
         builder.options = options
         builder.remote_data = converged_host_remote
         builder.impurity_info = imp_info
+        if "params_kkr_overwrite" in self.inputs:
+            builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
         future = self.submit(builder)
 
         self.report('INFO: running GF writeout (pid: {})'.format(future.pk))
