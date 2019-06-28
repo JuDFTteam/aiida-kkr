@@ -295,12 +295,12 @@ class kkr_flex_wc(WorkChain):
 
         # overwrite some parameters of the KKR calculation by hand before setting mandatory keys
         if "params_kkr_overwrite" in self.inputs:
-            for key, val in self.inputs.params_kkr_overwrite:
+            for key, val in self.inputs.params_kkr_overwrite.get_dict().items():
                 if key != runopt:
                     updatedict[key] = val
                 else:
                     runopt = val
-                self.report('INFO: overwriting KKR parameter: {} with {} from params_kkr_overwrite input node'.format(key, value))
+                self.report('INFO: overwriting KKR parameter: {} with {} from params_kkr_overwrite input node'.format(key, val))
 
         runopt = [i.strip() for i in runopt]
         if 'KKRFLEX' not in runopt:
