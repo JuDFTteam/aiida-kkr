@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -36,6 +36,10 @@ class plot_kkr(object):
     :type sum_spins: bool
     :param logscale: plot rms and charge neutrality curves on a log-scale (default: True)
     :type locscale: bool
+    :param switch_xy:  (default: False)
+    :type switch_xy: bool
+    :param iatom: list of atom indices which are supposed to be plotted (default: [], i.e. show all atoms)
+    :type iatom: list
 
     additional keyword arguments are passed onto the plotting function which allows, for example,
     to change the markers used in a DOS plot to crosses via `marker='x'`
@@ -178,6 +182,9 @@ class plot_kkr(object):
         elif node.process_label == u'kkr_eos_wc':
             if return_name_only: return 'eos'
             self.plot_kkr_eos(node, **kwargs)
+        elif node.process_label == u'kkr_imp_dos_wc':
+            if return_name_only: return 'impdos'
+            self.plot_kkrimp_dos_wc(node, **kwargs)
         # calculations
         elif node.process_type == u'aiida.calculations:kkr.kkr':
             if return_name_only: return 'kkr'
@@ -277,12 +284,20 @@ class plot_kkr(object):
         print("plotting structure using ase's `view` with kwargs={}".format(kwargs))
         view(ase_atoms, **kwargs)
 
-    def dosplot(self, d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, **kwargs):
+    def dosplot(self, d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, **kwargs):
         """plot dos from xydata node"""
-        from numpy import array, sum
+        from numpy import array, sum, arange
         from matplotlib.pyplot import plot, xlabel, ylabel, gca, figure, legend
         import matplotlib as mpl
         from cycler import cycler
+
+        # plot only some atoms if 'iatom' is found in input
+        show_atoms = []
+        if 'iatom' in kwargs:
+            show_atoms = kwargs.pop('iatom')
+            if type(show_atoms)!=list:
+                show_atoms = [show_atoms]
+            all_atoms = True # need to set all_atoms to true
 
         # open new figure
         if not nofig: figure()
@@ -304,9 +319,15 @@ class plot_kkr(object):
 
         pcycle_default = mpl.rcParams['axes.prop_cycle']
         # change color cycler to match spin up/down colors
-        if nspin==2 and not all_atoms:
+        if nspin==2 and (not all_atoms or show_atoms!=[]):
             pcycle_values = pcycle_default.by_key()['color']
-            pcycle_values = array([[i,i] for i in pcycle_values]).reshape(-1)
+            if switch_sign_spin2: # needed for impurity DOS
+                n0 = len(show_atoms)
+                if n0==0: n0=natoms
+                #pcycle_values = array([j for i in range(n0) for j in pcycle_values]).reshape(-1)
+                pcycle_values = list(pcycle_values[:n0]) + list(pcycle_values[:n0])
+            else:
+                pcycle_values = array([[i,i] for i in pcycle_values]).reshape(-1)
             pcycle_default = cycler('color', pcycle_values)
         gca().set_prop_cycle(pcycle_default)
 
@@ -340,23 +361,26 @@ class plot_kkr(object):
                         y = -y + y2[:,1,:]
 
                 for iatom in range(natoms2):
-                    yladd = y_all[il][0].replace('dos ', '')
-                    if all_atoms:
-                        yladd+=', atom='+str(iatom+1)
-                    elif ispin>0:
-                        yladd=''
-                    if labels_all is not None and ispin==0:
-                        yladd = labels_all[iatom]
-                    xplt = x[iatom*nspin+ispin]
-                    yplt = y[iatom]
-                    if not switch_xy:
-                        plot(xplt, yplt, label=yladd, **kwargs)
-                        xlabel(xlbl)
-                        ylabel(ylbl)
-                    else:
-                        plot(yplt, xplt, label=yladd, **kwargs)
-                        xlabel(ylbl)
-                        ylabel(xlbl)
+                    if iatom in show_atoms or show_atoms==[]:
+                        yladd = y_all[il][0].replace('dos ', '')
+                        if all_atoms:
+                            yladd+=', atom='+str(iatom+1)
+                        elif ispin>0:
+                            yladd=''
+                        if labels_all is not None and ispin==0:
+                            yladd = labels_all[iatom]
+                        xplt = x[iatom*nspin+ispin]
+                        yplt = y[iatom]
+                        if ispin>0 and switch_sign_spin2:
+                            yplt = -yplt
+                        if not switch_xy:
+                            plot(xplt, yplt, label=yladd, **kwargs)
+                            xlabel(xlbl)
+                            ylabel(ylbl)
+                        else:
+                            plot(yplt, xplt, label=yladd, **kwargs)
+                            xlabel(ylbl)
+                            ylabel(xlbl)
 
         legend(fontsize='x-small')
 
@@ -539,6 +563,7 @@ class plot_kkr(object):
         from os import listdir
         from numpy import loadtxt, array, where
         from masci_tools.vis.kkr_plot_bandstruc_qdos import dispersionplot
+        from masci_tools.vis.kkr_plot_FS_qdos import FSqdos2D
         from masci_tools.vis.kkr_plot_dos import dosplot
         from matplotlib.pyplot import show, figure, title, xticks, xlabel, axvline
 
@@ -577,6 +602,8 @@ class plot_kkr(object):
                                 [axvline(i, color='grey', ls=':') for i in ilbl]
                             except:
                                 xlabel('id_kpt')
+                        else:
+                            FSqdos2D(f, logscale=logscale, **kwargs)
             
             # dos only if qdos was not plotted already
             if has_dos and not has_qdos:
@@ -602,8 +629,45 @@ class plot_kkr(object):
 
     def plot_kkrimp_calc(self, node, **kwargs):
         """plot things from a kkrimp Calculation node"""
-        print('not implemented yet')
+        print("Not implemented yet")
         pass
+
+    def plot_kkrimp_dos_wc(self, node, **kwargs):
+        """plot things from a kkrimp Calculation node"""
+
+        # try to plot dos and qdos data if Calculation was bandstructure or DOS run
+        from os import listdir
+        from numpy import loadtxt, array, where
+        from masci_tools.vis.kkr_plot_bandstruc_qdos import dispersionplot
+        from masci_tools.vis.kkr_plot_FS_qdos import FSqdos2D
+        from masci_tools.vis.kkr_plot_dos import dosplot
+        from matplotlib.pyplot import show, figure, title, xticks, xlabel, axvline
+
+        interpol, all_atoms, l_channels, sum_spins, switch_xy = True, False, True, False, False
+        if 'interpol' in list(kwargs.keys()): interpol = kwargs.pop('interpol')
+        if 'all_atoms' in list(kwargs.keys()): all_atoms = kwargs.pop('all_atoms')
+        if 'l_channels' in list(kwargs.keys()): l_channels = kwargs.pop('l_channels')
+        if 'sum_spins' in list(kwargs.keys()): sum_spins = kwargs.pop('sum_spins')
+        if 'switch_xy' in list(kwargs.keys()): switch_xy = kwargs.pop('switch_xy')
+        nofig = False
+        if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
+        if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
+        if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
+
+        has_dos = False
+
+        calcnode = [i for i in node.called_descendants if i.process_label=='KkrimpCalculation'][0]
+        if calcnode.is_finished_ok:
+            natoms = len(calcnode.outputs.output_parameters.get_dict().get('charge_core_states_per_atom'))
+            retlist = calcnode.outputs.retrieved.list_object_names()
+            has_dos = 'out_ldos.atom=01_spin1.dat' in retlist
+            
+        if has_dos:
+            if interpol:
+                d = node.outputs.dos_data_interpol
+            else:
+                d = node.outputs.dos_data
+            self.dosplot(d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, True, **kwargs)
 
 
     ### workflows ###
@@ -635,7 +699,7 @@ class plot_kkr(object):
             struc, voro_parent = VoronoiCalculation.find_parent_structure(node.inputs.remote_data)
             
             # do dos plot after data was extracted
-            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, **kwargs)
+            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
 
 
     def plot_kkr_startpot(self, node, **kwargs):
@@ -701,7 +765,7 @@ class plot_kkr(object):
 
         if d is not None:
             # do dos plot after data was extracted
-            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, **kwargs)
+            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
 
         # now add lines for emin, core states, EF
 
