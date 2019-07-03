@@ -24,7 +24,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.2"
+__version__ = "0.10.3"
 __contributors__ = u"Philipp Rüßmann"
 
 StructureData = DataFactory('structure')
@@ -388,9 +388,10 @@ class kkr_startpot_wc(WorkChain):
 
         # run voronoi step
         if not skip_voro:
-            options = {"max_wallclock_seconds": self.ctx.max_wallclock_seconds,
-                       "resources": self.ctx.resources,
-                       "queue_name" : self.ctx.queue}
+            options = {'queue_name' : self.ctx.queue,
+                       'resources': self.ctx.resources,
+                       'max_wallclock_seconds' : self.ctx.max_wallclock_seconds,
+                       'custom_scheduler_commands' : self.ctx.custom_scheduler_commands}
 
             builder = get_inputs_voronoi(voronoicode, structure, options, label, description, params=params)
             self.report('INFO: run voronoi step {}'.format(self.ctx.iter))
