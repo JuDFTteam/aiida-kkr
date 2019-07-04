@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.3"
+__version__ = "0.4.4"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -235,6 +235,7 @@ class plot_kkr(object):
         outputs = outputs.all_nodes()
 
         # now print information about node
+        print('pk, uuid: {} {}'.format(node.pk, node.uuid))
         print('type:', type(node))
         print('label:', node.label)
         print('description:', node.description)

@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -141,6 +141,8 @@ class kkr_imp_wc(WorkChain):
             message="ERROR: neither converged host remote nor GF writeout "
                     "remote is given as an input. One of them is needed to "
                     "proceed with this workflow!")
+        spec.exit_code(144, 'ERROR_KKRIMP_SUB_WORKFLOW_FAILURE',
+            message="ERROR: sub-workflow for KKRimp convergence failed")
 
 
         # define the outputs of the workflow
@@ -527,42 +529,46 @@ class kkr_imp_wc(WorkChain):
 
         self.report('INFO: creating output nodes for the KKR impurity workflow ...')
 
-        last_calc_pk = self.ctx.kkrimp_scf_sub.outputs.workflow_info.get_dict().get('last_calc_nodeinfo')['pk']
-        last_calc_output_params = load_node(last_calc_pk).outputs.output_parameters
-        last_calc_info = self.ctx.kkrimp_scf_sub.outputs.workflow_info
-        res_voro_info = self.ctx.last_voro_calc.outputs.results_vorostart_wc
-        outputnode_dict = {}
-        outputnode_dict['workflow_name'] = self.__class__.__name__
-        outputnode_dict['workflow_version'] = self._workflowversion
-        if self.ctx.do_gf_calc:
-            outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk, 'auxiliary_voronoi': self.ctx.last_voro_calc.pk,
-                                                    'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}
-            outputnode_dict['gf_wc_success'] = self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('successful')
+        if self.ctx.kkrimp_scf_sub.is_finished_ok:
+            last_calc_pk = self.ctx.kkrimp_scf_sub.outputs.workflow_info.get_dict().get('last_calc_nodeinfo')['pk']
+            last_calc_output_params = load_node(last_calc_pk).outputs.output_parameters
+            last_calc_info = self.ctx.kkrimp_scf_sub.outputs.workflow_info
+            res_voro_info = self.ctx.last_voro_calc.outputs.results_vorostart_wc
+            outputnode_dict = {}
+            outputnode_dict['workflow_name'] = self.__class__.__name__
+            outputnode_dict['workflow_version'] = self._workflowversion
+            if self.ctx.do_gf_calc:
+                outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk, 'auxiliary_voronoi': self.ctx.last_voro_calc.pk,
+                                                        'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}
+                outputnode_dict['gf_wc_success'] = self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('successful')
+            else:
+                outputnode_dict['used_subworkflows'] = {'auxiliary_voronoi': self.ctx.last_voro_calc.pk, 'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}
+            outputnode_dict['converged'] = last_calc_info.get_dict().get('convergence_reached')
+            outputnode_dict['number_of_rms_steps'] = len(last_calc_info.get_dict().get('convergence_values_all_steps'))
+            outputnode_dict['convergence_values_all_steps'] = last_calc_info.get_dict().get('convergence_values_all_steps')
+            outputnode_dict['impurity_info'] = self.inputs.impurity_info.get_dict()
+            outputnode_dict['voro_wc_success'] = res_voro_info.get_dict().get('successful')
+            outputnode_dict['kkrimp_wc_success'] = last_calc_info.get_dict().get('successful')
+            outputnode_dict['last_calculation_uuid'] = load_node(last_calc_pk).uuid
+            outputnode_t = Dict(dict=outputnode_dict)
+            outputnode_t.label = 'kkrimp_wc_inform'
+            outputnode_t.description = 'Contains information for workflow'
+            outputnode_t.store()
+            self.report('INFO: workflow_info node: {}'.format(outputnode_t.uuid))
+            
+            self.out('workflow_info', outputnode_t)
+            self.out('last_calc_output_parameters', last_calc_output_params)
+            self.out('last_calc_info', last_calc_info)
+            
+            self.report('INFO: created 3 output nodes for the KKR impurity workflow.')
+            self.report('\n'
+                        '|------------------------------------------------------------------------------------------------------------------|\n'
+                        '|-------------------------------------| Done with the KKR impurity workflow! |-------------------------------------|\n'
+                        '|------------------------------------------------------------------------------------------------------------------|')
         else:
-            outputnode_dict['used_subworkflows'] = {'auxiliary_voronoi': self.ctx.last_voro_calc.pk, 'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}
-        outputnode_dict['converged'] = last_calc_info.get_dict().get('convergence_reached')
-        outputnode_dict['number_of_rms_steps'] = len(last_calc_info.get_dict().get('convergence_values_all_steps'))
-        outputnode_dict['convergence_values_all_steps'] = last_calc_info.get_dict().get('convergence_values_all_steps')
-        outputnode_dict['impurity_info'] = self.inputs.impurity_info.get_dict()
-        outputnode_dict['voro_wc_success'] = res_voro_info.get_dict().get('successful')
-        outputnode_dict['kkrimp_wc_success'] = last_calc_info.get_dict().get('successful')
-        outputnode_dict['last_calculation_uuid'] = load_node(last_calc_pk).uuid
-        outputnode_t = Dict(dict=outputnode_dict)
-        outputnode_t.label = 'kkrimp_wc_inform'
-        outputnode_t.description = 'Contains information for workflow'
-        outputnode_t.store()
-        self.report('INFO: workflow_info node: {}'.format(outputnode_t.uuid))
-
-        self.out('workflow_info', outputnode_t)
-        self.out('last_calc_output_parameters', last_calc_output_params)
-        self.out('last_calc_info', last_calc_info)
-
-        self.report('INFO: created 3 output nodes for the KKR impurity workflow.')
-        self.report('\n'
-                    '|------------------------------------------------------------------------------------------------------------------|\n'
-                    '|-------------------------------------| Done with the KKR impurity workflow! |-------------------------------------|\n'
-                    '|------------------------------------------------------------------------------------------------------------------|')
-
+            self.report(self.exit_codes.ERROR_KKRIMP_SUB_WORKFLOW_FAILURE)
+            return self.exit_codes.ERROR_KKRIMP_SUB_WORKFLOW_FAILURE
+            
 
 @calcfunction
 def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at center only!
