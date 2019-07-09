@@ -297,6 +297,7 @@ class VoronoiCalculation(CalcJob):
         while not self._has_struc(parent_folder_tmp) and iiter<Nmaxiter:
             parent_folder_tmp = self._get_remote(self._get_parent(parent_folder_tmp))
             iiter += 1
+            if iiter%200==0: print('Warning: find_parent_structure takes quite long (already searched {} ancestors). Stop after {}'.format(iiter, Nmaxiter))
         if self._has_struc(parent_folder_tmp):
             struc = self._get_struc(parent_folder_tmp)
             return struc, parent_folder_tmp

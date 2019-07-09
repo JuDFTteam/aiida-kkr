@@ -19,7 +19,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -293,19 +293,10 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.formula = ''
 
         # for results table each list gets one entry per iteration that has been performed
-        self.ctx.KKR_steps_stats = {'success':[],
-                                    'isteps':[],
-                                    'imix':[],
-                                    'mixfac':[],
-                                    'qbound':[],
-                                    'high_sett':[],
-                                    'first_rms':[],
-                                    'last_rms':[],
-                                    'first_neutr':[],
-                                    'last_neutr':[],
-                                    'pk':[],
-                                    'uuid':[]}
-
+        self.ctx.KKR_steps_stats = {}
+        # later contains these keys:
+        # 'success', 'isteps', 'imix', 'mixfac', 'qbound', 'high_sett', 'first_rms', 'last_rms'
+        # 'first_neutr', 'last_neutr', 'pk', 'uuid'
 
 
     def validate_input(self):
@@ -426,7 +417,9 @@ class kkr_imp_sub_wc(WorkChain):
                 decrease_mixing_fac = True
                 self.report("INFO: Last KKR did not converge. Trying decreasing mixfac")
                 # reset last_remote to last successful calculation
-                for icalc in range(len(self.ctx.calcs))[::-1]:
+                last_calcs_list = range(len(self.ctx.calcs))
+                if len(last_calcs_list)>1: last_calcs_list = array(last_calcs_list)[::-1] # make sure to go from latest calculation backwards
+                for icalc in last_calcs_list:
                     self.report("INFO: last calc success? {} {}".format(icalc, self.ctx.KKR_steps_stats['success'][icalc]))
                     if self.ctx.KKR_steps_stats['success'][icalc]:
                         if self.ctx.KKR_steps_stats['last_rms'][icalc] < self.ctx.KKR_steps_stats['first_rms'][icalc]:
@@ -780,7 +773,10 @@ class kkr_imp_sub_wc(WorkChain):
             self.ctx.mag_init_step_success = False
 
         # store some statistics used to print table in the end of the report
-        self.ctx.KKR_steps_stats['success'].append(self.ctx.kkr_step_success)
+        tmplist = self.ctx.KKR_steps_stats.get('success',[])
+        self.report('INFO: append kkr_step_success {}, {}'.format(tmplist, self.ctx.kkr_step_success))
+        tmplist.append(self.ctx.kkr_step_success)
+        self.ctx.KKR_steps_stats['success'] = tmplist
         try:
             isteps = self.ctx.last_calc.outputs.output_parameters.get_dict()['convergence_group']['number_of_iterations']
         except:
@@ -805,15 +801,13 @@ class kkr_imp_sub_wc(WorkChain):
         else:
             qbound = self.ctx.threshold_aggressive_mixing
 
-        self.ctx.KKR_steps_stats['isteps']    = self.ctx.KKR_steps_stats.get('isteps',[]).append(isteps)
-        self.ctx.KKR_steps_stats['imix']      = self.ctx.KKR_steps_stats.get('imix',[]).append(self.ctx.last_mixing_scheme)
-        self.ctx.KKR_steps_stats['mixfac']    = self.ctx.KKR_steps_stats.get('mixfac',[]).append(mixfac)
-        self.ctx.KKR_steps_stats['qbound']    = self.ctx.KKR_steps_stats.get('qbound',[]).append(qbound)
-        self.ctx.KKR_steps_stats['high_sett'] = self.ctx.KKR_steps_stats.get('high_sett',[]).append(self.ctx.kkr_higher_accuracy)
-        self.ctx.KKR_steps_stats['first_rms'] = self.ctx.KKR_steps_stats.get('first_rms',[]).append(first_rms)
-        self.ctx.KKR_steps_stats['last_rms']  = self.ctx.KKR_steps_stats.get('last_rms',[]).append(last_rms)
-        self.ctx.KKR_steps_stats['pk']        = self.ctx.KKR_steps_stats.get('pk',[]).append(self.ctx.last_calc.pk)
-        self.ctx.KKR_steps_stats['uuid']      = self.ctx.KKR_steps_stats.get('uuid',[]).append(self.ctx.last_calc.uuid)
+        # store some values in self.ctx.KKR_steps_stats
+        for name, val in {'isteps':isteps, 'imix':self.ctx.last_mixing_scheme, 'mixfac':mixfac, 'qbound':qbound, 
+                          'high_sett':self.ctx.kkr_higher_accuracy, 'first_rms':first_rms, 'last_rms':last_rms,
+                          'pk':self.ctx.last_calc.pk, 'uuid':self.ctx.last_calc.uuid}.items():
+            tmplist = self.ctx.KKR_steps_stats.get(name,[])
+            tmplist.append(val)
+            self.ctx.KKR_steps_stats[name] = tmplist
 
         self.report("INFO: done inspecting kkrimp results step")
 
@@ -945,13 +939,13 @@ class kkr_imp_sub_wc(WorkChain):
             self.report('STATUS: Done, the convergence criteria are reached.\n'
                         'INFO: The charge density of the KKR calculation pk= {} '
                         'converged after {} KKR runs and {} iterations to {} \n'
-                        ''.format(last_calc_pk, self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps')), self.ctx.last_rms_all[-1]))
+                        ''.format(last_calc_pk, self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps',[])), self.ctx.last_rms_all[-1]))
         else: # Termination ok, but not converged yet...
             self.report('STATUS/WARNING: Done, the maximum number of runs '
                         'was reached or something failed.\n INFO: The '
                         'charge density of the KKR calculation pk= '
                         'after {} KKR runs and {} iterations is {} "me/bohr^3"\n'
-                        ''.format(self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps')), self.ctx.last_rms_all[-1]))
+                        ''.format(self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps',[])), self.ctx.last_rms_all[-1]))
 
         # create results  node
         self.report("INFO: create results nodes") #: {}".format(outputnode_dict))
@@ -971,7 +965,7 @@ class kkr_imp_sub_wc(WorkChain):
         message += "|      |         |        |      |        |         | first  |  last  |                                             |\n"
         message += "|------|---------|--------|------|--------|---------|--------|--------|---------------------------------------------|\n"
         KKR_steps_stats = self.ctx.KKR_steps_stats
-        for irun in range(len(KKR_steps_stats.get('success'))):
+        for irun in range(len(KKR_steps_stats.get('success',[]))):
             message += "|%6i|%9s|%8i|%6i|%.2e|%.3e|%.2e|%.2e|"%(irun+1,
                           KKR_steps_stats.get('success')[irun], KKR_steps_stats.get('isteps')[irun],
                           KKR_steps_stats.get('imix')[irun], KKR_steps_stats.get('mixfac')[irun],
