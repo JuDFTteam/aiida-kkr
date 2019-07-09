@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.3"
+__version__ = "0.6.4"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -109,6 +109,8 @@ class kkr_imp_wc(WorkChain):
                    help="RemoteData node of precomputed host Green function.")
         spec.input("options", valid_type=Dict, required=False,
                    help="Options for running the codes (walltime etc.).")
+        spec.input("options_voronoi", valid_type=Dict, required=False,
+                   help="Options for running the Voronoi code (if differing from general `options` node)")
         spec.input("voro_aux_parameters", valid_type=Dict, required=False,
                    help="Parameters for the auxiliary voronoi starting potential workflow.")
         spec.input("wf_parameters", valid_type=Dict, required=False,
@@ -192,6 +194,11 @@ class kkr_imp_wc(WorkChain):
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
         self.ctx.options_params_dict = Dict(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources, 'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
                                                   'queue_name': self.ctx.queue, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands})
+        if 'options_voronoi' in self.inputs:
+            self.ctx.options_params_dict_voronoi = self.inputs.options_voronoi.get_dict()
+            self.report("INFO: Use different options for voronoi code ({})".format(self.ctx.options_params_dict_voronoi))
+        else:
+            self.ctx.options_params_dict_voronoi = self.ctx.options_params_dict
 
         # set label and description of the workflow
         self.ctx.description_wf = self.inputs.get('description', 'Workflow for a KKR impurity calculation starting from a host-impurity potential')
@@ -412,7 +419,7 @@ class kkr_imp_wc(WorkChain):
         builder.kkr = kkrcode
         builder.wf_parameters = voro_params
         builder.calc_parameters = calc_params
-        builder.options = self.ctx.options_params_dict
+        builder.options = Dict(dict=self.ctx.options_params_dict_voronoi)
         future = self.submit(builder)
 
 

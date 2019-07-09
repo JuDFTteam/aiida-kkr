@@ -19,7 +19,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.3"
+__version__ = "0.6.4"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -162,12 +162,12 @@ class kkr_imp_sub_wc(WorkChain):
             message="ERROR: Parameters could not be updated")
         spec.exit_code(130, 'ERROR_LAST_CALC_NOT_FINISHED',
             message="ERROR: Last calculation is not in finished state")
-
         spec.exit_code(131, "ERROR_NO_CALC_FOUND_FOR_REMOTE_DATA",
             message="The input `remote_data` node has no valid calculation parent.")
         spec.exit_code(132, "ERROR_REMOTE_DATA_CALC_UNSUCCESFUL", 
             message="The parent calculation of the input `remote_data` node was not succesful.")
-
+        spec.exit_code(133, 'ERROR_NO_OUTPUT_POT_FROM_LAST_CALC',
+            message="ERROR: Last calculation does not have an output potential.")
 
         # Define the outputs of the workflow
         spec.output('workflow_info', valid_type=Dict)
@@ -726,9 +726,12 @@ class kkr_imp_sub_wc(WorkChain):
         self.report("INFO: kkrimp_step_success: {}".format(self.ctx.kkrimp_step_success))
 
         # get potential from last calculation
-        retrieved_folder = self.ctx.kkr.outputs.retrieved
-        with retrieved_folder.open('out_potential', 'rb') as pot_file:
-            self.ctx.last_pot = SinglefileData(file=pot_file)
+        try:
+            retrieved_folder = self.ctx.kkr.outputs.retrieved
+            with retrieved_folder.open('out_potential', 'rb') as pot_file:
+                self.ctx.last_pot = SinglefileData(file=pot_file)
+        except:
+            return self.exit_codes.ERROR_NO_OUTPUT_POT_FROM_LAST_CALC
 
         # extract convergence info about rms etc. (used to determine convergence behavior)
         try:
