@@ -7,7 +7,7 @@ import pytest
 # some global settings
 
 # tests
-@pytest.mark.usefixtures("aiida_env")
+@pytest.mark.usefixtures("fresh_aiida_env")
 class Test_kkr_parser(object):
     """
     Tests for the kkr parser

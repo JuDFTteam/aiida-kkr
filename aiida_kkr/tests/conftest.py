@@ -13,6 +13,7 @@ def aiida_env():
 
 @pytest.fixture()
 def fresh_aiida_env(aiida_env):
+    aiida_env.reset_db()
     yield
     aiida_env.reset_db()
 
