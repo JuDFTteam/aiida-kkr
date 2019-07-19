@@ -13,6 +13,7 @@ class Test_kkrimp_calculation(object):
     Tests for the kkrimp calculation
     """
 
+    @pytest.mark.usefixtures("fresh_aiida_env")
     def test_host_in_host(self):
         """
         simple Cu noSOC, FP, lmax2

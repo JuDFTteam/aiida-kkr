@@ -5,13 +5,13 @@ import pytest
 from aiida_kkr.tests.dbsetup import *
 
 # tests
-@pytest.mark.usefixtures("aiida_env")
 class Test_kkrimp_dos_workflow():
     """
     Tests for the kkrimp_scf workflow
     """
 
     @pytest.mark.timeout(300, method='thread')
+    @pytest.mark.usefixtures("fresh_aiida_env")
     def test_dos_startpot_wc(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host

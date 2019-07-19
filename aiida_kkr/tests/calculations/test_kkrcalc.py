@@ -10,12 +10,12 @@ from aiida_kkr.tests.dbsetup import *
 eps = 10**-14 # threshold for float comparison equivalence
 
 # tests
-@pytest.mark.usefixtures("aiida_env")
 class Test_kkr_calculation(object):
     """
     Tests for the kkr calculation
     """
 
+    @pytest.mark.usefixtures("fresh_aiida_env")
     def test_kkr_from_voronoi(self):
         """
         simple Cu noSOC, FP, lmax2 full example
@@ -28,8 +28,7 @@ class Test_kkr_calculation(object):
 
         # load necessary files from db_dump files
         from aiida.tools.importexport import import_data
-        import_data('files/db_dump_vorocalc.tar.gz')
-        import_data('files/db_dump_kkrcalc.tar.gz')
+        import_data('files/db_dump_vorocalc.tar.gz', extras_mode_existing='nnl')
 
         # prepare computer and code (needed so that
         prepare_code(kkr_codename, codelocation, computername, workdir)
@@ -56,6 +55,7 @@ class Test_kkr_calculation(object):
         run(builder)
 
 
+    @pytest.mark.usefixtures("fresh_aiida_env")
     def test_kkr_from_kkr(self):
         """
         continue KKR calculation after a previous KKR calculation instead of starting from voronoi
@@ -66,8 +66,13 @@ class Test_kkr_calculation(object):
         from aiida_kkr.calculations.kkr import KkrCalculation
         Dict = DataFactory('dict')
 
-        # first load parent voronoi calculation
+        # load necessary files from db_dump files
+        from aiida.tools.importexport import import_data
+        import_data('files/db_dump_kkrcalc.tar.gz')
         kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
+
+        # prepare computer and code (needed so that
+        prepare_code(kkr_codename, codelocation, computername, workdir)
 
         # extract KKR parameter (add missing values)
         params_node = kkr_calc.inputs.parameters
@@ -85,6 +90,7 @@ class Test_kkr_calculation(object):
         run(builder)
 
 
+    @pytest.mark.usefixtures("fresh_aiida_env")
     def test_kkrflex(self):
         """
         test kkrflex file writeout (GF writeout for impurity calculation)
@@ -94,6 +100,10 @@ class Test_kkr_calculation(object):
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkr import KkrCalculation
         Dict = DataFactory('dict')
+
+        # load necessary files from db_dump files
+        from aiida.tools.importexport import import_data
+        import_data('files/db_dump_kkrcalc.tar.gz')
 
         # first load parent voronoi calculation
         kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
@@ -106,6 +116,9 @@ class Test_kkr_calculation(object):
 
         # create an impurity_info node
         imp_info = Dict(dict={'Rcut':1.01, 'ilayer_center': 0, 'Zimp':[29.]})
+
+        # prepare computer and code (needed so that
+        prepare_code(kkr_codename, codelocation, computername, workdir)
 
         # load code from database and create new voronoi calculation
         code = Code.get_from_string(kkr_codename+'@'+computername)
@@ -121,6 +134,7 @@ class Test_kkr_calculation(object):
         run(builder)
 
 
+    @pytest.mark.usefixtures("fresh_aiida_env")
     def test_kkr_qdos(self):
         """
         run bandstructure calculation
@@ -135,6 +149,14 @@ class Test_kkr_calculation(object):
         # define k-path
         kpoints = KpointsData()
         kpoints.set_kpoints([[0,0,0],[0.1,0,0],[0.2,0,0],[0.3,0,0],[0.4,0,0]])
+        kpoints.set_cell([[1.0,0,0],[0,1.0,0],[0,0,1.0]])
+
+        # load necessary files from db_dump files
+        from aiida.tools.importexport import import_data
+        import_data('files/db_dump_kkrcalc.tar.gz')
+
+        # prepare computer and code (needed so that
+        prepare_code(kkr_codename, codelocation, computername, workdir)
 
         # first load parent voronoi calculation
         kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')

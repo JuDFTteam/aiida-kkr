@@ -5,12 +5,12 @@ from builtins import object
 import pytest
 
 # tests
-@pytest.mark.usefixtures("aiida_env")
 class Test_kkrimp_parser(object):
     """
     Tests for the kkrimp calculation
     """
 
+    @pytest.mark.usefixtures("fresh_aiida_env")
     def test_parse_kkrimp_calc(self):
         """
         simple Cu noSOC, FP, lmax2

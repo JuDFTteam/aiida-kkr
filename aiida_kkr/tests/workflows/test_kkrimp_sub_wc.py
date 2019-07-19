@@ -5,12 +5,12 @@ import pytest
 from aiida_kkr.tests.dbsetup import *
 
 # tests
-@pytest.mark.usefixtures("aiida_env")
 class Test_kkrimp_scf_workflow():
     """
     Tests for the kkrimp_scf workflow
     """
 
+    @pytest.mark.usefixtures("fresh_aiida_env")
     @pytest.mark.timeout(600, method='thread')
     def test_kkrimp_sub_wc(self):
         """

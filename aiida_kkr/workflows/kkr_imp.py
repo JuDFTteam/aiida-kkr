@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.4"
+__version__ = "0.6.5"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -198,7 +198,7 @@ class kkr_imp_wc(WorkChain):
             self.ctx.options_params_dict_voronoi = self.inputs.options_voronoi.get_dict()
             self.report("INFO: Use different options for voronoi code ({})".format(self.ctx.options_params_dict_voronoi))
         else:
-            self.ctx.options_params_dict_voronoi = self.ctx.options_params_dict
+            self.ctx.options_params_dict_voronoi = self.ctx.options_params_dict.get_dict()
 
         # set label and description of the workflow
         self.ctx.description_wf = self.inputs.get('description', 'Workflow for a KKR impurity calculation starting from a host-impurity potential')

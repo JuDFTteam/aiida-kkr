@@ -15,11 +15,13 @@ class Test_plot_kkr(object):
     """
 
     @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='kkr.png')
+    @pytest.mark.usefixtures("fresh_aiida_env")
     def test_plot_kkr_calc(self):
         basic_test('d507d133-faec-4b31-857e-b0e6e7e99a18', strucplot=False, noshow=True)
         return gcf()
 
     @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='voro.png')
+    @pytest.mark.usefixtures("fresh_aiida_env")
     def test_plot_voro_calc(self):
         basic_test('086eb074-3275-4e80-9c14-811058c641ff', strucplot=False)
         return gcf()
