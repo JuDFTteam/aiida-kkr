@@ -71,7 +71,7 @@ class Test_voronoi_calculation(object):
         ParaNode = Dict(dict=params.get_dict())
 
         # import computer etc from database dump
-        from aiida.orm.importexport import import_data
+        from aiida.tools.importexport import import_data
         import_data('files/db_dump_vorocalc.tar.gz')
 
         # prepare computer and code (needed so that

@@ -42,7 +42,7 @@ class Test_kkrimp_scf_workflow():
         KKRimpCode = Code.get_from_string(kkrimp_codename+'@'+computername)
 
         # import previous GF writeout
-        from aiida.orm.importexport import import_data
+        from aiida.tools.importexport import import_data
         import_data('files/db_dump_kkrflex_create.tar.gz')
         GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
 

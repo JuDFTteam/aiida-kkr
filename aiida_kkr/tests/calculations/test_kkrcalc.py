@@ -27,7 +27,7 @@ class Test_kkr_calculation(object):
         Dict = DataFactory('dict')
 
         # load necessary files from db_dump files
-        from aiida.orm.importexport import import_data
+        from aiida.tools.importexport import import_data
         import_data('files/db_dump_vorocalc.tar.gz')
         import_data('files/db_dump_kkrcalc.tar.gz')
 

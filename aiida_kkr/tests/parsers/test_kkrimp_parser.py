@@ -17,7 +17,7 @@ class Test_kkrimp_parser(object):
         """
         from aiida.orm import load_node
         from aiida_kkr.parsers.kkrimp import KkrimpParser
-        from aiida.orm.importexport import import_data
+        from aiida.tools.importexport import import_data
         import_data('files/db_dump_kkrimp_out.tar.gz')
         kkrimp_calc = load_node('eab8db1b-2cc7-4b85-a524-0df4ff2b7da6')
         parser = KkrimpParser(kkrimp_calc)

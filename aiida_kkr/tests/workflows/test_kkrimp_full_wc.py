@@ -53,7 +53,7 @@ class Test_kkrimp_full_workflow():
 
         imp_info = Dict(dict={'Rcut':2.5533, 'ilayer_center': 0, 'Zimp':[30.]})
 
-        from aiida.orm.importexport import import_data
+        from aiida.tools.importexport import import_data
         import_data('files/db_dump_kkrcalc.tar.gz')
         kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').outputs.remote_folder
 
@@ -75,6 +75,7 @@ class Test_kkrimp_full_workflow():
 
         # now run calculation
         from aiida.engine import run
+        print(builder)
         out = run(builder)
 
         # check outcome

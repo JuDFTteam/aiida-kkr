@@ -160,7 +160,7 @@ class kkr_imp_sub_wc(WorkChain):
             message="ERROR: There are still missing calculation parameters")
         spec.exit_code(129, 'ERROR_PARAMETER_UPDATE',
             message="ERROR: Parameters could not be updated")
-        spec.exit_code(130, 'ERROR_LAST_CALC_NOT_FINISHED',
+        spec.exit_code(130, 'ERROR_LAST_CALC_NOT_FINISHED_OK',
             message="ERROR: Last calculation is not in finished state")
         spec.exit_code(131, "ERROR_NO_CALC_FOUND_FOR_REMOTE_DATA",
             message="The input `remote_data` node has no valid calculation parent.")
@@ -721,7 +721,7 @@ class kkr_imp_sub_wc(WorkChain):
         # check calculation state
         if not self.ctx.last_calc.is_finished_ok:
             self.ctx.kkrimp_step_success = False
-            return self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED
+            return self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED_OK
 
         self.report("INFO: kkrimp_step_success: {}".format(self.ctx.kkrimp_step_success))
 

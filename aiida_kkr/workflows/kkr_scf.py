@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.6"
+__version__ = "0.9.7"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -933,7 +933,10 @@ class kkr_scf_wc(WorkChain):
         # TODO: extract something else (maybe total energy, charge neutrality, magnetisation)?
 
         # store some statistics used to print table in the end of the report
-        self.ctx.KKR_steps_stats['success'] = self.ctx.KKR_steps_stats.get('success', []).append(self.ctx.kkr_step_success)
+        tmplist = self.ctx.KKR_steps_stats.get('success',[])
+        self.report('INFO: append kkr_step_success {}, {}'.format(tmplist, self.ctx.kkr_step_success))
+        tmplist.append(self.ctx.kkr_step_success)
+        self.ctx.KKR_steps_stats['success'] = tmplist
         try:
             isteps = self.ctx.last_calc.outputs.output_parameters.get_dict()['convergence_group']['number_of_iterations']
         except:
@@ -966,17 +969,14 @@ class kkr_scf_wc(WorkChain):
         else:
             qbound = self.ctx.threshold_switch_high_accuracy
 
-        self.ctx.KKR_steps_stats['isteps'] = self.ctx.KKR_steps_stats.get('isteps', []).append(isteps)
-        self.ctx.KKR_steps_stats['imix'] = self.ctx.KKR_steps_stats.get('imix', []).append(self.ctx.last_mixing_scheme)
-        self.ctx.KKR_steps_stats['mixfac'] = self.ctx.KKR_steps_stats.get('mixfac', []).append(mixfac)
-        self.ctx.KKR_steps_stats['qbound'] = self.ctx.KKR_steps_stats.get('qbound', []).append(qbound)
-        self.ctx.KKR_steps_stats['high_sett'] = self.ctx.KKR_steps_stats.get('high_sett', []).append(self.ctx.kkr_higher_accuracy)
-        self.ctx.KKR_steps_stats['first_rms'] = self.ctx.KKR_steps_stats.get('first_rms', []).append(first_rms)
-        self.ctx.KKR_steps_stats['last_rms'] = self.ctx.KKR_steps_stats.get('last_rms', []).append(last_rms)
-        self.ctx.KKR_steps_stats['first_neutr'] = self.ctx.KKR_steps_stats.get('first_neutr', []).append(first_neutr)
-        self.ctx.KKR_steps_stats['last_neutr'] = self.ctx.KKR_steps_stats.get('last_neutr', []).append(last_neutr)
-        self.ctx.KKR_steps_stats['pk'] = self.ctx.KKR_steps_stats.get('pk', []).append(self.ctx.last_calc.pk)
-        self.ctx.KKR_steps_stats['uuid'] = self.ctx.KKR_steps_stats.get('uuid', []).append(self.ctx.last_calc.uuid)
+        # store results in KKR_steps_stats dict
+        for key, val in {'isteps': isteps, 'imix': self.ctx.last_mixing_scheme, 'mixfac': mixfac,
+                         'qbound': qbound, 'high_sett': self.ctx.kkr_higher_accuracy, 'first_rms': first_rms,
+                         'last_rms': last_rms, 'first_neutr': first_neutr, 'last_neutr': last_neutr,
+                         'pk': self.ctx.last_calc.pk, 'uuid': self.ctx.last_calc.uuid}.items():
+            tmplist = self.ctx.KKR_steps_stats.get(key,[])
+            tmplist.append(val)
+            self.ctx.KKR_steps_stats[key] = tmplist
 
         self.report("INFO: done inspecting kkr results step")
 

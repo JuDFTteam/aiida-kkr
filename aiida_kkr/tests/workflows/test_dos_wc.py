@@ -17,6 +17,7 @@ class Test_dos_workflow():
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
         """
+        from aiida import get_version
         from aiida.orm import Code, load_node
         from aiida.plugins import DataFactory
         from aiida.orm import Computer
@@ -24,6 +25,8 @@ class Test_dos_workflow():
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.dos import kkr_dos_wc
         from numpy import array
+
+        print('AiiDA version: {}'.format(get_version()))
 
         Dict = DataFactory('dict')
         StructureData = DataFactory('structure')
@@ -57,7 +60,7 @@ class Test_dos_workflow():
         label = 'dos Cu bulk'
         descr = 'DOS workflow for Cu bulk'
 
-        from aiida.orm.importexport import import_data
+        from aiida.tools.importexport import import_data
         import_data('files/db_dump_kkrcalc.tar.gz')
         kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').outputs.remote_folder
 
