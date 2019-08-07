@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.7"
+__version__ = "0.9.8"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -1276,7 +1276,7 @@ class kkr_scf_wc(WorkChain):
             if emin_cont - self.ctx.delta_e*eV2Ry < emin:
                 self.ctx.dos_params['emin'] = emin_cont - self.ctx.delta_e*eV2Ry
                 self.report("INFO: emin ({} Ry) - delta_e ({} Ry) smaller than emin ({} Ry) of voronoi output. Setting automatically to {}Ry".format(emin_cont, self.ctx.delta_e*eV2Ry,  emin, emin_cont-self.ctx.delta_e*eV2Ry))
-            self.ctx.efermi = get_ef_from_potfile(self.ctx.last_calc.outputs.retrieved.get_abs_path('out_potential'))
+            self.ctx.efermi = get_ef_from_potfile(self.ctx.last_calc.outputs.retrieved.open('out_potential'))
             emax = self.ctx.dos_params['emax']
             if emax < self.ctx.efermi + self.ctx.delta_e*eV2Ry:
                 self.ctx.dos_params['emax'] = self.ctx.efermi + self.ctx.delta_e*eV2Ry
@@ -1297,9 +1297,16 @@ class kkr_scf_wc(WorkChain):
             remote = self.ctx.last_calc.outputs.remote_folder
             wf_label= ' final DOS calculation'
             wf_desc = ' subworkflow of a DOS calculation'
-            future = self.submit(kkr_dos_wc, kkr=code, remote_data=remote,
-                                 wf_parameters=wfdospara_node, label=wf_label,
-                                 description=wf_desc, options=self.ctx.options_params_dict)
+
+            builder = kkr_dos_wc.get_builder()
+            builder.metadata.description = wf_desc
+            builder.metadata.label = wf_label
+            builder.kkr = code
+            builder.wf_parameters = wfdospara_node
+            builder.options = self.ctx.options_params_dict
+            builder.remote_data = remote
+        
+            future = self.submit(builder)
 
             return ToContext(doscal=future)
 

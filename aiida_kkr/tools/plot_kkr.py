@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.4"
+__version__ = "0.4.5"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -292,6 +292,12 @@ class plot_kkr(object):
         import matplotlib as mpl
         from cycler import cycler
 
+        # remove things that will not work for plotting
+        if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
+
+        if 'yscale' in list(kwargs.keys()): yscale = kwargs.pop('yscale')
+        else: yscale = 1.0
+
         # plot only some atoms if 'iatom' is found in input
         show_atoms = []
         if 'iatom' in kwargs:
@@ -374,6 +380,7 @@ class plot_kkr(object):
                         yplt = y[iatom]
                         if ispin>0 and switch_sign_spin2:
                             yplt = -yplt
+                        yplt = yplt * yscale
                         if not switch_xy:
                             plot(xplt, yplt, label=yladd, **kwargs)
                             xlabel(xlbl)
@@ -654,6 +661,10 @@ class plot_kkr(object):
         if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
         if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
+        if 'switch_sign_spin2' in list(kwargs.keys()): switch_sign_spin2 = kwargs.pop('switch_sign_spin2')
+        else: switch_sign_spin2 = True
+        if 'yscale' in list(kwargs.keys()): yscale = kwargs.pop('yscale')
+        else: yscale = -1
 
         has_dos = False
 
@@ -668,7 +679,7 @@ class plot_kkr(object):
                 d = node.outputs.dos_data_interpol
             else:
                 d = node.outputs.dos_data
-            self.dosplot(d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, True, **kwargs)
+            self.dosplot(d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, yscale=yscale, **kwargs)
 
 
     ### workflows ###
@@ -858,9 +869,13 @@ class plot_kkr(object):
             label = kwargs.pop('label')
         else:
             label = None
+        if 'dos_only' in list(kwargs.keys()):
+            dos_only = kwargs.pop('dos_only')
+        else:
+            dos_only = False
 
         # extract rms from calculations and plot
-        if len(rms)>0:
+        if len(rms)>0 and not dos_only:
             if not nofig:
                 figure()
             if subplots is not None:
@@ -875,6 +890,37 @@ class plot_kkr(object):
             did_plot = True
         else:
             did_plot = False
+
+        # plot DOS
+
+        # follow links until DOS data has been found
+        d = None
+        d_int = None
+        from aiida_kkr.workflows import kkr_dos_wc
+        links_dos = node.get_outgoing(node_class=kkr_dos_wc).all()
+        if len(links_dos)>0:
+            dosnode = links_dos[0].node
+            if 'dos_data' in dosnode.outputs:
+                d = dosnode.outputs.dos_data
+            if 'dos_data_interpol' in dosnode.outputs:
+                d_int = dosnode.outputs.dos_data_interpol
+        
+        # extract all options that should not be passed on to plot function
+        interpol, all_atoms, l_channels, sum_spins, switch_xy = True, False, True, False, False
+        if 'interpol' in list(kwargs.keys()): interpol = kwargs.pop('interpol')
+        if 'all_atoms' in list(kwargs.keys()): all_atoms = kwargs.pop('all_atoms')
+        if 'l_channels' in list(kwargs.keys()): l_channels = kwargs.pop('l_channels')
+        if 'sum_spins' in list(kwargs.keys()): sum_spins = kwargs.pop('sum_spins')
+        if 'switch_xy' in list(kwargs.keys()): switch_xy = kwargs.pop('switch_xy')
+        nofig = False
+        if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
+
+        if interpol:
+            d = d_int
+
+        if d is not None:
+            # do dos plot after data was extracted
+            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
 
         return did_plot
 

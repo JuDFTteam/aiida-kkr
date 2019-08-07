@@ -24,7 +24,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.3"
+__version__ = "0.10.4"
 __contributors__ = u"Philipp Rüßmann"
 
 StructureData = DataFactory('structure')
@@ -520,9 +520,16 @@ class kkr_startpot_wc(WorkChain):
             remote = self.ctx.voro_calc.outputs.remote_folder
             wf_label= 'DOS calculation'
             wf_desc = 'subworkflow of a DOS calculation that perform a singe-shot KKR calc.'
-            future = submit(kkr_dos_wc, kkr=code, remote_data=remote,
-                            wf_parameters=wfdospara_node, options=options_node,
-                            label=wf_label, description=wf_desc)
+
+            builder = kkr_dos_wc.get_builder()
+            builder.metadata.description = wf_desc
+            builder.metadata.label = wf_label
+            builder.kkr = code
+            builder.wf_parameters = wfdospara_node
+            builder.options = options_node
+            builder.remote_data = remote
+        
+            future = self.submit(builder)
 
             return ToContext(doscal=future)
 

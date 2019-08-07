@@ -16,7 +16,7 @@ from aiida_kkr.workflows.dos import kkr_dos_wc
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.4"
+__version__ = "0.5.5"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: improve workflow output node structure
@@ -267,6 +267,8 @@ class kkr_imp_dos_wc(WorkChain):
                 self.report("[ERROR] `host_remote` input node needed if `gf_dos_remote` is not given")
                 inputs_ok = False
                 self.ctx.errors.append(4) # raises ERROR_HOST_REMOTE_MISSING
+            else:
+                self.ctx.conv_host_remote = self.inputs.host_remote
 
         if 'imp_pot_sfd' in self.inputs and 'kkrimp_remote' in self.inputs:
             self.report("[ERROR] both `imp_pot_sfd` and `kkrimp_remote` node in inputs")

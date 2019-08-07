@@ -30,7 +30,7 @@ SinglefileData = DataFactory('singlefile')
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -557,7 +557,10 @@ class KkrimpCalculation(CalcJob):
             # now create impurity shapefun
             with tempfolder.open(KkrimpCalculation._SHAPEFUN, u'w') as shapefun_new:
                 with shapefun.open(KkrimpCalculation._SHAPEFUN, u'r') as shapefun_file:
-                    modify_potential().shapefun_from_scoef(scoef_file, shapefun_file, shapes, shapefun_new)
+                    shapelen = len(shapefun_file.readlines())
+                    print(shapelen)
+                    if shapelen>1:
+                        modify_potential().shapefun_from_scoef(scoef_file, shapefun_file, shapes, shapefun_new)
 
         # find path to input potential
         if impurity_potential is not None:
