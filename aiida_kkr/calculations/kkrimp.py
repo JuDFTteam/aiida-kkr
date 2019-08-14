@@ -18,6 +18,7 @@ from aiida_kkr.tools.tools_kkrimp import modify_potential
 from aiida_kkr.tools.tools_kkrimp import make_scoef
 from masci_tools.io.common_functions import search_string
 import os
+import tarfile
 from numpy import array, sqrt, sum, where
 import six
 from six.moves import range
@@ -30,7 +31,7 @@ SinglefileData = DataFactory('singlefile')
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3.2"
+__version__ = "0.4.0"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -62,7 +63,7 @@ class KkrimpCalculation(CalcJob):
     _ALL_KKRFLEX_FILES.append(_KKRFLEX_ANGLE)
     _ALL_KKRFLEX_FILES.append(_KKRFLEX_LLYFAC)
 
-    # List of output files that should always be present
+    # List of output files that should always be present (are always retrieved)
     _OUT_POTENTIAL = u'out_potential'
     _OUTPUT_000 = u'out_log.000.txt'
     _OUT_TIMING_000 = u'out_timing.000.txt'
@@ -91,6 +92,9 @@ class KkrimpCalculation(CalcJob):
     _INPUT_FILE_NAME = _CONFIG
     _DEFAULT_OUTPUT_FILE = _OUTPUT_FILE_NAME # will be shown with outputcat
     _DEFAULT_INPUT_FILE = _INPUT_FILE_NAME # will be shown with inputcat
+
+    # name of tarfile which is created by parser after successful parsing (to reduce amount of data stored in repo)
+    _FILENAME_TAR = 'output_all.tar.gz'
 
     @classmethod
     def define(cls,spec):
@@ -128,7 +132,7 @@ class KkrimpCalculation(CalcJob):
                 be returned by get_inputs_dict
         """
         # Check inputdict and extrace nodes
-        tmp = self._check_and_extract_input_nodes()
+        tmp = self._check_and_extract_input_nodes(tempfolder)
         parameters, code, imp_info = tmp[0], tmp[1], tmp[2]
         kkrflex_file_paths, shapefun_path, shapes =  tmp[3], tmp[4], tmp[5]
         host_parent_calc, params_host, impurity_potential = tmp[6], tmp[7], tmp[8]
@@ -138,19 +142,19 @@ class KkrimpCalculation(CalcJob):
         # 1. fill kkr params for KKRimp, write config file and eventually also kkrflex_llyfac file
         self._extract_and_write_config(parent_calc_folder, params_host, parameters, tempfolder, kkrflex_file_paths[KkrCalculation._KKRFLEX_ATOMINFO])
         # 2. write shapefun from impurity info and host shapefun and copy imp. potential
-        potfile_name, potfile_folder = self._get_pot_and_shape(imp_info, shapefun_path, shapes, impurity_potential, parent_calc_folder, tempfolder, structure)
+        self._get_pot_and_shape(imp_info, shapefun_path, shapes, impurity_potential, parent_calc_folder, tempfolder, structure)
         # 3. change kkrflex_atominfo to match impurity case
         self._change_atominfo(imp_info, kkrflex_file_paths, tempfolder)
 
         # prepare copy and retrieve lists
-        local_copy_list = [(potfile_folder.uuid, potfile_name, self._POTENTIAL)]
+        local_copy_list = [] # potential already in tempfolder which is copied in full
         for filename in list(kkrflex_file_paths.keys()):
             if filename!=self._KKRFLEX_ATOMINFO:
                 src_path = kkrflex_file_paths[filename]
                 local_copy_list.append((src_path.uuid, filename, filename))
 
         retrieve_list = [self._OUTPUT_FILE_NAME, self._CONFIG, self._KKRFLEX_ATOMINFO,
-                         self._SHAPEFUN, self._KKRFLEX_ANGLE, self._KKRFLEX_LLYFAC,
+                         self._KKRFLEX_ANGLE, self._KKRFLEX_LLYFAC,
                          self._OUT_POTENTIAL, self._OUTPUT_000, self._OUT_TIMING_000,
                          self._OUT_ENERGYSP_PER_ATOM, self._OUT_ENERGYTOT_PER_ATOM]
 
@@ -222,7 +226,7 @@ class KkrimpCalculation(CalcJob):
     #####################################################
     # helper functions
 
-    def _get_and_verify_hostfiles(self):
+    def _get_and_verify_hostfiles(self, tempfolder):
         """
         Check inputdict for host_Greenfunction_folder and extract impurity_info, paths to kkrflex-files and path of shapefun file
 
@@ -356,7 +360,7 @@ class KkrimpCalculation(CalcJob):
         return imp_info, kkrflex_file_paths, shapefun_path, shapes, parent_calc, params_host_calc, structure
 
 
-    def _check_and_extract_input_nodes(self):
+    def _check_and_extract_input_nodes(self, tempfolder):
         """
         Extract input nodes from inputdict and check consitency of input nodes
         :param inputdict: dict of inputnodes
@@ -383,7 +387,7 @@ class KkrimpCalculation(CalcJob):
             parameters = kkrparams(params_type='kkrimp', **parameters.get_dict())        
         
         # get hostfiles
-        imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, structure = self._get_and_verify_hostfiles()
+        imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, structure = self._get_and_verify_hostfiles(tempfolder)
 
         # check impurity potential or parent calculation input
         # impurity_potential
@@ -562,6 +566,10 @@ class KkrimpCalculation(CalcJob):
                     if shapelen>1:
                         modify_potential().shapefun_from_scoef(scoef_file, shapefun_file, shapes, shapefun_new)
 
+        # get path of tempfolder
+        with tempfolder.open('.dummy','w') as tmpfile:
+            tempfolder_path = os.path.dirname(tmpfile.name)
+
         # find path to input potential
         if impurity_potential is not None:
             potfile_name, potfile_folder = impurity_potential.filename, impurity_potential
@@ -569,13 +577,41 @@ class KkrimpCalculation(CalcJob):
             self.logger.info('parent_calc_folder {} {}'.format(parent_calc_folder, parent_calc_folder.get_incoming().all_link_labels()))
             retrieved = parent_calc_folder.get_incoming(node_class=CalcJobNode).first().node.get_outgoing().get_node_by_label('retrieved')
             self.logger.info('potfile {} {}'.format(retrieved, self._OUT_POTENTIAL))
-            potfile_name, potfile_folder = self._OUT_POTENTIAL, retrieved
+
+            # extract file from host's tarball (extract to tempfolder and use from there, this way the unnessesary files are deleted once submission is done)
+            tar_filenames = []
+            if self._FILENAME_TAR in retrieved.list_object_names():
+                # get path of tarfile
+                with retrieved.open(self._FILENAME_TAR) as tf:
+                    tfpath = tf.name
+                # extract file from tarfile of retrieved to tempfolder
+                with tarfile.open(tfpath) as tf:
+                    tar_filenames = [ifile.name for ifile in tf.getmembers()]
+                    filename = self._OUT_POTENTIAL
+                    if filename in tar_filenames:
+                        tf.extract(filename, tempfolder_path) # extract to tempfolder
+            else: # otherwise copy from retrieved to tempfolder (rest of calculation needs files to be in tempfolder)
+                filename = self._OUT_POTENTIAL
+                if filename in retrieved.list_object_names():
+                    with tempfolder.open(filename, u'w') as newfile:
+                        with retrieved.open(filename, u'r') as oldfile:
+                            newfile.writelines(oldfile.readlines())
+
+            # now out_potential is in tempfolder (either copied or extracted) and can be copied from there
+            potfile_name, potfile_folder = self._OUT_POTENTIAL, tempfolder
         else:
             raise InputValidationError('ERROR in _get_pot_and_shape: neither impurity potential nor parent_calc_folder given!')
 
-        # return path of input potential (added to copy_list)
-        return potfile_name, potfile_folder
-
+        # copy potential to correct input name ('potential')
+        with potfile_folder.open(potfile_name, u'r') as oldfile:
+            with tempfolder.open(self._POTENTIAL, u'w') as newfile:
+                newfile.writelines(oldfile.readlines())
+        # remove old potential file if still present (saves unnecessary copying)
+        if self._OUT_POTENTIAL in os.listdir(tempfolder_path):
+            os.remove(os.path.join(tempfolder_path, self._OUT_POTENTIAL))
+        if '.dummy' in os.listdir(tempfolder_path):
+            os.remove(os.path.join(tempfolder_path, '.dummy'))
+        
 
     def _check_key_setting_consistency(self, params_kkrimp, key, val):
         """

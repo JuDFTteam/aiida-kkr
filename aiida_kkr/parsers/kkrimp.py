@@ -6,18 +6,21 @@ all errors and warnings and show them to the user.
 """
 
 from __future__ import absolute_import
+import tarfile
+import os
 from aiida.parsers.parser import Parser
 from aiida.orm import Dict
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from aiida.common.exceptions import InputValidationError
 from masci_tools.io.parsers.kkrparser_functions import check_error_category
+from masci_tools.io.common_functions import open_general
 from aiida_kkr.tools.tools_kkrimp import kkrimp_parser_functions
 
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1"
+__version__ = "0.2.0"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -166,3 +169,68 @@ class KkrimpParser(Parser):
         #create output node and link
         self.out('output_parameters', Dict(dict=out_dict))
 
+        # cleanup after parsing (only if parsing was successful)
+        if success:
+            # reduce size of timing file
+            self.cleanup_outfiles(files['out_timing'], ['Iteration number', 'time until scf starts'])
+            # reduce size of out_log file
+            self.cleanup_outfiles(files['out_log'], ['Iteration Number'])
+            # delete completely parsed output files and create a tar ball to reduce size
+            self.final_cleanup()
+
+
+    def cleanup_outfiles(self, fileidentifier, keyslist):
+        """open file and remove unneeded output"""
+        lineids = []
+        with open_general(fileidentifier) as tfile:
+            txt = tfile.readlines()
+            for iline in range(len(txt)):
+                for key in keyslist: # go through all keys
+                    if key in txt[iline]: # add line id to list if key has been found
+                        lineids.append(iline)
+        # rewrite file deleting the middle part
+        if len(lineids)>1: # cut only if more than one iteration was found
+            txt = txt[:lineids[0]] + ['# ... [removed output except for last iteration] ...\n'] + txt[lineids[-1]:]
+            with open_general(fileidentifier, 'w') as tfilenew:
+                tfilenew.writelines(txt)
+
+        # first delete unused files (completely in parsed output)
+        files_to_delete = [KkrimpCalculation._OUT_ENERGYSP_PER_ATOM,
+                           KkrimpCalculation._OUT_ENERGYTOT_PER_ATOM]
+        for fileid in files_to_delete:
+            if fileid in self.retrieved.list_object_names():
+                self.retrieved.delete_object(fileid, force=True)
+
+
+    def final_cleanup(self):
+        """Create a tarball of the rest."""
+
+        # short name for retrieved folder
+        ret = self.retrieved
+
+        # Now create tarball of output
+        #
+        # check if output has been packed to tarfile already
+        # only if tarfile is not there we create the output tar file
+        if KkrimpCalculation._FILENAME_TAR not in ret.list_object_names():
+            # first create dummy file which is used to extract the full path that is given to tarfile.open
+            with ret.open(KkrimpCalculation._FILENAME_TAR, 'w') as f:
+                filepath_tar = f.name
+           
+            # now create tarfile and loop over content of retrieved directory
+            to_delete = []
+            with tarfile.open(filepath_tar, 'w:gz') as tf:
+                for f in ret.list_object_names():
+                    with ret.open(f) as ftest:
+                        filesize = os.stat(ftest.name).st_size
+                        ffull = ftest.name
+                    if (f != KkrimpCalculation._FILENAME_TAR  # ignore tar file
+                        and filesize>0                        # ignore empty files
+                        and f[0]!='.'):                       # ignore files starting with '.' like '.nfs...'
+                        tf.add(ffull, arcname=os.path.basename(ffull))
+                        to_delete.append(f)
+
+            # finally delete files that have been added to tarfile
+            for f in to_delete:
+                ret.delete_object(f, force=True)
+ 

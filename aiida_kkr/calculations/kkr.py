@@ -33,7 +33,7 @@ KpointsData = DataFactory('array.kpoints')
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.2"
+__version__ = "0.10.3"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -106,6 +106,9 @@ class KkrCalculation(CalcJob):
                              '<NRBASIS>', '<RBRIGHT>', 'ZPERIODR', 'KSHAPE', '<SHAPE>',
                              '<ZATOM>', 'NATYP', '<SITE>', '<CPA-CONC>', '<KAOEZL>', '<KAOEZR>']
     #TODO implement workfunction to modify structure (e.g. to use VCA)
+
+    # small number used to check for equivalence
+    _eps = 10**-12
 
     @classmethod
     def define(cls, spec):
@@ -198,7 +201,25 @@ class KkrCalculation(CalcJob):
                     oldvalue = parent_inp_dict[key]
                     if oldvalue is None and key in __kkr_default_params__:
                         oldvalue = __kkr_default_params__.get(key)
-                    if value != oldvalue:
+                    if value == oldvalue:
+                        values_eqivalent = True
+                    else:
+                        values_eqivalent = False
+                        # check if values match up to certain numerical accuracy
+                        if type(value)==float:
+                            if abs(value-oldvalue)<self._eps:
+                                values_eqivalent = True
+                        elif type(value)==list or type(value)==ndarray:
+                            tmp_value, tmp_oldvalue = array(value).reshape(-1), array(oldvalue).reshape(-1)
+                            values_eqivalent_tmp = []
+                            for ival in range(len(tmp_value)):
+                                if abs(tmp_value[ival]-tmp_oldvalue[ival])<self._eps:
+                                    values_eqivalent_tmp.append(True)
+                                else:
+                                    values_eqivalent_tmp.append(False)
+                            if all(values_eqivalent_tmp) and len(value)==len(oldvalue):
+                                values_eqivalent = True
+                    if not values_eqivalent:
                         self.logger.error("You are trying to set keyword {} = {} but this is not allowed since the structure would be modified. Please use a suitable workfunction instead.".format(key, value))
                         raise InputValidationError("You are trying to modify a keyword that is not allowed to be changed! (key={}, oldvalue={}, newvalue={})".format(key, oldvalue, value))
 

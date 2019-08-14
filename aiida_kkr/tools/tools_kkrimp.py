@@ -17,7 +17,7 @@ from masci_tools.io.common_functions import open_general
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH,"
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5"
+__version__ = "0.6.0"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -894,6 +894,18 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
     import numpy as np
     import math
 
+    # make sure we take the correct cell length for 2D structures
+    if not structure.pbc[2]:
+        allpos = np.array([isite.position for isite in structure.sites])
+        maxpos = allpos[allpos[:,2]==max(allpos[:,2])]
+        c3 = maxpos[0]
+        c3[2]+=10 # make sure there is no overlap
+        sl3 = np.sum(np.sqrt(c3**2))
+    else:
+        sl3 = structure.cell_lengths[2]
+        c3 = structure.cell[2]
+    
+
     #obtain cutoff distance from radius and h
     dist_cut = max(radius, h)
 
@@ -907,18 +919,19 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
     if clust_shape == 'spherical':
         box_1 = int(radius/structure.cell_lengths[0] + 1)
         box_2 = int(radius/structure.cell_lengths[1] + 1)
-        box_3 = int(radius/structure.cell_lengths[2] + 1)
+        box_3 = int(radius/sl3 + 1)
     #cylindrical shape (different distances for the different directions)
     elif clust_shape == 'cylindrical':
         maxval = max(h/2., radius)
         box_1 = int(maxval/structure.cell_lengths[0] + 1)
         box_2 = int(maxval/structure.cell_lengths[1] + 1)
-        box_3 = int(maxval/structure.cell_lengths[2] + 1)
+        box_3 = int(maxval/sl3 + 1)
     #================================================================================================================
 
     #create array of all the atoms in an expanded system
     box = max(box_1, box_2, box_3)
     cell = np.array(structure.cell)
+    cell[2] = c3
     for j in range(len(x)):
         for n in range(-box, box + 1):
             for m in range(-box, box + 1):

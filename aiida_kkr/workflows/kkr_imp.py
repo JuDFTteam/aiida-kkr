@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.5"
+__version__ = "0.6.1"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -583,6 +583,7 @@ def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at ce
     _atomic_numbers = {data['symbol']: num for num, data in PeriodicTableElements.items()}
 
     new_struc = StructureData(cell=struc.cell)
+    new_struc.pbc = struc.pbc # take also pbc values from parent struc
     isite = 0
     for site in struc.sites:
         sname = site.kind_name

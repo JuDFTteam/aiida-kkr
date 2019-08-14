@@ -29,6 +29,7 @@
         "sphinx",
         "sphinx_rtd_theme",
         "ase",
+        "tarfile",
         "bumpversion"
     ],
     "extras_require": {

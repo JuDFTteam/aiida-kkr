@@ -14,12 +14,13 @@ from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inpu
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from numpy import array
 from six.moves import range
+import tarfile, os
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.4"
+__version__ = "0.7.0"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -728,8 +729,22 @@ class kkr_imp_sub_wc(WorkChain):
         # get potential from last calculation
         try:
             retrieved_folder = self.ctx.kkr.outputs.retrieved
-            with retrieved_folder.open('out_potential', 'rb') as pot_file:
-                self.ctx.last_pot = SinglefileData(file=pot_file)
+            if KkrimpCalculation._FILENAME_TAR in retrieved_folder.list_object_names():
+                # take potfile after extracting tar file
+                # get full filename
+                with retrieved_folder.open(KkrimpCalculation._FILENAME_TAR) as tar_file:
+                    tarfilename = tar_file.name
+                # open tarfile and extract potfile
+                with tarfile.open(tarfilename) as tar_file:
+                    tar_file.extract(KkrimpCalculation._OUT_POTENTIAL, os.path.dirname(tarfilename))
+                    with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
+                        self.ctx.last_pot = SinglefileData(file=pot_file)
+                    # delete extracted potfile again
+                    retrieved_folder.delete_object(KkrimpCalculation._OUT_POTENTIAL, force=True)
+            else:
+                # take potfile directly from output
+                with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
+                    self.ctx.last_pot = SinglefileData(file=pot_file)
         except:
             return self.exit_codes.ERROR_NO_OUTPUT_POT_FROM_LAST_CALC
 

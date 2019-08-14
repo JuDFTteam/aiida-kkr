@@ -312,6 +312,16 @@ class plot_kkr(object):
         x_all = d.get_x()
         y_all = d.get_y()
 
+        # scale factor for x and/or y
+        if 'xscale' in kwargs:
+            xscale = kwargs.pop('xscale')
+        else:
+            xscale = 1.
+        if 'yscale' in kwargs:
+            yscale = kwargs.pop('yscale')
+        else:
+            yscale = 1.
+
         nspin = len(y_all[0][1]) // natoms
         nspin2 = len(y_all[0][1]) // natoms # copy of nspin becaus nspin is reset to 1 if sum_spins is set to True
         if sum_spins: nspin = 1
@@ -358,7 +368,10 @@ class plot_kkr(object):
                 if not all_atoms:
                     y = [sum(y2[:,ispin,:], axis=0)] # artificial list so that y[iatom] works later on
                     if sum_spins and nspin2==2:
-                        y[0] = -y[0] + sum(y2[:,1,:], axis=0)
+                        if switch_sign_spin2:
+                            y[0] = -y[0] - sum(y2[:,1,:], axis=0)
+                        else:
+                            y[0] = -y[0] + sum(y2[:,1,:], axis=0)
                     natoms2 = 1
                     yladd = ''
                 else:
@@ -376,8 +389,8 @@ class plot_kkr(object):
                             yladd=''
                         if labels_all is not None and ispin==0:
                             yladd = labels_all[iatom]
-                        xplt = x[iatom*nspin+ispin]
-                        yplt = y[iatom]
+                        xplt = x[iatom*nspin+ispin] * xscale
+                        yplt = y[iatom] * yscale
                         if ispin>0 and switch_sign_spin2:
                             yplt = -yplt
                         yplt = yplt * yscale
@@ -579,6 +592,7 @@ class plot_kkr(object):
             retlist = node.outputs.retrieved.list_object_names()
             has_dos = 'dos.atom1' in retlist
             has_qvec = 'qvec.dat' in retlist
+            has_qdos = False
             
             # remove already automatically set things from kwargs
             if 'ptitle' in list(kwargs.keys()):
