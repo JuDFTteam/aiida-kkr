@@ -635,6 +635,7 @@ class kkr_scf_wc(WorkChain):
             if not convergence_on_track:
                 decrease_mixing_fac = True
                 self.report("INFO: last KKR did not converge. trying decreasing mixfac")
+                self.report("INFO: ctx.calcs: {} {}".format(self.ctx.calcs, type(self.ctx.calcs)))
                 # reset last_remote to last successful calculation
                 calclist = range(len(self.ctx.calcs))
                 if len(calclist)>1: calclist = calclist[::-1] # go backwards through list

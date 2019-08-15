@@ -20,7 +20,7 @@ from aiida_kkr.tools.tools_kkrimp import kkrimp_parser_functions
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -196,7 +196,8 @@ class KkrimpParser(Parser):
 
         # first delete unused files (completely in parsed output)
         files_to_delete = [KkrimpCalculation._OUT_ENERGYSP_PER_ATOM,
-                           KkrimpCalculation._OUT_ENERGYTOT_PER_ATOM]
+                           KkrimpCalculation._OUT_ENERGYTOT_PER_ATOM,
+                           KkrimpCalculation._SHAPEFUN]
         for fileid in files_to_delete:
             if fileid in self.retrieved.list_object_names():
                 self.retrieved.delete_object(fileid, force=True)
