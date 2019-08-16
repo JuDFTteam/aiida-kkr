@@ -80,8 +80,7 @@ def basic_test(node_id, **kwargs):
     plot_kkr(node_id, **kwargs)
 
 if __name__=='__main__':
-    from aiida import is_dbenv_loaded, load_dbenv
-    if not is_dbenv_loaded():
-        load_dbenv()
+    from aiida import load_profile
+    load_profile()
     t = Test_plot_kkr()
     t.test_plot_kkr_calc()

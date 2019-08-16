@@ -55,9 +55,8 @@ class plot_kkr(object):
     def __init__(self, nodes=None, **kwargs):
 
         # load database if not done already
-        from aiida import load_dbenv, is_dbenv_loaded
-        if not is_dbenv_loaded():
-            load_dbenv()
+        from aiida import load_profile
+        load_profile()
 
         if type(nodes)==list:
             from matplotlib.pyplot import show

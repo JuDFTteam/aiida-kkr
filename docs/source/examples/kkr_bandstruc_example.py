@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
 # connect to aiida db
-from aiida import load_dbenv, is_dbenv_loaded
-if not is_dbenv_loaded():
-    load_dbenv()
+from aiida import load_profile
+load_profile()
 # load essential aiida classes
 from aiida.orm import Code, DataFactory, load_node
 StructureData = DataFactory('structure')

@@ -16,9 +16,8 @@ example of bulk Cu.
 .. note::
           If you follow the steps described here please make sure that your python script contains::
           
-             from aiida import load_dbenv, is_dbenv_loaded
-             if not is_dbenv_loaded():
-                 load_dbenv()
+             from aiida import load_profile
+             load_profile()
                  
           To ensure that the aiida database is properly integrated.
     
@@ -780,9 +779,8 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     #!/usr/bin/env python
     
     # connect to aiida db
-    from aiida import load_dbenv, is_dbenv_loaded
-    if not is_dbenv_loaded():
-        load_dbenv()
+    from aiida import load_profile
+    load_profile()
     # load essential aiida classes
     from aiida.orm import Code
     from aiida.orm import DataFactory
@@ -1105,9 +1103,8 @@ Download: :download:`this example script <../examples/kkrimp_dos_example.py>`
     #!/usr/bin/env python
     
     # connect to aiida db
-    from aiida import load_dbenv, is_dbenv_loaded
-    if not is_dbenv_loaded():
-        load_dbenv()
+    from aiida import load_profile
+    load_profile()
     # load essential aiida classes
     from aiida.orm import DataFactory, load_node
     Dict = DataFactory('parameter')
@@ -1234,9 +1231,8 @@ Download: :download:`this example script <../examples/kkr_bandstruc_example.py>`
     #!/usr/bin/env python
     
     # connect to aiida db
-    from aiida import load_dbenv, is_dbenv_loaded
-    if not is_dbenv_loaded():
-        load_dbenv()
+    from aiida import load_profile
+    load_profile()
     # load essential aiida classes
     from aiida.orm import Code, DataFactory, load_node
     StructureData = DataFactory('structure')

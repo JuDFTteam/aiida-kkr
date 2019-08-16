@@ -8,7 +8,7 @@
 # For further information please visit http://www.aiida.net               #
 ###########################################################################
 """
-This is a mock of a django settings to make the documentation compile without the call to load_dbenv()
+This is a mock of a django settings to make the documentation compile without the call to load_profile()
 
 For more information on this file, see
 https://docs.djangoproject.com/en/1.7/topics/settings/

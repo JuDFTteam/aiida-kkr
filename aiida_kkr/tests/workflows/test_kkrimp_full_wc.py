@@ -90,8 +90,7 @@ class Test_kkrimp_full_workflow():
 
 #run test manually
 if __name__=='__main__':
-   from aiida import is_dbenv_loaded, load_dbenv
-   if not is_dbenv_loaded():
-      load_dbenv()
+   from aiida import load_profile
+   load_profile()
    Test = Test_kkrimp_full_workflow()
    Test.test_kkrimp_full_wc()

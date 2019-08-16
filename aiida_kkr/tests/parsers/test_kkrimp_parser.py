@@ -25,8 +25,7 @@ class Test_kkrimp_parser(object):
 
 
 if __name__=='__main__':
-   from aiida import is_dbenv_loaded, load_dbenv
-   if not is_dbenv_loaded():
-      load_dbenv()
+   from aiida import load_profile
+   load_profile()
    t = Test_kkrimp_parser()
    t.test_parse_kkrimp_calc()
