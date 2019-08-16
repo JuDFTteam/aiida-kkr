@@ -20,7 +20,7 @@ from aiida_kkr.tools.tools_kkrimp import kkrimp_parser_functions
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -176,6 +176,7 @@ class KkrimpParser(Parser):
             # reduce size of out_log file
             self.cleanup_outfiles(files['out_log'], ['Iteration Number'])
             # delete completely parsed output files and create a tar ball to reduce size
+            self.remove_unnecessary_files()
             self.final_cleanup()
 
 
@@ -194,6 +195,13 @@ class KkrimpParser(Parser):
             with open_general(fileidentifier, 'w') as tfilenew:
                 tfilenew.writelines(txt)
 
+
+    def remove_unnecessary_files(self):
+        """
+        Remove files that are not needed anymore after parsing
+        The information is completely parsed (i.e. in outdict of calculation) 
+        and keeping the file would just be a duplication.
+        """
         # first delete unused files (completely in parsed output)
         files_to_delete = [KkrimpCalculation._OUT_ENERGYSP_PER_ATOM,
                            KkrimpCalculation._OUT_ENERGYTOT_PER_ATOM,

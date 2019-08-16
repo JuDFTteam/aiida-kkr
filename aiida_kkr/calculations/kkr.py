@@ -33,7 +33,7 @@ KpointsData = DataFactory('array.kpoints')
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.3"
+__version__ = "0.11.0"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -96,9 +96,6 @@ class KkrCalculation(CalcJob):
     # template.product entry point defined in setup.json
     _default_parser = 'kkr.kkrparser'
 
-    # files that will be copied from local computer if parent was KKR calc
-    _copy_filelist_kkr = [_SHAPEFUN, _OUT_POTENTIAL]
-
     # list of keywords that are not allowed to be modified (new calculation
     # starting from structure and voronoi run is needed instead):
     _do_never_modify = ['ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'CARTESIAN',
@@ -132,6 +129,7 @@ class KkrCalculation(CalcJob):
         # define exit codes, also used in parser
         spec.exit_code(301, 'ERROR_NO_OUTPUT_FILE', message='KKR output file not found')
         spec.exit_code(302, 'ERROR_KKR_PARSING_FAILED', message='KKR parser retuned an error')
+        spec.exit_code(303, 'ERROR_NO_SHAPEFUN_FOUND', message='Could not find shapefun from voronoi parent')
 
 
     def prepare_for_submission(self, tempfolder):
@@ -372,7 +370,7 @@ class KkrCalculation(CalcJob):
 
             copylist = []
             if parent_calc.process_class == KkrCalculation:
-                copylist = self._copy_filelist_kkr
+                copylist = [self._OUT_POTENTIAL]
                 # TODO ggf copy remotely from remote node if present ...
 
             elif parent_calc.process_class == VoronoiCalculation:
@@ -405,6 +403,15 @@ class KkrCalculation(CalcJob):
                 # now add to copy list
                 local_copy_list.append((outfolder.uuid, file1, filename))
 
+                # add shapefun file from voronoi parent if needed
+                if self._SHAPEFUN not in copylist:
+                    try:
+                        struc, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
+                    except ValueError:
+                        return self.exit_codes.ERROR_NO_SHAPEFUN_FOUND
+                    # copy shapefun from retrieved of voro calc
+                    voro_retrieved = voro_parent.outputs.retrieved
+                    local_copy_list.append((voro_retrieved.uuid, VoronoiCalculation._SHAPEFUN, self._SHAPEFUN))
 
             # for set-ef option:
             ef_set = parameters.get_dict().get('ef_set', None)
@@ -447,8 +454,6 @@ class KkrCalculation(CalcJob):
         # only if certain input keys are specified....
         calcinfo.retrieve_list = [self._DEFAULT_OUTPUT_FILE,
                                   self._INPUT_FILE_NAME,
-                                  self._POTENTIAL,
-                                  self._SHAPEFUN,
                                   self._SCOEF,
                                   self._NONCO_ANGLES_OUT,
                                   self._OUT_POTENTIAL,

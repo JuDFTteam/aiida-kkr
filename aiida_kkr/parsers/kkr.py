@@ -16,7 +16,7 @@ from masci_tools.io.common_functions import search_string
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5"
+__version__ = "0.6.1"
 __contributors__ = ("Jens Broeder", u"Philipp Rüßmann")
 
 
@@ -190,3 +190,21 @@ class KkrParser(Parser):
 
         if not success:
             return self.exit_codes.ERROR_KKR_PARSING_FAILED
+        else: # cleanup after parsing (only if parsing was successful)
+            # delete completely parsed output files
+            self.remove_unnecessary_files()
+            # then (maybe) tar the output to save space
+            #TODO needs implementing (see kkrimp parser)
+
+
+    def remove_unnecessary_files(self):
+        """
+        Remove files that are not needed anymore after parsing
+        The information is completely parsed (i.e. in outdict of calculation) 
+        and keeping the file would just be a duplication.
+        """
+        files_to_delete = [KkrCalculation._POTENTIAL,
+                           KkrCalculation._SHAPEFUN]
+        for fileid in files_to_delete:
+            if fileid in self.retrieved.list_object_names():
+                self.retrieved.delete_object(fileid, force=True)
