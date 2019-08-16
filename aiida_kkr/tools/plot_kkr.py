@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.5"
+__version__ = "0.4.6"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -580,6 +580,7 @@ class plot_kkr(object):
             self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
 
         # try to plot dos and qdos data if Calculation was bandstructure or DOS run
+        from subprocess import check_output
         from os import listdir
         from numpy import loadtxt, array, where
         from masci_tools.vis.kkr_plot_bandstruc_qdos import dispersionplot
@@ -607,7 +608,9 @@ class plot_kkr(object):
                     with node.outputs.retrieved.open('qdos.01.1.dat', mode='r') as f:
                         ne = len(set(loadtxt(f)[:,0]))
                         if ne>1:
-                            dispersionplot(f, newfig=(not nofig), ptitle=ptitle, logscale=logscale, **kwargs)
+                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qdos.01.1.dat', 'output.0.txt')), shell=True) 
+                            ef = float(ef.split('=')[2].split()[0])
+                            dispersionplot(f, newfig=(not nofig), ptitle=ptitle, logscale=logscale, ef=ef, **kwargs)
                             # add plot labels
                             try:
                                 ilbl = node.inputs.kpoints.get_attr('label_numbers')
@@ -624,7 +627,9 @@ class plot_kkr(object):
                             except:
                                 xlabel('id_kpt')
                         else:
-                            FSqdos2D(f, logscale=logscale, **kwargs)
+                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qdos.01.1.dat', 'output.0.txt')), shell=True) 
+                            ef = float(ef.split('=')[2].split()[0])
+                            FSqdos2D(f, logscale=logscale, ef=ef, **kwargs)
             
             # dos only if qdos was not plotted already
             if has_dos and not has_qdos:

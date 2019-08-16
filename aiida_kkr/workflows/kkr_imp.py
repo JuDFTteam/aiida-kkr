@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -457,7 +457,7 @@ class kkr_imp_wc(WorkChain):
         ilayer_cent = imp_info.get_dict().get('ilayer_center')
 
         # prepare settings dict
-        potname_converged = 'potential'
+        potname_converged = 'out_potential'
         potname_impvorostart = 'output.pot'
         potname_imp = 'potential_imp'
 
