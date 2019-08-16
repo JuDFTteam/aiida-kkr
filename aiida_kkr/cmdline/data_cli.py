@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from builtins import str
 import click
 import sys
@@ -14,12 +15,11 @@ def list():  # pylint: disable=redefined-builtin
     """
     Display all KkrstructureData nodes
     """
-    from aiida import is_dbenv_loaded, load_dbenv
-    if not is_dbenv_loaded():
-        load_dbenv()
+    from aiida import load_profile
+    load_profile()
 
     from aiida.orm.querybuilder import QueryBuilder
-    from aiida.orm import DataFactory
+    from aiida.plugins import DataFactory
     KKrStructure = DataFactory('kkr.kkrstructure')
 
     qb = QueryBuilder()
