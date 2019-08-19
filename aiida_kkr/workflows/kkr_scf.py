@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.9"
+__version__ = "0.9.10"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -716,7 +716,12 @@ class kkr_scf_wc(WorkChain):
                     self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
 
             # step 2: change parameter (contained in new_params dictionary)
-            last_mixing_scheme = para_check.get_value('IMIX')
+            if initial_settings and 'structure' in self.inputs:
+                # make sure to ignore IMIX from input node (start with simple mixing even if IMIX is set otherwise)
+                # this is enforced whenever voronoi step is starting point (otherwise you may want to continue a preconverged calculation)
+                last_mixing_scheme = None
+            else:
+                last_mixing_scheme = para_check.get_value('IMIX')
             if last_mixing_scheme is None:
                 last_mixing_scheme = 0
 
