@@ -20,7 +20,7 @@ import tarfile, os
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -418,7 +418,7 @@ class kkr_imp_sub_wc(WorkChain):
                 decrease_mixing_fac = True
                 self.report("INFO: Last KKR did not converge. Trying decreasing mixfac")
                 # reset last_remote to last successful calculation
-                last_calcs_list = range(len(self.ctx.calcs))
+                last_calcs_list = list(range(len(self.ctx.calcs))) # needs to be list to support slicing
                 if len(last_calcs_list)>1: last_calcs_list = array(last_calcs_list)[::-1] # make sure to go from latest calculation backwards
                 for icalc in last_calcs_list:
                     self.report("INFO: last calc success? {} {}".format(icalc, self.ctx.KKR_steps_stats['success'][icalc]))

@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.8"
+__version__ = "0.9.9"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -637,7 +637,7 @@ class kkr_scf_wc(WorkChain):
                 self.report("INFO: last KKR did not converge. trying decreasing mixfac")
                 self.report("INFO: ctx.calcs: {} {}".format(self.ctx.calcs, type(self.ctx.calcs)))
                 # reset last_remote to last successful calculation
-                calclist = range(len(self.ctx.calcs))
+                calclist = list(range(len(self.ctx.calcs))) # needs to be list because `(x)range` does not support slicing
                 if len(calclist)>1: calclist = calclist[::-1] # go backwards through list
                 for icalc in calclist:
                     self.report("INFO: last calc success? {} {}".format(icalc, self.ctx.KKR_steps_stats['success'][icalc]))
