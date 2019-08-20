@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.6"
+__version__ = "0.4.7"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -607,7 +607,7 @@ class plot_kkr(object):
                 if has_qdos:
                     with node.outputs.retrieved.open('qdos.01.1.dat', mode='r') as f:
                         ne = len(set(loadtxt(f)[:,0]))
-                        if ne>1:
+                        if ne>1 or 'as_e_dimension' in kwargs.keys():
                             ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qdos.01.1.dat', 'output.0.txt')), shell=True) 
                             ef = float(ef.split('=')[2].split()[0])
                             dispersionplot(f, newfig=(not nofig), ptitle=ptitle, logscale=logscale, ef=ef, **kwargs)
