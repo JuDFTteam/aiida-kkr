@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.7"
+__version__ = "0.4.8"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -264,6 +264,10 @@ class plot_kkr(object):
             structure, voro_parent = VoronoiCalculation.find_parent_structure(node)
         else:
             structure = node
+        if 'show_empty_atoms' in kwargs:
+            show_empty_atoms = kwargs.pop('show_empty_atoms')
+        else:
+            show_empty_atoms = False
         # check if empty sphere need to be removed for plotting (ase structgure cannot be constructed for alloys or vacancies)
         if structure.has_vacancies:
             print("structure has vacancies, need to remove empty sites for plotting")
@@ -273,6 +277,8 @@ class plot_kkr(object):
                 pos = site.position
                 if not k.has_vacancies:
                     stmp.append_atom(position=pos, symbols=k.symbol)
+                elif show_empty_atoms:
+                    stmp.append_atom(position=pos, symbols='X')
                 else:
                     print("removing atom", site)
             stmp.set_pbc(structure.pbc)
@@ -293,9 +299,6 @@ class plot_kkr(object):
 
         # remove things that will not work for plotting
         if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
-
-        if 'yscale' in list(kwargs.keys()): yscale = kwargs.pop('yscale')
-        else: yscale = 1.0
 
         # plot only some atoms if 'iatom' is found in input
         show_atoms = []
@@ -456,6 +459,7 @@ class plot_kkr(object):
     def get_rms_kkrcalc(self, node, title=None):
         """extract rms etc from kkr Calculation. Works for both finished and still running Calculations."""
         from aiida.engine import ProcessState
+        from aiida.common.folders import SandboxFolder
         from masci_tools.io.common_functions import search_string
 
         rms, neutr, etot, efermi = [], [], [], []
@@ -485,10 +489,11 @@ class plot_kkr(object):
             out_kkr = ''
 
             # now get contents of out_kkr using remote call of 'cat'
-            with transport as open_transport:
-                if 'remote_folder' in node.outputs:
-                    if 'out_kkr' in node.outputs.remote_folder.list_object_names():
-                        out_kkr = node.outputs.remote_folder.open('out_kkr').readlines()
+            with SandboxFolder() as tempfolder:
+                with tempfolder.open('tempfile', 'w') as f:
+                    node.outputs.remote_folder.getfile('out_kkr', f.name)
+                with tempfolder.open('tempfile', 'r') as f:
+                    out_kkr = f.readlines()
 
             # now extract rms, charge neutrality, total energy and value of Fermi energy
             itmp = 0

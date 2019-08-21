@@ -24,13 +24,14 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.4"
+__version__ = "0.10.5"
 __contributors__ = u"Philipp Rüßmann"
 
 StructureData = DataFactory('structure')
 Dict = DataFactory('dict')
 XyData = DataFactory('array.xy')
 RemoteData = DataFactory('remote')
+SingleFileData = DataFactory('singlefile')
 
 class kkr_startpot_wc(WorkChain):
     """
@@ -100,6 +101,7 @@ class kkr_startpot_wc(WorkChain):
         spec.input("kkr", valid_type=Code, required=False)
         spec.input("voronoi", valid_type=Code, required=True)
         spec.input("calc_parameters", valid_type=Dict, required=False)
+        spec.input("startpot_overwrite", valid_type=SingleFileData, required=False)
         # define output nodes
         spec.output('results_vorostart_wc', valid_type=Dict, required=True, help='')
         spec.output('last_doscal_results', valid_type=Dict, required=False, help='')
@@ -394,6 +396,8 @@ class kkr_startpot_wc(WorkChain):
                        'custom_scheduler_commands' : self.ctx.custom_scheduler_commands}
 
             builder = get_inputs_voronoi(voronoicode, structure, options, label, description, params=params)
+            if 'startpot_overwrite' in self.inputs:
+                builder.potential_overwrite = self.inputs.startpot_overwrite
             self.report('INFO: run voronoi step {}'.format(self.ctx.iter))
             future = self.submit(builder)
 
@@ -461,8 +465,14 @@ class kkr_startpot_wc(WorkChain):
             self.ctx.dos_params_dict['emin'] = emin_out - self.ctx.delta_e*eV2Ry
             self.report("INFO: emin ({} Ry) - delta_e ({} Ry) smaller than emin ({} Ry) of dos input. Setting automatically to {} Ry".format(emin_out, self.ctx.delta_e*eV2Ry,  emin_dos, emin_out-self.ctx.delta_e*eV2Ry))
 
-        potfile_path = os.path.join(self.ctx.voro_calc.outputs.retrieved._repository._get_base_folder().abspath,
-          VoronoiCalculation._OUT_POTENTIAL_voronoi)
+        ret = self.ctx.voro_calc.outputs.retrieved
+        if 'potential_overwrite' in self.ctx.voro_calc.inputs:
+            potfile_overwrite = self.ctx.voro_calc.inputs.potential_overwrite
+            with potfile_overwrite.open(potfile_overwrite.filename) as f:
+                potfile_path = f.name
+        else:
+            with ret.open(VoronoiCalculation._OUT_POTENTIAL_voronoi) as f:
+                potfile_path = f.name
         self.ctx.efermi = get_ef_from_potfile(potfile_path)
         emax = self.ctx.dos_params_dict['emax']
         self.report("INFO: emax dos input: {}, efermi voronoi output: {}".format(emax, self.ctx.efermi))

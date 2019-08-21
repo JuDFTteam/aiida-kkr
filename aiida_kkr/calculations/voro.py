@@ -18,7 +18,7 @@ import six
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5"
+__version__ = "0.5.1"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -131,8 +131,8 @@ class VoronoiCalculation(CalcJob):
                                            "calculation")
 
         # check if overwrite potential is given explicitly
-        if 'potfile_overwrite' in self.inputs:
-            potfile_overwrite = self.inputs.potfile_overwrite
+        if 'potential_overwrite' in self.inputs:
+            potfile_overwrite = self.inputs.potential_overwrite
             has_potfile_overwrite = True
         else:
             has_potfile_overwrite = False
@@ -162,10 +162,11 @@ class VoronoiCalculation(CalcJob):
         if overwrite_potential:
             # copy the right files #TODO check first if file, exists and throw
             # warning, now this will throw an error
-            outfolder = parent_calc.outputs.retrieved
             if found_parent and self._is_KkrCalc(parent_calc):
+                outfolder = parent_calc.outputs.retrieved # copy from remote folder
                 copylist = [parent_calc._OUT_POTENTIAL]
             elif has_potfile_overwrite:
+                outfolder = potfile_overwrite # copy from potential sfd
                 copylist = [potfile_overwrite.filename]
             else:
                 copylist = []
