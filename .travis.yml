@@ -6,6 +6,7 @@ python:
   - "3.4"
   - "3.5"
   - "3.6"
+  - "3.7"
 matrix:
   # mark build as complete as soon as the versions that may not fail is finished
   fast_finish: true
