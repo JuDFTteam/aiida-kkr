@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.8"
+__version__ = "0.4.9"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -184,6 +184,12 @@ class plot_kkr(object):
         elif node.process_label == u'kkr_imp_dos_wc':
             if return_name_only: return 'impdos'
             self.plot_kkrimp_dos_wc(node, **kwargs)
+        elif node.process_label == u'kkr_imp_wc':
+            if return_name_only: return 'imp'
+            self.plot_kkrimp_wc(node, **kwargs)
+        elif node.process_label == u'kkr_imp_sub_wc':
+            if return_name_only: return 'impsub'
+            self.plot_kkrimp_sub_wc(node, **kwargs)
         # calculations
         elif node.process_type == u'aiida.calculations:kkr.kkr':
             if return_name_only: return 'kkr'
@@ -660,11 +666,21 @@ class plot_kkr(object):
 
     def plot_kkrimp_calc(self, node, **kwargs):
         """plot things from a kkrimp Calculation node"""
-        print("Not implemented yet")
+        print("Plotting not implemented yet")
+        pass
+
+    def plot_kkrimp_wc(self, node, **kwargs):
+        """plot things from a kkrimp_wc workflow"""
+        print("Plotting not implemented yet")
+        pass
+
+    def plot_kkrimp_sub_wc(self, node, **kwargs):
+        """plot things from a kkrimp_sub_wc workflow"""
+        print("Plotting not implemented yet")
         pass
 
     def plot_kkrimp_dos_wc(self, node, **kwargs):
-        """plot things from a kkrimp Calculation node"""
+        """plot things from a kkrimp_dos workflow node"""
 
         # try to plot dos and qdos data if Calculation was bandstructure or DOS run
         from os import listdir

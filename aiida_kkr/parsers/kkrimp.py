@@ -20,7 +20,7 @@ from aiida_kkr.tools.tools_kkrimp import kkrimp_parser_functions
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -178,6 +178,8 @@ class KkrimpParser(Parser):
             # delete completely parsed output files and create a tar ball to reduce size
             self.remove_unnecessary_files()
             self.final_cleanup()
+        else:
+            return self.exit_codes.ERROR_PARSING_KKRIMPCALC
 
 
     def cleanup_outfiles(self, fileidentifier, keyslist):

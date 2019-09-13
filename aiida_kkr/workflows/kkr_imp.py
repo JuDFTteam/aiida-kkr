@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -386,6 +386,11 @@ class kkr_imp_wc(WorkChain):
 
         # add or overwrite some parameters (e.g. things that are only used by voronoi)
         calc_params_dict = calc_params.get_dict()
+        # add some voronoi specific parameters automatically if found (RMTREF should also set RMTCORE to the same value)
+        if '<RMTREF>' in calc_params_dict.keys():
+            self.report('INFO: add rmtcore to voro params')
+            self.ctx.change_voro_params['<RMTCORE>'] = calc_params_dict['<RMTREF>']
+            self.report(self.ctx.change_voro_params)
         changed_params = False
         for key, val in self.ctx.change_voro_params.items():
             if key in ['RUNOPT', 'TESTOPT']:
@@ -396,7 +401,7 @@ class kkr_imp_wc(WorkChain):
             changed_params = True
         if changed_params:
             updatenode = Dict(dict=calc_params_dict)
-            updatenode.label = 'Changed params for voroaux: {}'.format(self.ctx.change_voro_params)
+            updatenode.label = 'Changed params for voroaux: {}'.format(self.ctx.change_voro_params.keys())
             updatenode.description = 'Overwritten voronoi input parameter from kkr_imp_wc input.'
             calc_params = update_params_wf(calc_params, updatenode)
 

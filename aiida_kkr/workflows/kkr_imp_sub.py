@@ -20,7 +20,7 @@ import tarfile, os
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.1"
+__version__ = "0.7.2"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -374,6 +374,7 @@ class kkr_imp_sub_wc(WorkChain):
 
         # check if previous calculation was successful
         if self.ctx.loop_count>1 and not self.ctx.last_calc.is_finished_ok:
+            self.report("ERROR: last calc not finished_ok")
             return self.exit_codes.ERROR_SUB_FAILURE
 
         # next check only needed if another iteration should be done after validating convergence etc. (previous checks)
@@ -441,6 +442,7 @@ class kkr_imp_sub_wc(WorkChain):
                 self.report("INFO: last_remote is still None? {}".format(self.ctx.last_remote is None))
                 self.report("INFO: restart next calculation run from initial inputs")
                 if self.ctx.last_remote is None:
+                    self.report("ERROR: last remote not found")
                     return self.exit_codes.ERROR_SETTING_LAST_REMOTE
 
             # check if mixing strategy should be changed
@@ -505,6 +507,7 @@ class kkr_imp_sub_wc(WorkChain):
                         new_params[key_default] = kkrdefaults.get(key_default)
                         kkrdefaults_updated.append(key_default)
                 if len(kkrdefaults_updated)>0:
+                    self.report("ERROR: no default param found")
                     return self.exit_codes.ERROR_MISSING_PARAMS
                 else:
                     self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
@@ -625,6 +628,7 @@ class kkr_imp_sub_wc(WorkChain):
                 for key, val in new_params.items():
                     para_check.set_value(key, val, silent=True)
             except:
+                self.report("ERROR: failed to set some parameters")
                 return self.exit_codes.ERROR_PARAMETER_UPDATE
 
             # step 3:
@@ -722,6 +726,7 @@ class kkr_imp_sub_wc(WorkChain):
         # check calculation state
         if not self.ctx.last_calc.is_finished_ok:
             self.ctx.kkrimp_step_success = False
+            self.report("ERROR: last calc not finished_ok")
             return self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED_OK
 
         self.report("INFO: kkrimp_step_success: {}".format(self.ctx.kkrimp_step_success))
@@ -746,6 +751,7 @@ class kkr_imp_sub_wc(WorkChain):
                 with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
                     self.ctx.last_pot = SinglefileData(file=pot_file)
         except:
+            self.report("ERROR: no output potential found")
             return self.exit_codes.ERROR_NO_OUTPUT_POT_FROM_LAST_CALC
 
         # extract convergence info about rms etc. (used to determine convergence behavior)
