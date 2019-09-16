@@ -7,7 +7,7 @@ from __future__ import unicode_literals
 import os
 from numpy import pi, array
 from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode
+from aiida.orm import CalcJobNode, load_node
 from .voro import VoronoiCalculation
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import InputValidationError, ValidationError
@@ -33,7 +33,7 @@ KpointsData = DataFactory('array.kpoints')
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.0"
+__version__ = "0.11.1"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -419,7 +419,7 @@ class KkrCalculation(CalcJob):
                 print('local copy list before change: {}'.format(local_copy_list))
                 print("found 'ef_set' in parameters: change EF of potential to this value")
                 potcopy_info = [i for i in local_copy_list if i[2]==self._POTENTIAL][0]
-                with open(potcopy_info[1]) as potfile:
+                with load_node(potcopy_info[0]).open(potcopy_info[1]) as potfile:
                     # remove previous output potential from copy list
                     local_copy_list.remove(potcopy_info)
                     # create potential here by readin in old potential and overwriting with changed Fermi energy
@@ -438,6 +438,7 @@ class KkrCalculation(CalcJob):
                             txt[ipotstart+3] = newline
                         # write new file
                         pot_new_ef.writelines(txt)
+                    # now this directory contains the updated potential file, thus it is not needed to put it in the local copy list anymore
 
             # TODO different copy lists, depending on the keywors input
             print('local copy list: {}'.format(local_copy_list))
