@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.3"
+__version__ = "0.6.4"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -107,6 +107,8 @@ class kkr_imp_wc(WorkChain):
                    help="RemoteData node of the converged host calculation. Used to write out the host Green function.")
         spec.input("remote_data_gf", valid_type=RemoteData, required=False,
                    help="RemoteData node of precomputed host Green function.")
+        spec.input("remote_data_gf_Efshift", valid_type=RemoteData, required=False,
+                   help="RemoteData node of precomputed host Green function with Fermi level shift (overwrite kkrflex_green and tmat files from first remote_data_gf node.")
         spec.input("options", valid_type=Dict, required=False,
                    help="Options for running the codes (walltime etc.).")
         spec.input("options_voronoi", valid_type=Dict, required=False,
@@ -314,6 +316,10 @@ class kkr_imp_wc(WorkChain):
                         'Skip GF writeout step and start workflow by auxiliary voronoi calculations.'
                         .format(inputs.remote_data_gf.pk, pk_kkrflex_writeoutcalc))
             do_gf_calc = False
+            # check if second remote_data_gf node is given (used to overwrite Fermi level)
+            if 'remote_data_gf_Efshift' in inputs:
+                self.report('INFO: found remote_data_gf_Efshift (pid: {}) used to overwrite Fermi level.'
+                            .format(inputs.remote_data_gf_Efshift.pk))
         else:
             inputs_ok = False
             self.report(self.exit_codes.ERROR_MISSING_REMOTE)
@@ -525,6 +531,8 @@ class kkr_imp_wc(WorkChain):
         builder.impurity_info=imp_info
         builder.host_imp_startpot=startpot
         builder.remote_data=gf_remote
+        if 'remote_data_gf_Efshift' in self.inputs:
+            builder.remote_data_Efshift = self.inputs.remote_data_gf_Efshift
         builder.wf_parameters=kkrimp_params
         future = self.submit(builder)
 

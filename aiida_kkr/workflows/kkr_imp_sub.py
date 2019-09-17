@@ -20,7 +20,7 @@ import tarfile, os
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.2"
+__version__ = "0.7.3"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -116,6 +116,7 @@ class kkr_imp_sub_wc(WorkChain):
         spec.input("kkrimp", valid_type=Code, required=True)
         spec.input("host_imp_startpot", valid_type=SinglefileData, required=False)
         spec.input("remote_data", valid_type=RemoteData, required=False)
+        spec.input("remote_data_Efshift", valid_type=RemoteData, required=False)
         spec.input("kkrimp_remote", valid_type=RemoteData, required=False)
         spec.input("impurity_info", valid_type=Dict, required=False)
         spec.input("options", valid_type=Dict, required=False,
@@ -664,6 +665,10 @@ class kkr_imp_sub_wc(WorkChain):
         host_GF = self.inputs.remote_data
         imp_pot = self.ctx.last_pot
         last_remote = self.ctx.last_remote
+        if 'remote_data_Efshift' in self.inputs:
+            host_GF_Efshift = self.inputs.remote_data_Efshift
+        else:
+            host_GF_Efshift = None
 
         options = {"max_wallclock_seconds": self.ctx.max_wallclock_seconds,
                    "resources": self.ctx.resources,
@@ -684,13 +689,13 @@ class kkr_imp_sub_wc(WorkChain):
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_dict().get('Zimp'))
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
-                                           not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, imp_pot=imp_pot)
+                                           not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, imp_pot=imp_pot, host_GF_Efshift=host_GF_Efshift)
             else:
                 self.report('INFO: getting impurity_info node from previous GF calculation')
                 label = 'KKRimp calculation step {} (IMIX={}, GF_remote: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, host_GF.pk)
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
-                                           not self.ctx.use_mpi, host_GF=host_GF, imp_pot=imp_pot)
+                                           not self.ctx.use_mpi, host_GF=host_GF, imp_pot=imp_pot, host_GF_Efshift=host_GF_Efshift)
         elif last_remote is not None:
             # fix to get Zimp properly
             if 'impurity_info' in self.inputs:
@@ -699,13 +704,13 @@ class kkr_imp_sub_wc(WorkChain):
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_dict().get('Zimp'))
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
-                                           not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, kkrimp_remote=last_remote)
+                                           not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, kkrimp_remote=last_remote, host_GF_Efshift=host_GF_Efshift)
             else:
                 self.report('INFO: using RemoteData from previous kkrimp calculation as input')
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, None)
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
-                                           not self.ctx.use_mpi, host_GF=host_GF, kkrimp_remote=last_remote)
+                                           not self.ctx.use_mpi, host_GF=host_GF, kkrimp_remote=last_remote, host_GF_Efshift=host_GF_Efshift)
 
         # run the KKR calculation
         self.report('INFO: doing calculation')

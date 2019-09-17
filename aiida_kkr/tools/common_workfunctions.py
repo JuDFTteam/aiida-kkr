@@ -277,7 +277,7 @@ def get_inputs_voronoi(code, structure, options, label='', description='', param
     return builder
 
 
-def get_inputs_kkrimp(code, options, label='', description='', parameters=None, serial=False, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None):
+def get_inputs_kkrimp(code, options, label='', description='', parameters=None, serial=False, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None, host_GF_Efshift=None):
     """
     Get the input for a kkrimp calc.
     Wrapper for KkrimpProcess setting structure, code, options, label, description etc.
@@ -289,12 +289,12 @@ def get_inputs_kkrimp(code, options, label='', description='', parameters=None, 
 
     # then reuse common inputs setter
     builder = get_inputs_common(KkrimpCalculation, code, None, None, options, label,
-                               description, parameters, serial, imp_info, host_GF, imp_pot, kkrimp_remote)
+                               description, parameters, serial, imp_info, host_GF, imp_pot, kkrimp_remote, host_GF_Efshift)
 
     return builder
 
 
-def get_inputs_common(calculation, code, remote, structure, options, label, description, params, serial, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None):
+def get_inputs_common(calculation, code, remote, structure, options, label, description, params, serial, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None, host_GF_Efshift=None):
     """
     Base function common in get_inputs_* functions for different codes
     """
@@ -358,6 +358,9 @@ def get_inputs_common(calculation, code, remote, structure, options, label, desc
 
     if host_GF is not None:
         inputs.host_Greenfunction_folder = host_GF
+
+    if host_GF_Efshift is not None:
+        inputs.host_Greenfunction_folder_Efshift = host_GF_Efshift
 
     if imp_pot is not None:
         inputs.impurity_potential = imp_pot

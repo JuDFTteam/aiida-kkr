@@ -31,7 +31,7 @@ SinglefileData = DataFactory('singlefile')
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -111,6 +111,7 @@ class KkrimpCalculation(CalcJob):
         # define input nodes (optional ones have required=False)
         spec.input('parameters', valid_type=Dict, required=False, help='Use a node that specifies the input parameters (calculation settings).')
         spec.input('host_Greenfunction_folder', valid_type=RemoteData, required=True, help='Use a node that specifies the host KKR calculation contaning the host Green function and tmatrix (KkrCalculation with impurity_info input).')
+        spec.input('host_Greenfunction_folder_Efshift', valid_type=RemoteData, required=False, help='Use a node that specifies the host KKR calculation contaning the host Green function and tmatrix with Fermi level shift (used to set Fermi level).')
         spec.input('impurity_potential', valid_type=SinglefileData, required=False, help='Use a node that contains the input potential.')
         spec.input('parent_calc_folder', valid_type=RemoteData, required=False, help='Use a node that specifies a parent KKRimp calculation.')
         spec.input('impurity_info', valid_type=Dict, required=False, help='Use a parameter node that specifies properties for a immpurity calculation.')
@@ -249,8 +250,6 @@ class KkrimpCalculation(CalcJob):
         
         # get mandatory input nodes (extract host_Greenfunction_folder)
         host_parent = self.inputs.host_Greenfunction_folder
-        if not isinstance(host_parent, RemoteData):
-            raise InputValidationError("host_Greenfunction_folder not of type RemoteData") 
         
         # extract parent calculation
         parent_calcs = host_parent.get_incoming(node_class=CalcJob)
@@ -332,11 +331,23 @@ class KkrimpCalculation(CalcJob):
         if not host_ok:
             raise InputValidationError("host_Greenfunction calculation was not a KKRFLEX run")
 
-            
+        # extract information from Efshift host GF input node (not mandatory)
+        if 'host_Greenfunction_folder_Efshift' in self.inputs:
+            host_parent_Efshift = self.inputs.host_Greenfunction_folder_Efshift
+            parent_calcs_Efshift = host_parent_Efshift.get_incoming(node_class=CalcJob)
+            parent_calc_Efshift = parent_calcs_Efshift.first().node   
+            hostfolder_Efshift = parent_calc_Efshift.outputs.retrieved
+        else:
+            hostfolder_Efshift = None
+
         kkrflex_file_paths = {}
-        for file in self._ALL_KKRFLEX_FILES:
-            if file in hostfolder.list_object_names():
-                kkrflex_file_paths[file] = hostfolder
+        for filename in self._ALL_KKRFLEX_FILES:
+            if filename in hostfolder.list_object_names():
+                kkrflex_file_paths[filename] = hostfolder
+            # take tmat and green file from Fermi level overwrite directory (second GF_writeout calculation)
+            if hostfolder_Efshift is not None and filename in [self._KKRFLEX_TMAT, self._KKRFLEX_GREEN]:
+                if filename in hostfolder_Efshift.list_object_names():
+                    kkrflex_file_paths[filename] = hostfolder_Efshift
 
         # extract shapes array from parameters read from inputcard
         shapes = params_host_calc.get_dict().get('<SHAPE>', None)
