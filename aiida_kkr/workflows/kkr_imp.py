@@ -121,7 +121,7 @@ class kkr_imp_wc(WorkChain):
                    help="If given, overwrite the some parameters used as input for auxiliary voronoi calculation of starting potential.")
         spec.input("params_kkr_overwrite", valid_type=Dict, required=False,
                    help="Set some input parameters of the KKR calculation.")
-        spec.input("startpot", valid_type=SingleFileData, required=False,
+        spec.input("startpot", valid_type=SinglefileData, required=False,
                    help="Set starting potential (e.g. from preconverged calculation")
 
 
@@ -371,16 +371,16 @@ class kkr_imp_wc(WorkChain):
         """
         check whether or not a starting potential needs to be created
         """
-        # initialize variables
-        has_startpot = False
+        # initialize
         self.ctx.create_startpot = True
+
         # check if startpot exists in input
         # TODO maybe implement some consistency checks
         if 'startpot' in self.inputs:
             self.ctx.startpot_kkrimp = self.inputs.startpot
             self.ctx.create_startpot = False
 
-        return not has_startpot
+        return self.ctx.create_startpot
 
 
     def run_voroaux(self):
@@ -574,7 +574,7 @@ class kkr_imp_wc(WorkChain):
             outputnode_dict['workflow_name'] = self.__class__.__name__
             outputnode_dict['workflow_version'] = self._workflowversion
             if self.ctx.do_gf_calc:
-                outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk,i
+                outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk,
                                                         'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}
                 outputnode_dict['gf_wc_success'] = self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('successful')
             else:

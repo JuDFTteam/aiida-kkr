@@ -434,7 +434,7 @@ class kkr_imp_dos_wc(WorkChain):
             outputnode_t.store()
             
             # interpol dos file and store to XyData nodes
-            dos_extracted, dosXyDatas = self.extract_dos_data()
+            dos_extracted, dosXyDatas = self.extract_dos_data(last_calc)
 
             if dos_extracted:
                 self.out('dos_data', dosXyDatas['dos_data'])
@@ -453,7 +453,7 @@ class kkr_imp_dos_wc(WorkChain):
                         '|-------------------------------------| Done with the KKR imp DOS workflow! |--------------------------------------|\n'
                         '|------------------------------------------------------------------------------------------------------------------|')
 
-    def extract_dos_data(self):
+    def extract_dos_data(self, last_calc):
         """
         Extract DOS data from retrieved folder of KKRimp calculation.
         If output is compressed in tarfile take care of extracting this before parsing `out_ldos*` files.
@@ -491,15 +491,15 @@ class kkr_imp_dos_wc(WorkChain):
                             tf.extract(filename, tempfolder_path) # extract to tempfolder
 
                 # now files are in tempfolder from where we can extract the dos data
-                dos_extracted, dosXyDatas = self.extract_dos_data_from_folder(tempfolder)
+                dos_extracted, dosXyDatas = self.extract_dos_data_from_folder(tempfolder, last_calc)
         else:
             # extract directly from retrieved (no tarball there)
-            dos_extracted, dosXyDatas = self.extract_dos_data_from_folder(dos_retrieved)
+            dos_extracted, dosXyDatas = self.extract_dos_data_from_folder(dos_retrieved, last_calc)
 
         return dos_extracted, dosXyDatas
 
 
-    def extract_dos_data_from_folder(self, folder):
+    def extract_dos_data_from_folder(self, folder, last_calc):
         """
         Get DOS data and parse files.
         """
@@ -513,6 +513,7 @@ class kkr_imp_dos_wc(WorkChain):
             kkrflex_writeout = load_node(self.ctx.pk_flexcalc)
             parent_calc_kkr_converged = kkrflex_writeout.inputs.parent_folder.get_incoming(node_class=CalcJobNode).first().node
             ef = parent_calc_kkr_converged.outputs.output_parameters.get_dict().get('fermi_energy')
+            last_calc_output_params = last_calc.outputs.output_parameters
             natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')
             # parse dosfiles using nspin, EF and Natom inputs
             dosXyDatas = parse_impdosfiles(folder, Int(natom), Int(self.ctx.nspin), Float(ef))
