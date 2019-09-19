@@ -5,7 +5,7 @@ In this module you find the base workflow for a impurity DOS calculation and
 some helper methods to do so with AiiDA
 """
 from __future__ import print_function, absolute_import
-from aiida.orm import Code, load_node, CalcJobNode, Float, Int
+from aiida.orm import Code, load_node, CalcJobNode, Float, Int, Str
 from aiida.plugins import DataFactory
 from aiida.engine import if_, ToContext, WorkChain, calcfunction
 from aiida.common import LinkType
@@ -15,6 +15,7 @@ from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
 from aiida_kkr.workflows.dos import kkr_dos_wc
 from aiida_kkr.calculations import KkrimpCalculation
 import tarfile
+import os
 
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -507,8 +508,18 @@ class kkr_imp_dos_wc(WorkChain):
         # initialize in case dos data is not extracted
         dosXyDatas = None
 
-        # check if out_ldos* files are there
-        if 'out_ldos.interpol.atom=01_spin1.dat' in folder.list_object_names():
+        # get list of files in directory (needed since SandboxFolder does not have `list_object_names` method)
+        # also extract absolute path of folder (needed by parse_impdosfiles since calcfunction does not work with SandboxFolder as input)
+        if isinstance(folder, SandboxFolder):
+            folder_abspath = folder.abspath
+            filelist = os.listdir(folder_abspath)
+        else:
+            filelist = folder.list_object_names()
+            with folder.open(filelist[0]) as tmpfile:
+                folder_abspath = tmpfile.name.replace(filelist[0], '')
+
+        # check if out_ldos* files are there and parse dos files
+        if 'out_ldos.interpol.atom=01_spin1.dat' in filelist:
             # extract EF and number of atoms from kkrflex_writeout calculation
             kkrflex_writeout = load_node(self.ctx.pk_flexcalc)
             parent_calc_kkr_converged = kkrflex_writeout.inputs.parent_folder.get_incoming(node_class=CalcJobNode).first().node
@@ -516,7 +527,7 @@ class kkr_imp_dos_wc(WorkChain):
             last_calc_output_params = last_calc.outputs.output_parameters
             natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')
             # parse dosfiles using nspin, EF and Natom inputs
-            dosXyDatas = parse_impdosfiles(folder, Int(natom), Int(self.ctx.nspin), Float(ef))
+            dosXyDatas = parse_impdosfiles(Str(folder_abspath), Int(natom), Int(self.ctx.nspin), Float(ef))
             dos_extracted = True
         else:
             dos_extracted = False
@@ -526,12 +537,12 @@ class kkr_imp_dos_wc(WorkChain):
 
 
 @calcfunction
-def parse_impdosfiles(dos_retrieved, natom, nspin, ef):
+def parse_impdosfiles(dos_abspath, natom, nspin, ef):
     """
     Read `out_ldos*` files and create XyData node with l-resolved DOS (+node for interpolated DOS if files are found)
 
     Inputs:
-    :param dos_retrieved: folder where `out_ldos*` files reside (AiiDA FolderData object)
+    :param dos_abspath: absolute path to folder where `out_ldos*` files reside (AiiDA Str object)
     :param natom: number of atoms (AiiDA Int object)
     :param nspin: number of spin channels (AiiDA Int object)
     :param ef: Fermi energy in Ry units (AiiDA Float object)
@@ -544,14 +555,18 @@ def parse_impdosfiles(dos_retrieved, natom, nspin, ef):
     from masci_tools.io.common_functions import get_Ry2eV, get_ef_from_potfile
     from numpy import loadtxt, array
 
+    # add '/' if missing from path
+    abspath = dos_abspath.value
+    if abspath[-1] != '/': abspath += '/'
+
     # read dos files
     dos, dos_int = [], []
     for iatom in range(1, natom.value+1):
         for ispin in range(1, nspin.value+1):
-            with dos_retrieved.open('out_ldos.atom=%0.2i_spin%i.dat'%(iatom, ispin)) as dosfile:
+            with open(abspath+'out_ldos.atom=%0.2i_spin%i.dat'%(iatom, ispin)) as dosfile:
                 tmp = loadtxt(dosfile)
                 dos.append(tmp)
-            with dos_retrieved.open('out_ldos.interpol.atom=%0.2i_spin%i.dat'%(iatom, ispin)) as dosfile:
+            with open(abspath+'out_ldos.interpol.atom=%0.2i_spin%i.dat'%(iatom, ispin)) as dosfile:
                 tmp = loadtxt(dosfile)
                 dos_int.append(tmp)
     dos, dos_int = array(dos), array(dos_int)

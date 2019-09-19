@@ -20,7 +20,7 @@ import tarfile, os
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.3"
+__version__ = "0.7.4"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -427,21 +427,19 @@ class kkr_imp_sub_wc(WorkChain):
                     if self.ctx.KKR_steps_stats['success'][icalc]:
                         if self.ctx.KKR_steps_stats['last_rms'][icalc] < self.ctx.KKR_steps_stats['first_rms'][icalc]:
                             self.ctx.last_remote = self.ctx.calcs[icalc].outputs.remote_folder
+                            break # exit loop if last_remote was found successfully
                         else:
                             self.ctx.last_remote = None
-                        break # exit loop if last_remote was found successfully
                     else:
                         self.ctx.last_remote = None
-                self.report("INFO: Last_remote is None? {} {}".format(self.ctx.last_remote is None, 'structure' in self.inputs))
+                # now cover case when last_remote needs to be set to initial remote folder (from input)
                 if self.ctx.last_remote is None:
                     if 'kkrimp_remote' in self.inputs:
-                        self.ctx.last_remote = self.inputs.kkrimp_remote
                         self.report('INFO: no successful and converging calculation to take RemoteData from. Reuse RemoteData from input instead.')
+                        self.ctx.last_remote = self.inputs.kkrimp_remote
                     elif 'impurity_info' in self.inputs or 'remote_data' in self.inputs:
                         self.ctx.last_remote = None
                 # check if last_remote has finally been set and abort if this is not the case
-                self.report("INFO: last_remote is still None? {}".format(self.ctx.last_remote is None))
-                self.report("INFO: restart next calculation run from initial inputs")
                 if self.ctx.last_remote is None:
                     self.report("ERROR: last remote not found")
                     return self.exit_codes.ERROR_SETTING_LAST_REMOTE
@@ -451,8 +449,6 @@ class kkr_imp_sub_wc(WorkChain):
             if last_mixing_scheme is None:
                 last_mixing_scheme = 0
 
-            # TODO: problem with convergence on track has to be solved, just set as true for testing
-            #convergence_on_track = True
             if convergence_on_track:
                 last_rms = self.ctx.last_rms_all[-1]
                 if last_rms < self.ctx.threshold_aggressive_mixing and last_mixing_scheme == 0:

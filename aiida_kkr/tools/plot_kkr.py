@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.9"
+__version__ = "0.4.10"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -299,12 +299,14 @@ class plot_kkr(object):
     def dosplot(self, d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, **kwargs):
         """plot dos from xydata node"""
         from numpy import array, sum, arange
-        from matplotlib.pyplot import plot, xlabel, ylabel, gca, figure, legend
+        from matplotlib.pyplot import plot, xlabel, ylabel, gca, figure, legend, fill_between
         import matplotlib as mpl
         from cycler import cycler
 
         # remove things that will not work for plotting
         if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
+        if 'filled' in list(kwargs.keys()): filled = kwargs.pop('filled')
+        else: filled = False
 
         # plot only some atoms if 'iatom' is found in input
         show_atoms = []
@@ -386,7 +388,10 @@ class plot_kkr(object):
                     natoms2 = natoms
                     y = y2[:,ispin,:]
                     if sum_spins and nspin2==2:
-                        y = -y + y2[:,1,:]
+                        if switch_sign_spin2:
+                            y =  y + y2[:,1,:]
+                        else:
+                            y = -y + y2[:,1,:]
 
                 for iatom in range(natoms2):
                     if iatom in show_atoms or show_atoms==[]:
@@ -403,11 +408,17 @@ class plot_kkr(object):
                             yplt = -yplt
                         yplt = yplt * yscale
                         if not switch_xy:
-                            plot(xplt, yplt, label=yladd, **kwargs)
+                            if not filled:
+                                plot(xplt, yplt, label=yladd, **kwargs)
+                            else:
+                                fill_between(xplt, yplt, label=yladd, **kwargs)
                             xlabel(xlbl)
                             ylabel(ylbl)
                         else:
-                            plot(yplt, xplt, label=yladd, **kwargs)
+                            if not filled:
+                                plot(yplt, xplt, label=yladd, **kwargs)
+                            else:
+                                fill_between(yplt, xplt, label=yladd, **kwargs)
                             xlabel(ylbl)
                             ylabel(xlbl)
 
@@ -679,6 +690,7 @@ class plot_kkr(object):
         print("Plotting not implemented yet")
         pass
 
+
     def plot_kkrimp_dos_wc(self, node, **kwargs):
         """plot things from a kkrimp_dos workflow node"""
 
@@ -706,19 +718,18 @@ class plot_kkr(object):
         else: yscale = -1
 
         has_dos = False
+        if interpol and 'dos_data_interpol' in node.outputs:
+            d = node.outputs.dos_data_interpol
+            has_dos = True
+        elif 'dos_data' in node.outputs:
+            d = node.outputs.dos_data
+            has_dos = True
 
-        calcnode = [i for i in node.called_descendants if i.process_label=='KkrimpCalculation'][0]
-        if calcnode.is_finished_ok:
-            natoms = len(calcnode.outputs.output_parameters.get_dict().get('charge_core_states_per_atom'))
-            retlist = calcnode.outputs.retrieved.list_object_names()
-            has_dos = 'out_ldos.atom=01_spin1.dat' in retlist
-            
         if has_dos:
-            if interpol:
-                d = node.outputs.dos_data_interpol
-            else:
-                d = node.outputs.dos_data
-            self.dosplot(d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, yscale=yscale, **kwargs)
+            calcnode = [i for i in node.called_descendants if i.process_label=='KkrimpCalculation'][0]
+            if calcnode.is_finished_ok:
+                natoms = len(calcnode.outputs.output_parameters.get_dict().get('charge_core_states_per_atom'))
+                self.dosplot(d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, yscale=yscale, **kwargs)
 
 
     ### workflows ###
