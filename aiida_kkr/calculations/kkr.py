@@ -33,7 +33,7 @@ KpointsData = DataFactory('array.kpoints')
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.1"
+__version__ = "0.11.2"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -82,6 +82,9 @@ class KkrCalculation(CalcJob):
     # qdos files
     _QVEC = 'qvec.dat'
     _QDOS_ATOM = 'qdos.%2i.%i.dat'
+    _QDOS_SX = 'qdos_sx.%2i.dat'
+    _QDOS_SY = 'qdos_sy.%2i.dat'
+    _QDOS_SZ = 'qdos_sz.%2i.dat'
     # kkrflex files for impurity calculation
     _KKRFLEX_GREEN = 'kkrflex_green'
     _KKRFLEX_TMAT = 'kkrflex_tmat'
@@ -513,6 +516,10 @@ class KkrCalculation(CalcJob):
             for iatom in range(natom):
                 for ispin in range(nspin):
                     add_files.append((self._QDOS_ATOM%(iatom+1, ispin+1)).replace(' ','0'))
+                # retrieve also qdos_sx,y,z files if written out
+                add_files.append((self._QDOS_SX%(iatom+1)).replace(' ','0'))
+                add_files.append((self._QDOS_SY%(iatom+1)).replace(' ','0'))
+                add_files.append((self._QDOS_SZ%(iatom+1)).replace(' ','0'))
             calcinfo.retrieve_list += add_files
 
         # 4. Jij calculation

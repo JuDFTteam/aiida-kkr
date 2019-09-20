@@ -16,7 +16,7 @@ from masci_tools.io.common_functions import search_string
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 __contributors__ = ("Jens Broeder", u"Philipp Rüßmann")
 
 
@@ -135,7 +135,7 @@ class KkrParser(Parser):
             txt = file.readlines()
             itmp = search_string('RUNOPT', txt)
             if itmp>=0:
-                runopts = [i.strip() for i in txt[itmp+1].split()]
+                runopts = txt[itmp+1]
                 if 'qdos' in runopts:
                     skip_mode = True
 
