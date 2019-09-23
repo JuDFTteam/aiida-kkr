@@ -6,12 +6,14 @@ within workfunctions) are collected.
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
+from __future__ import unicode_literals
 from aiida.common.exceptions import InputValidationError
 from aiida.engine import calcfunction
 from aiida.plugins import DataFactory
 from masci_tools.io.kkr_params import kkrparams
 from masci_tools.io.common_functions import open_general
 from six.moves import range
+from builtins import str
 
 #define aiida structures from DataFactory of aiida
 Dict = DataFactory('dict')
@@ -954,7 +956,9 @@ def kick_out_corestates(potfile, potfile_out, emin):
         if num_deleted>0:
             # write output potential
             with open_general(potfile_out, u'w') as f2:
-                txt_new = list(array(txt)[all_lines])
+                txt_new = []
+                for iline in all_lines:
+                    txt_new.append(str(txt[iline]))
                 f2.writelines(txt_new)
 
         # return number of lines that were deleted
@@ -978,9 +982,10 @@ def kick_out_corestates_wf(potential_sfd, emin):
         with tmpdir.open('potential_deleted_core_states', 'w') as potfile_out: 
             with potential_sfd.open(potential_sfd.filename) as potfile_in:
                 num_deleted = kick_out_corestates(potfile_in, potfile_out, emin)
-                if num_deleted>0:
-                    potential_nocore_sfd = SingleFileData(file=potfile_out)
-                    potential_nocore_sfd.store()
+        # store new potential as single file data object
+        if num_deleted>0:
+            with tmpdir.open('potential_deleted_core_states') as potfile_out:
+                potential_nocore_sfd = SingleFileData(file=potfile_out)
 
     # return potential
     if num_deleted>0:
