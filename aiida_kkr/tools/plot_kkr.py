@@ -483,19 +483,13 @@ class plot_kkr(object):
         ptitle = ''
 
         if node.process_state == ProcessState.FINISHED:
-            o = node.outputs.output_parameters.get_dict()
-            neutr = o['convergence_group'][u'charge_neutrality_all_iterations']
-            efermi = o['convergence_group'][u'fermi_energy_all_iterations']
-            etot = o['convergence_group'][u'total_energy_Ry_all_iterations']
-            rms = o['convergence_group'][u'rms_all_iterations']
-            ptitle = 'Time per iteration: ' + str(o['timings_group'].get('Time in Iteration')) + ' s'
-            """
-            pk = o.get('last_calc_nodeinfo').get('pk')
-            c = load_node(pk)
-            m = c.outputs.output_parameters.get_dict().get('convergence_group').get('total_spin_moment_all_iterations')
-
-            figure(); subplot(1,2,1); plot(rms_all); twinx(); plot(neutr_all,'r'); subplot(1,2,2); plot(m)
-            """
+            if node.is_finished_ok:
+                o = node.outputs.output_parameters.get_dict()
+                neutr = o['convergence_group'][u'charge_neutrality_all_iterations']
+                efermi = o['convergence_group'][u'fermi_energy_all_iterations']
+                etot = o['convergence_group'][u'total_energy_Ry_all_iterations']
+                rms = o['convergence_group'][u'rms_all_iterations']
+                ptitle = 'Time per iteration: ' + str(o['timings_group'].get('Time in Iteration')) + ' s'
         elif node.process_state in [ProcessState.WAITING, ProcessState.FINISHED, ProcessState.RUNNING]:
             # extract info needed to open transport
             c = node.inputs.code
@@ -932,11 +926,11 @@ class plot_kkr(object):
                 subplot(subplots[0], subplots[1], subplots[2])
             self.rmsplot(rms, neutr, True, ptitle, logscale, only, label=label)
             if only == 'rms' and rms_goal is not None: axhline(rms_goal, color='grey', ls='--')
-            tmpsum = 0
+            tmpsum = 1
             if not nofig and len(niter_calcs)>1:
                 for i in niter_calcs:
                     tmpsum+=i
-                    axvline(tmpsum, color='k', ls=':')
+                    axvline(tmpsum-1, color='k', ls=':')
             did_plot = True
         else:
             did_plot = False
