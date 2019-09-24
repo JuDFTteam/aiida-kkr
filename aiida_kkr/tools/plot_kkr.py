@@ -502,39 +502,45 @@ class plot_kkr(object):
             # now get contents of out_kkr using remote call of 'cat'
             with SandboxFolder() as tempfolder:
                 with tempfolder.open('tempfile', 'w') as f:
-                    node.outputs.remote_folder.getfile('out_kkr', f.name)
-                with tempfolder.open('tempfile', 'r') as f:
-                    out_kkr = f.readlines()
+                    try:
+                        node.outputs.remote_folder.getfile('out_kkr', f.name)
+                        has_outfile = True
+                    except IOError:
+                        has_outfile = False
+                if has_outfile:
+                    with tempfolder.open('tempfile', 'r') as f:
+                        out_kkr = f.readlines()
 
             # now extract rms, charge neutrality, total energy and value of Fermi energy
-            itmp = 0
-            while itmp>=0:
-                itmp = search_string('rms', out_kkr)
-                if itmp>=0:
-                    tmpline = out_kkr.pop(itmp)
-                    tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
-                    rms.append(tmpval)
-            itmp = 0
-            while itmp>=0:
-                itmp = search_string('charge neutrality', out_kkr)
-                if itmp>=0:
-                    tmpline = out_kkr.pop(itmp)
-                    tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
-                    neutr.append(tmpval)
-            itmp = 0
-            while itmp>=0:
-                itmp = search_string('TOTAL ENERGY in ryd', out_kkr)
-                if itmp>=0:
-                    tmpline = out_kkr.pop(itmp)
-                    tmpval = float(tmpline.split(':')[1].split()[0].replace('D', 'e'))
-                    etot.append(tmpval)
-            itmp = 0
-            while itmp>=0:
-                itmp = search_string('E FERMI', out_kkr)
-                if itmp>=0:
-                    tmpline = out_kkr.pop(itmp)
-                    tmpval = float(tmpline.split('FERMI')[1].split()[0].replace('D', 'e'))
-                    efermi.append(tmpval)
+            if has_outfile:
+                itmp = 0
+                while itmp>=0:
+                    itmp = search_string('rms', out_kkr)
+                    if itmp>=0:
+                        tmpline = out_kkr.pop(itmp)
+                        tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
+                        rms.append(tmpval)
+                itmp = 0
+                while itmp>=0:
+                    itmp = search_string('charge neutrality', out_kkr)
+                    if itmp>=0:
+                        tmpline = out_kkr.pop(itmp)
+                        tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
+                        neutr.append(tmpval)
+                itmp = 0
+                while itmp>=0:
+                    itmp = search_string('TOTAL ENERGY in ryd', out_kkr)
+                    if itmp>=0:
+                        tmpline = out_kkr.pop(itmp)
+                        tmpval = float(tmpline.split(':')[1].split()[0].replace('D', 'e'))
+                        etot.append(tmpval)
+                itmp = 0
+                while itmp>=0:
+                    itmp = search_string('E FERMI', out_kkr)
+                    if itmp>=0:
+                        tmpline = out_kkr.pop(itmp)
+                        tmpval = float(tmpline.split('FERMI')[1].split()[0].replace('D', 'e'))
+                        efermi.append(tmpval)
         else:
             print('no rms extracted', node.process_state)
 
