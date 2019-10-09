@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.5"
+__version__ = "0.6.6"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -580,7 +580,7 @@ class kkr_imp_wc(WorkChain):
             else:
                 outputnode_dict['used_subworkflows'] = {'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}
             if self.ctx.create_startpot:
-                outputnode_dict['auxiliary_voronoi'] = self.ctx.last_voro_calc.pk, 
+                outputnode_dict['used_subworkflows']['auxiliary_voronoi'] = self.ctx.last_voro_calc.pk 
                 res_voro_info = self.ctx.last_voro_calc.outputs.results_vorostart_wc
                 outputnode_dict['voro_wc_success'] = res_voro_info.get_dict().get('successful')
             outputnode_dict['converged'] = last_calc_info.get_dict().get('convergence_reached')

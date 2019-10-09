@@ -76,7 +76,7 @@ else
 
   if [[ ! -z "$RUN_VORONOI" ]]; then
     echo "run vorostart workflow test"
-    pytest -sv --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_vorostart_workflow $addopt
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_vorostart_workflow $addopt
   else
     echo "skipping vorostart workflow test"
   fi
@@ -85,7 +85,7 @@ else
 
   if [[ ! -z "$RUN_KKRHOST" ]]; then
     echo "run kkr_dos workflow test"
-    pytest -sv --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_dos_workflow $addopt
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_dos_workflow $addopt
   else
     echo "skipping kkr_dos workflow test"
   fi
