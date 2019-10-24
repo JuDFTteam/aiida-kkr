@@ -29,7 +29,7 @@ classifiers = ["Development Status :: 4 - Beta",
 [tool.poetry.dependencies]
 aiida-core = "^1.0.0b5"
 python = "^2.7"
-masci-tools = "^0.3.9-dev"
+masci-tools = "^0.3.10"
 seekpath = "*"
 pgtest = "*"
 pytest-cov = "^2.5.0"

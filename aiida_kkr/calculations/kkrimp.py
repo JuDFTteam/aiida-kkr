@@ -31,7 +31,7 @@ SinglefileData = DataFactory('singlefile')
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.3"
+__version__ = "0.5.0"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -166,19 +166,20 @@ class KkrimpCalculation(CalcJob):
         allopts = self.get_run_test_opts(parameters)
 
         # retrieve l(m)dos files
-        retrieve_list = self.add_lmdos_files_to_retrieve(allopts, retrieve_list)
+        retrieve_list = self.add_lmdos_files_to_retrieve(tempfolder, allopts, retrieve_list)
 
         # change retrieve list for Chebychev solver
-        retrieve_list = self.adapt_retrieve_tmatnew(allopts, retrieve_list)
+        retrieve_list = self.adapt_retrieve_tmatnew(tempfolder, allopts, retrieve_list)
 
-        # 
-        remote_copy_list = []
+        # change local and remote copy list if GF is found on remote machine
+        remote_symlink_list, local_copy_list = self.get_remote_symlink(local_copy_list)
 
         # Prepare CalcInfo to be returned to aiida (e.g. retreive_list etc.)
         calcinfo = CalcInfo()
         calcinfo.uuid = self.uuid
         calcinfo.local_copy_list = local_copy_list
-        calcinfo.remote_copy_list = remote_copy_list
+        calcinfo.remote_copy_list = []
+        calcinfo.remote_symlink_list = remote_symlink_list
         calcinfo.retrieve_list = retrieve_list
 
         codeinfo = CodeInfo()
@@ -613,7 +614,7 @@ class KkrimpCalculation(CalcJob):
         return allopts
 
 
-    def add_lmdos_files_to_retrieve(self, allopts, retrieve_list):
+    def add_lmdos_files_to_retrieve(self, tempfolder, allopts, retrieve_list):
         """Add DOS files to retrieve list"""
 
         if 'lmdos' in allopts or 'ldos' in allopts:
@@ -646,7 +647,7 @@ class KkrimpCalculation(CalcJob):
         return retrieve_list
 
 
-    def adapt_retrieve_tmatnew(self, allopts, retrieve_list):
+    def adapt_retrieve_tmatnew(self, tempfolder, allopts, retrieve_list):
         """Add out_magneticmoments and orbitalmoments files to retrieve list"""
 
         # extract NSPIN value
@@ -672,3 +673,41 @@ class KkrimpCalculation(CalcJob):
                 retrieve_list.append(self._OUT_ORBITALMOMENTS)
 
         return retrieve_list
+
+
+    def get_remote_symlink(self, local_copy_list):
+        """Check if host GF is found on remote machine and reuse from there"""
+        remote_symlink_list = []
+
+        # extract remote computer information
+        code = self.inputs.code
+        comp = code.computer
+        workdir = comp.get_workdir()
+        GFpath_remote = os.path.join(workdir, self._DIRNAME_GF_UPLOAD)
+
+        # extract GF information from retrieved folder of host GF calc
+        GF_local_copy_info = [i for i in local_copy_list if i[1]==self._KKRFLEX_GREEN][0]
+        TM_local_copy_info = [i for i in local_copy_list if i[1]==self._KKRFLEX_TMAT][0]
+
+        # open transport to remote computer
+        with comp.get_transport() as connection:
+            # do this for GMAT
+            uuid_GF = GF_local_copy_info[0]
+            GF_remote_path = os.path.join(GFpath_remote, uuid_GF, GF_local_copy_info[1])
+            # check if file exists on remote
+            if connection.isfile(GF_remote_path):
+                # remove GF from local copy list and add to remote symlink list
+                local_copy_list.remove(GF_local_copy_info)
+                remote_symlink_list.append((comp.uuid, GF_remote_path, filename))
+
+            # do the same for TMAT
+            uuid_TM = TM_local_copy_info[0]
+            TM_remote_path = os.path.join(GFpath_remote, uuid_TM, TM_local_copy_info[1])
+            # check if file exists on remote
+            if connection.isfile(TM_remote_path):
+                # remove TMAT from local copy list and add to remote symlink list
+                local_copy_list.remove(TM_local_copy_info)
+                remote_symlink_list.append((comp.uuid, TM_remote_path, filename))
+
+        # now return updated remote_symlink and local_copy lists
+        return remote_symlink_list, local_copy_list
