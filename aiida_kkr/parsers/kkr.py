@@ -16,7 +16,7 @@ from masci_tools.io.common_functions import search_string
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 __contributors__ = ("Jens Broeder", u"Philipp Rüßmann")
 
 
@@ -72,6 +72,19 @@ class KkrParser(Parser):
                 self.logger.error(msg)
                 return self.exit_codes.ERROR_NO_OUTPUT_FILE
 
+        # determine whether or not everything should be parsed or not (e.g. qdos option)
+        skip_mode = False
+        only_000_present = False
+        with out_folder.open(KkrCalculation._INPUT_FILE_NAME) as file:
+            txt = file.readlines()
+            itmp = search_string('RUNOPT', txt)
+            if itmp>=0:
+                runopts = txt[itmp+1]
+                if 'qdos' in runopts:
+                    skip_mode = True
+                if 'KKRFLEX' in runopts:
+                    only_000_present = True
+
         # now collect the rest of the files
         file_errors = []
 
@@ -103,8 +116,11 @@ class KkrParser(Parser):
         if fname in out_folder.list_object_names():
             outfile_2 = out_folder.open(fname)
         else:
-            file_errors.append((1+self.icrit, "Critical error! OUTPUT_2 not found {}".format(fname)))
-            outfile_2 = None
+            if not only_000_present:
+                file_errors.append((1+self.icrit, "Critical error! OUTPUT_2 not found {}".format(fname)))
+                outfile_2 = None
+            else:
+                outfile_2 = outfile_000
         fname = KkrCalculation._OUT_POTENTIAL
         if fname in out_folder.list_object_names():
             potfile_out = out_folder.open(fname)
@@ -128,16 +144,6 @@ class KkrParser(Parser):
                     'calculation_plugin_version': KkrCalculation._CALCULATION_PLUGIN_VERSION}
 
         #TODO job title, compound description
-
-        # determine wether or not everything is parsed or not (e.g. qdos option)
-        skip_mode = False
-        with out_folder.open(KkrCalculation._INPUT_FILE_NAME) as file:
-            txt = file.readlines()
-            itmp = search_string('RUNOPT', txt)
-            if itmp>=0:
-                runopts = txt[itmp+1]
-                if 'qdos' in runopts:
-                    skip_mode = True
 
         success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile,
                                                            outfile_0init, outfile_000,

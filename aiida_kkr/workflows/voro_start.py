@@ -24,7 +24,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.5"
+__version__ = "0.10.6"
 __contributors__ = u"Philipp Rüßmann"
 
 StructureData = DataFactory('structure')
@@ -58,7 +58,8 @@ class kkr_startpot_wc(WorkChain):
                    'delta_e_min' : 1., # eV                  # minimal distance in DOS contour to emin and emax in eV
                    'threshold_dos_zero' : 10**-2, #states/eV #
                    'check_dos': False,                       # logical to determine if DOS is computed and checked
-                   'delta_e_min_core_states' : 0.2 # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
+                   'delta_e_min_core_states': 0.2, # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
+                   'ef_set': None                            # set Fermi level of starting potential to this value
                    }
     _options_default = {'queue_name' : '',                        # Queue name to submit jobs to
                         'resources': {"num_machines": 1},         # resources to allowcate for the job
@@ -211,6 +212,9 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.threshold_dos_zero = wf_dict.get('threshold_dos_zero', self._wf_default['threshold_dos_zero'])
         self.ctx.min_dist_core_states = wf_dict.get('delta_e_min_core_states', self._wf_default['delta_e_min_core_states'])
 
+        # set Fermi level with input value
+        self.ctx.ef_set = wf_dict.get('ef_set', self._wf_default['ef_set'])
+
         #TODO add missing info
         # print the inputs
         self.report('INFO: use the following parameter:\n'
@@ -344,6 +348,10 @@ class kkr_startpot_wc(WorkChain):
               self.report("INFO: setting {} to default value {}".format(key, value))
               kkr_para.set_value(key, value)
 
+        # check if Fermi lavel should be set with input value
+        if self.ctx.ef_set is not None:
+            update_list.append('ef_set')
+
         # check if emin should be changed:
         skip_voro = False
         if self.ctx.iter > 1:
@@ -373,6 +381,9 @@ class kkr_startpot_wc(WorkChain):
             if 'GMAX' in update_list:
                 kkr_para.set_value('GMAX', gmax_input)
                 self.report("INFO: setting GMAX to {} (needed for DOS check with KKRcode)".format(gmax_input))
+            if 'ef_set' in update_list:
+                kkr_para.set_value('EFSET', self.ctx.ef_set)
+                self.report("INFO: setting Fermi level of stating potential to {}".format(self.ctx.ef_set))
 
             updatenode = Dict(dict=kkr_para.get_dict())
             updatenode.description = 'changed values: {}'.format(update_list)

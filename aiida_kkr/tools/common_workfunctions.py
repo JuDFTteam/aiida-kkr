@@ -76,6 +76,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
     :example usage: OutputNode = KkrCalculation.update_params(InputNode, EMIN=-1, NSTEPS=30)
 
     :note: Keys are set as in kkrparams class. Check documentation of kkrparams for further information.
+    :note: If kwargs contain the key `add_direct`, then no kkrparams instance is used and no checks are performed but the dictionary is filled directly!
     :note: By default nodename is 'updated KKR parameters' and description contains list of changed
     """
     # check if node is a valid KKR parameters node
@@ -83,22 +84,33 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
         print('Input node is not a valid Dict node')
         raise InputValidationError('update_params needs valid parameter node as input')
 
+    # check if add_direct is in kwargs (shortcuts checks of kkrparams by not using the kkrparams class to set the dict)
+    add_direct = False
+    if 'add_direct' in kwargs.keys(): add_direct = kwargs.pop('add_direct')
+
     #initialize temporary kkrparams instance containing all possible KKR parameters
-    params = kkrparams()
+    if not add_direct:
+        params = kkrparams()
+    else:
+        params = {}
 
     # extract input dict from node
     inp_params = node.get_dict()
 
     # check if input dict contains only values for KKR parameters
-    for key in inp_params:
-        if key not in list(params.values.keys()) and key not in _ignored_keys:
-            print('Input node contains unvalid key "{}"'.format(key))
-            raise InputValidationError('unvalid key "{}" in input parameter node'.format(key))
+    if not add_direct:
+        for key in inp_params:
+            if key not in list(params.values.keys()) and key not in _ignored_keys:
+                print('Input node contains unvalid key "{}"'.format(key))
+                raise InputValidationError('unvalid key "{}" in input parameter node'.format(key))
 
     # copy values from input node
     for key in inp_params:
         value = inp_params[key]
-        params.set_value(key, value, silent=True)
+        if not add_direct:
+            params.set_value(key, value, silent=True)
+        else:
+            params[key] = value
 
     # to keep track of changed values:
     changed_params = {}
@@ -117,7 +129,10 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
             else:
                 update_value = True
             if update_value:
-                params.set_value(key, kwargs[key], silent=True)
+                if not add_direct:
+                    params.set_value(key, kwargs[key], silent=True)
+                else:
+                    params[key] = kwargs[key]
                 changed_params[key] = kwargs[key]
 
     if len(list(changed_params.keys()))==0:
@@ -132,7 +147,10 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
 
 
     # create new node
-    ParaNode = Dict(dict=params.values)
+    if not add_direct:
+        ParaNode = Dict(dict=params.values)
+    else:
+        ParaNode = Dict(dict=params)
     ParaNode.label = nodename
     ParaNode.description = nodedesc
 
@@ -943,7 +961,7 @@ def kick_out_corestates(potfile, potfile_out, emin):
                 if len(m[0])>0:
                     istart = istarts[ipot]
                     # change number of core states in potential
-                    print(txt[istart+6])
+                    #print(txt[istart+6])
                     txt[istart+6] = '%i 1\n'%(nstates[ipot]-len(m[0]))
                     # now remove energy line accordingly
                     for ie_out in m[0][::-1]:

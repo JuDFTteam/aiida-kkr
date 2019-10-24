@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.6"
+__version__ = "0.6.7"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -408,6 +408,14 @@ class kkr_imp_wc(WorkChain):
         prev_kkrparams = converged_host_remote.get_incoming(link_label_filter='remote_folder').first().node.get_incoming(link_label_filter='parameters').first().node
         calc_params = prev_kkrparams
 
+        # set Fermi level for auxiliary impurity potential correctly (extract from EF that is used in impurity calc)
+        set_efermi = self.get_ef_from_parent()
+        self.report('INFO: set Fermi level in jellium starting potential to {}'.format(set_efermi))
+        # change voronoi parameters
+        updatenode = Dict(dict={'ef_set': set_efermi, 'add_direct': True})
+        updatenode.label = 'Added Fermi energy'
+        voro_params = update_params_wf(voro_params, updatenode)
+
         # add or overwrite some parameters (e.g. things that are only used by voronoi)
         calc_params_dict = calc_params.get_dict()
         # add some voronoi specific parameters automatically if found (RMTREF should also set RMTCORE to the same value)
@@ -457,6 +465,28 @@ class kkr_imp_wc(WorkChain):
         self.report('INFO: running voro aux (Zimp= {}, pid: {})'.format(imp_info.get_dict().get('Zimp'), future.pk))
 
         return ToContext(last_voro_calc=future)
+
+
+    def get_ef_from_parent(self):
+        """
+        Extract Fermi level in Ry to which starting potential is set
+        """
+        # first choose calculation to start from (3 possibilities)
+        if self.ctx.do_gf_calc:
+            parent_remote = self.inputs.remote_data_host
+        elif 'remote_data_gf_Efshift' in self.inputs:
+            parent_remote = load_node(self.inputs.remote_data_gf_Efshift.pk)
+        else:
+            parent_remote = load_node(self.inputs.remote_data_gf.pk)
+        
+        # now extract output parameters
+        parent_calc = parent_remote.get_incoming(link_label_filter='remote_folder').first().node
+        output_params = parent_calc.outputs.output_parameters.get_dict()
+
+        # get fermi energy in Ry from output of KkrCalculation and return result
+        set_efermi = output_params.get('fermi_energy')
+
+        return set_efermi
 
 
     def construct_startpot(self):

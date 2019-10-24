@@ -31,7 +31,7 @@ SinglefileData = DataFactory('singlefile')
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -95,6 +95,7 @@ class KkrimpCalculation(CalcJob):
 
     # name of tarfile which is created by parser after successful parsing (to reduce amount of data stored in repo)
     _FILENAME_TAR = 'output_all.tar.gz'
+    _DIRNAME_GF_UPLOAD = 'kkrflex_green_upload'
 
     @classmethod
     def define(cls,spec):
@@ -161,61 +162,23 @@ class KkrimpCalculation(CalcJob):
                          self._OUT_POTENTIAL, self._OUTPUT_000, self._OUT_TIMING_000,
                          self._OUT_ENERGYSP_PER_ATOM, self._OUT_ENERGYTOT_PER_ATOM]
 
+        # extract run and test options (these change retrieve list in some cases)
+        allopts = self.get_run_test_opts(parameters)
+
         # retrieve l(m)dos files
-        runopts = parameters.get_dict().get('RUNFLAG')
-        if runopts is None:
-            runopts = []
-        testopts = parameters.get_dict().get('TESTFLAG')
-        if testopts is None:
-            testopts = []
-        allopts = runopts+testopts
-        if 'lmdos' in allopts or 'ldos' in allopts:
-            with tempfolder.open(self._CONFIG) as file:
-                config = file.readlines()
-            itmp = search_string('NSPIN', config)
-            if itmp>=0:
-                nspin = int(config[itmp].split()[-1])
-            else:
-                raise ValueError("Could not extract NSPIN value from config.cfg")
-            with tempfolder.open(self._KKRFLEX_ATOMINFO) as file:
-                atominfo = file.readlines()
-            itmp = search_string('NATOM', atominfo)
-            if itmp>=0:
-                natom = int(atominfo[itmp+1].split()[0])
-            else:
-                raise ValueError("Could not extract NATOM value from kkrflex_atominfo")
-            for iatom in range(1,natom+1):
-                for ispin in range(1,nspin+1):
-                    retrieve_list.append((self._OUT_LDOS_BASE%(iatom, ispin)).replace(' ', '0'))
-                    retrieve_list.append((self._OUT_LDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
-                    retrieve_list.append((self._OUT_LMDOS_BASE%(iatom, ispin)).replace(' ', '0'))
-                    retrieve_list.append((self._OUT_LMDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
+        retrieve_list = self.add_lmdos_files_to_retrieve(allopts, retrieve_list)
 
-        with tempfolder.open(self._CONFIG) as file:
-            config = file.readlines()
-        itmp = search_string('NSPIN', config)
-        if itmp>=0:
-            nspin = int(config[itmp].split()[-1])
-        else:
-            raise ValueError("Could not extract NSPIN value from config.cfg")
-        if 'tmatnew' in allopts and nspin>1:
-            retrieve_list.append(self._OUT_MAGNETICMOMENTS)
-            with tempfolder.open(self._CONFIG) as file:
-                outorb = file.readlines()
-            itmp = search_string('CALCORBITALMOMENT', outorb)
-            if itmp>=0:
-                calcorb = int(outorb[itmp].split()[-1])
-            else:
-                calcorb = 0
-            if calcorb==1:
-                retrieve_list.append(self._OUT_ORBITALMOMENTS)
+        # change retrieve list for Chebychev solver
+        retrieve_list = self.adapt_retrieve_tmatnew(allopts, retrieve_list)
 
+        # 
+        remote_copy_list = []
 
         # Prepare CalcInfo to be returned to aiida (e.g. retreive_list etc.)
         calcinfo = CalcInfo()
         calcinfo.uuid = self.uuid
         calcinfo.local_copy_list = local_copy_list
-        calcinfo.remote_copy_list = []
+        calcinfo.remote_copy_list = remote_copy_list
         calcinfo.retrieve_list = retrieve_list
 
         codeinfo = CodeInfo()
@@ -636,3 +599,76 @@ class KkrimpCalculation(CalcJob):
 
         if not param_ok:
             raise ValueError('Trying to set key "{}" with value "{}" which is in conflict to previous settings!'.format(key, val))
+
+
+    def get_run_test_opts(self, parameters):
+        """Extract run and test options from input parameters"""
+        runopts = parameters.get_dict().get('RUNFLAG')
+        if runopts is None:
+            runopts = []
+        testopts = parameters.get_dict().get('TESTFLAG')
+        if testopts is None:
+            testopts = []
+        allopts = runopts+testopts
+        return allopts
+
+
+    def add_lmdos_files_to_retrieve(self, allopts, retrieve_list):
+        """Add DOS files to retrieve list"""
+
+        if 'lmdos' in allopts or 'ldos' in allopts:
+            # extract NSPIN
+            with tempfolder.open(self._CONFIG) as file:
+                config = file.readlines()
+            itmp = search_string('NSPIN', config)
+            if itmp>=0:
+                nspin = int(config[itmp].split()[-1])
+            else:
+                raise ValueError("Could not extract NSPIN value from config.cfg")
+            
+            # extract NATOM from atominfo file
+            with tempfolder.open(self._KKRFLEX_ATOMINFO) as file:
+                atominfo = file.readlines()
+            itmp = search_string('NATOM', atominfo)
+            if itmp>=0:
+                natom = int(atominfo[itmp+1].split()[0])
+            else:
+                raise ValueError("Could not extract NATOM value from kkrflex_atominfo")
+
+            # loop over atoms and spins to add DOS output files accordingly
+            for iatom in range(1,natom+1):
+                for ispin in range(1,nspin+1):
+                    retrieve_list.append((self._OUT_LDOS_BASE%(iatom, ispin)).replace(' ', '0'))
+                    retrieve_list.append((self._OUT_LDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
+                    retrieve_list.append((self._OUT_LMDOS_BASE%(iatom, ispin)).replace(' ', '0'))
+                    retrieve_list.append((self._OUT_LMDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
+
+        return retrieve_list
+
+
+    def adapt_retrieve_tmatnew(self, allopts, retrieve_list):
+        """Add out_magneticmoments and orbitalmoments files to retrieve list"""
+
+        # extract NSPIN value
+        with tempfolder.open(self._CONFIG) as file:
+            config = file.readlines()
+        itmp = search_string('NSPIN', config)
+        if itmp>=0:
+            nspin = int(config[itmp].split()[-1])
+        else:
+            raise ValueError("Could not extract NSPIN value from config.cfg")
+
+        # change retrieve list
+        if 'tmatnew' in allopts and nspin>1:
+            retrieve_list.append(self._OUT_MAGNETICMOMENTS)
+            with tempfolder.open(self._CONFIG) as file:
+                outorb = file.readlines()
+            itmp = search_string('CALCORBITALMOMENT', outorb)
+            if itmp>=0:
+                calcorb = int(outorb[itmp].split()[-1])
+            else:
+                calcorb = 0
+            if calcorb==1:
+                retrieve_list.append(self._OUT_ORBITALMOMENTS)
+
+        return retrieve_list
