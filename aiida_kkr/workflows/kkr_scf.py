@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.8"
+__version__ = "0.9.11"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -45,6 +45,7 @@ RemoteData = DataFactory('remote')
 StructureData = DataFactory('structure')
 Dict = DataFactory('dict')
 XyData = DataFactory('array.xy')
+SingleFileData = DataFactory('singlefile')
 
 class kkr_scf_wc(WorkChain):
     """
@@ -151,6 +152,7 @@ class kkr_scf_wc(WorkChain):
         spec.input("remote_data", valid_type=RemoteData, required=False)
         spec.input("voronoi", valid_type=Code, required=False)
         spec.input("kkr", valid_type=Code, required=True)
+        spec.input("startpot_overwrite", valid_type=SingleFileData, required=False)
 
         # define output nodes
         spec.output("output_kkr_scf_wc_ParameterResults", valid_type=Dict, required=True)
@@ -528,6 +530,8 @@ class kkr_scf_wc(WorkChain):
         builder.metadata.label = wf_label
         builder.metadata.description = wf_desc
         builder.options = self.ctx.options_params_dict
+        if 'startpot_overwrite' in self.inputs:
+            builder.startpot_overwrite = self.inputs.startpot_overwrite
         future = self.submit(builder)
 
         return ToContext(voronoi=future, last_calc=future)
@@ -637,7 +641,7 @@ class kkr_scf_wc(WorkChain):
                 self.report("INFO: last KKR did not converge. trying decreasing mixfac")
                 self.report("INFO: ctx.calcs: {} {}".format(self.ctx.calcs, type(self.ctx.calcs)))
                 # reset last_remote to last successful calculation
-                calclist = range(len(self.ctx.calcs))
+                calclist = list(range(len(self.ctx.calcs))) # needs to be list because `(x)range` does not support slicing
                 if len(calclist)>1: calclist = calclist[::-1] # go backwards through list
                 for icalc in calclist:
                     self.report("INFO: last calc success? {} {}".format(icalc, self.ctx.KKR_steps_stats['success'][icalc]))
@@ -716,7 +720,12 @@ class kkr_scf_wc(WorkChain):
                     self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
 
             # step 2: change parameter (contained in new_params dictionary)
-            last_mixing_scheme = para_check.get_value('IMIX')
+            if initial_settings and 'structure' in self.inputs:
+                # make sure to ignore IMIX from input node (start with simple mixing even if IMIX is set otherwise)
+                # this is enforced whenever voronoi step is starting point (otherwise you may want to continue a preconverged calculation)
+                last_mixing_scheme = None
+            else:
+                last_mixing_scheme = para_check.get_value('IMIX')
             if last_mixing_scheme is None:
                 last_mixing_scheme = 0
 

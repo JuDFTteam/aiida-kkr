@@ -22,7 +22,7 @@ from aiida.common.exceptions import InputValidationError
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 # ToDo: add more default values to wf_parameters
@@ -320,7 +320,8 @@ class kkr_flex_wc(WorkChain):
             elif self.ctx.ef_shift != 0:
                 # extract old Fermi energy in Ry
                 remote_data_parent = self.inputs.remote_data
-                ef_old = remote_data_parent.inputs.remote_folder.outputs.output_parameters.get_dict().get('fermi_energy')
+                parent_calc = remote_data_parent.get_incoming(link_label_filter='remote_folder').first().node
+                ef_old = parent_calc.outputs.output_parameters.get_dict().get('fermi_energy')
                 # get Fermi energy shift in eV
                 ef_shift = self.ctx.ef_shift #set new E_F in eV
                 # calculate new Fermi energy in Ry

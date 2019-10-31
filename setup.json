@@ -9,6 +9,11 @@
     "classifiers": [
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
         "Development Status :: 4 - Beta",
         "Environment :: Plugins",
         "Intended Audience :: Science/Research",
@@ -16,11 +21,11 @@
         "Natural Language :: English",
         "Framework :: AiiDA"
     ],
-    "version": "1.1.8",
+    "version": "1.1.9",
     "reentry_register": true,
     "install_requires": [
-        "aiida-core >= 1.0.0b5,<2.0.0",
-        "masci-tools >= 0.3.8",
+        "aiida-core >= 1.0.0b6,<2.0.0",
+        "masci-tools >= 0.3.10",
         "seekpath >= 1.9.2",
         "pgtest >= 1.3.0",
         "pytest-cov >= 2.5.0",

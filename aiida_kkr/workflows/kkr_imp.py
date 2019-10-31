@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.1"
+__version__ = "0.6.7"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -107,6 +107,8 @@ class kkr_imp_wc(WorkChain):
                    help="RemoteData node of the converged host calculation. Used to write out the host Green function.")
         spec.input("remote_data_gf", valid_type=RemoteData, required=False,
                    help="RemoteData node of precomputed host Green function.")
+        spec.input("remote_data_gf_Efshift", valid_type=RemoteData, required=False,
+                   help="RemoteData node of precomputed host Green function with Fermi level shift (overwrite kkrflex_green and tmat files from first remote_data_gf node.")
         spec.input("options", valid_type=Dict, required=False,
                    help="Options for running the codes (walltime etc.).")
         spec.input("options_voronoi", valid_type=Dict, required=False,
@@ -119,6 +121,8 @@ class kkr_imp_wc(WorkChain):
                    help="If given, overwrite the some parameters used as input for auxiliary voronoi calculation of starting potential.")
         spec.input("params_kkr_overwrite", valid_type=Dict, required=False,
                    help="Set some input parameters of the KKR calculation.")
+        spec.input("startpot", valid_type=SinglefileData, required=False,
+                   help="Set starting potential (e.g. from preconverged calculation")
 
 
         # structure of the workflow
@@ -126,8 +130,9 @@ class kkr_imp_wc(WorkChain):
             cls.start,                                                          # initialize workflow
             if_(cls.validate_input)(                                            # validate the input (if true, run_gf_writeout, else skip)
                 cls.run_gf_writeout),                                           # write out the host GF
-            cls.run_voroaux,                                                    # calculate the auxiliary impurity potentials
-            cls.construct_startpot,                                             # construct the host-impurity startpotential
+            if_(cls.has_starting_potential_input)(                              # check if strarting potential exists in input already (otherwise create it)
+                cls.run_voroaux,                                                  # calculate the auxiliary impurity potentials
+                cls.construct_startpot),                                          # construct the host-impurity startpotential
             cls.run_kkrimp_scf,                                                 # run the kkrimp_sub workflow to converge the host-imp startpot
             cls.return_results)                                                 # check if the calculation was successful and return the result nodes
 
@@ -314,6 +319,10 @@ class kkr_imp_wc(WorkChain):
                         'Skip GF writeout step and start workflow by auxiliary voronoi calculations.'
                         .format(inputs.remote_data_gf.pk, pk_kkrflex_writeoutcalc))
             do_gf_calc = False
+            # check if second remote_data_gf node is given (used to overwrite Fermi level)
+            if 'remote_data_gf_Efshift' in inputs:
+                self.report('INFO: found remote_data_gf_Efshift (pid: {}) used to overwrite Fermi level.'
+                            .format(inputs.remote_data_gf_Efshift.pk))
         else:
             inputs_ok = False
             self.report(self.exit_codes.ERROR_MISSING_REMOTE)
@@ -358,6 +367,21 @@ class kkr_imp_wc(WorkChain):
         return ToContext(gf_writeout=future, last_calc_gf=future)
 
 
+    def has_starting_potential_input(self):
+        """
+        check whether or not a starting potential needs to be created
+        """
+        # initialize
+        self.ctx.create_startpot = True
+
+        # check if startpot exists in input
+        # TODO maybe implement some consistency checks
+        if 'startpot' in self.inputs:
+            self.ctx.startpot_kkrimp = self.inputs.startpot
+            self.ctx.create_startpot = False
+
+        return self.ctx.create_startpot
+
 
     def run_voroaux(self):
         """
@@ -384,8 +408,21 @@ class kkr_imp_wc(WorkChain):
         prev_kkrparams = converged_host_remote.get_incoming(link_label_filter='remote_folder').first().node.get_incoming(link_label_filter='parameters').first().node
         calc_params = prev_kkrparams
 
+        # set Fermi level for auxiliary impurity potential correctly (extract from EF that is used in impurity calc)
+        set_efermi = self.get_ef_from_parent()
+        self.report('INFO: set Fermi level in jellium starting potential to {}'.format(set_efermi))
+        # change voronoi parameters
+        updatenode = Dict(dict={'ef_set': set_efermi, 'add_direct': True})
+        updatenode.label = 'Added Fermi energy'
+        voro_params = update_params_wf(voro_params, updatenode)
+
         # add or overwrite some parameters (e.g. things that are only used by voronoi)
         calc_params_dict = calc_params.get_dict()
+        # add some voronoi specific parameters automatically if found (RMTREF should also set RMTCORE to the same value)
+        if '<RMTREF>' in calc_params_dict.keys():
+            self.report('INFO: add rmtcore to voro params')
+            self.ctx.change_voro_params['<RMTCORE>'] = calc_params_dict['<RMTREF>']
+            self.report(self.ctx.change_voro_params)
         changed_params = False
         for key, val in self.ctx.change_voro_params.items():
             if key in ['RUNOPT', 'TESTOPT']:
@@ -396,7 +433,7 @@ class kkr_imp_wc(WorkChain):
             changed_params = True
         if changed_params:
             updatenode = Dict(dict=calc_params_dict)
-            updatenode.label = 'Changed params for voroaux: {}'.format(self.ctx.change_voro_params)
+            updatenode.label = 'Changed params for voroaux: {}'.format(self.ctx.change_voro_params.keys())
             updatenode.description = 'Overwritten voronoi input parameter from kkr_imp_wc input.'
             calc_params = update_params_wf(calc_params, updatenode)
 
@@ -430,6 +467,27 @@ class kkr_imp_wc(WorkChain):
         return ToContext(last_voro_calc=future)
 
 
+    def get_ef_from_parent(self):
+        """
+        Extract Fermi level in Ry to which starting potential is set
+        """
+        # first choose calculation to start from (3 possibilities)
+        if self.ctx.do_gf_calc:
+            parent_remote = self.inputs.remote_data_host
+        elif 'remote_data_gf_Efshift' in self.inputs:
+            parent_remote = load_node(self.inputs.remote_data_gf_Efshift.pk)
+        else:
+            parent_remote = load_node(self.inputs.remote_data_gf.pk)
+        
+        # now extract output parameters
+        parent_calc = parent_remote.get_incoming(link_label_filter='remote_folder').first().node
+        output_params = parent_calc.outputs.output_parameters.get_dict()
+
+        # get fermi energy in Ry from output of KkrCalculation and return result
+        set_efermi = output_params.get('fermi_energy')
+
+        return set_efermi
+
 
     def construct_startpot(self):
         """
@@ -457,7 +515,7 @@ class kkr_imp_wc(WorkChain):
         ilayer_cent = imp_info.get_dict().get('ilayer_center')
 
         # prepare settings dict
-        potname_converged = 'potential'
+        potname_converged = 'out_potential'
         potname_impvorostart = 'output.pot'
         potname_imp = 'potential_imp'
 
@@ -520,6 +578,8 @@ class kkr_imp_wc(WorkChain):
         builder.impurity_info=imp_info
         builder.host_imp_startpot=startpot
         builder.remote_data=gf_remote
+        if 'remote_data_gf_Efshift' in self.inputs:
+            builder.remote_data_Efshift = self.inputs.remote_data_gf_Efshift
         builder.wf_parameters=kkrimp_params
         future = self.submit(builder)
 
@@ -540,21 +600,23 @@ class kkr_imp_wc(WorkChain):
             last_calc_pk = self.ctx.kkrimp_scf_sub.outputs.workflow_info.get_dict().get('last_calc_nodeinfo')['pk']
             last_calc_output_params = load_node(last_calc_pk).outputs.output_parameters
             last_calc_info = self.ctx.kkrimp_scf_sub.outputs.workflow_info
-            res_voro_info = self.ctx.last_voro_calc.outputs.results_vorostart_wc
             outputnode_dict = {}
             outputnode_dict['workflow_name'] = self.__class__.__name__
             outputnode_dict['workflow_version'] = self._workflowversion
             if self.ctx.do_gf_calc:
-                outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk, 'auxiliary_voronoi': self.ctx.last_voro_calc.pk,
+                outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk,
                                                         'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}
                 outputnode_dict['gf_wc_success'] = self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('successful')
             else:
-                outputnode_dict['used_subworkflows'] = {'auxiliary_voronoi': self.ctx.last_voro_calc.pk, 'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}
+                outputnode_dict['used_subworkflows'] = {'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}
+            if self.ctx.create_startpot:
+                outputnode_dict['used_subworkflows']['auxiliary_voronoi'] = self.ctx.last_voro_calc.pk 
+                res_voro_info = self.ctx.last_voro_calc.outputs.results_vorostart_wc
+                outputnode_dict['voro_wc_success'] = res_voro_info.get_dict().get('successful')
             outputnode_dict['converged'] = last_calc_info.get_dict().get('convergence_reached')
             outputnode_dict['number_of_rms_steps'] = len(last_calc_info.get_dict().get('convergence_values_all_steps'))
             outputnode_dict['convergence_values_all_steps'] = last_calc_info.get_dict().get('convergence_values_all_steps')
             outputnode_dict['impurity_info'] = self.inputs.impurity_info.get_dict()
-            outputnode_dict['voro_wc_success'] = res_voro_info.get_dict().get('successful')
             outputnode_dict['kkrimp_wc_success'] = last_calc_info.get_dict().get('successful')
             outputnode_dict['last_calculation_uuid'] = load_node(last_calc_pk).uuid
             outputnode_t = Dict(dict=outputnode_dict)

@@ -20,7 +20,7 @@ import tarfile, os
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.0"
+__version__ = "0.7.4"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -116,6 +116,7 @@ class kkr_imp_sub_wc(WorkChain):
         spec.input("kkrimp", valid_type=Code, required=True)
         spec.input("host_imp_startpot", valid_type=SinglefileData, required=False)
         spec.input("remote_data", valid_type=RemoteData, required=False)
+        spec.input("remote_data_Efshift", valid_type=RemoteData, required=False)
         spec.input("kkrimp_remote", valid_type=RemoteData, required=False)
         spec.input("impurity_info", valid_type=Dict, required=False)
         spec.input("options", valid_type=Dict, required=False,
@@ -374,6 +375,7 @@ class kkr_imp_sub_wc(WorkChain):
 
         # check if previous calculation was successful
         if self.ctx.loop_count>1 and not self.ctx.last_calc.is_finished_ok:
+            self.report("ERROR: last calc not finished_ok")
             return self.exit_codes.ERROR_SUB_FAILURE
 
         # next check only needed if another iteration should be done after validating convergence etc. (previous checks)
@@ -418,29 +420,28 @@ class kkr_imp_sub_wc(WorkChain):
                 decrease_mixing_fac = True
                 self.report("INFO: Last KKR did not converge. Trying decreasing mixfac")
                 # reset last_remote to last successful calculation
-                last_calcs_list = range(len(self.ctx.calcs))
+                last_calcs_list = list(range(len(self.ctx.calcs))) # needs to be list to support slicing
                 if len(last_calcs_list)>1: last_calcs_list = array(last_calcs_list)[::-1] # make sure to go from latest calculation backwards
                 for icalc in last_calcs_list:
                     self.report("INFO: last calc success? {} {}".format(icalc, self.ctx.KKR_steps_stats['success'][icalc]))
                     if self.ctx.KKR_steps_stats['success'][icalc]:
                         if self.ctx.KKR_steps_stats['last_rms'][icalc] < self.ctx.KKR_steps_stats['first_rms'][icalc]:
                             self.ctx.last_remote = self.ctx.calcs[icalc].outputs.remote_folder
+                            break # exit loop if last_remote was found successfully
                         else:
                             self.ctx.last_remote = None
-                        break # exit loop if last_remote was found successfully
                     else:
                         self.ctx.last_remote = None
-                self.report("INFO: Last_remote is None? {} {}".format(self.ctx.last_remote is None, 'structure' in self.inputs))
+                # now cover case when last_remote needs to be set to initial remote folder (from input)
                 if self.ctx.last_remote is None:
                     if 'kkrimp_remote' in self.inputs:
-                        self.ctx.last_remote = self.inputs.kkrimp_remote
                         self.report('INFO: no successful and converging calculation to take RemoteData from. Reuse RemoteData from input instead.')
+                        self.ctx.last_remote = self.inputs.kkrimp_remote
                     elif 'impurity_info' in self.inputs or 'remote_data' in self.inputs:
                         self.ctx.last_remote = None
                 # check if last_remote has finally been set and abort if this is not the case
-                self.report("INFO: last_remote is still None? {}".format(self.ctx.last_remote is None))
-                self.report("INFO: restart next calculation run from initial inputs")
                 if self.ctx.last_remote is None:
+                    self.report("ERROR: last remote not found")
                     return self.exit_codes.ERROR_SETTING_LAST_REMOTE
 
             # check if mixing strategy should be changed
@@ -448,8 +449,6 @@ class kkr_imp_sub_wc(WorkChain):
             if last_mixing_scheme is None:
                 last_mixing_scheme = 0
 
-            # TODO: problem with convergence on track has to be solved, just set as true for testing
-            #convergence_on_track = True
             if convergence_on_track:
                 last_rms = self.ctx.last_rms_all[-1]
                 if last_rms < self.ctx.threshold_aggressive_mixing and last_mixing_scheme == 0:
@@ -505,6 +504,7 @@ class kkr_imp_sub_wc(WorkChain):
                         new_params[key_default] = kkrdefaults.get(key_default)
                         kkrdefaults_updated.append(key_default)
                 if len(kkrdefaults_updated)>0:
+                    self.report("ERROR: no default param found")
                     return self.exit_codes.ERROR_MISSING_PARAMS
                 else:
                     self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
@@ -625,6 +625,7 @@ class kkr_imp_sub_wc(WorkChain):
                 for key, val in new_params.items():
                     para_check.set_value(key, val, silent=True)
             except:
+                self.report("ERROR: failed to set some parameters")
                 return self.exit_codes.ERROR_PARAMETER_UPDATE
 
             # step 3:
@@ -660,6 +661,10 @@ class kkr_imp_sub_wc(WorkChain):
         host_GF = self.inputs.remote_data
         imp_pot = self.ctx.last_pot
         last_remote = self.ctx.last_remote
+        if 'remote_data_Efshift' in self.inputs:
+            host_GF_Efshift = self.inputs.remote_data_Efshift
+        else:
+            host_GF_Efshift = None
 
         options = {"max_wallclock_seconds": self.ctx.max_wallclock_seconds,
                    "resources": self.ctx.resources,
@@ -680,13 +685,13 @@ class kkr_imp_sub_wc(WorkChain):
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_dict().get('Zimp'))
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
-                                           not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, imp_pot=imp_pot)
+                                           not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, imp_pot=imp_pot, host_GF_Efshift=host_GF_Efshift)
             else:
                 self.report('INFO: getting impurity_info node from previous GF calculation')
                 label = 'KKRimp calculation step {} (IMIX={}, GF_remote: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, host_GF.pk)
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
-                                           not self.ctx.use_mpi, host_GF=host_GF, imp_pot=imp_pot)
+                                           not self.ctx.use_mpi, host_GF=host_GF, imp_pot=imp_pot, host_GF_Efshift=host_GF_Efshift)
         elif last_remote is not None:
             # fix to get Zimp properly
             if 'impurity_info' in self.inputs:
@@ -695,13 +700,13 @@ class kkr_imp_sub_wc(WorkChain):
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_dict().get('Zimp'))
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
-                                           not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, kkrimp_remote=last_remote)
+                                           not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, kkrimp_remote=last_remote, host_GF_Efshift=host_GF_Efshift)
             else:
                 self.report('INFO: using RemoteData from previous kkrimp calculation as input')
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, None)
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
-                                           not self.ctx.use_mpi, host_GF=host_GF, kkrimp_remote=last_remote)
+                                           not self.ctx.use_mpi, host_GF=host_GF, kkrimp_remote=last_remote, host_GF_Efshift=host_GF_Efshift)
 
         # run the KKR calculation
         self.report('INFO: doing calculation')
@@ -722,6 +727,7 @@ class kkr_imp_sub_wc(WorkChain):
         # check calculation state
         if not self.ctx.last_calc.is_finished_ok:
             self.ctx.kkrimp_step_success = False
+            self.report("ERROR: last calc not finished_ok")
             return self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED_OK
 
         self.report("INFO: kkrimp_step_success: {}".format(self.ctx.kkrimp_step_success))
@@ -746,6 +752,7 @@ class kkr_imp_sub_wc(WorkChain):
                 with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
                     self.ctx.last_pot = SinglefileData(file=pot_file)
         except:
+            self.report("ERROR: no output potential found")
             return self.exit_codes.ERROR_NO_OUTPUT_POT_FROM_LAST_CALC
 
         # extract convergence info about rms etc. (used to determine convergence behavior)

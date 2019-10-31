@@ -5,18 +5,22 @@ In this module you find the base workflow for a impurity DOS calculation and
 some helper methods to do so with AiiDA
 """
 from __future__ import print_function, absolute_import
-from aiida.orm import Code, load_node, CalcJobNode, Float, Int
+from aiida.orm import Code, load_node, CalcJobNode, Float, Int, Str
 from aiida.plugins import DataFactory
 from aiida.engine import if_, ToContext, WorkChain, calcfunction
 from aiida.common import LinkType
+from aiida.common.folders import SandboxFolder
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
 from aiida_kkr.workflows.dos import kkr_dos_wc
+from aiida_kkr.calculations import KkrimpCalculation
+import tarfile
+import os
 
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.5"
+__version__ = "0.5.6"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: improve workflow output node structure
@@ -431,16 +435,8 @@ class kkr_imp_dos_wc(WorkChain):
             outputnode_t.store()
             
             # interpol dos file and store to XyData nodes
-            dos_retrieved = last_calc.outputs.retrieved
-            if 'out_ldos.interpol.atom=01_spin1.dat' in dos_retrieved.list_object_names():
-                kkrflex_writeout = load_node(self.ctx.pk_flexcalc)
-                parent_calc_kkr_converged = kkrflex_writeout.inputs.parent_folder.get_incoming(node_class=CalcJobNode).first().node
-                ef = parent_calc_kkr_converged.outputs.output_parameters.get_dict().get('fermi_energy')
-                natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')
-                dosXyDatas = parse_impdosfiles(dos_retrieved, Int(natom), Int(self.ctx.nspin), Float(ef))
-                dos_extracted = True
-            else:
-                dos_extracted = False
+            dos_extracted, dosXyDatas = self.extract_dos_data(last_calc)
+
             if dos_extracted:
                 self.out('dos_data', dosXyDatas['dos_data'])
                 self.out('dos_data_interpol', dosXyDatas['dos_data_interpol'])
@@ -458,19 +454,119 @@ class kkr_imp_dos_wc(WorkChain):
                         '|-------------------------------------| Done with the KKR imp DOS workflow! |--------------------------------------|\n'
                         '|------------------------------------------------------------------------------------------------------------------|')
 
+    def extract_dos_data(self, last_calc):
+        """
+        Extract DOS data from retrieved folder of KKRimp calculation.
+        If output is compressed in tarfile take care of extracting this before parsing `out_ldos*` files.
+
+        The extraction of the DOS data is done in `self.extract_dos_data_from_folder()` calls.
+
+        returns:
+          :boolean dos_extracted: logical signalling if extraction of DOS files was successful
+          :dictionary dosXyDatas: dictionary containing dos data and interpolated dos data
+        """
+
+        # here we look for the dos files or the tarball containing the dos files:
+        dos_retrieved = last_calc.outputs.retrieved
+
+        if KkrimpCalculation._FILENAME_TAR in dos_retrieved.list_object_names():
+            # deal with packed output files (overwrites dos_retrieved with sandbox into which files are extracted
+            # this way the unpacked files are deleted after parsing and only the tarball is kept in the retrieved directory
+
+            # for this we create a Sandbox folder
+            with SandboxFolder() as tempfolder:
+                # get abs paths of tempfolder and tarfile (needed by extract method of tarfile)
+
+                # get abs path of tempfolder
+                with tempfolder.open('.dummy','w') as tmpfile:
+                    tempfolder_path = os.path.dirname(tmpfile.name)
+                # get path of tarfile
+                with dos_retrieved.open(KkrimpCalculation._FILENAME_TAR) as tf:
+                    tfpath = tf.name
+
+                # extract file from tarfile of retrieved to tempfolder
+                with tarfile.open(tfpath) as tf:
+                    tar_filenames = [ifile.name for ifile in tf.getmembers()]
+                    for filename in tar_filenames:
+                        if 'dos' in filename: # should extract all out_ldos*, out_lmdos* files
+                            tf.extract(filename, tempfolder_path) # extract to tempfolder
+
+                # now files are in tempfolder from where we can extract the dos data
+                dos_extracted, dosXyDatas = self.extract_dos_data_from_folder(tempfolder, last_calc)
+        else:
+            # extract directly from retrieved (no tarball there)
+            dos_extracted, dosXyDatas = self.extract_dos_data_from_folder(dos_retrieved, last_calc)
+
+        return dos_extracted, dosXyDatas
+
+
+    def extract_dos_data_from_folder(self, folder, last_calc):
+        """
+        Get DOS data and parse files.
+        """
+
+        # initialize in case dos data is not extracted
+        dosXyDatas = None
+
+        # get list of files in directory (needed since SandboxFolder does not have `list_object_names` method)
+        # also extract absolute path of folder (needed by parse_impdosfiles since calcfunction does not work with SandboxFolder as input)
+        if isinstance(folder, SandboxFolder):
+            folder_abspath = folder.abspath
+            filelist = os.listdir(folder_abspath)
+        else:
+            filelist = folder.list_object_names()
+            with folder.open(filelist[0]) as tmpfile:
+                folder_abspath = tmpfile.name.replace(filelist[0], '')
+
+        # check if out_ldos* files are there and parse dos files
+        if 'out_ldos.interpol.atom=01_spin1.dat' in filelist:
+            # extract EF and number of atoms from kkrflex_writeout calculation
+            kkrflex_writeout = load_node(self.ctx.pk_flexcalc)
+            parent_calc_kkr_converged = kkrflex_writeout.inputs.parent_folder.get_incoming(node_class=CalcJobNode).first().node
+            ef = parent_calc_kkr_converged.outputs.output_parameters.get_dict().get('fermi_energy')
+            last_calc_output_params = last_calc.outputs.output_parameters
+            natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')
+            # parse dosfiles using nspin, EF and Natom inputs
+            dosXyDatas = parse_impdosfiles(Str(folder_abspath), Int(natom), Int(self.ctx.nspin), Float(ef))
+            dos_extracted = True
+        else:
+            dos_extracted = False
+            dosXyDatas = None
+
+        return dos_extracted, dosXyDatas
+
+
 @calcfunction
-def parse_impdosfiles(dos_retrieved, natom, nspin, ef):
+def parse_impdosfiles(dos_abspath, natom, nspin, ef):
+    """
+    Read `out_ldos*` files and create XyData node with l-resolved DOS (+node for interpolated DOS if files are found)
+
+    Inputs:
+    :param dos_abspath: absolute path to folder where `out_ldos*` files reside (AiiDA Str object)
+    :param natom: number of atoms (AiiDA Int object)
+    :param nspin: number of spin channels (AiiDA Int object)
+    :param ef: Fermi energy in Ry units (AiiDA Float object)
+
+    Returns:
+    output dictionary containing
+      output = {'dos_data': dosnode, 'dos_data_interpol': dosnode2}
+    where `dosnode` and `dosnode2` are AiiDA XyData objects
+    """
     from masci_tools.io.common_functions import get_Ry2eV, get_ef_from_potfile
     from numpy import loadtxt, array
+
+    # add '/' if missing from path
+    abspath = dos_abspath.value
+    if abspath[-1] != '/': abspath += '/'
 
     # read dos files
     dos, dos_int = [], []
     for iatom in range(1, natom.value+1):
         for ispin in range(1, nspin.value+1):
-            with dos_retrieved.open('out_ldos.atom=%0.2i_spin%i.dat'%(iatom, ispin)) as dosfile:
+            with open(abspath+'out_ldos.atom=%0.2i_spin%i.dat'%(iatom, ispin)) as dosfile:
                 tmp = loadtxt(dosfile)
                 dos.append(tmp)
-            with dos_retrieved.open('out_ldos.interpol.atom=%0.2i_spin%i.dat'%(iatom, ispin)) as dosfile:
+            with open(abspath+'out_ldos.interpol.atom=%0.2i_spin%i.dat'%(iatom, ispin)) as dosfile:
                 tmp = loadtxt(dosfile)
                 dos_int.append(tmp)
     dos, dos_int = array(dos), array(dos_int)

@@ -6,12 +6,14 @@ within workfunctions) are collected.
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
+from __future__ import unicode_literals
 from aiida.common.exceptions import InputValidationError
 from aiida.engine import calcfunction
 from aiida.plugins import DataFactory
 from masci_tools.io.kkr_params import kkrparams
 from masci_tools.io.common_functions import open_general
 from six.moves import range
+from builtins import str
 
 #define aiida structures from DataFactory of aiida
 Dict = DataFactory('dict')
@@ -74,6 +76,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
     :example usage: OutputNode = KkrCalculation.update_params(InputNode, EMIN=-1, NSTEPS=30)
 
     :note: Keys are set as in kkrparams class. Check documentation of kkrparams for further information.
+    :note: If kwargs contain the key `add_direct`, then no kkrparams instance is used and no checks are performed but the dictionary is filled directly!
     :note: By default nodename is 'updated KKR parameters' and description contains list of changed
     """
     # check if node is a valid KKR parameters node
@@ -81,22 +84,33 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
         print('Input node is not a valid Dict node')
         raise InputValidationError('update_params needs valid parameter node as input')
 
+    # check if add_direct is in kwargs (shortcuts checks of kkrparams by not using the kkrparams class to set the dict)
+    add_direct = False
+    if 'add_direct' in kwargs.keys(): add_direct = kwargs.pop('add_direct')
+
     #initialize temporary kkrparams instance containing all possible KKR parameters
-    params = kkrparams()
+    if not add_direct:
+        params = kkrparams()
+    else:
+        params = {}
 
     # extract input dict from node
     inp_params = node.get_dict()
 
     # check if input dict contains only values for KKR parameters
-    for key in inp_params:
-        if key not in list(params.values.keys()) and key not in _ignored_keys:
-            print('Input node contains unvalid key "{}"'.format(key))
-            raise InputValidationError('unvalid key "{}" in input parameter node'.format(key))
+    if not add_direct:
+        for key in inp_params:
+            if key not in list(params.values.keys()) and key not in _ignored_keys:
+                print('Input node contains unvalid key "{}"'.format(key))
+                raise InputValidationError('unvalid key "{}" in input parameter node'.format(key))
 
     # copy values from input node
     for key in inp_params:
         value = inp_params[key]
-        params.set_value(key, value, silent=True)
+        if not add_direct:
+            params.set_value(key, value, silent=True)
+        else:
+            params[key] = value
 
     # to keep track of changed values:
     changed_params = {}
@@ -115,7 +129,10 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
             else:
                 update_value = True
             if update_value:
-                params.set_value(key, kwargs[key], silent=True)
+                if not add_direct:
+                    params.set_value(key, kwargs[key], silent=True)
+                else:
+                    params[key] = kwargs[key]
                 changed_params[key] = kwargs[key]
 
     if len(list(changed_params.keys()))==0:
@@ -130,7 +147,10 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
 
 
     # create new node
-    ParaNode = Dict(dict=params.values)
+    if not add_direct:
+        ParaNode = Dict(dict=params.values)
+    else:
+        ParaNode = Dict(dict=params)
     ParaNode.label = nodename
     ParaNode.description = nodedesc
 
@@ -277,7 +297,7 @@ def get_inputs_voronoi(code, structure, options, label='', description='', param
     return builder
 
 
-def get_inputs_kkrimp(code, options, label='', description='', parameters=None, serial=False, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None):
+def get_inputs_kkrimp(code, options, label='', description='', parameters=None, serial=False, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None, host_GF_Efshift=None):
     """
     Get the input for a kkrimp calc.
     Wrapper for KkrimpProcess setting structure, code, options, label, description etc.
@@ -289,12 +309,12 @@ def get_inputs_kkrimp(code, options, label='', description='', parameters=None, 
 
     # then reuse common inputs setter
     builder = get_inputs_common(KkrimpCalculation, code, None, None, options, label,
-                               description, parameters, serial, imp_info, host_GF, imp_pot, kkrimp_remote)
+                               description, parameters, serial, imp_info, host_GF, imp_pot, kkrimp_remote, host_GF_Efshift)
 
     return builder
 
 
-def get_inputs_common(calculation, code, remote, structure, options, label, description, params, serial, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None):
+def get_inputs_common(calculation, code, remote, structure, options, label, description, params, serial, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None, host_GF_Efshift=None):
     """
     Base function common in get_inputs_* functions for different codes
     """
@@ -358,6 +378,9 @@ def get_inputs_common(calculation, code, remote, structure, options, label, desc
 
     if host_GF is not None:
         inputs.host_Greenfunction_folder = host_GF
+
+    if host_GF_Efshift is not None:
+        inputs.host_Greenfunction_folder_Efshift = host_GF_Efshift
 
     if imp_pot is not None:
         inputs.impurity_potential = imp_pot
@@ -938,7 +961,7 @@ def kick_out_corestates(potfile, potfile_out, emin):
                 if len(m[0])>0:
                     istart = istarts[ipot]
                     # change number of core states in potential
-                    print(txt[istart+6])
+                    #print(txt[istart+6])
                     txt[istart+6] = '%i 1\n'%(nstates[ipot]-len(m[0]))
                     # now remove energy line accordingly
                     for ie_out in m[0][::-1]:
@@ -951,7 +974,9 @@ def kick_out_corestates(potfile, potfile_out, emin):
         if num_deleted>0:
             # write output potential
             with open_general(potfile_out, u'w') as f2:
-                txt_new = list(array(txt)[all_lines])
+                txt_new = []
+                for iline in all_lines:
+                    txt_new.append(str(txt[iline]))
                 f2.writelines(txt_new)
 
         # return number of lines that were deleted
@@ -975,9 +1000,10 @@ def kick_out_corestates_wf(potential_sfd, emin):
         with tmpdir.open('potential_deleted_core_states', 'w') as potfile_out: 
             with potential_sfd.open(potential_sfd.filename) as potfile_in:
                 num_deleted = kick_out_corestates(potfile_in, potfile_out, emin)
-                if num_deleted>0:
-                    potential_nocore_sfd = SingleFileData(file=potfile_out)
-                    potential_nocore_sfd.store()
+        # store new potential as single file data object
+        if num_deleted>0:
+            with tmpdir.open('potential_deleted_core_states') as potfile_out:
+                potential_nocore_sfd = SingleFileData(file=potfile_out)
 
     # return potential
     if num_deleted>0:

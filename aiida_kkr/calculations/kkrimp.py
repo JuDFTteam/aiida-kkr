@@ -31,7 +31,7 @@ SinglefileData = DataFactory('singlefile')
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -95,6 +95,7 @@ class KkrimpCalculation(CalcJob):
 
     # name of tarfile which is created by parser after successful parsing (to reduce amount of data stored in repo)
     _FILENAME_TAR = 'output_all.tar.gz'
+    _DIRNAME_GF_UPLOAD = 'kkrflex_green_upload'
 
     @classmethod
     def define(cls,spec):
@@ -111,6 +112,7 @@ class KkrimpCalculation(CalcJob):
         # define input nodes (optional ones have required=False)
         spec.input('parameters', valid_type=Dict, required=False, help='Use a node that specifies the input parameters (calculation settings).')
         spec.input('host_Greenfunction_folder', valid_type=RemoteData, required=True, help='Use a node that specifies the host KKR calculation contaning the host Green function and tmatrix (KkrCalculation with impurity_info input).')
+        spec.input('host_Greenfunction_folder_Efshift', valid_type=RemoteData, required=False, help='Use a node that specifies the host KKR calculation contaning the host Green function and tmatrix with Fermi level shift (used to set Fermi level).')
         spec.input('impurity_potential', valid_type=SinglefileData, required=False, help='Use a node that contains the input potential.')
         spec.input('parent_calc_folder', valid_type=RemoteData, required=False, help='Use a node that specifies a parent KKRimp calculation.')
         spec.input('impurity_info', valid_type=Dict, required=False, help='Use a parameter node that specifies properties for a immpurity calculation.')
@@ -118,6 +120,8 @@ class KkrimpCalculation(CalcJob):
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the KKRimp calculation')
         spec.default_output_node = 'output_parameters'
         # define exit codes, also used in parser
+        spec.exit_code(301, 'ERROR_NO_RETRIEVED_FOLDER', message='Retrieved folder of KKRimp calculation not found.')
+        spec.exit_code(302, 'ERROR_PARSING_KKRIMPCALC', message='KKRimp parser returned an error.')
         #TBD
        
        
@@ -158,61 +162,24 @@ class KkrimpCalculation(CalcJob):
                          self._OUT_POTENTIAL, self._OUTPUT_000, self._OUT_TIMING_000,
                          self._OUT_ENERGYSP_PER_ATOM, self._OUT_ENERGYTOT_PER_ATOM]
 
+        # extract run and test options (these change retrieve list in some cases)
+        allopts = self.get_run_test_opts(parameters)
+
         # retrieve l(m)dos files
-        runopts = parameters.get_dict().get('RUNFLAG')
-        if runopts is None:
-            runopts = []
-        testopts = parameters.get_dict().get('TESTFLAG')
-        if testopts is None:
-            testopts = []
-        allopts = runopts+testopts
-        if 'lmdos' in allopts or 'ldos' in allopts:
-            with tempfolder.open(self._CONFIG) as file:
-                config = file.readlines()
-            itmp = search_string('NSPIN', config)
-            if itmp>=0:
-                nspin = int(config[itmp].split()[-1])
-            else:
-                raise ValueError("Could not extract NSPIN value from config.cfg")
-            with tempfolder.open(self._KKRFLEX_ATOMINFO) as file:
-                atominfo = file.readlines()
-            itmp = search_string('NATOM', atominfo)
-            if itmp>=0:
-                natom = int(atominfo[itmp+1].split()[0])
-            else:
-                raise ValueError("Could not extract NATOM value from kkrflex_atominfo")
-            for iatom in range(1,natom+1):
-                for ispin in range(1,nspin+1):
-                    retrieve_list.append((self._OUT_LDOS_BASE%(iatom, ispin)).replace(' ', '0'))
-                    retrieve_list.append((self._OUT_LDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
-                    retrieve_list.append((self._OUT_LMDOS_BASE%(iatom, ispin)).replace(' ', '0'))
-                    retrieve_list.append((self._OUT_LMDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
+        retrieve_list = self.add_lmdos_files_to_retrieve(tempfolder, allopts, retrieve_list)
 
-        with tempfolder.open(self._CONFIG) as file:
-            config = file.readlines()
-        itmp = search_string('NSPIN', config)
-        if itmp>=0:
-            nspin = int(config[itmp].split()[-1])
-        else:
-            raise ValueError("Could not extract NSPIN value from config.cfg")
-        if 'tmatnew' in allopts and nspin>1:
-            retrieve_list.append(self._OUT_MAGNETICMOMENTS)
-            with tempfolder.open(self._CONFIG) as file:
-                outorb = file.readlines()
-            itmp = search_string('CALCORBITALMOMENT', outorb)
-            if itmp>=0:
-                calcorb = int(outorb[itmp].split()[-1])
-            else:
-                calcorb = 0
-            if calcorb==1:
-                retrieve_list.append(self._OUT_ORBITALMOMENTS)
+        # change retrieve list for Chebychev solver
+        retrieve_list = self.adapt_retrieve_tmatnew(tempfolder, allopts, retrieve_list)
 
+        # change local and remote copy list if GF is found on remote machine
+        remote_symlink_list, local_copy_list = self.get_remote_symlink(local_copy_list)
 
         # Prepare CalcInfo to be returned to aiida (e.g. retreive_list etc.)
         calcinfo = CalcInfo()
         calcinfo.uuid = self.uuid
         calcinfo.local_copy_list = local_copy_list
         calcinfo.remote_copy_list = []
+        calcinfo.remote_symlink_list = remote_symlink_list
         calcinfo.retrieve_list = retrieve_list
 
         codeinfo = CodeInfo()
@@ -247,8 +214,6 @@ class KkrimpCalculation(CalcJob):
         
         # get mandatory input nodes (extract host_Greenfunction_folder)
         host_parent = self.inputs.host_Greenfunction_folder
-        if not isinstance(host_parent, RemoteData):
-            raise InputValidationError("host_Greenfunction_folder not of type RemoteData") 
         
         # extract parent calculation
         parent_calcs = host_parent.get_incoming(node_class=CalcJob)
@@ -330,11 +295,23 @@ class KkrimpCalculation(CalcJob):
         if not host_ok:
             raise InputValidationError("host_Greenfunction calculation was not a KKRFLEX run")
 
-            
+        # extract information from Efshift host GF input node (not mandatory)
+        if 'host_Greenfunction_folder_Efshift' in self.inputs:
+            host_parent_Efshift = self.inputs.host_Greenfunction_folder_Efshift
+            parent_calcs_Efshift = host_parent_Efshift.get_incoming(node_class=CalcJob)
+            parent_calc_Efshift = parent_calcs_Efshift.first().node   
+            hostfolder_Efshift = parent_calc_Efshift.outputs.retrieved
+        else:
+            hostfolder_Efshift = None
+
         kkrflex_file_paths = {}
-        for file in self._ALL_KKRFLEX_FILES:
-            if file in hostfolder.list_object_names():
-                kkrflex_file_paths[file] = hostfolder
+        for filename in self._ALL_KKRFLEX_FILES:
+            if filename in hostfolder.list_object_names():
+                kkrflex_file_paths[filename] = hostfolder
+            # take tmat and green file from Fermi level overwrite directory (second GF_writeout calculation)
+            if hostfolder_Efshift is not None and filename in [self._KKRFLEX_TMAT, self._KKRFLEX_GREEN]:
+                if filename in hostfolder_Efshift.list_object_names():
+                    kkrflex_file_paths[filename] = hostfolder_Efshift
 
         # extract shapes array from parameters read from inputcard
         shapes = params_host_calc.get_dict().get('<SHAPE>', None)
@@ -623,3 +600,114 @@ class KkrimpCalculation(CalcJob):
 
         if not param_ok:
             raise ValueError('Trying to set key "{}" with value "{}" which is in conflict to previous settings!'.format(key, val))
+
+
+    def get_run_test_opts(self, parameters):
+        """Extract run and test options from input parameters"""
+        runopts = parameters.get_dict().get('RUNFLAG')
+        if runopts is None:
+            runopts = []
+        testopts = parameters.get_dict().get('TESTFLAG')
+        if testopts is None:
+            testopts = []
+        allopts = runopts+testopts
+        return allopts
+
+
+    def add_lmdos_files_to_retrieve(self, tempfolder, allopts, retrieve_list):
+        """Add DOS files to retrieve list"""
+
+        if 'lmdos' in allopts or 'ldos' in allopts:
+            # extract NSPIN
+            with tempfolder.open(self._CONFIG) as file:
+                config = file.readlines()
+            itmp = search_string('NSPIN', config)
+            if itmp>=0:
+                nspin = int(config[itmp].split()[-1])
+            else:
+                raise ValueError("Could not extract NSPIN value from config.cfg")
+            
+            # extract NATOM from atominfo file
+            with tempfolder.open(self._KKRFLEX_ATOMINFO) as file:
+                atominfo = file.readlines()
+            itmp = search_string('NATOM', atominfo)
+            if itmp>=0:
+                natom = int(atominfo[itmp+1].split()[0])
+            else:
+                raise ValueError("Could not extract NATOM value from kkrflex_atominfo")
+
+            # loop over atoms and spins to add DOS output files accordingly
+            for iatom in range(1,natom+1):
+                for ispin in range(1,nspin+1):
+                    retrieve_list.append((self._OUT_LDOS_BASE%(iatom, ispin)).replace(' ', '0'))
+                    retrieve_list.append((self._OUT_LDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
+                    retrieve_list.append((self._OUT_LMDOS_BASE%(iatom, ispin)).replace(' ', '0'))
+                    retrieve_list.append((self._OUT_LMDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
+
+        return retrieve_list
+
+
+    def adapt_retrieve_tmatnew(self, tempfolder, allopts, retrieve_list):
+        """Add out_magneticmoments and orbitalmoments files to retrieve list"""
+
+        # extract NSPIN value
+        with tempfolder.open(self._CONFIG) as file:
+            config = file.readlines()
+        itmp = search_string('NSPIN', config)
+        if itmp>=0:
+            nspin = int(config[itmp].split()[-1])
+        else:
+            raise ValueError("Could not extract NSPIN value from config.cfg")
+
+        # change retrieve list
+        if 'tmatnew' in allopts and nspin>1:
+            retrieve_list.append(self._OUT_MAGNETICMOMENTS)
+            with tempfolder.open(self._CONFIG) as file:
+                outorb = file.readlines()
+            itmp = search_string('CALCORBITALMOMENT', outorb)
+            if itmp>=0:
+                calcorb = int(outorb[itmp].split()[-1])
+            else:
+                calcorb = 0
+            if calcorb==1:
+                retrieve_list.append(self._OUT_ORBITALMOMENTS)
+
+        return retrieve_list
+
+
+    def get_remote_symlink(self, local_copy_list):
+        """Check if host GF is found on remote machine and reuse from there"""
+        remote_symlink_list = []
+
+        # extract remote computer information
+        code = self.inputs.code
+        comp = code.computer
+        workdir = comp.get_workdir()
+        GFpath_remote = os.path.join(workdir, self._DIRNAME_GF_UPLOAD)
+
+        # extract GF information from retrieved folder of host GF calc
+        GF_local_copy_info = [i for i in local_copy_list if i[1]==self._KKRFLEX_GREEN][0]
+        TM_local_copy_info = [i for i in local_copy_list if i[1]==self._KKRFLEX_TMAT][0]
+
+        # open transport to remote computer
+        with comp.get_transport() as connection:
+            # do this for GMAT
+            uuid_GF = GF_local_copy_info[0]
+            GF_remote_path = os.path.join(GFpath_remote, uuid_GF, GF_local_copy_info[1])
+            # check if file exists on remote
+            if connection.isfile(GF_remote_path):
+                # remove GF from local copy list and add to remote symlink list
+                local_copy_list.remove(GF_local_copy_info)
+                remote_symlink_list.append((comp.uuid, GF_remote_path, filename))
+
+            # do the same for TMAT
+            uuid_TM = TM_local_copy_info[0]
+            TM_remote_path = os.path.join(GFpath_remote, uuid_TM, TM_local_copy_info[1])
+            # check if file exists on remote
+            if connection.isfile(TM_remote_path):
+                # remove TMAT from local copy list and add to remote symlink list
+                local_copy_list.remove(TM_local_copy_info)
+                remote_symlink_list.append((comp.uuid, TM_remote_path, filename))
+
+        # now return updated remote_symlink and local_copy lists
+        return remote_symlink_list, local_copy_list

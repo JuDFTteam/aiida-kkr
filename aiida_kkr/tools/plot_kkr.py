@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.5"
+__version__ = "0.4.10"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -184,6 +184,12 @@ class plot_kkr(object):
         elif node.process_label == u'kkr_imp_dos_wc':
             if return_name_only: return 'impdos'
             self.plot_kkrimp_dos_wc(node, **kwargs)
+        elif node.process_label == u'kkr_imp_wc':
+            if return_name_only: return 'imp'
+            self.plot_kkrimp_wc(node, **kwargs)
+        elif node.process_label == u'kkr_imp_sub_wc':
+            if return_name_only: return 'impsub'
+            self.plot_kkrimp_sub_wc(node, **kwargs)
         # calculations
         elif node.process_type == u'aiida.calculations:kkr.kkr':
             if return_name_only: return 'kkr'
@@ -264,6 +270,10 @@ class plot_kkr(object):
             structure, voro_parent = VoronoiCalculation.find_parent_structure(node)
         else:
             structure = node
+        if 'show_empty_atoms' in kwargs:
+            show_empty_atoms = kwargs.pop('show_empty_atoms')
+        else:
+            show_empty_atoms = False
         # check if empty sphere need to be removed for plotting (ase structgure cannot be constructed for alloys or vacancies)
         if structure.has_vacancies:
             print("structure has vacancies, need to remove empty sites for plotting")
@@ -273,6 +283,8 @@ class plot_kkr(object):
                 pos = site.position
                 if not k.has_vacancies:
                     stmp.append_atom(position=pos, symbols=k.symbol)
+                elif show_empty_atoms:
+                    stmp.append_atom(position=pos, symbols='X')
                 else:
                     print("removing atom", site)
             stmp.set_pbc(structure.pbc)
@@ -287,15 +299,14 @@ class plot_kkr(object):
     def dosplot(self, d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, **kwargs):
         """plot dos from xydata node"""
         from numpy import array, sum, arange
-        from matplotlib.pyplot import plot, xlabel, ylabel, gca, figure, legend
+        from matplotlib.pyplot import plot, xlabel, ylabel, gca, figure, legend, fill_between
         import matplotlib as mpl
         from cycler import cycler
 
         # remove things that will not work for plotting
         if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
-
-        if 'yscale' in list(kwargs.keys()): yscale = kwargs.pop('yscale')
-        else: yscale = 1.0
+        if 'filled' in list(kwargs.keys()): filled = kwargs.pop('filled')
+        else: filled = False
 
         # plot only some atoms if 'iatom' is found in input
         show_atoms = []
@@ -377,7 +388,10 @@ class plot_kkr(object):
                     natoms2 = natoms
                     y = y2[:,ispin,:]
                     if sum_spins and nspin2==2:
-                        y = -y + y2[:,1,:]
+                        if switch_sign_spin2:
+                            y =  y + y2[:,1,:]
+                        else:
+                            y = -y + y2[:,1,:]
 
                 for iatom in range(natoms2):
                     if iatom in show_atoms or show_atoms==[]:
@@ -394,11 +408,17 @@ class plot_kkr(object):
                             yplt = -yplt
                         yplt = yplt * yscale
                         if not switch_xy:
-                            plot(xplt, yplt, label=yladd, **kwargs)
+                            if not filled:
+                                plot(xplt, yplt, label=yladd, **kwargs)
+                            else:
+                                fill_between(xplt, yplt, label=yladd, **kwargs)
                             xlabel(xlbl)
                             ylabel(ylbl)
                         else:
-                            plot(yplt, xplt, label=yladd, **kwargs)
+                            if not filled:
+                                plot(yplt, xplt, label=yladd, **kwargs)
+                            else:
+                                fill_between(yplt, xplt, label=yladd, **kwargs)
                             xlabel(ylbl)
                             ylabel(xlbl)
 
@@ -456,25 +476,20 @@ class plot_kkr(object):
     def get_rms_kkrcalc(self, node, title=None):
         """extract rms etc from kkr Calculation. Works for both finished and still running Calculations."""
         from aiida.engine import ProcessState
+        from aiida.common.folders import SandboxFolder
         from masci_tools.io.common_functions import search_string
 
         rms, neutr, etot, efermi = [], [], [], []
         ptitle = ''
 
         if node.process_state == ProcessState.FINISHED:
-            o = node.outputs.output_parameters.get_dict()
-            neutr = o['convergence_group'][u'charge_neutrality_all_iterations']
-            efermi = o['convergence_group'][u'fermi_energy_all_iterations']
-            etot = o['convergence_group'][u'total_energy_Ry_all_iterations']
-            rms = o['convergence_group'][u'rms_all_iterations']
-            ptitle = 'Time per iteration: ' + str(o['timings_group'].get('Time in Iteration')) + ' s'
-            """
-            pk = o.get('last_calc_nodeinfo').get('pk')
-            c = load_node(pk)
-            m = c.outputs.output_parameters.get_dict().get('convergence_group').get('total_spin_moment_all_iterations')
-
-            figure(); subplot(1,2,1); plot(rms_all); twinx(); plot(neutr_all,'r'); subplot(1,2,2); plot(m)
-            """
+            if node.is_finished_ok:
+                o = node.outputs.output_parameters.get_dict()
+                neutr = o['convergence_group'][u'charge_neutrality_all_iterations']
+                efermi = o['convergence_group'][u'fermi_energy_all_iterations']
+                etot = o['convergence_group'][u'total_energy_Ry_all_iterations']
+                rms = o['convergence_group'][u'rms_all_iterations']
+                ptitle = 'Time per iteration: ' + str(o['timings_group'].get('Time in Iteration')) + ' s'
         elif node.process_state in [ProcessState.WAITING, ProcessState.FINISHED, ProcessState.RUNNING]:
             # extract info needed to open transport
             c = node.inputs.code
@@ -485,40 +500,47 @@ class plot_kkr(object):
             out_kkr = ''
 
             # now get contents of out_kkr using remote call of 'cat'
-            with transport as open_transport:
-                if 'remote_folder' in node.outputs:
-                    if 'out_kkr' in node.outputs.remote_folder.list_object_names():
-                        out_kkr = node.outputs.remote_folder.open('out_kkr').readlines()
+            with SandboxFolder() as tempfolder:
+                with tempfolder.open('tempfile', 'w') as f:
+                    try:
+                        node.outputs.remote_folder.getfile('out_kkr', f.name)
+                        has_outfile = True
+                    except IOError:
+                        has_outfile = False
+                if has_outfile:
+                    with tempfolder.open('tempfile', 'r') as f:
+                        out_kkr = f.readlines()
 
             # now extract rms, charge neutrality, total energy and value of Fermi energy
-            itmp = 0
-            while itmp>=0:
-                itmp = search_string('rms', out_kkr)
-                if itmp>=0:
-                    tmpline = out_kkr.pop(itmp)
-                    tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
-                    rms.append(tmpval)
-            itmp = 0
-            while itmp>=0:
-                itmp = search_string('charge neutrality', out_kkr)
-                if itmp>=0:
-                    tmpline = out_kkr.pop(itmp)
-                    tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
-                    neutr.append(tmpval)
-            itmp = 0
-            while itmp>=0:
-                itmp = search_string('TOTAL ENERGY in ryd', out_kkr)
-                if itmp>=0:
-                    tmpline = out_kkr.pop(itmp)
-                    tmpval = float(tmpline.split(':')[1].split()[0].replace('D', 'e'))
-                    etot.append(tmpval)
-            itmp = 0
-            while itmp>=0:
-                itmp = search_string('E FERMI', out_kkr)
-                if itmp>=0:
-                    tmpline = out_kkr.pop(itmp)
-                    tmpval = float(tmpline.split('FERMI')[1].split()[0].replace('D', 'e'))
-                    efermi.append(tmpval)
+            if has_outfile:
+                itmp = 0
+                while itmp>=0:
+                    itmp = search_string('rms', out_kkr)
+                    if itmp>=0:
+                        tmpline = out_kkr.pop(itmp)
+                        tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
+                        rms.append(tmpval)
+                itmp = 0
+                while itmp>=0:
+                    itmp = search_string('charge neutrality', out_kkr)
+                    if itmp>=0:
+                        tmpline = out_kkr.pop(itmp)
+                        tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
+                        neutr.append(tmpval)
+                itmp = 0
+                while itmp>=0:
+                    itmp = search_string('TOTAL ENERGY in ryd', out_kkr)
+                    if itmp>=0:
+                        tmpline = out_kkr.pop(itmp)
+                        tmpval = float(tmpline.split(':')[1].split()[0].replace('D', 'e'))
+                        etot.append(tmpval)
+                itmp = 0
+                while itmp>=0:
+                    itmp = search_string('E FERMI', out_kkr)
+                    if itmp>=0:
+                        tmpline = out_kkr.pop(itmp)
+                        tmpval = float(tmpline.split('FERMI')[1].split()[0].replace('D', 'e'))
+                        efermi.append(tmpval)
         else:
             print('no rms extracted', node.process_state)
 
@@ -580,6 +602,7 @@ class plot_kkr(object):
             self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
 
         # try to plot dos and qdos data if Calculation was bandstructure or DOS run
+        from subprocess import check_output
         from os import listdir
         from numpy import loadtxt, array, where
         from masci_tools.vis.kkr_plot_bandstruc_qdos import dispersionplot
@@ -606,8 +629,10 @@ class plot_kkr(object):
                 if has_qdos:
                     with node.outputs.retrieved.open('qdos.01.1.dat', mode='r') as f:
                         ne = len(set(loadtxt(f)[:,0]))
-                        if ne>1:
-                            dispersionplot(f, newfig=(not nofig), ptitle=ptitle, logscale=logscale, **kwargs)
+                        if ne>1 or 'as_e_dimension' in kwargs.keys():
+                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qdos.01.1.dat', 'output.0.txt')), shell=True) 
+                            ef = float(ef.split('=')[2].split()[0])
+                            dispersionplot(f, newfig=(not nofig), ptitle=ptitle, logscale=logscale, ef=ef, **kwargs)
                             # add plot labels
                             try:
                                 ilbl = node.inputs.kpoints.get_attr('label_numbers')
@@ -624,7 +649,9 @@ class plot_kkr(object):
                             except:
                                 xlabel('id_kpt')
                         else:
-                            FSqdos2D(f, logscale=logscale, **kwargs)
+                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qdos.01.1.dat', 'output.0.txt')), shell=True) 
+                            ef = float(ef.split('=')[2].split()[0])
+                            FSqdos2D(f, logscale=logscale, ef=ef, **kwargs)
             
             # dos only if qdos was not plotted already
             if has_dos and not has_qdos:
@@ -650,11 +677,22 @@ class plot_kkr(object):
 
     def plot_kkrimp_calc(self, node, **kwargs):
         """plot things from a kkrimp Calculation node"""
-        print("Not implemented yet")
+        print("Plotting not implemented yet")
         pass
 
+    def plot_kkrimp_wc(self, node, **kwargs):
+        """plot things from a kkrimp_wc workflow"""
+        print("Plotting not implemented yet")
+        pass
+
+    def plot_kkrimp_sub_wc(self, node, **kwargs):
+        """plot things from a kkrimp_sub_wc workflow"""
+        print("Plotting not implemented yet")
+        pass
+
+
     def plot_kkrimp_dos_wc(self, node, **kwargs):
-        """plot things from a kkrimp Calculation node"""
+        """plot things from a kkrimp_dos workflow node"""
 
         # try to plot dos and qdos data if Calculation was bandstructure or DOS run
         from os import listdir
@@ -680,19 +718,18 @@ class plot_kkr(object):
         else: yscale = -1
 
         has_dos = False
+        if interpol and 'dos_data_interpol' in node.outputs:
+            d = node.outputs.dos_data_interpol
+            has_dos = True
+        elif 'dos_data' in node.outputs:
+            d = node.outputs.dos_data
+            has_dos = True
 
-        calcnode = [i for i in node.called_descendants if i.process_label=='KkrimpCalculation'][0]
-        if calcnode.is_finished_ok:
-            natoms = len(calcnode.outputs.output_parameters.get_dict().get('charge_core_states_per_atom'))
-            retlist = calcnode.outputs.retrieved.list_object_names()
-            has_dos = 'out_ldos.atom=01_spin1.dat' in retlist
-            
         if has_dos:
-            if interpol:
-                d = node.outputs.dos_data_interpol
-            else:
-                d = node.outputs.dos_data
-            self.dosplot(d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, yscale=yscale, **kwargs)
+            calcnode = [i for i in node.called_descendants if i.process_label=='KkrimpCalculation'][0]
+            if calcnode.is_finished_ok:
+                natoms = len(calcnode.outputs.output_parameters.get_dict().get('charge_core_states_per_atom'))
+                self.dosplot(d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, yscale=yscale, **kwargs)
 
 
     ### workflows ###
@@ -895,11 +932,11 @@ class plot_kkr(object):
                 subplot(subplots[0], subplots[1], subplots[2])
             self.rmsplot(rms, neutr, True, ptitle, logscale, only, label=label)
             if only == 'rms' and rms_goal is not None: axhline(rms_goal, color='grey', ls='--')
-            tmpsum = 0
+            tmpsum = 1
             if not nofig and len(niter_calcs)>1:
                 for i in niter_calcs:
                     tmpsum+=i
-                    axvline(tmpsum, color='k', ls=':')
+                    axvline(tmpsum-1, color='k', ls=':')
             did_plot = True
         else:
             did_plot = False

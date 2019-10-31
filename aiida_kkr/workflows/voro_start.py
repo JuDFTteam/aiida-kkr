@@ -24,13 +24,14 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.4"
+__version__ = "0.10.6"
 __contributors__ = u"Philipp Rüßmann"
 
 StructureData = DataFactory('structure')
 Dict = DataFactory('dict')
 XyData = DataFactory('array.xy')
 RemoteData = DataFactory('remote')
+SingleFileData = DataFactory('singlefile')
 
 class kkr_startpot_wc(WorkChain):
     """
@@ -57,7 +58,8 @@ class kkr_startpot_wc(WorkChain):
                    'delta_e_min' : 1., # eV                  # minimal distance in DOS contour to emin and emax in eV
                    'threshold_dos_zero' : 10**-2, #states/eV #
                    'check_dos': False,                       # logical to determine if DOS is computed and checked
-                   'delta_e_min_core_states' : 0.2 # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
+                   'delta_e_min_core_states': 0.2, # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
+                   'ef_set': None                            # set Fermi level of starting potential to this value
                    }
     _options_default = {'queue_name' : '',                        # Queue name to submit jobs to
                         'resources': {"num_machines": 1},         # resources to allowcate for the job
@@ -100,6 +102,7 @@ class kkr_startpot_wc(WorkChain):
         spec.input("kkr", valid_type=Code, required=False)
         spec.input("voronoi", valid_type=Code, required=True)
         spec.input("calc_parameters", valid_type=Dict, required=False)
+        spec.input("startpot_overwrite", valid_type=SingleFileData, required=False)
         # define output nodes
         spec.output('results_vorostart_wc', valid_type=Dict, required=True, help='')
         spec.output('last_doscal_results', valid_type=Dict, required=False, help='')
@@ -208,6 +211,9 @@ class kkr_startpot_wc(WorkChain):
         # threshold for dos comparison (comparison of dos at emin)
         self.ctx.threshold_dos_zero = wf_dict.get('threshold_dos_zero', self._wf_default['threshold_dos_zero'])
         self.ctx.min_dist_core_states = wf_dict.get('delta_e_min_core_states', self._wf_default['delta_e_min_core_states'])
+
+        # set Fermi level with input value
+        self.ctx.ef_set = wf_dict.get('ef_set', self._wf_default['ef_set'])
 
         #TODO add missing info
         # print the inputs
@@ -342,6 +348,10 @@ class kkr_startpot_wc(WorkChain):
               self.report("INFO: setting {} to default value {}".format(key, value))
               kkr_para.set_value(key, value)
 
+        # check if Fermi lavel should be set with input value
+        if self.ctx.ef_set is not None:
+            update_list.append('ef_set')
+
         # check if emin should be changed:
         skip_voro = False
         if self.ctx.iter > 1:
@@ -371,6 +381,9 @@ class kkr_startpot_wc(WorkChain):
             if 'GMAX' in update_list:
                 kkr_para.set_value('GMAX', gmax_input)
                 self.report("INFO: setting GMAX to {} (needed for DOS check with KKRcode)".format(gmax_input))
+            if 'ef_set' in update_list:
+                kkr_para.set_value('EFSET', self.ctx.ef_set)
+                self.report("INFO: setting Fermi level of stating potential to {}".format(self.ctx.ef_set))
 
             updatenode = Dict(dict=kkr_para.get_dict())
             updatenode.description = 'changed values: {}'.format(update_list)
@@ -394,6 +407,8 @@ class kkr_startpot_wc(WorkChain):
                        'custom_scheduler_commands' : self.ctx.custom_scheduler_commands}
 
             builder = get_inputs_voronoi(voronoicode, structure, options, label, description, params=params)
+            if 'startpot_overwrite' in self.inputs:
+                builder.potential_overwrite = self.inputs.startpot_overwrite
             self.report('INFO: run voronoi step {}'.format(self.ctx.iter))
             future = self.submit(builder)
 
@@ -461,8 +476,14 @@ class kkr_startpot_wc(WorkChain):
             self.ctx.dos_params_dict['emin'] = emin_out - self.ctx.delta_e*eV2Ry
             self.report("INFO: emin ({} Ry) - delta_e ({} Ry) smaller than emin ({} Ry) of dos input. Setting automatically to {} Ry".format(emin_out, self.ctx.delta_e*eV2Ry,  emin_dos, emin_out-self.ctx.delta_e*eV2Ry))
 
-        potfile_path = os.path.join(self.ctx.voro_calc.outputs.retrieved._repository._get_base_folder().abspath,
-          VoronoiCalculation._OUT_POTENTIAL_voronoi)
+        ret = self.ctx.voro_calc.outputs.retrieved
+        if 'potential_overwrite' in self.ctx.voro_calc.inputs:
+            potfile_overwrite = self.ctx.voro_calc.inputs.potential_overwrite
+            with potfile_overwrite.open(potfile_overwrite.filename) as f:
+                potfile_path = f.name
+        else:
+            with ret.open(VoronoiCalculation._OUT_POTENTIAL_voronoi) as f:
+                potfile_path = f.name
         self.ctx.efermi = get_ef_from_potfile(potfile_path)
         emax = self.ctx.dos_params_dict['emax']
         self.report("INFO: emax dos input: {}, efermi voronoi output: {}".format(emax, self.ctx.efermi))
