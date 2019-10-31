@@ -12,6 +12,7 @@ matrix:
   include:
     - python: 3.7
       dist: xenial
+      env: NO_RMQ='t'
 notifications:
   slack:
     on_success: never
