@@ -20,7 +20,7 @@ import tarfile, os
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.4"
+__version__ = "0.7.5"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -1007,6 +1007,11 @@ class kkr_imp_sub_wc(WorkChain):
             """
         self.report(message)
 
+     
+        if self.ctx.successful:
+            self.report("INFO: clean output of intermediate calcs")
+            remove_out_pot_intermediate_impcalcs(self.ctx.successful, all_pks)
+
         self.report("INFO: done with kkr_scf workflow!\n")
 
 
@@ -1014,3 +1019,73 @@ class kkr_imp_sub_wc(WorkChain):
         """Capture errors raised in validate_input"""
         if self.ctx.exit_code is not None:
             return self.ctx.exit_code
+
+
+def remove_out_pot_intermediate_impcalcs(successful, pks_all_calcs, dry_run=False):
+    """
+    Remove out_potential file from all but the last KKRimp calculation if workflow was successful
+    Usage:
+        imp_wf = load_node(266885) # maybe start with outer workflow
+        pk_imp_scf = imp_wf.outputs.workflow_info['used_subworkflows'].get('kkr_imp_sub')
+        imp_scf_wf = load_node(pk_imp_scf) # this is now the imp scf sub workflow
+        successful = imp_scf_wf.outputs.workflow_info['successful']
+        pks_all_calcs = imp_scf_wf.outputs.workflow_info['pks_all_calcs']
+    """
+    import tarfile, os
+    from aiida.orm import load_node
+    from aiida.common.folders import SandboxFolder
+    from aiida_kkr.calculations import KkrimpCalculation
+    
+    if dry_run:
+        print('test', successful, len(pks_all_calcs))
+
+    # name of tarfile
+    tfname = KkrimpCalculation._FILENAME_TAR
+    
+    # cleanup only if calculation was successful
+    if successful and len(pks_all_calcs)>1:
+        # remove out_potential for calculations, except for last successful one
+        pks_for_cleanup = pks_all_calcs[:-1]
+
+        # loop over all calculations
+        for pk in pks_for_cleanup:
+            if dry_run:
+                print('pk_for_cleanup:', pk)
+            # get getreived folder of calc
+            calc = load_node(pk)
+            ret = calc.outputs.retrieved
+
+            # open tarfile if present
+            if tfname in ret.list_object_names():
+                delete_and_retar = False
+                with ret.open(tfname) as tf:
+                    tf_abspath = tf.name
+
+                # create Sandbox folder which is used to temporarily extract output_all.tar.gz
+                tmpfolder = SandboxFolder()
+                tmpfolder_path = tmpfolder.abspath
+                with tarfile.open(tf_abspath) as tf:
+                    tar_filenames = [ifile.name for ifile in tf.getmembers()]
+                    # check if out_potential is in tarfile
+                    if KkrimpCalculation._OUT_POTENTIAL in tar_filenames:
+                        tf.extractall(tmpfolder_path)
+                        delete_and_retar = True
+
+                if delete_and_retar and not dry_run:
+                    # delete out_potential
+                    os.remove(os.path.join(tmpfolder_path, KkrimpCalculation._OUT_POTENTIAL))
+                    with tarfile.open(tf_abspath, 'w:gz') as tf:
+                        # remove out_potential from list of files
+                        tar_filenames = [i for i in tar_filenames if i!=KkrimpCalculation._OUT_POTENTIAL]
+                        for f in tar_filenames:
+                            # create new tarfile without out_potential file
+                            fabs = os.path.join(tmpfolder_path, f)
+                            tf.add(fabs, arcname=os.path.basename(fabs))
+                elif dry_run:
+                    print('dry run:')
+                    print('delete and retar?', delete_and_retar)
+                    print('tmpfolder_path', tmpfolder_path)
+
+                # clean up temporary Sandbox folder
+                if not dry_run:
+                    tmpfolder.erase()
