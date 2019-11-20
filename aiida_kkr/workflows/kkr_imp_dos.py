@@ -20,7 +20,7 @@ import os
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.6"
+__version__ = "0.5.7"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: improve workflow output node structure
@@ -62,6 +62,7 @@ class kkr_imp_dos_wc(WorkChain):
                         'use_mpi' : True}                         # execute KKR with mpi or without
 
     _wf_default = {'ef_shift': 0. ,                               # set custom absolute E_F (in eV)
+                   'clean_impcalc_retrieved': True,               # remove output of KKRimp calculation after successful parsing of DOS files
                   }
 
     # add defaults of dos_params since they are passed onto that workflow
@@ -185,6 +186,7 @@ class kkr_imp_dos_wc(WorkChain):
         # set workflow parameters for the KKR imputrity calculations
         self.ctx.ef_shift = wf_dict.get('ef_shift', self._wf_default['ef_shift'])
         self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
+        self.ctx.cleanup_impcalc_output = wf_dict.get('clean_impcalc_retrieved', self._wf_default['clean_impcalc_retrieved'])
 
         # set workflow parameters for the KKR impurity calculation
         self.ctx.nsteps = 1 # always only one step for DOS calculation
@@ -436,10 +438,16 @@ class kkr_imp_dos_wc(WorkChain):
             
             # interpol dos file and store to XyData nodes
             dos_extracted, dosXyDatas = self.extract_dos_data(last_calc)
+            self.report('INFO: extracted DOS data? {}'.format(dos_extracted))
 
             if dos_extracted:
                 self.out('dos_data', dosXyDatas['dos_data'])
                 self.out('dos_data_interpol', dosXyDatas['dos_data_interpol'])
+                # maybe cleanup retrieved folder of DOS calculation
+                if self.ctx.cleanup_impcalc_output:
+                    self.report('INFO: cleanup after storing of DOS data')
+                    pk_impcalc = self.ctx.kkrimp_dos.outputs.workflow_info['pks_all_calcs'][0]
+                    cleanup_kkrimp_retrieved(pk_impcalc)
             
             
             self.report('INFO: workflow_info node: {}'.format(outputnode_t.uuid))
@@ -609,3 +617,22 @@ def parse_impdosfiles(dos_abspath, natom, nspin, ef):
     output = {'dos_data': dosnode, 'dos_data_interpol': dosnode2}
 
     return output
+
+
+def cleanup_kkrimp_retrieved(pk_impcalc):
+    """
+    remove output_all.tar.gz from retrieved of impurity calculation identified by pk_impcalc
+    """
+    from aiida.orm import load_node
+    from aiida_kkr.calculations import KkrimpCalculation
+
+    # extract retrieved folder
+    doscalc = load_node(pk_impcalc)
+    ret = doscalc.outputs.retrieved
+
+    # name of tarfile
+    tfname = KkrimpCalculation._FILENAME_TAR
+    
+    # remove tarfile from retreived dir
+    if tfname in ret.list_object_names():
+        ret.delete_object(tfname, force=True)
