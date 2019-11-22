@@ -76,6 +76,7 @@ class Test_kkrimp_dos_workflow():
         from aiida.engine import run
         print(builder)
         out = run(builder)
+        print(out)
 
         assert 'last_calc_info' in out.keys()
         assert 'last_calc_output_parameters' in out.keys()

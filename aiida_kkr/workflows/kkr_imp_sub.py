@@ -20,7 +20,7 @@ import tarfile, os
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.5"
+__version__ = "0.7.6"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -173,7 +173,7 @@ class kkr_imp_sub_wc(WorkChain):
 
         # Define the outputs of the workflow
         spec.output('workflow_info', valid_type=Dict)
-        spec.output('host_imp_pot', valid_type=SinglefileData)
+        spec.output('host_imp_pot', valid_type=SinglefileData, required=False)
 
 
     def start(self):
@@ -200,6 +200,8 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.last_remote = None
         # link to previous host impurity potential
         self.ctx.last_pot = None
+        # intermediate single file data objects that contain potential files which can be clean up at the end
+        self.ctx.sfd_pot_to_clean = []
         # convergence info about rms etc. (used to determine convergence behavior)
         self.ctx.last_rms_all = []
         self.ctx.rms_all_steps = []
@@ -679,6 +681,7 @@ class kkr_imp_sub_wc(WorkChain):
             emin = GF_out_params.get_dict().get('energy_contour_group').get('emin')
             # then use this value to get rid of all core states that are lower than emin (return the same input potential if no states have been removed
             imp_pot = kick_out_corestates_wf(imp_pot, Float(emin))
+            self.ctx.sfd_pot_to_clean.append(imp_pot)
             if 'impurity_info' in self.inputs:
                 self.report('INFO: using impurity_info node as input for kkrimp calculation')
                 imp_info = self.inputs.impurity_info
@@ -751,6 +754,7 @@ class kkr_imp_sub_wc(WorkChain):
                 # take potfile directly from output
                 with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
                     self.ctx.last_pot = SinglefileData(file=pot_file)
+            self.ctx.sfd_pot_to_clean.append(self.ctx.last_pot)
         except:
             self.report("ERROR: no output potential found")
             return self.exit_codes.ERROR_NO_OUTPUT_POT_FROM_LAST_CALC
@@ -980,7 +984,9 @@ class kkr_imp_sub_wc(WorkChain):
         outputnode_t.store()
 
         self.out('workflow_info', outputnode_t)
-        self.out('host_imp_pot', self.ctx.last_pot)
+        # store out_potential as SingleFileData only if this was no DOS run
+        if not self.ctx.dos_run:
+            self.out('host_imp_pot', self.ctx.last_pot)
 
         # print results table for overview
         # table layout:
@@ -1011,6 +1017,18 @@ class kkr_imp_sub_wc(WorkChain):
         if self.ctx.successful:
             self.report("INFO: clean output of intermediate calcs")
             remove_out_pot_intermediate_impcalcs(self.ctx.successful, all_pks)
+
+        # clean intermediate single file data which are not needed after successful run or after DOS run
+        if self.ctx.successful or self.ctx.dos_run:
+            uuid_last_calc = self.ctx.last_pot.uuid
+            if not self.ctx.dos_run:
+                sfds_to_clean = [i for i in self.ctx.sfd_pot_to_clean if i.uuid!=uuid_last_calc]
+            else:
+                # in case of DOS run we can also clean the last output sfd file since this is never used
+                sfds_to_clean = self.ctx.sfd_pot_to_clean
+            # now clean all sfd files that are not needed anymore
+            for sfd_to_clean in sfds_to_clean:
+                clean_sfd(sfd_to_clean)
 
         self.report("INFO: done with kkr_scf workflow!\n")
 
@@ -1089,3 +1107,17 @@ def remove_out_pot_intermediate_impcalcs(successful, pks_all_calcs, dry_run=Fals
                 # clean up temporary Sandbox folder
                 if not dry_run:
                     tmpfolder.erase()
+
+
+
+def clean_sfd(sfd_to_clean, nkeep=30):
+    with sfd_to_clean.open(sfd_to_clean.filename) as f:
+        txt = f.readlines()
+    # remove all lines after nkeep lines
+    txt2 = txt[:nkeep]
+    # add note to end of file
+    txt2+= [u'WARNING: REST OF FILE WAS CLEANED SO SAVE SPACE!!!\n']
+    # overwrite file
+    with sfd_to_clean.open(sfd_to_clean.filename, 'w') as fnew:
+        fnew.writelines(txt2)
+
