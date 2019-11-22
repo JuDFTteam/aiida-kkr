@@ -1020,15 +1020,7 @@ class kkr_imp_sub_wc(WorkChain):
 
         # clean intermediate single file data which are not needed after successful run or after DOS run
         if self.ctx.successful or self.ctx.dos_run:
-            uuid_last_calc = self.ctx.last_pot.uuid
-            if not self.ctx.dos_run:
-                sfds_to_clean = [i for i in self.ctx.sfd_pot_to_clean if i.uuid!=uuid_last_calc]
-            else:
-                # in case of DOS run we can also clean the last output sfd file since this is never used
-                sfds_to_clean = self.ctx.sfd_pot_to_clean
-            # now clean all sfd files that are not needed anymore
-            for sfd_to_clean in sfds_to_clean:
-                clean_sfd(sfd_to_clean)
+            self.final_cleanup()
 
         self.report("INFO: done with kkr_scf workflow!\n")
 
@@ -1037,6 +1029,17 @@ class kkr_imp_sub_wc(WorkChain):
         """Capture errors raised in validate_input"""
         if self.ctx.exit_code is not None:
             return self.ctx.exit_code
+
+    def final_cleanup(self):
+        uuid_last_calc = self.ctx.last_pot.uuid
+        if not self.ctx.dos_run:
+            sfds_to_clean = [i for i in self.ctx.sfd_pot_to_clean if i.uuid!=uuid_last_calc]
+        else:
+            # in case of DOS run we can also clean the last output sfd file since this is never used
+            sfds_to_clean = self.ctx.sfd_pot_to_clean
+        # now clean all sfd files that are not needed anymore
+        for sfd_to_clean in sfds_to_clean:
+            clean_sfd(sfd_to_clean)
 
 
 def remove_out_pot_intermediate_impcalcs(successful, pks_all_calcs, dry_run=False):
