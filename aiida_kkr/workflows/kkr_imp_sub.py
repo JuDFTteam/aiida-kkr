@@ -20,7 +20,7 @@ import tarfile, os
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.6"
+__version__ = "0.7.7"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -1015,8 +1015,10 @@ class kkr_imp_sub_wc(WorkChain):
 
      
         if self.ctx.successful:
-            self.report("INFO: clean output of intermediate calcs")
-            remove_out_pot_intermediate_impcalcs(self.ctx.successful, all_pks)
+            self.report("INFO: clean output of calcs")
+            remove_out_pot_impcalcs(self.ctx.successful, all_pks)
+            self.report("INFO: clean up raw_input folders")
+            clean_raw_input(self.ctx.successful, all_pks)
 
         # clean intermediate single file data which are not needed after successful run or after DOS run
         if self.ctx.successful or self.ctx.dos_run:
@@ -1042,7 +1044,7 @@ class kkr_imp_sub_wc(WorkChain):
             clean_sfd(sfd_to_clean)
 
 
-def remove_out_pot_intermediate_impcalcs(successful, pks_all_calcs, dry_run=False):
+def remove_out_pot_impcalcs(successful, pks_all_calcs, dry_run=False):
     """
     Remove out_potential file from all but the last KKRimp calculation if workflow was successful
     Usage:
@@ -1065,8 +1067,9 @@ def remove_out_pot_intermediate_impcalcs(successful, pks_all_calcs, dry_run=Fals
     
     # cleanup only if calculation was successful
     if successful and len(pks_all_calcs)>1:
-        # remove out_potential for calculations, except for last successful one
-        pks_for_cleanup = pks_all_calcs[:-1]
+        # remove out_potential for calculations
+        # note that also last calc can be cleaned since output potential is stored in single file data
+        pks_for_cleanup = pks_all_calcs[:]
 
         # loop over all calculations
         for pk in pks_for_cleanup:
@@ -1110,6 +1113,30 @@ def remove_out_pot_intermediate_impcalcs(successful, pks_all_calcs, dry_run=Fals
                 # clean up temporary Sandbox folder
                 if not dry_run:
                     tmpfolder.erase()
+
+def clean_raw_input(successful, pks_calcs, dry_run=False):
+    """
+    Clean raw_input directories that contain copies of shapefun and potential files
+    This however breaks provenance (strictly speaking) and therefore should only be done 
+    for the calculations of a successfully finished workflow (see email on mailing list from 25.11.2019).
+    """
+    from aiida.orm import load_node
+    from aiida_kkr.calculations import KkrimpCalculation
+    if successful:
+        for pk in pks_calcs:
+            node = load_node(pk)
+            # clean only nodes that are KkrimpCalculations
+            if node.process_class==KkrimpCalculation:
+                raw_input_folder = node._raw_input_folder
+                # clean potential and shapefun files
+                for filename in [KkrimpCalculation._POTENTIAL, KkrimpCalculation._SHAPEFUN]:
+                    if filename in raw_input_folder.get_content_list():
+                        if dry_run:
+                            print('clean {}'.format(filename))
+                        else:
+                            raw_input_folder.remove_path(filename)
+    elif dry_run:
+        print('no raw_inputs to clean')
 
 
 
