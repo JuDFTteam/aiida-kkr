@@ -11,7 +11,17 @@ mkdir -p '.aiida';
 # if the environment variable is unset or the empty string then the corresponding tests will be ignored 
 
 usage(){
-  echo "$0 usage:" && grep " .)\ #" $0; exit 0;
+  echo "$0 usage:" && grep " .)\ #" $0;
+  echo
+  echo "Default behavior is to run only tests that do not require running an actual calculation (i.e. skip workflow tests)."
+  echo "Additional settings with the environment variables (set to something or unset to remove setting):";
+  echo "  'RUN_ALL': run all tests";
+  echo "  'SKIP_NOWORK': skip workflow tests";
+  echo "  'RUN_VORONOI': run voronoi tests";
+  echo "  'RUN_KKRHOST': run kkrhost tests";
+  echo "  'RUN_KKRIMP': run kkrimp tests";
+  echo
+  exit 0;
 }
 
 addopt=""
