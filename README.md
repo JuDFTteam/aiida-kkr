@@ -45,8 +45,8 @@ $ reentry scan -r aiida
 * see http://aiida-kkr.readthedocs.io for user's guide and API reference.
 * check out http://judft.de and https://jukkr.fz-juelich.de for information of the KKR codes used by the plugin
 
-# Contribting guide
+# Contributing
 
-* Under construction
-* ...
+Thank you for your interest in contributing to aiida-kkr. 
+Check out our [contributing guide](CONTRIBUTING.md) for some information.
 
