@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 
 [tool.poetry]
 name = "aiida-kkr"
-version = "1.1.10-dev"
+version = "1.1.10"
 description = "AiiDA plugin for the KKR code"
 authors = ["Philipp Rüssmann <p.ruessmann@fz-juelich.de>",
            "Jens Bröder <j.broeder@fz-juelich.de>",
@@ -23,7 +23,6 @@ classifiers = ["Development Status :: 4 - Beta",
                "License :: OSI Approved :: MIT License",
                "Programming Language :: Python :: 2.7",
                "Programming Language :: Python :: 3",
-               "Programming Language :: Python :: 3.4",
                "Programming Language :: Python :: 3.5",
                "Programming Language :: Python :: 3.6",
                "Programming Language :: Python :: 3.7",

@@ -4,6 +4,8 @@
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
 [![GitHub version](https://badge.fury.io/gh/JuDFTteam%2Faiida-kkr.svg)](https://badge.fury.io/gh/JuDFTteam%2Faiida-kkr)
 [![PyPI version](https://badge.fury.io/py/aiida-kkr.svg)](https://badge.fury.io/py/aiida-kkr)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3628251.svg)](https://doi.org/10.5281/zenodo.3628251)
+
 
 
 # aiida-kkr
@@ -17,7 +19,6 @@
 * self-consistency, DOS and bandstructure calculations
 * extraction of magnetic exchange coupling parameters (*J_ij*, *D_ij*)
 * impurity embedding solving the Dyson equation
-* ~~import old calculations using the calculation importer~~ (only working with aiida-core<1.0, i.e. in aiida-kkr v0.1.2)
 
 
 # Installation
@@ -43,8 +44,8 @@ $ reentry scan -r aiida
 * see http://aiida-kkr.readthedocs.io for user's guide and API reference.
 * check out http://judft.de and https://jukkr.fz-juelich.de for information of the KKR codes used by the plugin
 
-# Contribting guide
+# Contributing
 
-* Under construction
-* ...
+Thank you for your interest in contributing to aiida-kkr. 
+Check out our [contributing guide](CONTRIBUTING.md) for some information.
 
