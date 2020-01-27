@@ -4,6 +4,8 @@
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
 [![GitHub version](https://badge.fury.io/gh/JuDFTteam%2Faiida-kkr.svg)](https://badge.fury.io/gh/JuDFTteam%2Faiida-kkr)
 [![PyPI version](https://badge.fury.io/py/aiida-kkr.svg)](https://badge.fury.io/py/aiida-kkr)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3628251.svg)](https://doi.org/10.5281/zenodo.3628251)
+
 
 
 # aiida-kkr
