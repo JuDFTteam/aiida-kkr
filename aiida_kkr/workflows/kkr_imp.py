@@ -14,13 +14,13 @@ from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, neworder_potential_wf, update_params_wf
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
-from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
+from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc, clean_sfd
 import numpy as np
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.7"
+__version__ = "0.6.8"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -249,6 +249,9 @@ class kkr_imp_wc(WorkChain):
                                                  'aggrmix': self.ctx.aggrmix, 'broyden-number': self.ctx.broyden_number,
                                                  'mag_init': self.ctx.mag_init, 'hfield': self.ctx.hfield, 'init_pos': self.ctx.init_pos,
                                                  'accuracy_params': self.ctx.accuracy_params})
+
+        # list of things that are cleaned if everything ran through
+        self.ctx.sfd_final_cleanup = []
 
 
         # report the chosen parameters to the user
@@ -538,6 +541,8 @@ class kkr_imp_wc(WorkChain):
 
         # add starting potential for kkrimp calculation to context
         self.ctx.startpot_kkrimp = startpot_kkrimp
+        # add to list for final cleanup
+        self.ctx.sfd_final_cleanup.append(startpot_kkrimp)
 
         self.report('INFO: created startpotential (pid: {}) for the impurity calculation '
                     'by using information of the GF host calculation (pid: {}), the potential of the '
@@ -628,7 +633,11 @@ class kkr_imp_wc(WorkChain):
             self.out('workflow_info', outputnode_t)
             self.out('last_calc_output_parameters', last_calc_output_params)
             self.out('last_calc_info', last_calc_info)
+
+            # cleanup things that are not needed anymore
+            self.final_cleanup()
             
+            # print final message before exiting
             self.report('INFO: created 3 output nodes for the KKR impurity workflow.')
             self.report('\n'
                         '|------------------------------------------------------------------------------------------------------------------|\n'
@@ -637,6 +646,22 @@ class kkr_imp_wc(WorkChain):
         else:
             self.report(self.exit_codes.ERROR_KKRIMP_SUB_WORKFLOW_FAILURE)
             return self.exit_codes.ERROR_KKRIMP_SUB_WORKFLOW_FAILURE
+
+    def final_cleanup(self):
+        """
+        Remove unneeded files to save space
+        """
+        for sfd in self.ctx.sfd_final_cleanup:
+            clean_sfd(sfd)
+        if self.ctx.create_startpot:
+            kkr_startpot = self.ctx.last_voro_calc
+            vorocalc = kkr_startpot.outputs.last_voronoi_remote.get_incoming(link_label_filter=u'remote_folder').first().node
+            ret = vorocalc.outputs.retrieved
+            for fname in ret.list_object_names():
+                if fname!=VoronoiCalculation._OUTPUT_FILE_NAME:
+                    # delete all except vor default output file
+                    with ret.open(fname) as f:
+                        ret.delete_object(fname, force=True)
             
 
 @calcfunction

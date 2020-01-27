@@ -31,7 +31,7 @@ SinglefileData = DataFactory('singlefile')
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -693,7 +693,8 @@ class KkrimpCalculation(CalcJob):
         with comp.get_transport() as connection:
             # do this for GMAT
             uuid_GF = GF_local_copy_info[0]
-            GF_remote_path = os.path.join(GFpath_remote, uuid_GF, GF_local_copy_info[1])
+            filename = GF_local_copy_info[1]
+            GF_remote_path = os.path.join(GFpath_remote, uuid_GF, filename)
             # check if file exists on remote
             if connection.isfile(GF_remote_path):
                 # remove GF from local copy list and add to remote symlink list
@@ -702,12 +703,17 @@ class KkrimpCalculation(CalcJob):
 
             # do the same for TMAT
             uuid_TM = TM_local_copy_info[0]
-            TM_remote_path = os.path.join(GFpath_remote, uuid_TM, TM_local_copy_info[1])
+            filename = TM_local_copy_info[1]
+            TM_remote_path = os.path.join(GFpath_remote, uuid_TM, filename)
             # check if file exists on remote
             if connection.isfile(TM_remote_path):
                 # remove TMAT from local copy list and add to remote symlink list
                 local_copy_list.remove(TM_local_copy_info)
                 remote_symlink_list.append((comp.uuid, TM_remote_path, filename))
+
+        # print symlink and local copy list (for debugging purposes)
+        print('local_copy_list: {}'.format(local_copy_list))
+        print('symlink_list: {}'.format(remote_symlink_list))
 
         # now return updated remote_symlink and local_copy lists
         return remote_symlink_list, local_copy_list

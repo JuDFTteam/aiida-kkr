@@ -3,7 +3,6 @@ dist: trusty
 language: python
 python:
   - "2.7"
-  - "3.4"
   - "3.5"
   - "3.6"
 matrix:
@@ -12,6 +11,7 @@ matrix:
   include:
     - python: 3.7
       dist: xenial
+      env: NO_RMQ='t'
 notifications:
   slack:
     on_success: never

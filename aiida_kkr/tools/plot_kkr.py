@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.10"
+__version__ = "0.5.0"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -352,7 +352,8 @@ class plot_kkr(object):
                 n0 = len(show_atoms)
                 if n0==0: n0=natoms
                 #pcycle_values = array([j for i in range(n0) for j in pcycle_values]).reshape(-1)
-                pcycle_values = list(pcycle_values[:n0]) + list(pcycle_values[:n0])
+                #pcycle_values = list(pcycle_values[:n0]) + list(pcycle_values[:n0])
+                pcycle_values = array([[i,i] for i in pcycle_values]).reshape(-1)
             else:
                 pcycle_values = array([[i,i] for i in pcycle_values]).reshape(-1)
             pcycle_default = cycler('color', pcycle_values)
@@ -424,13 +425,17 @@ class plot_kkr(object):
 
         legend(fontsize='x-small')
 
-    def rmsplot(self, rms, neutr, nofig, ptitle, logscale, only=None, **kwargs):
+    def rmsplot(self, rms, neutr, nofig, ptitle, logscale, only=None, rename_second=None, **kwargs):
         """plot rms and charge neutrality"""
         from numpy import array
         from matplotlib.pylab import figure, plot, twinx, xlabel, ylabel, legend, subplots_adjust, title, gca
 
         if not nofig: figure()
 
+        # allow to overwrite name for second quantity, plotted on second y axis
+        name_second_y = 'charge_neutrality'
+        if rename_second is not None:
+            name_second_y = rename_second
 
         if only is None:
             if 'label' not in list(kwargs.keys()):
@@ -444,12 +449,12 @@ class plot_kkr(object):
             twinx()
             if logscale: neutr = abs(array(neutr))
             if 'label' not in list(kwargs.keys()):
-                label='charge neutrality'
+                label=name_second_y
             else:
                 label=kwargs.pop('label')
             plot(neutr,'-or', label=label)
             ax2 = gca()
-            ylabel('charge neutrality', color='r')
+            ylabel(name_second_y, color='r')
             if logscale:
                 ax1.set_yscale('log')
                 ax2.set_yscale('log')
@@ -464,7 +469,7 @@ class plot_kkr(object):
             elif only=='neutr':
                 if logscale: neutr = abs(array(neutr))
                 plot(neutr, **kwargs)
-                ylabel('neutr')
+                ylabel(name_second_y)
                 xlabel('iteration')
                 ax1 = gca()
                 if logscale:
@@ -675,20 +680,117 @@ class plot_kkr(object):
         # TODO maybe plot some output of voronoi
 
 
-    def plot_kkrimp_calc(self, node, **kwargs):
+    def plot_kkrimp_calc(self, node, return_rms=False, return_stot=False, **kwargs):
         """plot things from a kkrimp Calculation node"""
-        print("Plotting not implemented yet")
-        pass
+        from numpy import array, ndarray
+        from numpy import sqrt, sum
+
+        # read data from output node
+        rms_goal, rms = None, []
+        if node.is_finished_ok:
+            out_para = node.outputs.output_parameters
+            out_para_dict = out_para.get_dict()
+            out_para_dict['convergence_group']['rms_all_iterations']
+            rms = out_para_dict['convergence_group']['rms_all_iterations']
+            rms_goal = out_para_dict['convergence_group']['qbound']
+            # extract total magnetic moment
+            nat = out_para_dict['number_of_atoms_in_unit_cell']
+            s = array(out_para_dict['convergence_group']['spin_moment_per_atom_all_iterations'], dtype=float)
+            ss = sqrt(sum(s**2, axis=1)).reshape(-1,nat)
+            stot = sum(ss, axis=1)
+
+        # now return values
+        return_any, return_list = False, []
+        if return_rms:
+            return_list += [rms, rms_goal]
+            return_any = True
+        if return_stot:
+            return_list += [stot]
+            return_any = True
+        if return_any:
+            return return_list
+
 
     def plot_kkrimp_wc(self, node, **kwargs):
         """plot things from a kkrimp_wc workflow"""
-        print("Plotting not implemented yet")
-        pass
+
+        # call imp_sub plotting from here
+        from aiida_kkr.workflows import kkr_imp_sub_wc
+        sub_wf = [i.node for i in node.get_outgoing(node_class=kkr_imp_sub_wc).all()][0]
+        self.plot_kkrimp_sub_wc(sub_wf)
+
 
     def plot_kkrimp_sub_wc(self, node, **kwargs):
         """plot things from a kkrimp_sub_wc workflow"""
-        print("Plotting not implemented yet")
-        pass
+        from aiida_kkr.calculations import KkrimpCalculation
+        from numpy import array
+        from matplotlib.pyplot import figure, subplot, axhline, axvline, gca, ylim
+
+        # extract rms from calculations
+        impcalcs = [i.node for i in node.get_outgoing(node_class=KkrimpCalculation).all()]
+        rms_all, pks_all, stot_all = [], [], []
+        rms_goal = None
+        for impcalc in impcalcs:
+            pks_all.append(impcalc.pk)
+            rms_tmp, rms_goal_tmp, stot_tmp = self.plot_kkrimp_calc(impcalc, return_rms=True, return_stot=True)
+            rms_all.append(rms_tmp)
+            if rms_goal_tmp is not None:
+                if rms_goal is not None:
+                    rms_goal = min(rms_goal, rms_goal_tmp)
+                else:
+                    rms_goal = rms_goal_tmp
+            stot_all.append(stot_tmp)
+
+        # extract options from kwargs
+        nofig = False
+        if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
+        logscale = True
+        if 'logscale' in list(kwargs.keys()): logscale = kwargs.pop('logscale')
+        if 'subplot' in list(kwargs.keys()):
+            subplots = kwargs.pop('subplot')
+        else:
+            subplots = None
+        if 'label' in list(kwargs.keys()):
+            label = kwargs.pop('label')
+        else:
+            label = None
+        if 'ptitle' in list(kwargs.keys()):
+            ptitle = kwargs.pop('ptitle')
+        else:
+            ptitle = 'pk= {}'.format(node.pk)
+        if 'only' in list(kwargs.keys()):
+            only = kwargs.pop('only')
+        else:
+            only = None
+
+        # plotting of convergence properties (rms etc.)
+        if len(rms_all)>0:
+            # sort rms values and flatten array
+            reorder_rms = array(pks_all).argsort()
+            rms, niter_calcs, stot = [], [0], []
+            for i in array(rms_all)[reorder_rms]:
+                rms += list(i)
+                niter_calcs.append(len(i)-0.5)
+            for i in array(stot_all)[reorder_rms]:
+                stot += list(i)
+            # now plot
+            if len(rms)>0:
+                if not nofig:
+                    figure()
+                if subplots is not None:
+                    subplot(subplots[0], subplots[1], subplots[2])
+                if rms_goal is not None: axhline(rms_goal, color='grey', ls='--')
+                self.rmsplot(rms, stot, nofig=True, ptitle=ptitle, logscale=logscale, only=only, rename_second='sum(spinmom)', label=label)
+                # adapt y-limits to take care of showing spin-moment on sensible scale
+                if only is None:
+                    yl = gca().get_ylim()
+                    ylim(yl[0], max(yl[1], 0.1))
+                # add lines that indicate different calculations
+                tmpsum = 1
+                if not nofig and len(niter_calcs)>1:
+                    for i in niter_calcs:
+                        tmpsum+=i
+                        axvline(tmpsum-1, color='k', ls=':')
 
 
     def plot_kkrimp_dos_wc(self, node, **kwargs):
@@ -730,6 +832,7 @@ class plot_kkr(object):
             if calcnode.is_finished_ok:
                 natoms = len(calcnode.outputs.output_parameters.get_dict().get('charge_core_states_per_atom'))
                 self.dosplot(d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, yscale=yscale, **kwargs)
+                title('pk= {}'.format(node.pk))
 
 
     ### workflows ###
