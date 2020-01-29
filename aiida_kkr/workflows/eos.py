@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.8.1"
+__version__ = "0.9.0"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -54,7 +54,7 @@ class kkr_eos_wc(WorkChain):
     _options_default = {'queue_name' : '',                # Queue name to submit jobs too
                         'resources': {"num_machines": 1}, # resources to allocate for the job
                         'max_wallclock_seconds' : 60*60,  # walltime in seconds after which the job gets killed (gets parsed to KKR)
-                        'use_mpi' : True,                 # execute KKR with mpi or without
+                        'withmpi' : True,                 # execute KKR with mpi or without
                         'custom_scheduler_commands' : ''  # some additional scheduler commands (e.g. project numbers in job scripts, OpenMP settings, ...)
                        }
     # workflow settings
@@ -64,7 +64,7 @@ class kkr_eos_wc(WorkChain):
                    'use_primitive_structure': True, # use seekpath to get primitive structure after scaling to reduce computational time
                    'fitfunction': 'birchmurnaghan', # fitfunction used to determine ground state volume (see ase.eos.EquationOfState class for details)
                    'settings_kkr_startpot': kkr_startpot_wc.get_wf_defaults(silent=True), # settings for kkr_startpot behavior
-                   'settings_kkr_scf': kkr_scf_wc.get_wf_defaults(silent=True)            # settings for kkr_scf behavior
+                   'settings_kkr_scf': kkr_scf_wc.get_wf_defaults(silent=True)[0]         # settings for kkr_scf behavior
                    }
     # change _wf_default of kkr_scf to deactivate DOS runs
     _wf_default['settings_kkr_scf']['check_dos'] = False

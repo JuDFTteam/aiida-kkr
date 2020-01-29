@@ -350,8 +350,9 @@ def get_inputs_common(calculation, code, remote, structure, options, label, desc
         options['withmpi'] = False
         options['resources'] = {"num_machines": 1}
     else:
-        # otherwise assume MPI parallelism
-        options['withmpi'] = True
+        # otherwise assume MPI parallelism if not given in input options
+        if 'withmpi' not in options.keys():
+            options['withmpi'] = True
 
     if options:
         inputs.metadata.options = options

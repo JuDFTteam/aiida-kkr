@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.11"
+__version__ = "0.10.0"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -116,7 +116,7 @@ class kkr_scf_wc(WorkChain):
     _options_default = {'queue_name' : '',                         # Queue name to submit jobs too
                         'resources': {"num_machines": 1},          # resources to allowcate for the job
                         'max_wallclock_seconds' : 60*60,           # walltime after which the job gets killed (gets parsed to KKR)
-                        'use_mpi' : True,                          # execute KKR with mpi or without
+                        'withmpi' : True,                          # execute KKR with mpi or without
                         'custom_scheduler_commands' : ''           # some additional scheduler commands
                         }
     # set these keys from defaults in kkr_startpot workflow since they are only passed onto that workflow
@@ -129,11 +129,11 @@ class kkr_scf_wc(WorkChain):
     @classmethod
     def get_wf_defaults(self, silent=False):
         """
-        Print and return _wf_defaults dictionary. Can be used to easily create set of wf_parameters.
-        returns _wf_defaults
+        Print and return _wf_default dictionary. Can be used to easily create set of wf_parameters.
+        returns _wf_default, _options_default
         """
         if not silent: print('Version of workflow: {}'.format(self._workflowversion))
-        return self._wf_default
+        return self._wf_default, self._options_default
 
 
     @classmethod
@@ -268,12 +268,12 @@ class kkr_scf_wc(WorkChain):
             self.report('INFO: using default options')
 
         # set values from input, or defaults
-        self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
+        self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
         self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
-        self.ctx.options_params_dict = Dict(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources,
+        self.ctx.options_params_dict = Dict(dict={'withmpi': self.ctx.withmpi, 'resources': self.ctx.resources,
                                                            'max_wallclock_seconds': self.ctx.max_wallclock_seconds, 'queue_name': self.ctx.queue,
                                                            'custom_scheduler_commands': self.ctx.custom_scheduler_commands})
 
@@ -341,7 +341,7 @@ class kkr_scf_wc(WorkChain):
                     'init magnetism in first step: {}\n'
                     'init magnetism, hfield: {}\n'
                     'init magnetism, init_pos: {}\n'
-                    ''.format(self.ctx.use_mpi, self.ctx.max_number_runs,
+                    ''.format(self.ctx.withmpi, self.ctx.max_number_runs,
                                 self.ctx.resources, self.ctx.max_wallclock_seconds,
                                 self.ctx.queue, self.ctx.custom_scheduler_commands,
                                 self.ctx.description_wf, self.ctx.label_wf,
@@ -866,7 +866,7 @@ class kkr_scf_wc(WorkChain):
                    "queue_name" : self.ctx.queue}
         if self.ctx.custom_scheduler_commands:
             options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
-        inputs = get_inputs_kkr(code, remote, options, label, description, parameters=params, serial=(not self.ctx.use_mpi))
+        inputs = get_inputs_kkr(code, remote, options, label, description, parameters=params, serial=(not self.ctx.withmpi))
 
         # run the KKR calculation
         self.report('INFO: doing calculation')
@@ -1296,7 +1296,7 @@ class kkr_scf_wc(WorkChain):
             wfdospara_dict = {'queue_name' : self.ctx.queue,
                               'resources': self.ctx.resources,
                               'max_wallclock_seconds' : self.ctx.max_wallclock_seconds,
-                              'use_mpi' : self.ctx.use_mpi,
+                              'withmpi' : self.ctx.withmpi,
                               'custom_scheduler_commands' : self.ctx.custom_scheduler_commands,
                               'dos_params' : self.ctx.dos_params}
             wfdospara_node = Dict(dict=wfdospara_dict)

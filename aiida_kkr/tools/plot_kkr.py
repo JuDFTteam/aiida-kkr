@@ -635,8 +635,13 @@ class plot_kkr(object):
                     with node.outputs.retrieved.open('qdos.01.1.dat', mode='r') as f:
                         ne = len(set(loadtxt(f)[:,0]))
                         if ne>1 or 'as_e_dimension' in kwargs.keys():
-                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qdos.01.1.dat', 'output.0.txt')), shell=True) 
-                            ef = float(ef.split('=')[2].split()[0])
+                            try:
+                                ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qdos.01.1.dat', 'output.0.txt')), shell=True) 
+                                ef = float(ef.split('=')[2].split()[0])
+                            except:
+                                # extract Fermi level from parent calculation
+                                parent_calc = node.inputs.parent_folder.get_incoming().first().node
+                                ef = parent_calc.outputs.output_parameters.get_dict()['fermi_energy']
                             dispersionplot(f, newfig=(not nofig), ptitle=ptitle, logscale=logscale, ef=ef, **kwargs)
                             # add plot labels
                             try:
@@ -799,7 +804,6 @@ class plot_kkr(object):
         # try to plot dos and qdos data if Calculation was bandstructure or DOS run
         from os import listdir
         from numpy import loadtxt, array, where
-        from masci_tools.vis.kkr_plot_bandstruc_qdos import dispersionplot
         from masci_tools.vis.kkr_plot_FS_qdos import FSqdos2D
         from masci_tools.vis.kkr_plot_dos import dosplot
         from matplotlib.pyplot import show, figure, title, xticks, xlabel, axvline

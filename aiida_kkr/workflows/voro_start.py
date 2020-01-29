@@ -24,7 +24,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.6"
+__version__ = "0.11.0"
 __contributors__ = u"Philipp Rüßmann"
 
 StructureData = DataFactory('structure')
@@ -64,7 +64,7 @@ class kkr_startpot_wc(WorkChain):
     _options_default = {'queue_name' : '',                        # Queue name to submit jobs to
                         'resources': {"num_machines": 1},         # resources to allowcate for the job
                         'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)
-                        'use_mpi' : True,                         # execute KKR with mpi or without
+                        'withmpi' : True,                         # execute KKR with mpi or without
                         'custom_scheduler_commands' : '',         # some additional scheduler commands
                         }
     # add defaults of dos_params since they are passed onto that workflow
@@ -174,7 +174,7 @@ class kkr_startpot_wc(WorkChain):
             self.report('INFO: using default options')
 
         # set values, or defaults for computer options
-        self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
+        self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
         self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
@@ -218,7 +218,7 @@ class kkr_startpot_wc(WorkChain):
         #TODO add missing info
         # print the inputs
         self.report('INFO: use the following parameter:\n'
-                    'use_mpi: {}\n'
+                    'withmpi: {}\n'
                     'Resources: {}\n'
                     'Walltime (s): {}\n'
                     'queue name: {}\n'
@@ -232,7 +232,7 @@ class kkr_startpot_wc(WorkChain):
                     'min. number of atoms in screening cls: {}\n'
                     'min. dist in DOS contour to emin/emax: {} eV\n'
                     'threshold where DOS is zero: {} states/eV\n'
-                    'minimal distance of highest core state from EMIN: {} Ry\n'.format(self.ctx.use_mpi,
+                    'minimal distance of highest core state from EMIN: {} Ry\n'.format(self.ctx.withmpi,
                                               self.ctx.resources, self.ctx.max_wallclock_seconds,
                                               self.ctx.queue, self.ctx.custom_scheduler_commands,
                                               self.ctx.description_wf, self.ctx.label_wf,
@@ -528,7 +528,7 @@ class kkr_startpot_wc(WorkChain):
             options_dict =  {'queue_name' : self.ctx.queue,
                              'resources': self.ctx.resources,
                              'max_wallclock_seconds' : self.ctx.max_wallclock_seconds,
-                             'use_mpi' : self.ctx.use_mpi,
+                             'withmpi' : self.ctx.withmpi,
                              'custom_scheduler_commands' : self.ctx.custom_scheduler_commands}
             options_node = Dict(dict=options_dict)
             options_node.label = 'options'
@@ -741,7 +741,7 @@ class kkr_startpot_wc(WorkChain):
         res_node_dict['workflow_version'] = self._workflowversion
         res_node_dict['successful'] = self.ctx.successful
         res_node_dict['list_of_errors'] = self.ctx.errors
-        res_node_dict['use_mpi'] = self.ctx.use_mpi
+        res_node_dict['withmpi'] = self.ctx.withmpi
         res_node_dict['resources'] = self.ctx.resources
         res_node_dict['max_wallclock_seconds'] = self.ctx.max_wallclock_seconds
         res_node_dict['queue_name'] = self.ctx.queue

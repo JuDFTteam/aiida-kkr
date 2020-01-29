@@ -45,7 +45,7 @@ class Test_vorostart_workflow():
         wfd['check_dos'] = False
         wfd['natom_in_cls_min'] = 20
         wfd['num_rerun'] = 2
-        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
+        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'withmpi' : False, 'custom_scheduler_commands' : ''}
         params_vorostart = Dict(dict=wfd)
 
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations

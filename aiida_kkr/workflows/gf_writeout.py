@@ -22,7 +22,7 @@ from aiida.common.exceptions import InputValidationError
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.3"
+__version__ = "0.5.0"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 # ToDo: add more default values to wf_parameters
@@ -58,7 +58,7 @@ class kkr_flex_wc(WorkChain):
                         'resources': {"num_machines": 1},         # resources to allowcate for the job
                         'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)}
                         'custom_scheduler_commands' : '',         # some additional scheduler commands
-                        'use_mpi' : True}                         # execute KKR with mpi or without
+                        'withmpi' : True}                         # execute KKR with mpi or without
 
     _wf_default = {'ef_shift': 0. ,                                  # set costum absolute E_F (in eV)
                    'dos_params': {'nepts': 61,                       # DOS params: number of points in contour
@@ -157,7 +157,7 @@ class kkr_flex_wc(WorkChain):
 
         # set values, or defaults
         # ToDo: arrange option assignment differently (look at scf.py from aiida-fleur)
-        self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
+        self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
         self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
@@ -172,13 +172,13 @@ class kkr_flex_wc(WorkChain):
 
 
         self.report('INFO: use the following parameter:\n'
-                    'use_mpi: {}\n'
+                    'withmpi: {}\n'
                     'Resources: {}\n'
                     'Walltime (s): {}\n'
                     'queue name: {}\n'
                     'scheduler command: {}\n'
                     'description: {}\n'
-                    'label: {}\n'.format(self.ctx.use_mpi, self.ctx.resources, self.ctx.max_wallclock_seconds,
+                    'label: {}\n'.format(self.ctx.withmpi, self.ctx.resources, self.ctx.max_wallclock_seconds,
                                          self.ctx.queue, self.ctx.custom_scheduler_commands,
                                          self.ctx.description_wf, self.ctx.label_wf))
 
@@ -356,7 +356,7 @@ class kkr_flex_wc(WorkChain):
                    "queue_name": self.ctx.queue}
         if self.ctx.custom_scheduler_commands:
             options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
-        inputs = get_inputs_kkr(code, remote, options, label, description, parameters=params, serial=(not self.ctx.use_mpi), imp_info=imp_info)
+        inputs = get_inputs_kkr(code, remote, options, label, description, parameters=params, serial=(not self.ctx.withmpi), imp_info=imp_info)
 
         # run the KKRFLEX calculation
         self.report('INFO: doing calculation')
@@ -381,7 +381,7 @@ class kkr_flex_wc(WorkChain):
         outputnode_dict = {}
         outputnode_dict['workflow_name'] = self.__class__.__name__
         outputnode_dict['workflow_version'] = self._workflowversion
-        outputnode_dict['use_mpi'] = self.ctx.use_mpi
+        outputnode_dict['withmpi'] = self.ctx.withmpi
         outputnode_dict['resources'] = self.ctx.resources
         outputnode_dict['max_wallclock_seconds'] = self.ctx.max_wallclock_seconds
         outputnode_dict['queue_name'] = self.ctx.queue

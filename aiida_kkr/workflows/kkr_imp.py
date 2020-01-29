@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.8"
+__version__ = "0.7.0"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -67,7 +67,7 @@ class kkr_imp_wc(WorkChain):
                         'resources': {"num_machines": 1},            # resources to allowcate for the job
                         'max_wallclock_seconds' : 60*60,             # walltime after which the job gets killed (gets parsed to KKR)}
                         'custom_scheduler_commands' : '',            # some additional scheduler commands
-                        'use_mpi' : True}                            # execute KKR with mpi or without
+                        'withmpi' : True}                            # execute KKR with mpi or without
 
     _wf_default = kkr_imp_sub_wc.get_wf_defaults(silent=True)        # settings for sub workflow (impurity convergence)
     _voro_aux_default = kkr_startpot_wc.get_wf_defaults(silent=True) # settings for vorostart workflow, used to generate starting potential
@@ -192,12 +192,12 @@ class kkr_imp_wc(WorkChain):
 
 
         # set option parameters from input, or defaults
-        self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
+        self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
         self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
-        self.ctx.options_params_dict = Dict(dict={'use_mpi': self.ctx.use_mpi, 'resources': self.ctx.resources, 'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
+        self.ctx.options_params_dict = Dict(dict={'withmpi': self.ctx.withmpi, 'resources': self.ctx.resources, 'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
                                                   'queue_name': self.ctx.queue, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands})
         if 'options_voronoi' in self.inputs:
             self.ctx.options_params_dict_voronoi = self.inputs.options_voronoi.get_dict()
@@ -220,7 +220,7 @@ class kkr_imp_wc(WorkChain):
         self.ctx.voro_delta_e_min_core_states = voro_aux_dict.get('delta_e_min_core_states', self._voro_aux_default['delta_e_min_core_states'])
         # set up new parameter dict to pass to voronoi subworkflow later
         self.ctx.voro_params_dict = Dict(dict={'queue_name': self.ctx.queue, 'resources': self.ctx.resources, 'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
-                                               'use_mpi': self.ctx.use_mpi, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
+                                               'withmpi': self.ctx.withmpi, 'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
                                                'dos_params': self.ctx.voro_dos_params, 'num_rerun': self.ctx.voro_num_rerun,
                                                'fac_cls_increase': self.ctx.voro_fac_cls_increase,
                                                'natom_in_cls_min': self.ctx.voro_natom_in_cls_min, 'delta_e_min': self.ctx.voro_delta_e_min,
@@ -266,7 +266,7 @@ class kkr_imp_wc(WorkChain):
                     'label: {}\n'
                     'parameters for the voroaux calculation: {}\n'
                     'parameters for the kkrimp scf: {}\n'
-                    ''.format(self.ctx.use_mpi, self.ctx.resources, self.ctx.max_wallclock_seconds,
+                    ''.format(self.ctx.withmpi, self.ctx.resources, self.ctx.max_wallclock_seconds,
                               self.ctx.queue, self.ctx.custom_scheduler_commands,
                               self.ctx.description_wf, self.ctx.label_wf,
                               self.ctx.voro_params_dict.get_dict(),

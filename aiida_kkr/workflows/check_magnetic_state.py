@@ -31,7 +31,7 @@ class kkr_check_mag_wc(WorkChain):
     _options_default = {'queue_name' : '',                        # Queue name to submit jobs too
                         'resources': {"num_machines": 1},         # resources to allowcate for the job
                         'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)
-                        'use_mpi' : False,                        # execute KKR with mpi or without
+                        'withmpi' : False,                        # execute KKR with mpi or without
                         'custom_scheduler_commands' : ''          # some additional scheduler commands
                         }
 

@@ -31,7 +31,7 @@ class Test_gf_writeout_workflow():
 
         # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
         wfd =kkr_flex_wc.get_wf_defaults()
-        options = {'queue_name' : queuename, 'resources': {"num_machines": 1},'max_wallclock_seconds' : 5*60, 'custom_scheduler_commands' : '', 'use_mpi' : False}
+        options = {'queue_name' : queuename, 'resources': {"num_machines": 1},'max_wallclock_seconds' : 5*60, 'custom_scheduler_commands' : '', 'withmpi' : False}
         options = Dict(dict=options)
 
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations

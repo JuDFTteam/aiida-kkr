@@ -35,7 +35,7 @@ class Test_kkrimp_full_workflow():
 
         wfd['nsteps'] = 20
         wfd['strmix'] = 0.05
-        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
+        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'withmpi' : False, 'custom_scheduler_commands' : ''}
         options = Dict(dict=options)
         voro_aux_settings['check_dos'] = False
         voro_aux_settings['dos_params']['kmesh'] = [10,10,10]

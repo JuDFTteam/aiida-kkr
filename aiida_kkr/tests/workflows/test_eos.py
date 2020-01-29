@@ -59,7 +59,7 @@ class Test_eos_workflow():
         KKReos_wf_parameters = Dict(dict=wfd)
         options['queue_name'] = queuename
         options['max_wallclock_seconds'] = 5*60
-        options['use_mpi'] = False
+        options['withmpi'] = False
         options = Dict(dict=options)
 
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations

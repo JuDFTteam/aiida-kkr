@@ -33,7 +33,7 @@ class Test_kkrimp_dos_workflow():
 
         wfd =kkr_imp_dos_wc.get_wf_defaults()
 
-        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'use_mpi' : False, 'custom_scheduler_commands' : ''}
+        options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'withmpi' : False, 'custom_scheduler_commands' : ''}
         options = Dict(dict=options)
 
         # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations

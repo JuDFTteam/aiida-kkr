@@ -20,7 +20,7 @@ import tarfile, os
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.7"
+__version__ = "0.8.0"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -67,7 +67,7 @@ class kkr_imp_sub_wc(WorkChain):
                         'resources': {"num_machines": 1},         # resources to allowcate for the job
                         'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)}
                         'custom_scheduler_commands' : '',         # some additional scheduler commands
-                        'use_mpi' : True}                         # execute KKR with mpi or without
+                        'withmpi' : True}                         # execute KKR with mpi or without
 
     _wf_default = {'kkr_runmax': 5,                               # Maximum number of kkr jobs/starts (defauld iterations per start)
                    'convergence_criterion' : 1*10**-7,            # Stop if charge denisty is converged below this value
@@ -221,7 +221,7 @@ class kkr_imp_sub_wc(WorkChain):
             self.report('INFO: using default wf parameter')
 
         # set option parameters from input, or defaults
-        self.ctx.use_mpi = options_dict.get('use_mpi', self._options_default['use_mpi'])
+        self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
         self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
@@ -278,7 +278,7 @@ class kkr_imp_sub_wc(WorkChain):
                     'init magnetism in first step: {}\n'
                     'init magnetism, hfield: {}\n'
                     'init magnetism, init_pos: {}\n'
-                    ''.format(self.ctx.use_mpi, self.ctx.max_number_runs,
+                    ''.format(self.ctx.withmpi, self.ctx.max_number_runs,
                               self.ctx.resources, self.ctx.max_wallclock_seconds,
                               self.ctx.queue, self.ctx.custom_scheduler_commands,
                               self.ctx.description_wf, self.ctx.label_wf,
@@ -688,13 +688,13 @@ class kkr_imp_sub_wc(WorkChain):
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_dict().get('Zimp'))
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
-                                           not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, imp_pot=imp_pot, host_GF_Efshift=host_GF_Efshift)
+                                           not self.ctx.withmpi, imp_info=imp_info, host_GF=host_GF, imp_pot=imp_pot, host_GF_Efshift=host_GF_Efshift)
             else:
                 self.report('INFO: getting impurity_info node from previous GF calculation')
                 label = 'KKRimp calculation step {} (IMIX={}, GF_remote: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, host_GF.pk)
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
-                                           not self.ctx.use_mpi, host_GF=host_GF, imp_pot=imp_pot, host_GF_Efshift=host_GF_Efshift)
+                                           not self.ctx.withmpi, host_GF=host_GF, imp_pot=imp_pot, host_GF_Efshift=host_GF_Efshift)
         elif last_remote is not None:
             # fix to get Zimp properly
             if 'impurity_info' in self.inputs:
@@ -703,13 +703,13 @@ class kkr_imp_sub_wc(WorkChain):
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_dict().get('Zimp'))
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
-                                           not self.ctx.use_mpi, imp_info=imp_info, host_GF=host_GF, kkrimp_remote=last_remote, host_GF_Efshift=host_GF_Efshift)
+                                           not self.ctx.withmpi, imp_info=imp_info, host_GF=host_GF, kkrimp_remote=last_remote, host_GF_Efshift=host_GF_Efshift)
             else:
                 self.report('INFO: using RemoteData from previous kkrimp calculation as input')
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, None)
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
-                                           not self.ctx.use_mpi, host_GF=host_GF, kkrimp_remote=last_remote, host_GF_Efshift=host_GF_Efshift)
+                                           not self.ctx.withmpi, host_GF=host_GF, kkrimp_remote=last_remote, host_GF_Efshift=host_GF_Efshift)
 
         # run the KKR calculation
         self.report('INFO: doing calculation')
