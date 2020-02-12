@@ -10,6 +10,7 @@ import os
 from numpy import where, array
 from masci_tools.io.kkr_params import kkrparams
 from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
+from masci_tools.io.common_functions import get_alat_from_bravais
 from aiida.orm import Code
 from aiida.plugins import DataFactory
 from aiida.engine import WorkChain, while_, if_, ToContext, submit, calcfunction
@@ -24,7 +25,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.1"
+__version__ = "0.11.2"
 __contributors__ = u"Philipp Rüßmann"
 
 StructureData = DataFactory('structure')
@@ -204,7 +205,7 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.efermi = None
 
         # find starting cluster radius
-        self.ctx.r_cls = find_cluster_radius(self.inputs.structure, self.ctx.nclsmin/1.15, nbins=100)[1] # find cluster radius (in alat units)
+        self.ctx.r_cls = self.find_cluster_radius_alat() # find cluster radius (in alat units) 
 
         # difference in eV to emin (e_fermi) if emin (emax) are larger (smaller) than emin (e_fermi)
         self.ctx.delta_e = wf_dict.get('delta_e_min', self._wf_default['delta_e_min'])
@@ -775,6 +776,39 @@ class kkr_startpot_wc(WorkChain):
             self.out('last_params_voronoi', last_params)
 
         self.report("INFO: done with kkr_startpot workflow!\n")
+
+
+    def find_cluster_radius_alat(self):
+        """
+        Find an estimate for the cluster radius that comes close to having nclsmin atoms in the cluster.
+        """
+
+        # some settings
+        nbins = 10000 # binning for find_cluster radius (higher=more accurate)
+        ncls_target = self.ctx.nclsmin/1.15 # make target number smaller to not overshoot in the beginning
+                                            # the tradeoff is to have more voronoi calculations in the database
+        structure = self.inputs.structure
+
+        # first find cluster radius in Ang. units
+        r_cls_ang = find_cluster_radius(structure, ncls_target, nbins=nbins)[0]
+
+        cell = array(structure.cell)
+        alat = get_alat_from_bravais(cell, structure.pbc[2])
+
+        # now check whether input parameter contain use_input_alat key
+        # and overwrite alat with used input alat if given
+        if 'calc_parameters' in self.inputs:
+            params = self.inputs.calc_parameters
+            use_input_alat = params.get_dict().get('use_input_alat', False)
+            alat_input = params.get_dict().get('ALATBASIS', None)
+            if use_input_alat and alat_input is not None:
+                alat = alat_input
+
+        # now get r_cls in proper alat units
+        r_cls_alat = r_cls_ang/alat
+
+        # return cluster radius
+        return r_cls_alat
 
 
 @calcfunction
