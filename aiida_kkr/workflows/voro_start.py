@@ -24,7 +24,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.0"
+__version__ = "0.11.1"
 __contributors__ = u"Philipp Rüßmann"
 
 StructureData = DataFactory('structure')
@@ -630,7 +630,7 @@ class kkr_startpot_wc(WorkChain):
 
             # check for position of core states
             ecore_all = self.ctx.voro_calc.res.core_states_group.get('energy_highest_lying_core_state_per_atom')
-            ecore_max = max(ecore_all)
+            ecore_max = max([ec for ec in ecore_all if ec is not None])
             self.report("INFO: emin= {} Ry".format(emin))
             self.report("INFO: highest core state= {} Ry".format(ecore_max))
             if ecore_max is not None:
