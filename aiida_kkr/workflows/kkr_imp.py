@@ -5,8 +5,7 @@ and some helper methods to do so with AiiDA
 """
 from __future__ import print_function
 from __future__ import absolute_import
-from aiida.orm import Code, load_node
-from aiida.plugins import DataFactory
+from aiida.orm import Code, load_node, RemoteData, StructureData, Dict, SinglefileData, FolderData
 from aiida.engine import WorkChain, ToContext, if_
 from aiida.engine import calcfunction
 from aiida_kkr.calculations.voro import VoronoiCalculation
@@ -25,13 +24,6 @@ __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
 #TODO: maybe work on a clearer outputnode structure
-
-RemoteData = DataFactory('remote')
-StructureData = DataFactory('structure')
-Dict = DataFactory('dict')
-SinglefileData = DataFactory('singlefile')
-FolderData = DataFactory('folder')
-
 
 
 class kkr_imp_wc(WorkChain):
@@ -422,7 +414,7 @@ class kkr_imp_wc(WorkChain):
         # add or overwrite some parameters (e.g. things that are only used by voronoi)
         calc_params_dict = calc_params.get_dict()
         # add some voronoi specific parameters automatically if found (RMTREF should also set RMTCORE to the same value)
-        if '<RMTREF>' in calc_params_dict.keys():
+        if '<RMTREF>' in list(calc_params_dict.keys()):
             self.report('INFO: add rmtcore to voro params')
             self.ctx.change_voro_params['<RMTCORE>'] = calc_params_dict['<RMTREF>']
             self.report(self.ctx.change_voro_params)
@@ -436,7 +428,7 @@ class kkr_imp_wc(WorkChain):
             changed_params = True
         if changed_params:
             updatenode = Dict(dict=calc_params_dict)
-            updatenode.label = 'Changed params for voroaux: {}'.format(self.ctx.change_voro_params.keys())
+            updatenode.label = 'Changed params for voroaux: {}'.format(list(self.ctx.change_voro_params.keys()))
             updatenode.description = 'Overwritten voronoi input parameter from kkr_imp_wc input.'
             calc_params = update_params_wf(calc_params, updatenode)
 
@@ -481,7 +473,7 @@ class kkr_imp_wc(WorkChain):
             parent_remote = load_node(self.inputs.remote_data_gf_Efshift.pk)
         else:
             parent_remote = load_node(self.inputs.remote_data_gf.pk)
-        
+
         # now extract output parameters
         parent_calc = parent_remote.get_incoming(link_label_filter='remote_folder').first().node
         output_params = parent_calc.outputs.output_parameters.get_dict()
@@ -615,7 +607,7 @@ class kkr_imp_wc(WorkChain):
             else:
                 outputnode_dict['used_subworkflows'] = {'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}
             if self.ctx.create_startpot:
-                outputnode_dict['used_subworkflows']['auxiliary_voronoi'] = self.ctx.last_voro_calc.pk 
+                outputnode_dict['used_subworkflows']['auxiliary_voronoi'] = self.ctx.last_voro_calc.pk
                 res_voro_info = self.ctx.last_voro_calc.outputs.results_vorostart_wc
                 outputnode_dict['voro_wc_success'] = res_voro_info.get_dict().get('successful')
             outputnode_dict['converged'] = last_calc_info.get_dict().get('convergence_reached')
@@ -629,14 +621,14 @@ class kkr_imp_wc(WorkChain):
             outputnode_t.description = 'Contains information for workflow'
             outputnode_t.store()
             self.report('INFO: workflow_info node: {}'.format(outputnode_t.uuid))
-            
+
             self.out('workflow_info', outputnode_t)
             self.out('last_calc_output_parameters', last_calc_output_params)
             self.out('last_calc_info', last_calc_info)
 
             # cleanup things that are not needed anymore
             self.final_cleanup()
-            
+
             # print final message before exiting
             self.report('INFO: created 3 output nodes for the KKR impurity workflow.')
             self.report('\n'
@@ -662,7 +654,7 @@ class kkr_imp_wc(WorkChain):
                     # delete all except vor default output file
                     with ret.open(fname) as f:
                         ret.delete_object(fname, force=True)
-            
+
 
 @calcfunction
 def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at center only!

@@ -4,10 +4,8 @@ It can store empty spheres, i.e can store 'dummy atom' with charge 0
 """
 #from aiida.orm.data.structure import *
 from __future__ import absolute_import
-from aiida.orm import Data
+from aiida.orm import Data, StructureData
 from aiida.plugins import DataFactory
-
-StructureData = DataFactory('structure')
 
 class KkrstructureData(StructureData):
     """

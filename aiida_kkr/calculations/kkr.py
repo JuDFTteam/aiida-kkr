@@ -7,12 +7,11 @@ from __future__ import unicode_literals
 import os
 from numpy import pi, array
 from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode, load_node
+from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData
 from .voro import VoronoiCalculation
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import InputValidationError, ValidationError
 from aiida.common.datastructures import CalcInfo, CodeInfo
-from aiida.plugins import DataFactory
 from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_structure,
                                                   check_2Dinput_consistency, update_params_wf,
@@ -22,12 +21,6 @@ from aiida_kkr.tools.tools_kkrimp import make_scoef
 from masci_tools.io.kkr_params import __kkr_default_params__
 import six
 from six.moves import range
-
-#define aiida structures from DataFactory of aiida
-RemoteData = DataFactory('remote')
-Dict = DataFactory('dict')
-StructureData = DataFactory('structure')
-KpointsData = DataFactory('array.kpoints')
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "

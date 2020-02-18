@@ -18,8 +18,7 @@ class Test_dos_workflow():
         simple Cu noSOC, FP, lmax2 full example using scf workflow
         """
         from aiida import get_version
-        from aiida.orm import Code, load_node
-        from aiida.plugins import DataFactory
+        from aiida.orm import Code, load_node, Dict, StructureData
         from aiida.orm import Computer
         from aiida.orm.querybuilder import QueryBuilder
         from masci_tools.io.kkr_params import kkrparams
@@ -27,9 +26,6 @@ class Test_dos_workflow():
         from numpy import array
 
         print('AiiDA version: {}'.format(get_version()))
-
-        Dict = DataFactory('dict')
-        StructureData = DataFactory('structure')
 
         # prepare computer and code (needed so that
         prepare_code(kkr_codename, codelocation, computername, workdir)

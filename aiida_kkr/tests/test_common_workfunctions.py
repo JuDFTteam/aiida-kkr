@@ -18,9 +18,8 @@ class Test_common_workfunctions(object):
 
     def test_generate_inputcard_from_structure(self):
         from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure
-        from aiida.plugins import DataFactory
-        StructureData = DataFactory('structure')
-        Dict = DataFactory('dict')
+        from aiida.orm import StructureData, Dict
+
         s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
         s.append_atom(position=[0,0,0], symbols='Fe')
         p = Dict(dict={'LMAX':2, 'NSPIN':2, 'RMAX':10, 'GMAX':100})
@@ -73,9 +72,8 @@ class Test_common_workfunctions(object):
     def test_check_2Dinput_consistency_1(self):
         # case 1: 3D structure and no 2D params input
         from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
-        from aiida.plugins import DataFactory
-        StructureData = DataFactory('structure')
-        Dict = DataFactory('dict')
+        from aiida.orm import StructureData, Dict
+
         s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
         s.append_atom(position=[0,0,0], symbols='Fe')
         p = Dict(dict={'INTERFACE':False})
@@ -86,9 +84,8 @@ class Test_common_workfunctions(object):
     def test_check_2Dinput_consistency_2(self):
         # case 2: 2D structure and 2D params input
         from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
-        from aiida.plugins import DataFactory
-        StructureData = DataFactory('structure')
-        Dict = DataFactory('dict')
+        from aiida.orm import StructureData, Dict
+
         s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
         s.append_atom(position=[0,0,0], symbols='Fe')
         s.set_pbc((True, True, False))
@@ -100,9 +97,8 @@ class Test_common_workfunctions(object):
     def test_check_2Dinput_consistency_3(self):
         # case 3: 2D structure but incomplete 2D input parameters given
         from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
-        from aiida.plugins import DataFactory
-        StructureData = DataFactory('structure')
-        Dict = DataFactory('dict')
+        from aiida.orm import StructureData, Dict
+
         s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
         s.append_atom(position=[0,0,0], symbols='Fe')
         s.set_pbc((True, True, False))
@@ -115,9 +111,8 @@ class Test_common_workfunctions(object):
     def test_check_2Dinput_consistency_4(self):
         # case 3: 2D structure but interface parameter set to False
         from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
-        from aiida.plugins import DataFactory
-        StructureData = DataFactory('structure')
-        Dict = DataFactory('dict')
+        from aiida.orm import StructureData, Dict
+
         s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
         s.append_atom(position=[0,0,0], symbols='Fe')
         s.set_pbc((True, True, False))
@@ -129,9 +124,8 @@ class Test_common_workfunctions(object):
     def test_check_2Dinput_consistency_5(self):
         # case 5: 3D structure but 2D params given
         from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
-        from aiida.plugins import DataFactory
-        StructureData = DataFactory('structure')
-        Dict = DataFactory('dict')
+        from aiida.orm import StructureData, Dict
+
         s = StructureData(cell=[[0.5, 0.5, 0], [1,0,0], [0,0,1]])
         s.append_atom(position=[0,0,0], symbols='Fe')
         s.set_pbc((True, True, True))
@@ -192,9 +186,7 @@ class Test_common_workfunctions(object):
 if __name__=='__main__':
     from aiida import load_profile
     load_profile()
-    from aiida.plugins import DataFactory
-    StructureData = DataFactory('structure')
-    Dict = DataFactory('dict')
+    from aiida.orm import StructureData, Dict
 
     t = Test_common_workfunctions()
 

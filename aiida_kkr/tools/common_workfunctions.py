@@ -9,14 +9,11 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 from aiida.common.exceptions import InputValidationError
 from aiida.engine import calcfunction
-from aiida.plugins import DataFactory
+from aiida.orm import Dict
 from masci_tools.io.kkr_params import kkrparams
 from masci_tools.io.common_functions import open_general
 from six.moves import range
 from builtins import str
-
-#define aiida structures from DataFactory of aiida
-Dict = DataFactory('dict')
 
 # keys that are used by aiida-kkr some something else than KKR parameters
 _ignored_keys = ['ef_set', 'use_input_alat']
@@ -86,7 +83,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
 
     # check if add_direct is in kwargs (shortcuts checks of kkrparams by not using the kkrparams class to set the dict)
     add_direct = False
-    if 'add_direct' in kwargs.keys(): add_direct = kwargs.pop('add_direct')
+    if 'add_direct' in list(kwargs.keys()): add_direct = kwargs.pop('add_direct')
 
     #initialize temporary kkrparams instance containing all possible KKR parameters
     if not add_direct:
@@ -346,12 +343,12 @@ def get_inputs_common(calculation, code, remote, structure, options, label, desc
         inputs.metadata.label = ''
 
     if serial:
-        # overwrite settings for serial run 
+        # overwrite settings for serial run
         options['withmpi'] = False
         options['resources'] = {"num_machines": 1}
     else:
         # otherwise assume MPI parallelism if not given in input options
-        if 'withmpi' not in options.keys():
+        if 'withmpi' not in list(options.keys()):
             options['withmpi'] = True
 
     if options:
@@ -669,6 +666,7 @@ def structure_from_params(parameters):
     """
     from masci_tools.io.common_functions import get_aBohr2Ang
     from aiida.common.constants import elements as PeriodicTableElements
+    from aiida.orm import StructureData
     from masci_tools.io.kkr_params import kkrparams
     from numpy import array
 
@@ -677,7 +675,6 @@ def structure_from_params(parameters):
         raise InputValidationError('input parameters needs to be a "kkrparams" instance!')
 
     # initialize some stuff
-    StructureData = DataFactory('structure')
     is_complete = True
     for icheck in ['<ZATOM>', '<RBASIS>', 'BRAVAIS', 'ALATBASIS']:
         if parameters.get_value(icheck) is None:
@@ -766,7 +763,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
     """
     Workfunction to create database structure for aiida_kkr.tools.modify_potential.neworder_potential function
     A temporary file is written in a Sandbox folder on the computer specified via
-    the input computer node before the output potential is stored as SingleFileData
+    the input computer node before the output potential is stored as SinglefileData
     in the Database.
 
     :param settings_node: settings for the neworder_potentail function (Dict)
@@ -776,7 +773,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
         the second input potential is retreived from in case 'pot2' and 'replace_newpos'
         are also set in settings_node (RemoteData)
 
-    :returns: output_potential node (SingleFileData)
+    :returns: output_potential node (SinglefileData)
 
     .. note::
 
@@ -795,18 +792,12 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
     from aiida_kkr.tools.tools_kkrimp import modify_potential
     from aiida.common.folders import SandboxFolder
     from aiida.common.exceptions import UniquenessError
-    from aiida.orm import CalcJobNode
-    from aiida.plugins import DataFactory
+    from aiida.orm import CalcJobNode, Dict, RemoteData, SinglefileData
 
     if 'parent_calc_folder2' in list(kwargs.keys()):
         parent_calc_folder2=kwargs.get('parent_calc_folder2', None)
     else:
         parent_calc_folder2=None
-
-    # get aiida data types used here
-    Dict = DataFactory('dict')
-    RemoteData = DataFactory('remote')
-    SingleFileData = DataFactory('singlefile')
 
     # check input consistency
     if not isinstance(settings_node, Dict):
@@ -874,8 +865,8 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
         modify_potential().neworder_potential(pot1_fhandle, out_pot_fhandle, neworder, potfile_2=pot2_fhandle,
                                               replace_from_pot2=replace_newpos)
 
-        # store output potential to SingleFileData
-        output_potential_sfd_node = SingleFileData(file=tempfolder.open(out_pot, u'rb'))
+        # store output potential to SinglefileData
+        output_potential_sfd_node = SinglefileData(file=tempfolder.open(out_pot, u'rb'))
 
         lbl = settings_dict.get('label', None)
         if lbl is not None:
@@ -888,7 +879,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
         """
         out_shape_path =
 
-        output_shapefun_sfd_node = SingleFileData(file=out_shape_path)
+        output_shapefun_sfd_node = SinglefileData(file=out_shape_path)
 
         lbl2 = settings_dict.get('label_shape', None)
         if lbl2 is None and lbl is not None:
@@ -988,23 +979,21 @@ def kick_out_corestates(potfile, potfile_out, emin):
 def kick_out_corestates_wf(potential_sfd, emin):
     """
     Workfunction that kicks out all core states from single file data potential that are higher than emin.
-    :param potential_sfd: SingleFileData type of potential
+    :param potential_sfd: SinglefileData type of potential
     :param emin: Energy threshold above which all core states are removed from potential (Float)
-    :returns: potential without core states higher than emin (SingleFileData)
+    :returns: potential without core states higher than emin (SinglefileData)
     """
     from aiida.common.folders import SandboxFolder
-    from aiida.plugins import DataFactory
-
-    SingleFileData = DataFactory('singlefile')
+    from aiida.orm import SinglefileData
 
     with SandboxFolder() as tmpdir:
-        with tmpdir.open('potential_deleted_core_states', 'w') as potfile_out: 
+        with tmpdir.open('potential_deleted_core_states', 'w') as potfile_out:
             with potential_sfd.open(potential_sfd.filename) as potfile_in:
                 num_deleted = kick_out_corestates(potfile_in, potfile_out, emin)
         # store new potential as single file data object
         if num_deleted>0:
             with tmpdir.open('potential_deleted_core_states') as potfile_out:
-                potential_nocore_sfd = SingleFileData(file=potfile_out)
+                potential_nocore_sfd = SinglefileData(file=potfile_out)
 
     # return potential
     if num_deleted>0:

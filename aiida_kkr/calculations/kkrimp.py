@@ -6,11 +6,10 @@ Input plug-in for a KKRimp calculation.
 from __future__ import print_function
 from __future__ import absolute_import
 from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode
+from aiida.orm import CalcJobNode, Dict, RemoteData, SinglefileData
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError, UniquenessError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
-from aiida.plugins import DataFactory
 from masci_tools.io.kkr_params import kkrparams
 from .voro import VoronoiCalculation
 from .kkr import KkrCalculation
@@ -22,10 +21,6 @@ import tarfile
 from numpy import array, sqrt, sum, where
 import six
 from six.moves import range
-
-Dict = DataFactory('dict')
-RemoteData = DataFactory('remote')
-SinglefileData = DataFactory('singlefile')
 
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
@@ -102,12 +97,12 @@ class KkrimpCalculation(CalcJob):
         """
         Init internal parameters at class load time
         """
-        
+
         # reuse base class function
         super(KkrimpCalculation, cls).define(spec)
         # now define input files and parser
         spec.input('metadata.options.parser_name', valid_type=six.string_types, default=cls._default_parser, non_db=True)
-        spec.input('metadata.options.input_filename', valid_type=six.string_types, default=cls._DEFAULT_INPUT_FILE , non_db=True)       
+        spec.input('metadata.options.input_filename', valid_type=six.string_types, default=cls._DEFAULT_INPUT_FILE , non_db=True)
         spec.input('metadata.options.output_filename', valid_type=six.string_types, default=cls._DEFAULT_OUTPUT_FILE, non_db=True)
         # define input nodes (optional ones have required=False)
         spec.input('parameters', valid_type=Dict, required=False, help='Use a node that specifies the input parameters (calculation settings).')
@@ -123,8 +118,8 @@ class KkrimpCalculation(CalcJob):
         spec.exit_code(301, 'ERROR_NO_RETRIEVED_FOLDER', message='Retrieved folder of KKRimp calculation not found.')
         spec.exit_code(302, 'ERROR_PARSING_KKRIMPCALC', message='KKRimp parser returned an error.')
         #TBD
-       
-       
+
+
 
     def prepare_for_submission(self, tempfolder):
         """
@@ -211,10 +206,10 @@ class KkrimpCalculation(CalcJob):
             * InputValidationError, if host_Greenfunction does not have an input node impurity_info
             * InputValidationError, if host_Greenfunction was not a KKRFLEX calculation
         """
-        
+
         # get mandatory input nodes (extract host_Greenfunction_folder)
         host_parent = self.inputs.host_Greenfunction_folder
-        
+
         # extract parent calculation
         parent_calcs = host_parent.get_incoming(node_class=CalcJob)
         n_parents = len(parent_calcs.all_link_labels())
@@ -224,12 +219,12 @@ class KkrimpCalculation(CalcJob):
                     "calculation{}, while it should have a single parent"
                     "".format(n_parents, "" if n_parents == 0 else "s"))
         else:
-            parent_calc = parent_calcs.first().node       
+            parent_calc = parent_calcs.first().node
         # extract impurity_info
         if 'impurity_info' in self.inputs:
             imp_info_inputnode = self.inputs.impurity_info
             if not isinstance(imp_info_inputnode, Dict):
-                raise InputValidationError("impurity_info not of type Dict") 
+                raise InputValidationError("impurity_info not of type Dict")
             if 'impurity_info' in parent_calc.get_incoming().all_link_labels():
                 imp_info = parent_calc.get_incoming().get_node_by_label('impurity_info')
             else:
@@ -245,7 +240,7 @@ class KkrimpCalculation(CalcJob):
                 imp_info = None
             if imp_info is None:
                 raise InputValidationError("host_Greenfunction calculation does not have an input node impurity_info")
-            found_impurity_inputnode = False            
+            found_impurity_inputnode = False
 
 
         # if impurity input is seperate input, check if it is the same as
@@ -299,7 +294,7 @@ class KkrimpCalculation(CalcJob):
         if 'host_Greenfunction_folder_Efshift' in self.inputs:
             host_parent_Efshift = self.inputs.host_Greenfunction_folder_Efshift
             parent_calcs_Efshift = host_parent_Efshift.get_incoming(node_class=CalcJob)
-            parent_calc_Efshift = parent_calcs_Efshift.first().node   
+            parent_calc_Efshift = parent_calcs_Efshift.first().node
             hostfolder_Efshift = parent_calc_Efshift.outputs.retrieved
         else:
             hostfolder_Efshift = None
@@ -351,18 +346,18 @@ class KkrimpCalculation(CalcJob):
             * impurity_potential (SinglefileData): single file data node containing the starting potential for the impurity calculation
             * parent_calc_folder (RemoteData): remote directory of a parent KKRimp calculation
         """
-        
+
         # get mandatory input nodes (extract code)
         code = self.inputs.code
-        
+
         # now check for optional nodes
         if 'parameters' in self.inputs:
             parameters = self.inputs.parameters
         else:
             parameters = None
         if parameters is not None: # convert to kkrparams instance
-            parameters = kkrparams(params_type='kkrimp', **parameters.get_dict())        
-        
+            parameters = kkrparams(params_type='kkrimp', **parameters.get_dict())
+
         # get hostfiles
         imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, structure = self._get_and_verify_hostfiles(tempfolder)
 
@@ -370,7 +365,7 @@ class KkrimpCalculation(CalcJob):
         # impurity_potential
         if 'impurity_potential' in self.inputs:
             impurity_potential = self.inputs.impurity_potential
-            found_imp_pot = True            
+            found_imp_pot = True
         else:
             impurity_potential = None
             found_imp_pot = False
@@ -387,10 +382,10 @@ class KkrimpCalculation(CalcJob):
                                        "Please provide either impurity_potential or parent_calc_folder.")
         elif found_parent_calc and found_imp_pot:
             raise InputValidationError("Both impurity_potential and parent_calc_folder specified for this calculation.\n"
-                                       "Please provide one one, i.e. either impurity_potential or parent_calc_folder.")    
-        
-        # Done checking inputs, returning...    
-        return parameters, code, imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, impurity_potential, parent_calc_folder, structure            
+                                       "Please provide one one, i.e. either impurity_potential or parent_calc_folder.")
+
+        # Done checking inputs, returning...
+        return parameters, code, imp_info, kkrflex_file_paths, shapfun_path, shapes, host_parent_calc, params_host, impurity_potential, parent_calc_folder, structure
 
 
     def _extract_and_write_config(self, parent_calc_folder, params_host, parameters, tempfolder, GFhost_folder):
@@ -588,7 +583,7 @@ class KkrimpCalculation(CalcJob):
             os.remove(os.path.join(tempfolder_path, self._OUT_POTENTIAL))
         if '.dummy' in os.listdir(tempfolder_path):
             os.remove(os.path.join(tempfolder_path, '.dummy'))
-        
+
 
     def _check_key_setting_consistency(self, params_kkrimp, key, val):
         """
@@ -626,7 +621,7 @@ class KkrimpCalculation(CalcJob):
                 nspin = int(config[itmp].split()[-1])
             else:
                 raise ValueError("Could not extract NSPIN value from config.cfg")
-            
+
             # extract NATOM from atominfo file
             with tempfolder.open(self._KKRFLEX_ATOMINFO) as file:
                 atominfo = file.readlines()

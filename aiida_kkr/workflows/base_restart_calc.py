@@ -5,7 +5,9 @@ In this module you find the base workflow that defines the restart
 caclulation functionality.
 """
 
+from __future__ import absolute_import
 from aiida_kkr.calculations import KkrimpCalculation, VoronoiCalculation, KkrCalculation
+from six.moves import map
 
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -100,7 +102,7 @@ class base_restart_calc(WorkChain):
             return False
         else:
             # check if this is the second consecutive failure
-            if self.ctx.last_calc_restart_failed = True:
+            if self.ctx.last_calc_restart_failed:
                 self.cleanup_calc_work()
                 return False
 

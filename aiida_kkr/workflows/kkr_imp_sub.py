@@ -6,8 +6,7 @@ and some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from aiida.plugins import DataFactory
-from aiida.orm import Float, Code, CalcJobNode
+from aiida.orm import Float, Code, CalcJobNode, RemoteData, StructureData, Dict, SinglefileData, FolderData
 from aiida.engine import WorkChain, ToContext, while_, if_
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
@@ -30,12 +29,6 @@ __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #      loaded (in validate input, compare to kkr workflow)
 #TODO: maybe add decrease mixing factor option as in kkr_scf wc
 #TODO: add option to check if the convergence is on track
-
-RemoteData = DataFactory('remote')
-StructureData = DataFactory('structure')
-Dict = DataFactory('dict')
-SinglefileData = DataFactory('singlefile')
-FolderData = DataFactory('folder')
 
 class kkr_imp_sub_wc(WorkChain):
     """
@@ -166,7 +159,7 @@ class kkr_imp_sub_wc(WorkChain):
             message="ERROR: Last calculation is not in finished state")
         spec.exit_code(131, "ERROR_NO_CALC_FOUND_FOR_REMOTE_DATA",
             message="The input `remote_data` node has no valid calculation parent.")
-        spec.exit_code(132, "ERROR_REMOTE_DATA_CALC_UNSUCCESFUL", 
+        spec.exit_code(132, "ERROR_REMOTE_DATA_CALC_UNSUCCESFUL",
             message="The parent calculation of the input `remote_data` node was not succesful.")
         spec.exit_code(133, 'ERROR_NO_OUTPUT_POT_FROM_LAST_CALC',
             message="ERROR: Last calculation does not have an output potential.")
@@ -334,7 +327,7 @@ class kkr_imp_sub_wc(WorkChain):
             else:
                 if not inputs.remote_data.get_incoming(link_label_filter='remote_folder').first().node.is_finished_ok:
                     self.ctx.exit_code = self.exit_codes.ERROR_REMOTE_DATA_CALC_UNSUCCESFUL
-            
+
 
         # set starting potential
         if 'host_imp_startpot' in inputs:
@@ -831,7 +824,7 @@ class kkr_imp_sub_wc(WorkChain):
             qbound = self.ctx.threshold_aggressive_mixing
 
         # store some values in self.ctx.KKR_steps_stats
-        for name, val in {'isteps':isteps, 'imix':self.ctx.last_mixing_scheme, 'mixfac':mixfac, 'qbound':qbound, 
+        for name, val in {'isteps':isteps, 'imix':self.ctx.last_mixing_scheme, 'mixfac':mixfac, 'qbound':qbound,
                           'high_sett':self.ctx.kkr_higher_accuracy, 'first_rms':first_rms, 'last_rms':last_rms,
                           'pk':self.ctx.last_calc.pk, 'uuid':self.ctx.last_calc.uuid}.items():
             tmplist = self.ctx.KKR_steps_stats.get(name,[])
@@ -1013,7 +1006,7 @@ class kkr_imp_sub_wc(WorkChain):
             """
         self.report(message)
 
-     
+
         if self.ctx.successful:
             self.report("INFO: clean output of calcs")
             remove_out_pot_impcalcs(self.ctx.successful, all_pks)
@@ -1058,13 +1051,13 @@ def remove_out_pot_impcalcs(successful, pks_all_calcs, dry_run=False):
     from aiida.orm import load_node
     from aiida.common.folders import SandboxFolder
     from aiida_kkr.calculations import KkrimpCalculation
-    
+
     if dry_run:
         print('test', successful, len(pks_all_calcs))
 
     # name of tarfile
     tfname = KkrimpCalculation._FILENAME_TAR
-    
+
     # cleanup only if calculation was successful
     if successful and len(pks_all_calcs)>1:
         # remove out_potential for calculations
@@ -1117,7 +1110,7 @@ def remove_out_pot_impcalcs(successful, pks_all_calcs, dry_run=False):
 def clean_raw_input(successful, pks_calcs, dry_run=False):
     """
     Clean raw_input directories that contain copies of shapefun and potential files
-    This however breaks provenance (strictly speaking) and therefore should only be done 
+    This however breaks provenance (strictly speaking) and therefore should only be done
     for the calculations of a successfully finished workflow (see email on mailing list from 25.11.2019).
     """
     from aiida.orm import load_node
@@ -1150,4 +1143,3 @@ def clean_sfd(sfd_to_clean, nkeep=30):
     # overwrite file
     with sfd_to_clean.open(sfd_to_clean.filename, 'w') as fnew:
         fnew.writelines(txt2)
-

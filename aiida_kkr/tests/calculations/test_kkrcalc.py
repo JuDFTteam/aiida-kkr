@@ -20,11 +20,9 @@ class Test_kkr_calculation(object):
         """
         simple Cu noSOC, FP, lmax2 full example
         """
-        from aiida.orm import Code, load_node
-        from aiida.plugins import DataFactory
+        from aiida.orm import Code, load_node, Dict
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkr import KkrCalculation
-        Dict = DataFactory('dict')
 
         # load necessary files from db_dump files
         from aiida.tools.importexport import import_data
@@ -60,11 +58,9 @@ class Test_kkr_calculation(object):
         """
         continue KKR calculation after a previous KKR calculation instead of starting from voronoi
         """
-        from aiida.orm import Code, load_node
-        from aiida.plugins import DataFactory
+        from aiida.orm import Code, load_node, Dict
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkr import KkrCalculation
-        Dict = DataFactory('dict')
 
         # load necessary files from db_dump files
         from aiida.tools.importexport import import_data
@@ -95,11 +91,9 @@ class Test_kkr_calculation(object):
         """
         test kkrflex file writeout (GF writeout for impurity calculation)
         """
-        from aiida.orm import Code, load_node
-        from aiida.plugins import DataFactory
+        from aiida.orm import Code, load_node, Dict
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkr import KkrCalculation
-        Dict = DataFactory('dict')
 
         # load necessary files from db_dump files
         from aiida.tools.importexport import import_data
@@ -139,12 +133,9 @@ class Test_kkr_calculation(object):
         """
         run bandstructure calculation
         """
-        from aiida.orm import Code, load_node
-        from aiida.plugins import DataFactory
+        from aiida.orm import Code, load_node, Dict, KpointsData
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkr import KkrCalculation
-        Dict = DataFactory('dict')
-        KpointsData = DataFactory('array.kpoints')
 
         # define k-path
         kpoints = KpointsData()

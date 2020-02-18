@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import absolute_import
+from __future__ import print_function
 import pytest
 from aiida_kkr.tests.dbsetup import *
 
@@ -16,15 +17,11 @@ class Test_kkrimp_dos_workflow():
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
         """
-        from aiida.orm import Code, load_node
-        from aiida.plugins import DataFactory
+        from aiida.orm import Code, load_node, Dict, StructureData
         from aiida.orm.querybuilder import QueryBuilder
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.kkr_imp_dos import kkr_imp_dos_wc
         from numpy import array
-
-        Dict = DataFactory('dict')
-        StructureData = DataFactory('structure')
 
         # prepare computer and code (needed so that
         prepare_code(kkrimp_codename, codelocation, computername, workdir)
@@ -78,11 +75,11 @@ class Test_kkrimp_dos_workflow():
         out = run(builder)
         print(out)
 
-        assert 'last_calc_info' in out.keys()
-        assert 'last_calc_output_parameters' in out.keys()
-        assert 'workflow_info' in out.keys()
-        assert 'dos_data' in out.keys()
-        assert 'dos_data_interpol' in out.keys()
+        assert 'last_calc_info' in list(out.keys())
+        assert 'last_calc_output_parameters' in list(out.keys())
+        assert 'workflow_info' in list(out.keys())
+        assert 'dos_data' in list(out.keys())
+        assert 'dos_data_interpol' in list(out.keys())
         assert len(out['dos_data_interpol'].get_y()) == 5
         assert len(out['dos_data_interpol'].get_y()[0]) == 3
         assert len(out['dos_data_interpol'].get_y()[0][0]) == 20
@@ -111,4 +108,3 @@ if __name__=='__main__':
    Test.test_dos_reuse_gf_writeout()
    Test.test_dos_from_kkrimp_sub()
    Test.test_dos_from_kkrimp_full()
-

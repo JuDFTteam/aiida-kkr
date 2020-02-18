@@ -18,11 +18,9 @@ class Test_kkrimp_calculation(object):
         """
         simple Cu noSOC, FP, lmax2
         """
-        from aiida.orm import Code, load_node
-        from aiida.plugins import DataFactory
+        from aiida.orm import Code, load_node, Dict
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkrimp import KkrimpCalculation
-        Dict = DataFactory('dict')
 
         # first load parent voronoi calculation
         from aiida.tools.importexport import import_data

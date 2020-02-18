@@ -50,13 +50,9 @@ class Test_voronoi_calculation(object):
         """
         simple Cu noSOC, FP, lmax2 full example
         """
-        from aiida.orm import Code
-        from aiida.plugins import DataFactory
+        from aiida.orm import Code, Dict, StructureData
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.voro import VoronoiCalculation
-
-        Dict = DataFactory('dict')
-        StructureData = DataFactory('structure')
 
         # create StructureData instance for Cu
         alat = 3.61 # lattice constant in Angstroem
@@ -67,7 +63,6 @@ class Test_voronoi_calculation(object):
         # create Dict input node using kkrparams class from masci-tools
         params = kkrparams(params_type='voronoi')
         params.set_multiple_values(LMAX=2, NSPIN=1, RCLUSTZ=2.3)
-        Dict = DataFactory('dict') # use DataFactory to get ParamerterData class
         ParaNode = Dict(dict=params.get_dict())
 
         # import computer etc from database dump

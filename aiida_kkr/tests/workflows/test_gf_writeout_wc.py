@@ -16,15 +16,11 @@ class Test_gf_writeout_workflow():
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow
         """
-        from aiida.orm import Code, load_node
-        from aiida.plugins import DataFactory
+        from aiida.orm import Code, load_node, Dict, StructureData, RemoteData
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
         from numpy import array
         import os
-
-        Dict = DataFactory('dict')
-        StructureData = DataFactory('structure')
 
         # prepare computer and code (needed so that
         prepare_code(kkr_codename, codelocation, computername, workdir)
@@ -66,7 +62,7 @@ class Test_gf_writeout_workflow():
         assert n.get('list_of_errors') == []
 
         d = out['GF_host_remote']
-        assert isinstance(d, DataFactory('remote'))
+        assert isinstance(d, RemoteData)
 
         kkrflex_calc = load_node(n.get('pk_flexcalc'))
         kkrflex_retrieved = kkrflex_calc.outputs.retrieved

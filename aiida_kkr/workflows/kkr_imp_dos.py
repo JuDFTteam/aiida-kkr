@@ -5,7 +5,7 @@ In this module you find the base workflow for a impurity DOS calculation and
 some helper methods to do so with AiiDA
 """
 from __future__ import print_function, absolute_import
-from aiida.orm import Code, load_node, CalcJobNode, Float, Int, Str
+from aiida.orm import Code, load_node, CalcJobNode, Float, Int, Str, Dict, RemoteData, SinglefileData, XyData
 from aiida.plugins import DataFactory
 from aiida.engine import if_, ToContext, WorkChain, calcfunction
 from aiida.common import LinkType
@@ -16,6 +16,7 @@ from aiida_kkr.workflows.dos import kkr_dos_wc
 from aiida_kkr.calculations import KkrimpCalculation
 import tarfile
 import os
+from six.moves import range
 
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -25,12 +26,6 @@ __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: improve workflow output node structure
 #TODO: generalise search for imp_info and conv_host from startpot
-
-
-Dict = DataFactory('dict')
-RemoteData = DataFactory('remote')
-SinglefileData = DataFactory('singlefile')
-XyData = DataFactory('array.xy')
 
 
 class kkr_imp_dos_wc(WorkChain):
@@ -133,15 +128,15 @@ class kkr_imp_dos_wc(WorkChain):
             )
 
         # Define possible exit codes for the workflow
-        spec.exit_code(220, "ERROR_UNKNOWN_PROBLEM", 
+        spec.exit_code(220, "ERROR_UNKNOWN_PROBLEM",
             message="Unknown problem detected.")
-        spec.exit_code(221, "ERROR_NO_PARENT_FOUND", 
+        spec.exit_code(221, "ERROR_NO_PARENT_FOUND",
             message="Unable to find the parent remote_data node that led to "
                     "the input impurity calculation. You need to specify "
                     "`host_remote` and `impurity_info` nodes.")
-        spec.exit_code(222, "ERROR_GF_WRITEOUT_UNSUCCESFUL", 
+        spec.exit_code(222, "ERROR_GF_WRITEOUT_UNSUCCESFUL",
             message="The gf_writeout workflow was not succesful, cannot continue.")
-        spec.exit_code(223, "ERROR_IMP_POT_AND_REMOTE", 
+        spec.exit_code(223, "ERROR_IMP_POT_AND_REMOTE",
             message="The input nodes `imp_pot_sfd` and `kkrimp_remote` are given but are mutually exclusive")
         spec.exit_code(224, "ERROR_KKR_CODE_MISSING",
             message="KKRhost code node (`inputs.kkr`) is missing if gf_dos_remote is not given.")
@@ -307,12 +302,12 @@ class kkr_imp_dos_wc(WorkChain):
             kkrcode = self.inputs.kkr
             converged_host_remote = self.ctx.conv_host_remote
             imp_info = self.ctx.imp_info
-            
+
             wf_params_gf = Dict(dict={'ef_shift':self.ctx.ef_shift, 'dos_run':True,
                                       'dos_params':self.ctx.dos_params_dict})
             label_gf = 'GF writeout for imp DOS'
             description_gf = 'GF writeout step with energy contour for impurity DOS'
-            
+
             builder = kkr_flex_wc.get_builder()
             builder.metadata.label = label_gf
             builder.metadata.description = description_gf
@@ -323,11 +318,11 @@ class kkr_imp_dos_wc(WorkChain):
             builder.impurity_info = imp_info
             if "params_kkr_overwrite" in self.inputs:
                 builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
-            
+
             future = self.submit(builder)
-            
+
             self.report('INFO: running GF writeout (pid: {})'.format(future.pk))
-            
+
             return ToContext(gf_writeout=future)
 
 
@@ -349,7 +344,7 @@ class kkr_imp_dos_wc(WorkChain):
             gf_writeout_remote = self.inputs.gf_dos_remote
             gf_writeout_calc = gf_writeout_remote.get_incoming(node_class=CalcJobNode).first().node
             self.ctx.pk_flexcalc = gf_writeout_calc.pk
-            
+
 
         options = self.ctx.options_params_dict
         kkrimpcode = self.inputs.kkrimp
@@ -421,7 +416,7 @@ class kkr_imp_dos_wc(WorkChain):
             last_calc = load_node(last_calc_pk)
             last_calc_output_params = last_calc.outputs.output_parameters
             last_calc_info = self.ctx.kkrimp_dos.outputs.workflow_info
-            
+
             outputnode_dict = {}
             outputnode_dict['impurity_info'] = self.ctx.imp_info.get_dict()
             outputnode_dict['workflow_name'] = self.__class__.__name__
@@ -435,7 +430,7 @@ class kkr_imp_dos_wc(WorkChain):
             outputnode_t.label = 'kkr_imp_dos_wc_inform'
             outputnode_t.description = 'Contains information for workflow'
             outputnode_t.store()
-            
+
             # interpol dos file and store to XyData nodes
             dos_extracted, dosXyDatas = self.extract_dos_data(last_calc)
             self.report('INFO: extracted DOS data? {}'.format(dos_extracted))
@@ -448,14 +443,14 @@ class kkr_imp_dos_wc(WorkChain):
                     self.report('INFO: cleanup after storing of DOS data')
                     pk_impcalc = self.ctx.kkrimp_dos.outputs.workflow_info['pks_all_calcs'][0]
                     cleanup_kkrimp_retrieved(pk_impcalc)
-            
-            
+
+
             self.report('INFO: workflow_info node: {}'.format(outputnode_t.uuid))
-            
+
             self.out('workflow_info', outputnode_t)
             self.out('last_calc_output_parameters', last_calc_output_params)
             self.out('last_calc_info', last_calc_info)
-            
+
             self.report('INFO: created output nodes for KKR imp DOS workflow.')
             self.report('\n'
                         '|------------------------------------------------------------------------------------------------------------------|\n'
@@ -632,7 +627,7 @@ def cleanup_kkrimp_retrieved(pk_impcalc):
 
     # name of tarfile
     tfname = KkrimpCalculation._FILENAME_TAR
-    
+
     # remove tarfile from retreived dir
     if tfname in ret.list_object_names():
         ret.delete_object(tfname, force=True)

@@ -5,11 +5,10 @@ Input plug-in for a voronoi calculation.
 from __future__ import print_function
 from __future__ import absolute_import
 from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode
+from aiida.orm import CalcJobNode, Dict, StructureData, RemoteData, SinglefileData
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
-from aiida.plugins import DataFactory
 from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency, vca_check
 from aiida.common.exceptions import UniquenessError, NotExistent
 import os
@@ -21,11 +20,6 @@ __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.5.1"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
-
-Dict = DataFactory('dict')
-StructureData = DataFactory('structure')
-RemoteData = DataFactory('remote')
-SingleFileData = DataFactory('singlefile')
 
 class VoronoiCalculation(CalcJob):
     """
@@ -70,7 +64,7 @@ class VoronoiCalculation(CalcJob):
         spec.input('parameters', valid_type=Dict, help='Use a node that specifies the input parameters')
         spec.input('structure', valid_type=StructureData, required=False, help='Use a node that specifies the input crystal structure')
         spec.input('parent_KKR', valid_type=RemoteData, required=False, help='Use a node that specifies a parent KKR calculation')
-        spec.input('potential_overwrite', valid_type=SingleFileData, required=False, help='Use a node that specifies the potential which is used instead of the voronoi output potential')
+        spec.input('potential_overwrite', valid_type=SinglefileData, required=False, help='Use a node that specifies the potential which is used instead of the voronoi output potential')
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the calculation')
         spec.default_output_node = 'output_parameters'

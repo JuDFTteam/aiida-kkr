@@ -7,12 +7,9 @@ some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from aiida.orm import Code, load_node
-from aiida.plugins import DataFactory
-from aiida.engine import WorkChain, while_, if_, ToContext
+from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, SinglefileData
+from aiida.engine import WorkChain, while_, if_, ToContext, CalcJob
 from aiida.engine import workfunction as wf
-from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from masci_tools.io.kkr_params import kkrparams
@@ -41,11 +38,6 @@ __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 #TODO: overwrite defaults from parent if parent is previous kkr_scf run
 #TODO: retrieve DOS within scf run
 
-RemoteData = DataFactory('remote')
-StructureData = DataFactory('structure')
-Dict = DataFactory('dict')
-XyData = DataFactory('array.xy')
-SingleFileData = DataFactory('singlefile')
 
 class kkr_scf_wc(WorkChain):
     """
@@ -152,7 +144,7 @@ class kkr_scf_wc(WorkChain):
         spec.input("remote_data", valid_type=RemoteData, required=False)
         spec.input("voronoi", valid_type=Code, required=False)
         spec.input("kkr", valid_type=Code, required=True)
-        spec.input("startpot_overwrite", valid_type=SingleFileData, required=False)
+        spec.input("startpot_overwrite", valid_type=SinglefileData, required=False)
 
         # define output nodes
         spec.output("output_kkr_scf_wc_ParameterResults", valid_type=Dict, required=True)
@@ -1315,7 +1307,7 @@ class kkr_scf_wc(WorkChain):
             builder.wf_parameters = wfdospara_node
             builder.options = self.ctx.options_params_dict
             builder.remote_data = remote
-        
+
             future = self.submit(builder)
 
             return ToContext(doscal=future)

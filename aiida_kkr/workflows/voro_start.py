@@ -11,8 +11,7 @@ from numpy import where, array
 from masci_tools.io.kkr_params import kkrparams
 from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
 from masci_tools.io.common_functions import get_alat_from_bravais
-from aiida.orm import Code
-from aiida.plugins import DataFactory
+from aiida.orm import Code, StructureData, Dict, XyData, RemoteData, SinglefileData
 from aiida.engine import WorkChain, while_, if_, ToContext, submit, calcfunction
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
@@ -28,11 +27,6 @@ __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.11.2"
 __contributors__ = u"Philipp Rüßmann"
 
-StructureData = DataFactory('structure')
-Dict = DataFactory('dict')
-XyData = DataFactory('array.xy')
-RemoteData = DataFactory('remote')
-SingleFileData = DataFactory('singlefile')
 
 class kkr_startpot_wc(WorkChain):
     """
@@ -103,7 +97,7 @@ class kkr_startpot_wc(WorkChain):
         spec.input("kkr", valid_type=Code, required=False)
         spec.input("voronoi", valid_type=Code, required=True)
         spec.input("calc_parameters", valid_type=Dict, required=False)
-        spec.input("startpot_overwrite", valid_type=SingleFileData, required=False)
+        spec.input("startpot_overwrite", valid_type=SinglefileData, required=False)
         # define output nodes
         spec.output('results_vorostart_wc', valid_type=Dict, required=True, help='')
         spec.output('last_doscal_results', valid_type=Dict, required=False, help='')
@@ -205,7 +199,7 @@ class kkr_startpot_wc(WorkChain):
         self.ctx.efermi = None
 
         # find starting cluster radius
-        self.ctx.r_cls = self.find_cluster_radius_alat() # find cluster radius (in alat units) 
+        self.ctx.r_cls = self.find_cluster_radius_alat() # find cluster radius (in alat units)
 
         # difference in eV to emin (e_fermi) if emin (emax) are larger (smaller) than emin (e_fermi)
         self.ctx.delta_e = wf_dict.get('delta_e_min', self._wf_default['delta_e_min'])
@@ -550,7 +544,7 @@ class kkr_startpot_wc(WorkChain):
             builder.wf_parameters = wfdospara_node
             builder.options = options_node
             builder.remote_data = remote
-        
+
             future = self.submit(builder)
 
             return ToContext(doscal=future)

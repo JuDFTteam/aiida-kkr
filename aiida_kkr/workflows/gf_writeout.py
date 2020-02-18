@@ -7,7 +7,6 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 from aiida.orm import Code, load_node
-from aiida.plugins import DataFactory
 from aiida.engine import WorkChain, ToContext, if_
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
@@ -15,7 +14,7 @@ from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode
 from masci_tools.io.common_functions import get_Ry2eV
-from aiida.orm import WorkChainNode
+from aiida.orm import WorkChainNode, RemoteData, StructureData, Dict, FolderData
 from aiida.common.exceptions import InputValidationError
 
 
@@ -23,14 +22,9 @@ __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.5.0"
-__contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
+__contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
 
 # ToDo: add more default values to wf_parameters
-
-RemoteData = DataFactory('remote')
-StructureData = DataFactory('structure')
-Dict = DataFactory('dict')
-FolderData = DataFactory('folder')
 
 class kkr_flex_wc(WorkChain):
     """
@@ -312,8 +306,8 @@ class kkr_flex_wc(WorkChain):
 
         if 'wf_parameters' in self.inputs:
             if self.ctx.dos_run:
-                for key, val in {'EMIN': self.ctx.dos_params_dict['emin'], 'EMAX': self.ctx.dos_params_dict['emax'], 
-                                 'NPT2': self.ctx.dos_params_dict['nepts'], 'NPOL': 0, 'NPT1': 0, 'NPT3': 0, 
+                for key, val in {'EMIN': self.ctx.dos_params_dict['emin'], 'EMAX': self.ctx.dos_params_dict['emax'],
+                                 'NPT2': self.ctx.dos_params_dict['nepts'], 'NPOL': 0, 'NPT1': 0, 'NPT3': 0,
                                  'BZDIVIDE': self.ctx.dos_params_dict['kmesh'], 'IEMXD': self.ctx.dos_params_dict['nepts'],
                                  'TEMPR': self.ctx.dos_params_dict['tempr']}.items():
                     updatedict[key] = val

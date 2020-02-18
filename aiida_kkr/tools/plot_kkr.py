@@ -264,8 +264,7 @@ class plot_kkr(object):
         """visualize structure using ase's `view` function"""
         from ase.visualize import view
         from aiida_kkr.calculations.voro import VoronoiCalculation
-        from aiida.plugins import DataFactory
-        StructureData = DataFactory('structure')
+        from aiida.orm import StructureData
         if not isinstance(node, StructureData):
             structure, voro_parent = VoronoiCalculation.find_parent_structure(node)
         else:
@@ -620,23 +619,23 @@ class plot_kkr(object):
             has_dos = 'dos.atom1' in retlist
             has_qvec = 'qvec.dat' in retlist
             has_qdos = False
-            
+
             # remove already automatically set things from kwargs
             if 'ptitle' in list(kwargs.keys()):
                 ptitle = kwargs.pop('ptitle')
             else:
                 ptitle = 'pk= {}'.format(node.pk)
             if 'newfig' in list(kwargs.keys()): kwargs.pop('newfig')
-            
+
             # qdos
             if has_qvec:
                 has_qdos = 'qdos.01.1.dat' in retlist
                 if has_qdos:
                     with node.outputs.retrieved.open('qdos.01.1.dat', mode='r') as f:
                         ne = len(set(loadtxt(f)[:,0]))
-                        if ne>1 or 'as_e_dimension' in kwargs.keys():
+                        if ne>1 or 'as_e_dimension' in list(kwargs.keys()):
                             try:
-                                ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qdos.01.1.dat', 'output.0.txt')), shell=True) 
+                                ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qdos.01.1.dat', 'output.0.txt')), shell=True)
                                 ef = float(ef.split('=')[2].split()[0])
                             except:
                                 # extract Fermi level from parent calculation
@@ -659,10 +658,10 @@ class plot_kkr(object):
                             except:
                                 xlabel('id_kpt')
                         else:
-                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qdos.01.1.dat', 'output.0.txt')), shell=True) 
+                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qdos.01.1.dat', 'output.0.txt')), shell=True)
                             ef = float(ef.split('=')[2].split()[0])
                             FSqdos2D(f, logscale=logscale, ef=ef, **kwargs)
-            
+
             # dos only if qdos was not plotted already
             if has_dos and not has_qdos:
                 with node.outputs.retrieved.open('dos.atom1', mode='r') as f:
@@ -866,7 +865,7 @@ class plot_kkr(object):
 
             # extract structure (neede in dosplot to extract number of atoms and number of spins)
             struc, voro_parent = VoronoiCalculation.find_parent_structure(node.inputs.remote_data)
-            
+
             # do dos plot after data was extracted
             self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
 
@@ -1061,7 +1060,7 @@ class plot_kkr(object):
                 d = dosnode.outputs.dos_data
             if 'dos_data_interpol' in dosnode.outputs:
                 d_int = dosnode.outputs.dos_data_interpol
-        
+
         # extract all options that should not be passed on to plot function
         interpol, all_atoms, l_channels, sum_spins, switch_xy = True, False, True, False, False
         if 'interpol' in list(kwargs.keys()): interpol = kwargs.pop('interpol')

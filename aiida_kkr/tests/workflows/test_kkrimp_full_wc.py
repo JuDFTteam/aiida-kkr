@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import absolute_import
+from __future__ import print_function
 import pytest
 from aiida_kkr.tests.dbsetup import *
 
@@ -16,15 +17,11 @@ class Test_kkrimp_full_workflow():
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
         """
-        from aiida.orm import Code, load_node
-        from aiida.plugins import DataFactory
+        from aiida.orm import Code, load_node, Dict, StructureData
         from aiida.orm.querybuilder import QueryBuilder
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.workflows.kkr_imp import kkr_imp_wc
         from numpy import array
-
-        Dict = DataFactory('dict')
-        StructureData = DataFactory('structure')
 
         # prepare computer and code (needed so that
         prepare_code(voro_codename, codelocation, computername, workdir)

@@ -8,8 +8,7 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 from six.moves import range
-from aiida.orm import Code, load_node
-from aiida.plugins import DataFactory
+from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, WorkChainNode
 from aiida.engine import WorkChain, if_, ToContext
 from aiida.engine import submit
 from masci_tools.io.kkr_params import kkrparams
@@ -17,8 +16,6 @@ from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_pare
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode
-from aiida.orm import WorkChainNode
 from aiida.common.exceptions import InputValidationError
 
 
@@ -28,11 +25,6 @@ __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.7.0"
 __contributors__ = u"Philipp Rüßmann"
 
-
-RemoteData = DataFactory('remote')
-StructureData = DataFactory('structure')
-Dict = DataFactory('dict')
-XyData = DataFactory('array.xy')
 
 class kkr_dos_wc(WorkChain):
     """
