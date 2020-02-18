@@ -36,14 +36,14 @@ def prepare_computer(computername, workdir):
                 comp = c
     # if it is not there create a new one
     if not computer_found_in_db:
-        #comp = Computer(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir=workdir)
         comp = Computer(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir=workdir)
         comp.set_default_mpiprocs_per_machine(4)
         comp.store()
         print('computer stored now cofigure')
-        comp.configure()
     else:
         print('found computer in database')
+    # configure for cases where computer was imported
+    comp.configure()
     # return computer
     return comp
 
