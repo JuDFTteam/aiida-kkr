@@ -6,7 +6,7 @@ some helper methods to do so with AiiDA
 """
 from __future__ import print_function, division, absolute_import
 from six.moves import range
-
+from aiida.engine import WorkChain
 
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -39,7 +39,7 @@ class kkr_startpot_wc(WorkChain):
     from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
     from masci_tools.io.common_functions import get_alat_from_bravais
     from aiida.orm import Code, StructureData, Dict, XyData, RemoteData, SinglefileData
-    from aiida.engine import WorkChain, while_, if_, ToContext, submit, calcfunction
+    from aiida.engine import while_, if_, ToContext, submit, calcfunction
     from aiida_kkr.calculations.kkr import KkrCalculation
     from aiida_kkr.calculations.voro import VoronoiCalculation
     from aiida_kkr.workflows.dos import kkr_dos_wc

@@ -5,6 +5,7 @@ and some helper methods to do so with AiiDA
 """
 from __future__ import print_function
 from __future__ import absolute_import
+from aiida.engine import WorkChain
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -40,7 +41,7 @@ class kkr_imp_wc(WorkChain):
     """
 
     from aiida.orm import Code, load_node, RemoteData, StructureData, Dict, SinglefileData, FolderData
-    from aiida.engine import WorkChain, ToContext, if_
+    from aiida.engine import ToContext, if_
     from aiida.engine import calcfunction
     from aiida_kkr.calculations.voro import VoronoiCalculation
     from masci_tools.io.kkr_params import kkrparams

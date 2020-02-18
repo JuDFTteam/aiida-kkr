@@ -8,6 +8,7 @@ from __future__ import print_function, absolute_import
 from __future__ import unicode_literals
 import six
 from six.moves import range
+from aiida.engine import CalcJob
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
@@ -26,7 +27,6 @@ class KkrCalculation(CalcJob):
     # import necessary modules
     import os
     from numpy import pi, array
-    from aiida.engine import CalcJob
     from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData
     from .voro import VoronoiCalculation
     from aiida.common.utils import classproperty

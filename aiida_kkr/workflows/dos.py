@@ -7,6 +7,7 @@ some helper methods to do so with AiiDA
 
 from __future__ import print_function, division, absolute_import
 from six.moves import range
+from aiida.engine import WorkChain
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -30,13 +31,11 @@ class kkr_dos_wc(WorkChain):
     """
 
     from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, WorkChainNode
-    from aiida.engine import WorkChain, if_, ToContext
-    from aiida.engine import submit
     from masci_tools.io.kkr_params import kkrparams
     from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
     from aiida_kkr.calculations.kkr import KkrCalculation
     from aiida_kkr.calculations.voro import VoronoiCalculation
-    from aiida.engine import CalcJob
+    from aiida.engine import CalcJob, if_, ToContext, submit
     from aiida.common.exceptions import InputValidationError
 
     _workflowversion = __version__

@@ -6,6 +6,7 @@ some helper methods to do so with AiiDA
 """
 from __future__ import print_function, absolute_import
 from six.moves import range
+from aiida.engine import WorkChain
 
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -36,7 +37,7 @@ class kkr_imp_dos_wc(WorkChain):
 
     from aiida.orm import Code, load_node, CalcJobNode, Float, Int, Str, Dict, RemoteData, SinglefileData, XyData
     from aiida.plugins import DataFactory
-    from aiida.engine import if_, ToContext, WorkChain, calcfunction
+    from aiida.engine import if_, ToContext, calcfunction
     from aiida.common import LinkType
     from aiida.common.folders import SandboxFolder
     from aiida_kkr.workflows.gf_writeout import kkr_flex_wc

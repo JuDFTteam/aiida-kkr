@@ -5,9 +5,8 @@ In this module you find the base workflow for a EOS calculation and
 some helper methods to do so with AiiDA
 """
 from __future__ import print_function, division, absolute_import
-from aiida.orm import Code, load_node, Float, Bool, RemoteData, StructureData, Dict
 from six.moves import range
-
+from aiida.engine import WorkChain
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -28,8 +27,9 @@ class kkr_eos_wc(WorkChain):
       4. collect results
     """
     
-    from aiida.engine import WorkChain, ToContext
+    from aiida.engine import ToContext
     from aiida.engine import calcfunction
+    from aiida.orm import Code, load_node, Float, Bool, RemoteData, StructureData, Dict
     from aiida_kkr.calculations.kkr import KkrCalculation
     from aiida_kkr.calculations.voro import VoronoiCalculation
     from aiida_kkr.tools.common_workfunctions import update_params_wf

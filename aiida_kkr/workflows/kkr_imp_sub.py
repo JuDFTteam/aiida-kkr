@@ -7,7 +7,7 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 from six.moves import range
-
+from aiida.engine import WorkChain
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -45,7 +45,7 @@ class kkr_imp_sub_wc(WorkChain):
     """
 
     from aiida.orm import Float, Code, CalcJobNode, RemoteData, StructureData, Dict, SinglefileData, FolderData
-    from aiida.engine import WorkChain, ToContext, while_, if_
+    from aiida.engine import ToContext, while_, if_
     from masci_tools.io.kkr_params import kkrparams
     from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
     from aiida_kkr.calculations.kkrimp import KkrimpCalculation

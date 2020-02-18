@@ -8,7 +8,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 import six
 from six.moves import range
-
+from aiida.engine import CalcJob
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -24,7 +24,6 @@ class KkrimpCalculation(CalcJob):
     """
 
     # import modules
-    from aiida.engine import CalcJob
     from aiida.orm import CalcJobNode, Dict, RemoteData, SinglefileData
     from aiida.common.utils import classproperty
     from aiida.common.exceptions import (InputValidationError, ValidationError, UniquenessError)
