@@ -1,1 +1,5 @@
-aiida-core>0.9.0
+aiida-core~=1.1.0
+masci-tools>= 0.3.10
+seekpath >= 1.9.2
+ase
+numpy
