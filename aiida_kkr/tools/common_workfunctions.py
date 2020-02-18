@@ -10,6 +10,8 @@ from __future__ import unicode_literals
 from aiida.common.exceptions import InputValidationError
 from aiida.engine import calcfunction
 from aiida.orm import Dict
+from masci_tools.io.kkr_params import kkrparams
+from masci_tools.io.common_functions import open_general
 from six.moves import range
 from builtins import str
 
@@ -74,8 +76,6 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
     :note: If kwargs contain the key `add_direct`, then no kkrparams instance is used and no checks are performed but the dictionary is filled directly!
     :note: By default nodename is 'updated KKR parameters' and description contains list of changed
     """
-    from masci_tools.io.kkr_params import kkrparams
-
     # check if node is a valid KKR parameters node
     if not isinstance(node, Dict):
         print('Input node is not a valid Dict node')
@@ -934,7 +934,6 @@ def kick_out_corestates(potfile, potfile_out, emin):
     """
     from masci_tools.io.common_functions import get_corestates_from_potential
     from numpy import where, array
-    from masci_tools.io.common_functions import open_general
 
     # read core states
     nstates, energies, lmoments = get_corestates_from_potential(potfile)

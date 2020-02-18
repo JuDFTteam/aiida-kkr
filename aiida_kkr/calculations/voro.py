@@ -5,6 +5,13 @@ Input plug-in for a voronoi calculation.
 from __future__ import print_function
 from __future__ import absolute_import
 from aiida.engine import CalcJob
+from aiida.orm import CalcJobNode, Dict, StructureData, RemoteData, SinglefileData
+from aiida.common.utils import classproperty
+from aiida.common.exceptions import (InputValidationError, ValidationError)
+from aiida.common.datastructures import (CalcInfo, CodeInfo)
+from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency, vca_check
+from aiida.common.exceptions import UniquenessError, NotExistent
+import os
 import six
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
@@ -18,14 +25,6 @@ class VoronoiCalculation(CalcJob):
     """
     AiiDA calculation plugin for a voronoi calculation (creation of starting potential and shapefun).
     """
-
-    from aiida.orm import CalcJobNode, Dict, StructureData, RemoteData, SinglefileData
-    from aiida.common.utils import classproperty
-    from aiida.common.exceptions import (InputValidationError, ValidationError)
-    from aiida.common.datastructures import (CalcInfo, CodeInfo)
-    from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency, vca_check
-    from aiida.common.exceptions import UniquenessError, NotExistent
-    import os
 
     ####################
     # File names etc.

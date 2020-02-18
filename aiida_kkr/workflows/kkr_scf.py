@@ -7,8 +7,19 @@ some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
+from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, SinglefileData
+from aiida.engine import WorkChain, while_, if_, ToContext, CalcJob
+from aiida.engine import workfunction as wf
+from aiida_kkr.calculations.kkr import KkrCalculation
+from aiida_kkr.calculations.voro import VoronoiCalculation
+from masci_tools.io.kkr_params import kkrparams
+from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, get_inputs_kkr,
+                                                  get_parent_paranode, update_params_wf)
+from aiida_kkr.workflows.voro_start import kkr_startpot_wc
+from aiida_kkr.workflows.dos import kkr_dos_wc
+from masci_tools.io.common_functions import get_Ry2eV, get_ef_from_potfile
+from numpy import array, where, ones
 from six.moves import range
-from aiida.engine import WorkChain
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -64,19 +75,6 @@ class kkr_scf_wc(WorkChain):
     Hints:
     1. This workflow does not work with local codes!
     """
-    
-    from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, SinglefileData
-    from aiida.engine import while_, if_, ToContext, CalcJob
-    from aiida.engine import workfunction as wf
-    from aiida_kkr.calculations.kkr import KkrCalculation
-    from aiida_kkr.calculations.voro import VoronoiCalculation
-    from masci_tools.io.kkr_params import kkrparams
-    from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, get_inputs_kkr,
-                                                    get_parent_paranode, update_params_wf)
-    from aiida_kkr.workflows.voro_start import kkr_startpot_wc
-    from aiida_kkr.workflows.dos import kkr_dos_wc
-    from masci_tools.io.common_functions import get_Ry2eV, get_ef_from_potfile
-    from numpy import array, where, ones
 
 
     _workflowversion = __version__

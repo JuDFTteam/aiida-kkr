@@ -5,7 +5,16 @@ and some helper methods to do so with AiiDA
 """
 from __future__ import print_function
 from __future__ import absolute_import
-from aiida.engine import WorkChain
+from aiida.orm import Code, load_node, RemoteData, StructureData, Dict, SinglefileData, FolderData
+from aiida.engine import WorkChain, ToContext, if_
+from aiida.engine import calcfunction
+from aiida_kkr.calculations.voro import VoronoiCalculation
+from masci_tools.io.kkr_params import kkrparams
+from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, neworder_potential_wf, update_params_wf
+from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
+from aiida_kkr.workflows.voro_start import kkr_startpot_wc
+from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc, clean_sfd
+import numpy as np
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -39,17 +48,6 @@ class kkr_imp_wc(WorkChain):
                                          the last called calculation
     :return last_calc_info: (Dict), information of the last called calculation
     """
-
-    from aiida.orm import Code, load_node, RemoteData, StructureData, Dict, SinglefileData, FolderData
-    from aiida.engine import ToContext, if_
-    from aiida.engine import calcfunction
-    from aiida_kkr.calculations.voro import VoronoiCalculation
-    from masci_tools.io.kkr_params import kkrparams
-    from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, neworder_potential_wf, update_params_wf
-    from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
-    from aiida_kkr.workflows.voro_start import kkr_startpot_wc
-    from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc, clean_sfd
-    import numpy as np
 
 
     _workflowversion = __version__

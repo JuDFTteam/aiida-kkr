@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-#imports for python2/3 compatibility
+#import pytest
 from __future__ import print_function
 from __future__ import absolute_import
 from builtins import object
+from aiida_kkr.tools.tools_kkrimp import modify_potential, kkrimp_parser_functions
+from masci_tools.io.common_functions import open_general
 
 class Test_modify_potential(object):
     """ Tests for the modify_potential class functions. """
-
-    # import dependencies
-    from aiida_kkr.tools.tools_kkrimp import modify_potential, kkrimp_parser_functions
-    from masci_tools.io.common_functions import open_general
 
     def test_neworder_potential_filehandle(self):
         pot1 = 'files/kkr/kkr_run_slab_nosoc/out_potential'

@@ -4,9 +4,15 @@
 """
 Tools for the impurity caluclation plugin and its workflows
 """
-from __future__ import print_function, division, absolute_import, unicode_literals
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import unicode_literals
 from builtins import object, str
-from six.moves import range, input
+from six.moves import range
+from six.moves import input
+from masci_tools.io.common_functions import open_general
+from masci_tools.io.common_functions import search_string
 
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH,"
@@ -20,7 +26,6 @@ class modify_potential(object):
     """
     Class for old modify potential script, ported from modify_potential script, initially by D. Bauer
     """
-    from masci_tools.io.common_functions import open_general
 
     def _check_potstart(self, str1, mode='pot', shape_ver='new'):
         if mode=='shape':
@@ -79,9 +84,6 @@ class modify_potential(object):
         :param shapes: shapes array for mapping between atom index and shapefunction index
         :param shapefun_new: absolute path to output shapefun file to which the new shapefunction will be written
         """
-
-        from masci_tools.io.common_functions import open_general
-
         index1, index2, data = self._read_input(shapefun_path)
 
         order=list(range(len(index1)))
@@ -133,7 +135,6 @@ class modify_potential(object):
             1. modify_potential().neworder_potential(<path_to_input_pot>, <path_to_output_pot>, [])
         """
         from numpy import array, shape
-        from masci_tools.io.common_functions import open_general
 
         index1, index2, data = self._read_input(potfile_in)
 
@@ -178,8 +179,6 @@ class kkrimp_parser_functions(object):
 
     :usage: success, msg_list, out_dict = parse_kkrimp_outputfile().parse_kkrimp_outputfile(out_dict, files)
     """
-    
-    from masci_tools.io.common_functions import open_general
 
     ### some helper functions ###
 
@@ -194,7 +193,6 @@ class kkrimp_parser_functions(object):
             * 'epts', list of complex valued energy points
             * 'weights', list of complex valued weights for energy integration
         """
-        from masci_tools.io.common_functions import search_string
         from numpy import array
         f = open_general(out_log)
         tmptxt = f.readlines()
@@ -222,7 +220,7 @@ class kkrimp_parser_functions(object):
         :returns: niter (int), nitermax (int), converged (bool), nmax_reached (bool), mixinfo (dict)
         :note: mixinfo contains information on mixing scheme and mixing factor used in the calculation
         """
-        from masci_tools.io.common_functions import search_string
+
         f = open_general(file)
         tmptxt = f.readlines()
         f.close()
@@ -270,7 +268,7 @@ class kkrimp_parser_functions(object):
         :param file: absolute path to out_log.000.txt of KKRimp calculation
         :returns: True(False) if SOC solver is (not) used
         """
-        from masci_tools.io.common_functions import search_string
+
         f = open_general(file)
         tmptxt = f.readlines()
         f.close()
@@ -289,7 +287,7 @@ class kkrimp_parser_functions(object):
         :param file: file that is parsed to find number of atoms
         :returns: natom (int), number of atoms in impurity cluster
         """
-        from masci_tools.io.common_functions import search_string
+
         f = open_general(file)
         tmptxt = f.readlines()
         f.close()
@@ -309,7 +307,6 @@ class kkrimp_parser_functions(object):
                   magn. moment for all atoms in the cluster for all iterations (saved in z-comp. of 3d vector)
                   total magnetic moments of all atoms for last iteration
         """
-        from masci_tools.io.common_functions import search_string
         import numpy as np
 
         f = open_general(file)
@@ -341,7 +338,7 @@ class kkrimp_parser_functions(object):
         :param outfile: timing file of the KKRimp run
         :returns: res (dict) timings in seconds, averaged over iterations
         """
-        from masci_tools.io.common_functions import search_string
+
         f = open_general(outfile)
         tmptxt = f.readlines()
         f.close()
@@ -381,7 +378,7 @@ class kkrimp_parser_functions(object):
         :param file: file that is parsed
         :returns: 1 if calculation is paramagnetic, 2 otherwise
         """
-        from masci_tools.io.common_functions import search_string
+
         f = open_general(file)
         tmptxt = f.readlines()
         f.close()
@@ -449,6 +446,7 @@ class kkrimp_parser_functions(object):
         :param potfile: file that is parsed
         :returns: EF (float), value of the Fermi energy in Ry
         """
+
         f = open_general(potfile)
         tmptxt = f.readlines()
         f.close()
@@ -462,7 +460,7 @@ class kkrimp_parser_functions(object):
         :param file: file that is parsed
         :returns: Etot (list), values of the total energy in Ry for all iterations
         """
-        from masci_tools.io.common_functions import search_string
+
         f = open_general(file)
         tmptxt = f.readlines()
         f.close()

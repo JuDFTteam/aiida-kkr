@@ -2,11 +2,11 @@
 """
 contains plot_kkr class for node visualization
 """
-
-from __future__ import print_function, division, absolute_import
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
 from builtins import object, str
 from six.moves import range
-
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"

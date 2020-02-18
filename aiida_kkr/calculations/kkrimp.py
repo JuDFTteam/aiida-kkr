@@ -3,12 +3,25 @@
 Input plug-in for a KKRimp calculation.
 """
 
-# imports for python2/3 compatibility
 from __future__ import print_function
 from __future__ import absolute_import
+from aiida.engine import CalcJob
+from aiida.orm import CalcJobNode, Dict, RemoteData, SinglefileData
+from aiida.common.utils import classproperty
+from aiida.common.exceptions import (InputValidationError, ValidationError, UniquenessError)
+from aiida.common.datastructures import (CalcInfo, CodeInfo)
+from masci_tools.io.kkr_params import kkrparams
+from .voro import VoronoiCalculation
+from .kkr import KkrCalculation
+from aiida_kkr.tools.tools_kkrimp import modify_potential
+from aiida_kkr.tools.tools_kkrimp import make_scoef
+from masci_tools.io.common_functions import search_string
+import os
+import tarfile
+from numpy import array, sqrt, sum, where
 import six
 from six.moves import range
-from aiida.engine import CalcJob
+
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -22,21 +35,6 @@ class KkrimpCalculation(CalcJob):
     """
     AiiDA calculation plugin for a KKRimp calculation.
     """
-
-    # import modules
-    from aiida.orm import CalcJobNode, Dict, RemoteData, SinglefileData
-    from aiida.common.utils import classproperty
-    from aiida.common.exceptions import (InputValidationError, ValidationError, UniquenessError)
-    from aiida.common.datastructures import (CalcInfo, CodeInfo)
-    from masci_tools.io.kkr_params import kkrparams
-    from .voro import VoronoiCalculation
-    from .kkr import KkrCalculation
-    from aiida_kkr.tools.tools_kkrimp import modify_potential
-    from aiida_kkr.tools.tools_kkrimp import make_scoef
-    from masci_tools.io.common_functions import search_string
-    import os
-    import tarfile
-    from numpy import array, sqrt, sum, where
 
     # calculation plugin version
     _CALCULATION_PLUGIN_VERSION = __version__

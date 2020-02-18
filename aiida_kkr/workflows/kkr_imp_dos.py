@@ -5,8 +5,18 @@ In this module you find the base workflow for a impurity DOS calculation and
 some helper methods to do so with AiiDA
 """
 from __future__ import print_function, absolute_import
+from aiida.orm import Code, load_node, CalcJobNode, Float, Int, Str, Dict, RemoteData, SinglefileData, XyData
+from aiida.plugins import DataFactory
+from aiida.engine import if_, ToContext, WorkChain, calcfunction
+from aiida.common import LinkType
+from aiida.common.folders import SandboxFolder
+from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
+from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
+from aiida_kkr.workflows.dos import kkr_dos_wc
+from aiida_kkr.calculations import KkrimpCalculation
+import tarfile
+import os
 from six.moves import range
-from aiida.engine import WorkChain
 
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -34,18 +44,6 @@ class kkr_imp_dos_wc(WorkChain):
                                          the last called calculation
     :return last_calc_info: (Dict), information of the last called calculation
     """
-
-    from aiida.orm import Code, load_node, CalcJobNode, Float, Int, Str, Dict, RemoteData, SinglefileData, XyData
-    from aiida.plugins import DataFactory
-    from aiida.engine import if_, ToContext, calcfunction
-    from aiida.common import LinkType
-    from aiida.common.folders import SandboxFolder
-    from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
-    from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
-    from aiida_kkr.workflows.dos import kkr_dos_wc
-    from aiida_kkr.calculations import KkrimpCalculation
-    import tarfile
-    import os
 
     _workflowversion = __version__
     _wf_label = 'kkr_imp_dos_wc'

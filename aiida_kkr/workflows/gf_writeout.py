@@ -6,7 +6,17 @@ some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from aiida.engine import WorkChain
+from aiida.orm import Code, load_node
+from aiida.engine import WorkChain, ToContext, if_
+from masci_tools.io.kkr_params import kkrparams
+from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
+from aiida_kkr.calculations.kkr import KkrCalculation
+from aiida.engine import CalcJob
+from aiida.orm import CalcJobNode
+from masci_tools.io.common_functions import get_Ry2eV
+from aiida.orm import WorkChainNode, RemoteData, StructureData, Dict, FolderData
+from aiida.common.exceptions import InputValidationError
+
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -32,16 +42,6 @@ class kkr_flex_wc(WorkChain):
                             like success, last result node, list with convergence behavior
     :return GF_host_remote: (RemoteData), host GF of the system
     """
-
-    from aiida.orm import Code, load_node
-    from aiida.engine import CalcJob, ToContext, if_
-    from masci_tools.io.kkr_params import kkrparams
-    from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
-    from aiida_kkr.calculations.kkr import KkrCalculation
-    from aiida.orm import CalcJobNode
-    from masci_tools.io.common_functions import get_Ry2eV
-    from aiida.orm import WorkChainNode, RemoteData, StructureData, Dict, FolderData
-    from aiida.common.exceptions import InputValidationError
 
     _workflowversion = __version__
     _wf_label = 'kkr_flex_wc'

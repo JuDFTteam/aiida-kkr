@@ -1,8 +1,13 @@
 #-*- coding: utf-8 -*-
 
-# only for python2/3 compatibility
 from __future__ import absolute_import
-from aiida.orm import Parser
+from aiida.parsers.parser import Parser
+from aiida.orm import Dict
+from aiida_kkr.calculations.voro import VoronoiCalculation
+from aiida.common.exceptions import InputValidationError
+from masci_tools.io.parsers.voroparser_functions import parse_voronoi_output
+import os
+
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -15,13 +20,6 @@ class VoronoiParser(Parser):
     """
     Parser class for parsing output of voronoi code..
     """
-
-    # import modules
-    from aiida.orm import Dict
-    from aiida_kkr.calculations.voro import VoronoiCalculation
-    from aiida.common.exceptions import InputValidationError
-    from masci_tools.io.parsers.voroparser_functions import parse_voronoi_output
-    import os
 
     def __init__(self, calc):
         """
