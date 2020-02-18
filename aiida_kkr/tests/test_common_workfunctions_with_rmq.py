@@ -2,12 +2,10 @@
 """
 @author: ruess
 """
-from __future__ import print_function
-from __future__ import absolute_import
+from __future__ import print_function, absolute_import
 from builtins import object
-import pytest
 from six.moves import range
-from numpy import sort
+import pytest
 
 @pytest.mark.usefixtures("aiida_env")
 class Test_common_workfunctions_rmq(object):

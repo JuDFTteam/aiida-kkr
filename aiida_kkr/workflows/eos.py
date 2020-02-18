@@ -4,21 +4,8 @@
 In this module you find the base workflow for a EOS calculation and
 some helper methods to do so with AiiDA
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
+from __future__ import print_function, division, absolute_import
 from aiida.orm import Code, load_node, Float, Bool, RemoteData, StructureData, Dict
-from aiida.engine import WorkChain, ToContext
-from aiida.engine import calcfunction
-from aiida_kkr.calculations.kkr import KkrCalculation
-from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida_kkr.tools.common_workfunctions import update_params_wf
-from aiida_kkr.workflows.voro_start import kkr_startpot_wc
-from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
-from masci_tools.io.kkr_params import kkrparams
-from masci_tools.io.common_functions import get_Ry2eV
-from ase.eos import EquationOfState
-from numpy import array, mean, std, min, sort
 from six.moves import range
 
 
@@ -40,6 +27,18 @@ class kkr_eos_wc(WorkChain):
       3. submit kkr_scf calculations for all volumes using RMTCORE setting determined in step 2
       4. collect results
     """
+    
+    from aiida.engine import WorkChain, ToContext
+    from aiida.engine import calcfunction
+    from aiida_kkr.calculations.kkr import KkrCalculation
+    from aiida_kkr.calculations.voro import VoronoiCalculation
+    from aiida_kkr.tools.common_workfunctions import update_params_wf
+    from aiida_kkr.workflows.voro_start import kkr_startpot_wc
+    from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
+    from masci_tools.io.kkr_params import kkrparams
+    from masci_tools.io.common_functions import get_Ry2eV
+    from ase.eos import EquationOfState
+    from numpy import array, mean, std, min, sort
 
     _workflowversion = __version__
     _wf_label = 'kkr_eos_wc_{}' # replace with structure formula

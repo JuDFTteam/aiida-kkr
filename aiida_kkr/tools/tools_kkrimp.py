@@ -4,14 +4,9 @@
 """
 Tools for the impurity caluclation plugin and its workflows
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import unicode_literals
+from __future__ import print_function, division, absolute_import, unicode_literals
 from builtins import object, str
-from six.moves import range
-from six.moves import input
-from masci_tools.io.common_functions import open_general
+from six.moves import range, input
 
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH,"
@@ -25,6 +20,7 @@ class modify_potential(object):
     """
     Class for old modify potential script, ported from modify_potential script, initially by D. Bauer
     """
+    from masci_tools.io.common_functions import open_general
 
     def _check_potstart(self, str1, mode='pot', shape_ver='new'):
         if mode=='shape':
@@ -83,6 +79,9 @@ class modify_potential(object):
         :param shapes: shapes array for mapping between atom index and shapefunction index
         :param shapefun_new: absolute path to output shapefun file to which the new shapefunction will be written
         """
+
+        from masci_tools.io.common_functions import open_general
+
         index1, index2, data = self._read_input(shapefun_path)
 
         order=list(range(len(index1)))
@@ -134,6 +133,7 @@ class modify_potential(object):
             1. modify_potential().neworder_potential(<path_to_input_pot>, <path_to_output_pot>, [])
         """
         from numpy import array, shape
+        from masci_tools.io.common_functions import open_general
 
         index1, index2, data = self._read_input(potfile_in)
 
@@ -178,6 +178,8 @@ class kkrimp_parser_functions(object):
 
     :usage: success, msg_list, out_dict = parse_kkrimp_outputfile().parse_kkrimp_outputfile(out_dict, files)
     """
+    
+    from masci_tools.io.common_functions import open_general
 
     ### some helper functions ###
 
@@ -365,10 +367,10 @@ class kkrimp_parser_functions(object):
         niter = len(res.get(search_keys[-2], []))
         if niter>0:
             for key in search_keys[1:6]:
-                if key in res.keys():
+                if key in list(res.keys()):
                     res[key] = sum(res[key])/niter
             for key in [search_keys[0], search_keys[-1]]:
-                if key in res.keys():
+                if key in list(res.keys()):
                     res[key] = res[key][0]
         return res
 

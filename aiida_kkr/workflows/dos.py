@@ -4,20 +4,9 @@
 In this module you find the base workflow for a dos calculation and
 some helper methods to do so with AiiDA
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-from six.moves import range
-from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, WorkChainNode
-from aiida.engine import WorkChain, if_, ToContext
-from aiida.engine import submit
-from masci_tools.io.kkr_params import kkrparams
-from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
-from aiida_kkr.calculations.kkr import KkrCalculation
-from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida.engine import CalcJob
-from aiida.common.exceptions import InputValidationError
 
+from __future__ import print_function, division, absolute_import
+from six.moves import range
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -39,6 +28,16 @@ class kkr_dos_wc(WorkChain):
     :return result_kkr_dos_wc: (Dict), Information of workflow results
         like Success, last result node, list with convergence behavior
     """
+
+    from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, WorkChainNode
+    from aiida.engine import WorkChain, if_, ToContext
+    from aiida.engine import submit
+    from masci_tools.io.kkr_params import kkrparams
+    from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
+    from aiida_kkr.calculations.kkr import KkrCalculation
+    from aiida_kkr.calculations.voro import VoronoiCalculation
+    from aiida.engine import CalcJob
+    from aiida.common.exceptions import InputValidationError
 
     _workflowversion = __version__
     _wf_label = 'kkr_dos_wc'

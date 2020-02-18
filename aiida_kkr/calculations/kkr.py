@@ -2,23 +2,10 @@
 """
 Input plug-in for a KKR calculation.
 """
+
+# these import are only needed for python2/3 compatibility
 from __future__ import print_function, absolute_import
 from __future__ import unicode_literals
-import os
-from numpy import pi, array
-from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData
-from .voro import VoronoiCalculation
-from aiida.common.utils import classproperty
-from aiida.common.exceptions import InputValidationError, ValidationError
-from aiida.common.datastructures import CalcInfo, CodeInfo
-from aiida.common.exceptions import UniquenessError
-from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_structure,
-                                                  check_2Dinput_consistency, update_params_wf,
-                                                  vca_check)
-from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
-from aiida_kkr.tools.tools_kkrimp import make_scoef
-from masci_tools.io.kkr_params import __kkr_default_params__
 import six
 from six.moves import range
 
@@ -33,9 +20,25 @@ __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 class KkrCalculation(CalcJob):
     """
-    AiiDA calculation plugin for a KKR calculation
-    .
+    AiiDA calculation plugin for a KKR calculation.
     """
+
+    # import necessary modules
+    import os
+    from numpy import pi, array
+    from aiida.engine import CalcJob
+    from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData
+    from .voro import VoronoiCalculation
+    from aiida.common.utils import classproperty
+    from aiida.common.exceptions import InputValidationError, ValidationError
+    from aiida.common.datastructures import CalcInfo, CodeInfo
+    from aiida.common.exceptions import UniquenessError
+    from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_structure,
+                                                    check_2Dinput_consistency, update_params_wf,
+                                                    vca_check)
+    from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
+    from aiida_kkr.tools.tools_kkrimp import make_scoef
+    from masci_tools.io.kkr_params import __kkr_default_params__
 
     # calculation plugin version
     _CALCULATION_PLUGIN_VERSION = __version__

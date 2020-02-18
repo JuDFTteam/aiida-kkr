@@ -6,19 +6,6 @@ some helper methods to do so with AiiDA
 """
 from __future__ import print_function, division, absolute_import
 from six.moves import range
-import os
-from numpy import where, array
-from masci_tools.io.kkr_params import kkrparams
-from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
-from masci_tools.io.common_functions import get_alat_from_bravais
-from aiida.orm import Code, StructureData, Dict, XyData, RemoteData, SinglefileData
-from aiida.engine import WorkChain, while_, if_, ToContext, submit, calcfunction
-from aiida_kkr.calculations.kkr import KkrCalculation
-from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida_kkr.workflows.dos import kkr_dos_wc
-from aiida_kkr.tools import find_cluster_radius
-from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_params,
-                                                  update_params_wf, get_inputs_voronoi)
 
 
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
@@ -45,6 +32,20 @@ class kkr_startpot_wc(WorkChain):
     :return result_kkr_startpot_wc: (Dict), Information of workflow results
         like Success, last result node, dos array data
     """
+
+    import os
+    from numpy import where, array
+    from masci_tools.io.kkr_params import kkrparams
+    from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
+    from masci_tools.io.common_functions import get_alat_from_bravais
+    from aiida.orm import Code, StructureData, Dict, XyData, RemoteData, SinglefileData
+    from aiida.engine import WorkChain, while_, if_, ToContext, submit, calcfunction
+    from aiida_kkr.calculations.kkr import KkrCalculation
+    from aiida_kkr.calculations.voro import VoronoiCalculation
+    from aiida_kkr.workflows.dos import kkr_dos_wc
+    from aiida_kkr.tools import find_cluster_radius
+    from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_params,
+                                                    update_params_wf, get_inputs_voronoi)
 
     _workflowversion = __version__
     _wf_default = {'num_rerun' : 4,                          # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc

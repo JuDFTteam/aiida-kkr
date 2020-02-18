@@ -4,17 +4,6 @@ Plug-in to import a KKR calculation. This is based on the PwImmigrantCalculation
 """
 
 from __future__ import absolute_import
-import os
-from aiida.orm import RemoteData, Dict, StructureData
-#from aiida.engine.calculation.job import _input_subfolder
-#from aiida.common.utils import classproperty
-#from aiida.common.folders import SandboxFolder
-#from aiida.common.exceptions import InputValidationError, InvalidOperation
-#from aiida.common.datastructures import calc_states
-#from aiida.common.links import LinkType
-from .kkr import KkrCalculation
-#from masci_tools.io.kkr_params import kkrparams
-#from aiida_kkr.tools.common_workfunctions import structure_from_params
 #from six.moves import range
 
 
@@ -42,6 +31,18 @@ class KkrImporterCalculation(KkrCalculation):
         file containing the stdout of kkr.x).
     :type output_file_name: dict with str entries
     """
+
+    import os
+    from aiida.orm import RemoteData, Dict, StructureData
+    #from aiida.engine.calculation.job import _input_subfolder
+    #from aiida.common.utils import classproperty
+    #from aiida.common.folders import SandboxFolder
+    #from aiida.common.exceptions import InputValidationError, InvalidOperation
+    #from aiida.common.datastructures import calc_states
+    #from aiida.common.links import LinkType
+    from .kkr import KkrCalculation
+    #from masci_tools.io.kkr_params import kkrparams
+    #from aiida_kkr.tools.common_workfunctions import structure_from_params
 
     def _init_internal_params(self):
         """

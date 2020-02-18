@@ -3,8 +3,6 @@
 from __future__ import absolute_import
 from builtins import object
 import pytest
-from aiida_kkr.tests.calculations.test_vorocalc import wait_for_it
-from aiida_kkr.tests.dbsetup import *
 
 # some global settings
 eps = 10**-14 # threshold for float comparison equivalence
@@ -14,6 +12,9 @@ class Test_kkr_calculation(object):
     """
     Tests for the kkr calculation
     """
+
+    from aiida_kkr.tests.calculations.test_vorocalc import wait_for_it
+    from aiida_kkr.tests.dbsetup import *
 
     @pytest.mark.usefixtures("fresh_aiida_env")
     def test_kkr_from_voronoi(self):

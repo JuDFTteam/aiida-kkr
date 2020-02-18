@@ -6,14 +6,7 @@ and some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from aiida.orm import Float, Code, CalcJobNode, RemoteData, StructureData, Dict, SinglefileData, FolderData
-from aiida.engine import WorkChain, ToContext, while_, if_
-from masci_tools.io.kkr_params import kkrparams
-from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
-from aiida_kkr.calculations.kkrimp import KkrimpCalculation
-from numpy import array
 from six.moves import range
-import tarfile, os
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
@@ -50,6 +43,14 @@ class kkr_imp_sub_wc(WorkChain):
                                    convergence behavior
     :return host_imp_pot: (SinglefileData), output potential of the sytem
     """
+
+    from aiida.orm import Float, Code, CalcJobNode, RemoteData, StructureData, Dict, SinglefileData, FolderData
+    from aiida.engine import WorkChain, ToContext, while_, if_
+    from masci_tools.io.kkr_params import kkrparams
+    from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
+    from aiida_kkr.calculations.kkrimp import KkrimpCalculation
+    from numpy import array
+    import tarfile, os
 
     _workflowversion = __version__
     _wf_label = 'kkr_imp_sub_wc'

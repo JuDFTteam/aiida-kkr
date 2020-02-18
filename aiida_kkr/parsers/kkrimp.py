@@ -5,17 +5,9 @@ The parser should never fail, but it should catch
 all errors and warnings and show them to the user.
 """
 
+# only needed for python2/3 compatibility
 from __future__ import absolute_import
-import tarfile
-import os
-from aiida.parsers.parser import Parser
-from aiida.orm import Dict
-from aiida_kkr.calculations.kkrimp import KkrimpCalculation
-from aiida.common.exceptions import InputValidationError
-from masci_tools.io.parsers.kkrparser_functions import check_error_category
-from masci_tools.io.common_functions import open_general
-from aiida_kkr.tools.tools_kkrimp import kkrimp_parser_functions
-
+from six.moves import range
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -28,6 +20,17 @@ class KkrimpParser(Parser):
     """
     Parser class for parsing output of the KKRimp code..
     """
+
+    # import modules
+    import tarfile
+    import os
+    from aiida.parsers.parser import Parser
+    from aiida.orm import Dict
+    from aiida_kkr.calculations.kkrimp import KkrimpCalculation
+    from aiida.common.exceptions import InputValidationError
+    from masci_tools.io.parsers.kkrparser_functions import check_error_category
+    from masci_tools.io.common_functions import open_general
+    from aiida_kkr.tools.tools_kkrimp import kkrimp_parser_functions
 
     def __init__(self, calc):
         """
