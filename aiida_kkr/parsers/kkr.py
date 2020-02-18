@@ -7,6 +7,7 @@ all errors and warnings and show them to the user.
 
 # only needed for python2/3 compatibility
 from __future__ import absolute_import
+from aiida.orm import Parser
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -21,7 +22,6 @@ class KkrParser(Parser):
     """
 
     # import modules
-    from aiida.parsers.parser import Parser
     from aiida.orm import Dict
     from aiida_kkr.calculations.kkr import KkrCalculation
     from aiida.common.exceptions import InputValidationError

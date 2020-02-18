@@ -8,6 +8,7 @@ all errors and warnings and show them to the user.
 # only needed for python2/3 compatibility
 from __future__ import absolute_import
 from six.moves import range
+from aiida.orm import Parser
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -24,7 +25,6 @@ class KkrimpParser(Parser):
     # import modules
     import tarfile
     import os
-    from aiida.parsers.parser import Parser
     from aiida.orm import Dict
     from aiida_kkr.calculations.kkrimp import KkrimpCalculation
     from aiida.common.exceptions import InputValidationError

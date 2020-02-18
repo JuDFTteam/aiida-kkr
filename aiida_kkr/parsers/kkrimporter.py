@@ -6,8 +6,8 @@ all errors and warnings and show them to the user.
 """
 
 from __future__ import absolute_import
-from aiida_kkr.calculations.kkr import KkrCalculation
-from aiida_kkr.parsers.kkr import KkrParser
+from aiida_kkr.calculations import KkrCalculation
+from aiida_kkr.parsers import KkrParser
 from aiida.common.exceptions import InputValidationError
 
 
