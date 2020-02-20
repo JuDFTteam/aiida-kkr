@@ -5,6 +5,10 @@ from __future__ import print_function
 import pytest
 from aiida_kkr.tests.dbsetup import *
 
+# change kkr_condename for testing (on mac)
+# also used for caching
+kkr_codename = 'kkrhost_intel19'
+
 # tests
 @pytest.mark.usefixtures("aiida_env")
 class Test_vorostart_workflow():
@@ -22,8 +26,20 @@ class Test_vorostart_workflow():
         from aiida_kkr.workflows.voro_start import kkr_startpot_wc
         from numpy import array
 
+        # import data from previous run to use caching
+        from aiida.tools.importexport import import_data
+        #import_data('export_data.aiida.tar.gz')
+        import_data('files/db_dump_vorostart.tar.gz')
+        voro_calc_node = load_node('5d287af2-cc7d-463f-8473-1d72c23fa7fc')
+        kkr_calc_node = load_node('21064078-7aa0-434c-9076-30018ed8dcad')
+        print('hashes of imported voro and kkr calcs', voro_calc_node.get_hash(), kkr_calc_node.get_hash())
+        print('was cached (voro/kkr)?', voro_calc_node.get_cache_source(), kkr_calc_node.get_cache_source())
+
+
         # prepare computer and code (needed so that
         prepare_code(voro_codename, codelocation, computername, workdir)
+        if kkr_codename=='kkrhost':
+            prepare_code(kkr_codename, codelocation, computername, workdir)
 
         # Then set up the structure
         alat = 6.83 # in a_Bohr
@@ -38,7 +54,7 @@ class Test_vorostart_workflow():
 
         # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
         wfd = kkr_startpot_wc.get_wf_defaults()
-        wfd['check_dos'] = False
+        wfd['check_dos'] = True 
         wfd['natom_in_cls_min'] = 20
         wfd['num_rerun'] = 2
         options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'withmpi' : False, 'custom_scheduler_commands' : ''}
@@ -59,12 +75,18 @@ class Test_vorostart_workflow():
         builder.structure = Cu
         builder.wf_parameters = params_vorostart
         builder.options = Dict(dict=options)
-        #builder.metadata.options = options
+        KKRCode = Code.get_from_string(kkr_codename+'@'+computername)
+        builder.kkr = KKRCode
 
         # now run calculation
-        from aiida.engine import run
-        out = run(builder)
+        from aiida.engine import run_get_node #run
+        from aiida.manage.caching import enable_caching
+        from aiida.manage.caching import get_use_cache
+        with enable_caching(): # should enable caching globally in this python interpreter 
+            print('Use caching?', get_use_cache())
+            out, node = run_get_node(builder)
         print(out)
+        print(node.called)
 
         # check output
         n = out['results_vorostart_wc']
@@ -73,6 +95,22 @@ class Test_vorostart_workflow():
         assert n.get('last_voro_ok')
         assert n.get('list_of_errors') == []
         assert abs(n.get('starting_fermi_energy') - 0.409241) < 10**-14
+
+        print('hashes of imported voro and kkr calcs', voro_calc_node.get_hash(), kkr_calc_node.get_hash())
+        print('was cached (voro/kkr)?', voro_calc_node.get_cache_source(), kkr_calc_node.get_cache_source())
+        kkrcalc = node.called[0].called[0]
+        vorocalc = node.called[1]
+        print('hashes of computed voro and kkr calcs', vorocalc.get_hash(), kkrcalc.get_hash())
+        print('was cached (voro/kkr)?', vorocalc.get_cache_source(), kkrcalc.get_cache_source())
+
+        print('caching info imported voro', voro_calc_node._get_objects_to_hash())
+        print('caching info calcul.d voro', vorocalc._get_objects_to_hash())
+        print('caching info imported kkr ', kkr_calc_node._get_objects_to_hash())
+        print('caching info calcul.d kkr ', kkrcalc._get_objects_to_hash())
+
+        # export data to reuse it later
+        #from aiida.tools.importexport import export
+        #export([node], outfile='export_data.aiida.tar.gz', overwrite=True)
 
 #run test manually
 if __name__=='__main__':

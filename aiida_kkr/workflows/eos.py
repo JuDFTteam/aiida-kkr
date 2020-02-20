@@ -25,7 +25,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -269,7 +269,7 @@ class kkr_eos_wc(WorkChain):
 
         self.report('INFO: running kkr scf steps')
         # params for scf wfd
-        wfd = kkr_scf_wc.get_wf_defaults(silent=True)
+        wfd = kkr_scf_wc.get_wf_defaults(silent=True)[0]
         set_keys = []
         # first set options
         for key in list(self.ctx.wf_options.keys()):
@@ -464,7 +464,7 @@ def rescale_no_wf(structure, scale):
     the_ase = structure.get_ase()
     new_ase = the_ase.copy()
     new_ase.set_cell(the_ase.get_cell()*float(scale), scale_atoms=True)
-    rescaled_structure = DataFactory('structure')(ase=new_ase)
+    rescaled_structure = StructureData(ase=new_ase)
 
     return rescaled_structure
 

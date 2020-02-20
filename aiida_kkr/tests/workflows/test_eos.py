@@ -5,6 +5,8 @@ from __future__ import print_function
 import pytest
 from aiida_kkr.tests.dbsetup import *
 
+# change kkr_condename for testing (on mac)
+kkr_codename = 'kkrhost_intel19'
 
 # tests
 @pytest.mark.usefixtures("aiida_env")
@@ -24,9 +26,16 @@ class Test_eos_workflow():
         from pprint import pprint
         from numpy import array
 
+
+        # import data from previous run to use caching
+        #from aiida.tools.importexport import import_data
+        #import_data('files/export_eos_workflow.tar.gz')
+
         # prepare computer and code (needed so that
         prepare_code(voro_codename, codelocation, computername, workdir)
-        prepare_code(kkr_codename, codelocation, computername, workdir)
+        if kkr_codename=='kkrhost':
+            prepare_code(kkr_codename, codelocation, computername, workdir)
+        
 
         # create structure
         alat = 6.83 # in a_Bohr

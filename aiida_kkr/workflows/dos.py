@@ -314,6 +314,11 @@ class kkr_dos_wc(WorkChain):
         therefore it only uses results from context.
         """
 
+        # check wether or not calculation was taked from cached node
+        caching_info = "INFO: cache_source of dos calc node: {}".format(self.ctx.dosrun.get_cache_source())
+        print(caching_info)
+        self.report(caching_info)
+
         # capture error of unsuccessful DOS run
         if not self.ctx.dosrun.is_finished_ok:
             self.ctx.successful = False

@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -609,6 +609,7 @@ class plot_kkr(object):
         from subprocess import check_output
         from os import listdir
         from numpy import loadtxt, array, where
+        from masci_tools.io.common_functions import open_general, search_string
         from masci_tools.vis.kkr_plot_bandstruc_qdos import dispersionplot
         from masci_tools.vis.kkr_plot_FS_qdos import FSqdos2D
         from masci_tools.vis.kkr_plot_dos import dosplot
@@ -635,8 +636,17 @@ class plot_kkr(object):
                         ne = len(set(loadtxt(f)[:,0]))
                         if ne>1 or 'as_e_dimension' in list(kwargs.keys()):
                             try:
-                                ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qdos.01.1.dat', 'output.0.txt')), shell=True)
-                                ef = float(ef.split('=')[2].split()[0])
+                                outfile_name = f.name.replace('qdos.01.1.dat', 'output.0.txt')
+                                with open_general(outfile_name) as file_handle:
+                                    txt = file_handle.readlines()
+                                    iline = search_string('Fermi energy', txt)
+                                    if iline>=0:
+                                        ef = txt[iline].split('=')[1]
+                                        ef = float(ef.split()[0])    
+                                    else:
+                                        ef = None
+                                if ef is None:
+                                    raise ValueError('error loading Fermi energy from outfile, retry extracting from parent')
                             except:
                                 # extract Fermi level from parent calculation
                                 parent_calc = node.inputs.parent_folder.get_incoming().first().node

@@ -5,6 +5,9 @@ from __future__ import print_function
 import pytest
 from aiida_kkr.tests.dbsetup import *
 
+# change kkr_condename for testing (on mac)
+kkr_codename = 'kkrhost_intel19'
+
 # tests
 @pytest.mark.usefixtures("aiida_env")
 class Test_dos_workflow():
@@ -28,7 +31,8 @@ class Test_dos_workflow():
         print('AiiDA version: {}'.format(get_version()))
 
         # prepare computer and code (needed so that
-        prepare_code(kkr_codename, codelocation, computername, workdir)
+        if kkr_codename=='kkrhost':
+            prepare_code(kkr_codename, codelocation, computername, workdir)
 
         # Then set up the structure
         alat = 6.83 # in a_Bohr

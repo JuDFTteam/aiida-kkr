@@ -24,7 +24,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.2"
+__version__ = "0.11.3"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -329,14 +329,14 @@ class kkr_startpot_wc(WorkChain):
         elif self.ctx.check_dos: # add only if doscheck is done
             updated_params = True
             update_list.append('RMAX')
-            rmax_input = kkrparams.default_values.get('RMAX')
+            rmax_input = default_values.get('RMAX')
         if 'GMAX' in set_vals:
             update_list.append('GMAX')
             gmax_input = params.get_dict()['GMAX']
         elif self.ctx.check_dos: # add only if doscheck is done
             updated_params = True
             update_list.append('GMAX')
-            gmax_input = kkrparams.default_values.get('GMAX')
+            gmax_input = default_values.get('GMAX')
         # check if any mandatory keys are not set and set them with the default values if missing in input parameters
         for key, value in default_values.items():
           if key not in update_list and key not in set_vals:
@@ -420,6 +420,11 @@ class kkr_startpot_wc(WorkChain):
         if output is problematic try to increase some parameters (e.g. cluster radius) and rerun up tp N_rerun_max times
         initializes with returning True
         """
+
+        # check wether or not calculation was taked from cached node
+        caching_info = "INFO: cache_source of voro calc node: {}".format(self.ctx.voro_calc.get_cache_source())
+        print(caching_info)
+        self.report(caching_info)
 
         #do some checks with the voronoi output (finally sets self.ctx.voro_ok)
         self.ctx.voro_ok = True
