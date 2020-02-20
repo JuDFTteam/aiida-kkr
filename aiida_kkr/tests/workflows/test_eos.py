@@ -6,7 +6,7 @@ import pytest
 from aiida_kkr.tests.dbsetup import *
 
 # change kkr_condename for testing (on mac)
-kkr_codename = 'kkrhost_intel19'
+#kkr_codename = 'kkrhost_intel19'
 
 # tests
 @pytest.mark.usefixtures("aiida_env")
