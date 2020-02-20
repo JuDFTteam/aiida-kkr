@@ -9,6 +9,9 @@ from aiida_kkr.tests.dbsetup import *
 # some global settings
 eps = 10**-14 # threshold for float comparison equivalence
 
+
+kkr_codename = 'kkrhost'
+
 # tests
 class Test_kkr_calculation(object):
     """

@@ -42,9 +42,28 @@ class Test_scf_workflow():
         from pprint import pprint
         from numpy import array
 
+
+        # import data from previous run to use caching
+        from aiida.tools.importexport import import_data
+        import_data('files/export_kkr_scf.tar.gz', extras_mode_existing='ncu', extras_mode_new='import')
+
+
+        # need to rehash after import, otherwise cashing does not work
+        from aiida.orm import Data, ProcessNode, QueryBuilder
+        entry_point = (Data, ProcessNode)
+        qb = QueryBuilder()
+        qb.append(ProcessNode, tag='node') # query for ProcessNodes
+        to_hash = qb.all()
+        num_nodes = qb.count()
+        print(num_nodes, to_hash)
+        for node in to_hash:
+            node[0].rehash()
+
+
         # prepare computer and code (needed so that
         prepare_code(voro_codename, codelocation, computername, workdir)
-        prepare_code(kkr_codename, codelocation, computername, workdir)
+        if kkr_codename=='localhost':
+            prepare_code(kkr_codename, codelocation, computername, workdir)
 
         # create structure
         alat = 6.83 # in a_Bohr
@@ -60,7 +79,7 @@ class Test_scf_workflow():
         print(Cu)
 
         # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
-        wfd = kkr_scf_wc.get_wf_defaults()
+        wfd = kkr_scf_wc.get_wf_defaults()[0]
 
         wfd['convergence_criterion'] = 10**-4
         wfd['check_dos'] = False
@@ -97,8 +116,11 @@ class Test_scf_workflow():
         builder.metadata.description = descr
 
         # now run calculation
-        from aiida.engine import run
-        out = run(builder)
+        from aiida.engine import run_get_node #run
+        from aiida.manage.caching import enable_caching
+        from aiida.manage.caching import get_use_cache
+        with enable_caching(): # should enable caching globally in this python interpreter 
+            out, node = run_get_node(builder)
 
         # load node of workflow
         print(out)

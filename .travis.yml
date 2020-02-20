@@ -61,6 +61,7 @@ script:
   #- ./verify_rmq_check.py
   # choose tests to run via environment variables:
   - export RUN_VORONOI='yes' 
+  - export RUN_KKRHOST='yes' 
   # Then run all tests
   - bash ./run_all.sh
 after_success:

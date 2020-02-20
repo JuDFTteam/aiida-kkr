@@ -5,10 +5,6 @@ from __future__ import print_function
 import pytest
 from aiida_kkr.tests.dbsetup import *
 
-# change kkr_condename for testing (on mac)
-# also used for caching
-#kkr_codename = 'kkrhost_intel19'
-
 # tests
 @pytest.mark.usefixtures("aiida_env")
 class Test_vorostart_workflow():
@@ -28,12 +24,19 @@ class Test_vorostart_workflow():
 
         # import data from previous run to use caching
         from aiida.tools.importexport import import_data
-        #import_data('export_data.aiida.tar.gz')
-        import_data('files/db_dump_vorostart.tar.gz')
-        voro_calc_node = load_node('5d287af2-cc7d-463f-8473-1d72c23fa7fc')
-        kkr_calc_node = load_node('21064078-7aa0-434c-9076-30018ed8dcad')
-        print('hashes of imported voro and kkr calcs', voro_calc_node.get_hash(), kkr_calc_node.get_hash())
-        print('was cached (voro/kkr)?', voro_calc_node.get_cache_source(), kkr_calc_node.get_cache_source())
+        import_data('files/export_kkr_startpot.tar.gz', extras_mode_existing='ncu', extras_mode_new='import')
+
+
+        # need to rehash after import, otherwise cashing does not work
+        from aiida.orm import Data, ProcessNode, QueryBuilder
+        entry_point = (Data, ProcessNode)
+        qb = QueryBuilder()
+        qb.append(ProcessNode, tag='node') # query for ProcessNodes
+        to_hash = qb.all()
+        num_nodes = qb.count()
+        print(num_nodes, to_hash)
+        for node in to_hash:
+            node[0].rehash()
 
 
         # prepare computer and code (needed so that
@@ -83,10 +86,8 @@ class Test_vorostart_workflow():
         from aiida.manage.caching import enable_caching
         from aiida.manage.caching import get_use_cache
         with enable_caching(): # should enable caching globally in this python interpreter 
-            print('Use caching?', get_use_cache())
             out, node = run_get_node(builder)
         print(out)
-        print(node.called)
 
         # check output
         n = out['results_vorostart_wc']
@@ -96,21 +97,16 @@ class Test_vorostart_workflow():
         assert n.get('list_of_errors') == []
         assert abs(n.get('starting_fermi_energy') - 0.409241) < 10**-14
 
-        print('hashes of imported voro and kkr calcs', voro_calc_node.get_hash(), kkr_calc_node.get_hash())
-        print('was cached (voro/kkr)?', voro_calc_node.get_cache_source(), kkr_calc_node.get_cache_source())
-        kkrcalc = [i for i in node.called_descendants if i.process_label=='KkrCalculation'][0]
-        vorocalc = [i for i in node.called_descendants if i.process_label=='VoronoiCalculation'][0]
-        print('hashes of computed voro and kkr calcs', vorocalc.get_hash(), kkrcalc.get_hash())
-        print('was cached (voro/kkr)?', vorocalc.get_cache_source(), kkrcalc.get_cache_source())
-
-        print('caching info imported voro', voro_calc_node._get_objects_to_hash())
-        print('caching info calcul.d voro', vorocalc._get_objects_to_hash())
-        print('caching info imported kkr ', kkr_calc_node._get_objects_to_hash())
-        print('caching info calcul.d kkr ', kkrcalc._get_objects_to_hash())
+        #kkrcalc = [i for i in node.called_descendants if i.process_label=='KkrCalculation'][0]
+        #vorocalc = [i for i in node.called_descendants if i.process_label=='VoronoiCalculation'][0]
+        #print('hashes of computed voro and kkr calcs', vorocalc.get_hash(), kkrcalc.get_hash())
+        #print('was cached (voro/kkr)?', vorocalc.get_cache_source(), kkrcalc.get_cache_source())
+        #print('caching info calcul.d voro', vorocalc._get_objects_to_hash())
+        #print('caching info calcul.d kkr ', kkrcalc._get_objects_to_hash())
 
         # export data to reuse it later
         #from aiida.tools.importexport import export
-        #export([node], outfile='export_data.aiida.tar.gz', overwrite=True)
+        #export([node], outfile='export_data.aiida.tar.gz', overwrite=True) # add export of extras automatically
 
 #run test manually
 if __name__=='__main__':

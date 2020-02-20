@@ -5,9 +5,6 @@ from __future__ import print_function
 import pytest
 from aiida_kkr.tests.dbsetup import *
 
-# change kkr_condename for testing (on mac)
-#kkr_codename = 'kkrhost_intel19'
-
 # tests
 @pytest.mark.usefixtures("aiida_env")
 class Test_eos_workflow():
@@ -27,9 +24,22 @@ class Test_eos_workflow():
         from numpy import array
 
 
+
         # import data from previous run to use caching
-        #from aiida.tools.importexport import import_data
-        #import_data('files/export_eos_workflow.tar.gz')
+        from aiida.tools.importexport import import_data
+        import_data('files/export_kkr_eos.tar.gz', extras_mode_existing='ncu', extras_mode_new='import')
+
+        # need to rehash after import, otherwise cashing does not work
+        from aiida.orm import Data, ProcessNode, QueryBuilder
+        entry_point = (Data, ProcessNode)
+        qb = QueryBuilder()
+        qb.append(ProcessNode, tag='node') # query for ProcessNodes
+        to_hash = qb.all()
+        num_nodes = qb.count()
+        print(num_nodes, to_hash)
+        for node in to_hash:
+            node[0].rehash()
+
 
         # prepare computer and code (needed so that
         prepare_code(voro_codename, codelocation, computername, workdir)
@@ -89,8 +99,11 @@ class Test_eos_workflow():
         builder.metadata.description = descr
 
         # now run calculation
-        from aiida.engine import run
-        out = run(builder)
+        from aiida.engine import run_get_node #run
+        from aiida.manage.caching import enable_caching
+        from aiida.manage.caching import get_use_cache
+        with enable_caching(): # should enable caching globally in this python interpreter 
+            out, node = run_get_node(builder)
 
         # load node of workflow
         print(out)

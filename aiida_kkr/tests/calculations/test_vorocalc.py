@@ -7,6 +7,9 @@ from builtins import object
 from aiida_kkr.tests.dbsetup import *
 import pytest
 
+
+kkr_codename = 'kkrhost'
+
 #TODO
 # implement missing tests:
 # * test_vca_structure

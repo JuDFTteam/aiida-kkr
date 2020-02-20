@@ -17,6 +17,9 @@ workdir = cwd+'/jukkr/work'
 codelocation = cwd+'/jukkr/'
 
 
+# change kkr_condename for testing (on mac)
+# also used for caching
+kkr_codename = 'kkrhost_intel19'
 
 def prepare_computer(computername, workdir):
     """Create new computer in db or read computer from db if it already exists."""
@@ -44,6 +47,7 @@ def prepare_computer(computername, workdir):
         print('found computer in database')
     # configure for cases where computer was imported
     comp.configure()
+    comp.set_minimum_job_poll_interval(0.)
     # return computer
     return comp
 
