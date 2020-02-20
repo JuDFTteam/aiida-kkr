@@ -98,8 +98,8 @@ class Test_vorostart_workflow():
 
         print('hashes of imported voro and kkr calcs', voro_calc_node.get_hash(), kkr_calc_node.get_hash())
         print('was cached (voro/kkr)?', voro_calc_node.get_cache_source(), kkr_calc_node.get_cache_source())
-        kkrcalc = node.called[0].called[0]
-        vorocalc = node.called[1]
+        kkrcalc = [i for i in node.called_descendants if i.process_label=='KkrCalculation'][0]
+        vorocalc = [i for i in node.called_descendants if i.process_label=='VoronoiCalculation'][0]
         print('hashes of computed voro and kkr calcs', vorocalc.get_hash(), kkrcalc.get_hash())
         print('was cached (voro/kkr)?', vorocalc.get_cache_source(), kkrcalc.get_cache_source())
 
