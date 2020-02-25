@@ -6,6 +6,7 @@ and some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import absolute_import
 from aiida.orm import Code, load_node, RemoteData, StructureData, Dict, SinglefileData, FolderData
+from aiida.orm import CalcJobNode
 from aiida.engine import WorkChain, ToContext, if_
 from aiida.engine import calcfunction
 from aiida_kkr.calculations.voro import VoronoiCalculation
@@ -19,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -503,7 +504,30 @@ class kkr_imp_wc(WorkChain):
             self.report('GF_host_calc_pk: {}'.format(GF_host_calc.pk))
             # follow parent_folder link up to get remote folder
             converged_host_remote = GF_host_calc.get_incoming(link_label_filter='parent_folder').first().node
-        voro_calc_remote = self.ctx.last_voro_calc.outputs.last_voronoi_remote
+        
+        # get remote folder of last voronoi calculation (i.e. the one from where we take the starting potential)
+        print(self.ctx.last_voro_calc)
+        all_nodes = self.ctx.last_voro_calc.get_outgoing(node_class=CalcJobNode).all()
+        print(all_nodes)
+        pk_last_voronoi = max([i.node.pk for i in all_nodes])
+        print(pk_last_voronoi)
+        voro_calc_remote = load_node(pk_last_voronoi).outputs.remote_folder
+        print(voro_calc_remote)
+
+        print(load_node(pk_last_voronoi).outputs.retrieved.list_object_names())
+        print(GF_host_calc)
+        print(GF_host_calc.outputs.retrieved.list_object_names())
+
+
+        # check wether or not calculation was taked from cached node
+        caching_info = "INFO: cache_source of GF_host_calc node: {}".format(GF_host_calc.get_cache_source())
+        print(caching_info)
+        self.report(caching_info)
+        caching_info = "INFO: cache_source of voronoi node: {}".format(load_node(pk_last_voronoi).get_cache_source())
+        print(caching_info)
+        self.report(caching_info)
+
+
         imp_info = self.inputs.impurity_info
         nspin = GF_host_calc.outputs.output_parameters.get_dict().get('nspin')
 
@@ -650,7 +674,7 @@ class kkr_imp_wc(WorkChain):
             vorocalc = kkr_startpot.outputs.last_voronoi_remote.get_incoming(link_label_filter=u'remote_folder').first().node
             ret = vorocalc.outputs.retrieved
             for fname in ret.list_object_names():
-                if fname!=VoronoiCalculation._OUTPUT_FILE_NAME:
+                if fname not in [VoronoiCalculation._OUTPUT_FILE_NAME, VoronoiCalculation._OUT_POTENTIAL_voronoi]:
                     # delete all except vor default output file
                     with ret.open(fname) as f:
                         ret.delete_object(fname, force=True)

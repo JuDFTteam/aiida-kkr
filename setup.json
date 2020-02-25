@@ -68,7 +68,7 @@
             "kkr.convergence_check = aiida_kkr.workflows.check_para_convergence:kkr_check_para_wc",
             "kkr.gf_writeout = aiida_kkr.workflows.gf_writeout:kkr_flex_wc",
             "kkr.imp_sub = aiida_kkr.workflows.kkr_imp_sub:kkr_imp_sub_wc",
-	    "kkr.imp = aiida_kkr.workflows.kkr_imp:kkr_imp_wc"
+	        "kkr.imp = aiida_kkr.workflows.kkr_imp:kkr_imp_wc"
 	    ],
         "console_scripts": [
             "kkrstructure = aiida_kkr.cmdline.data_cli:cli"

@@ -6,6 +6,8 @@ import pytest
 from aiida_kkr.tests.calculations.test_vorocalc import wait_for_it
 from aiida_kkr.tests.dbsetup import *
 
+kkrimp_codename = 'kkrimp'
+
 # tests
 @pytest.mark.usefixtures("aiida_env")
 class Test_kkrimp_calculation(object):

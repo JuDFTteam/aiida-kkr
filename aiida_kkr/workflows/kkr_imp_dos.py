@@ -194,17 +194,20 @@ class kkr_imp_dos_wc(WorkChain):
         # whether or not to compute the GF writeout step
         self.ctx.skip_gfstep = False
 
-
-        self.report('INFO: use the following parameter:\n'
-                    'withmpi: {}\n'
-                    'Resources: {}\n'
-                    'Walltime (s): {}\n'
-                    'queue name: {}\n'
-                    'scheduler command: {}\n'
-                    'description: {}\n'
-                    'label: {}\n'.format(self.ctx.withmpi, self.ctx.resources, self.ctx.max_wallclock_seconds,
-                                         self.ctx.queue, self.ctx.custom_scheduler_commands,
-                                         self.ctx.description_wf, self.ctx.label_wf))
+        message = """
+INFO: use the following parameter:
+withmpi: {}
+Resources: {}
+Walltime (s): {}
+queue name: {}
+scheduler command: {}
+description: {}
+label: {}
+                  """.format(self.ctx.withmpi, self.ctx.resources, self.ctx.max_wallclock_seconds,
+                             self.ctx.queue, self.ctx.custom_scheduler_commands,
+                             self.ctx.description_wf, self.ctx.label_wf)
+        print(message)
+        self.report(message)
 
         # return para/vars
         self.ctx.successful = True
@@ -228,34 +231,44 @@ class kkr_imp_dos_wc(WorkChain):
                     self.ctx.imp_info = inputs.impurity_info
                     self.ctx.conv_host_remote = inputs.host_remote
                 else:
-                    self.report('WARNING: startpot has no parent and can not find '
-                                'a converged host RemoteData node')
+                    message = 'WARNING: startpot has no parent and can not find a converged host RemoteData node'
+                    print(message)
+                    self.report(message)
                     if 'impurity_info' not in inputs:
-                        self.report("`impurity_info` optional input node not given but needed in this case.")
+                        message = "`impurity_info` optional input node not given but needed in this case."
+                        print(message)
+                        self.report(message)
                     if 'host_remote' not in inputs:
-                        self.report("`host_remote` optional input node not given but needed in this case.")
+                        message = "`host_remote` optional input node not given but needed in this case."
+                        print(message)
+                        self.report(message)
                     inputs_ok = False
                     self.ctx.errors.append(1)
             else:
                 # if return ink is found get input nodes automatically
-                self.report('INFO: get converged host RemoteData node and '
-                            'impurity_info node from database')
+                message = 'INFO: get converged host RemoteData node and impurity_info node from database'
+                print(message)
+                self.report(message)
                 self.ctx.kkr_imp_wf = inputs.imp_pot_sfd.get_incoming().first().node
-                self.report('INFO: found underlying kkr impurity workflow '
-                            '(pk: {})'.format(self.ctx.kkr_imp_wf.pk))
+                message = 'INFO: found underlying kkr impurity workflow (pk: {})'.format(self.ctx.kkr_imp_wf.pk)
+                print(message)
+                self.report(message)
                 self.ctx.imp_info = self.ctx.kkr_imp_wf.inputs.impurity_info
-                self.report('INFO: found impurity_info node (pk: {})'.format(
-                            self.ctx.imp_info.pk))
+                message = 'INFO: found impurity_info node (pk: {})'.format(self.ctx.imp_info.pk)
+                print(message)
+                self.report(message)
                 if 'remote_data' in self.ctx.kkr_imp_wf.inputs:
                     remote_data_gf_writeout = self.ctx.kkr_imp_wf.inputs.remote_data
                     gf_writeout_calc = remote_data_gf_writeout.get_incoming(node_class=CalcJobNode).first().node
                     self.ctx.conv_host_remote = gf_writeout_calc.inputs.parent_folder
-                    self.report('INFO: imported converged_host_remote (pk: {}) and '
-                                'impurity_info from database'.format(self.ctx.conv_host_remote.pk))
+                    message = 'INFO: imported converged_host_remote (pk: {}) and impurity_info from database'.format(self.ctx.conv_host_remote.pk)
+                    print(message)
+                    self.report(message)
                 else:
                     self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inputs.gf_remote.inputs.remote_folder.inputs.parent_calc_folder.inputs.remote_folder.outputs.remote_folder
-                    self.report('INFO: imported converged_host_remote (pk: {}) and '
-                                'impurity_info from database'.format(self.ctx.conv_host_remote.pk))
+                    message = 'INFO: imported converged_host_remote (pk: {}) and impurity_info from database'.format(self.ctx.conv_host_remote.pk)
+                    print(message)
+                    self.report(message)
 
         if 'gf_dos_remote' in self.inputs:
             self.ctx.skip_gfstep = True
@@ -287,7 +300,9 @@ class kkr_imp_dos_wc(WorkChain):
             inputs_ok = False
             self.ctx.errors.append(1) # raises ERROR_NO_PARENT_FOUND
 
-        self.report('INFO: validated input successfully: {}'.format(inputs_ok))
+        message = 'INFO: validated input successfully: {}'.format(inputs_ok)
+        print(message)
+        self.report(message)
 
         return inputs_ok
 
@@ -321,7 +336,9 @@ class kkr_imp_dos_wc(WorkChain):
 
             future = self.submit(builder)
 
-            self.report('INFO: running GF writeout (pid: {})'.format(future.pk))
+            message = 'INFO: running GF writeout (pid: {})'.format(future.pk)
+            print(message)
+            self.report(message)
 
             return ToContext(gf_writeout=future)
 
@@ -384,7 +401,9 @@ class kkr_imp_dos_wc(WorkChain):
 
         future = self.submit(builder)
 
-        self.report('INFO: running DOS step for impurity system (pid: {})'.format(future.pk))
+        message = 'INFO: running DOS step for impurity system (pk: {})'.format(future.pk)
+        print(message)
+        self.report(message)
 
         return ToContext(kkrimp_dos=future)
 
@@ -406,10 +425,14 @@ class kkr_imp_dos_wc(WorkChain):
             else:
                 return self.exit_codes.ERROR_UNKNOWN_PROBLEM
 
-        self.report('INFO: creating output nodes for the KKR imp DOS workflow ...')
+        message = 'INFO: creating output nodes for the KKR imp DOS workflow ...'
+        print(message)
+        self.report(message)
 
         if not self.ctx.kkrimp_dos.is_finished_ok:
-            self.report('ERROR: sub workflow for impurity calculation failed')
+            message = 'ERROR: sub workflow for impurity calculation failed'
+            print(message)
+            self.report(message)
             return self.exit_codes.ERROR_IMP_SUB_WORKFLOW_FAILURE
         else:
             last_calc_pk = self.ctx.kkrimp_dos.outputs.workflow_info.get_dict().get('last_calc_nodeinfo')['pk']
@@ -433,25 +456,33 @@ class kkr_imp_dos_wc(WorkChain):
 
             # interpol dos file and store to XyData nodes
             dos_extracted, dosXyDatas = self.extract_dos_data(last_calc)
-            self.report('INFO: extracted DOS data? {}'.format(dos_extracted))
+            message = 'INFO: extracted DOS data? {}'.format(dos_extracted)
+            print(message)
+            self.report(message)
 
             if dos_extracted:
                 self.out('dos_data', dosXyDatas['dos_data'])
                 self.out('dos_data_interpol', dosXyDatas['dos_data_interpol'])
                 # maybe cleanup retrieved folder of DOS calculation
                 if self.ctx.cleanup_impcalc_output:
-                    self.report('INFO: cleanup after storing of DOS data')
+                    message = 'INFO: cleanup after storing of DOS data'
+                    print(message)
+                    self.report(message)
                     pk_impcalc = self.ctx.kkrimp_dos.outputs.workflow_info['pks_all_calcs'][0]
                     cleanup_kkrimp_retrieved(pk_impcalc)
 
 
-            self.report('INFO: workflow_info node: {}'.format(outputnode_t.uuid))
+            message = 'INFO: workflow_info node: {}'.format(outputnode_t.uuid)
+            print(message)
+            self.report(message)
 
             self.out('workflow_info', outputnode_t)
             self.out('last_calc_output_parameters', last_calc_output_params)
             self.out('last_calc_info', last_calc_info)
 
-            self.report('INFO: created output nodes for KKR imp DOS workflow.')
+            message = 'INFO: created output nodes for KKR imp DOS workflow.'
+            print(message)
+            self.report(message)
             self.report('\n'
                         '|------------------------------------------------------------------------------------------------------------------|\n'
                         '|-------------------------------------| Done with the KKR imp DOS workflow! |--------------------------------------|\n'

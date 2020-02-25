@@ -173,8 +173,8 @@ class kkr_imp_sub_wc(WorkChain):
         """
         init context and some parameters
         """
-        self.report('INFO: started KKR impurity convergence workflow version {}'
-                    ''.format(self._workflowversion))
+        message = 'INFO: started KKR impurity convergence workflow version {}'.format(self._workflowversion)
+        self.report(message)
 
         ####### init #######
 
@@ -207,11 +207,13 @@ class kkr_imp_sub_wc(WorkChain):
 
         if options_dict == {}:
             options_dict = self._options_default
-            self.report('INFO: using default options')
+            message = 'INFO: using default options'
+            self.report(message)
 
         if wf_dict == {}:
             wf_dict = self._wf_default
-            self.report('INFO: using default wf parameter')
+            message = 'INFO: using default wf parameter'
+            self.report(message)
 
         # set option parameters from input, or defaults
         self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
@@ -340,7 +342,8 @@ class kkr_imp_sub_wc(WorkChain):
             inputs_ok = False
             self.ctx.exit_code = self.exit_codes.ERROR_NO_CALC_PARAMS
 
-        self.report('INFO: validated input successfully: {}'.format(inputs_ok))
+        message = 'INFO: validated input successfully: {}'.format(inputs_ok)
+        self.report(message)
 
         return inputs_ok
 
@@ -370,7 +373,8 @@ class kkr_imp_sub_wc(WorkChain):
 
         # check if previous calculation was successful
         if self.ctx.loop_count>1 and not self.ctx.last_calc.is_finished_ok:
-            self.report("ERROR: last calc not finished_ok")
+            message = "ERROR: last calc not finished_ok"
+            self.report(message)
             return self.exit_codes.ERROR_SUB_FAILURE
 
         # next check only needed if another iteration should be done after validating convergence etc. (previous checks)
@@ -381,10 +385,12 @@ class kkr_imp_sub_wc(WorkChain):
             else:
                 do_kkr_step = False
 
-        self.report("INFO: done checking condition for kkr step (result={})".format(do_kkr_step))
+        message = "INFO: done checking condition for kkr step (result={})".format(do_kkr_step)
+        self.report(message)
 
         if not do_kkr_step:
-            self.report("INFO: Stopreason={}".format(stopreason))
+            message = "INFO: Stopreason={}".format(stopreason)
+            self.report(message)
 
         return do_kkr_step
 
@@ -406,19 +412,22 @@ class kkr_imp_sub_wc(WorkChain):
             # first determine if previous step was successful (otherwise try to find some rms value and decrease mixing to try again)
             if not self.ctx.kkr_step_success:
                 decrease_mixing_fac = True
-                self.report("INFO: last KKR calculation failed. Trying decreasing mixfac")
+                message = "INFO: last KKR calculation failed. Trying decreasing mixfac"
+                self.report(message)
 
             convergence_on_track = self.convergence_on_track()
 
             # check if calculation was on its way to converge
             if not convergence_on_track:
                 decrease_mixing_fac = True
-                self.report("INFO: Last KKR did not converge. Trying decreasing mixfac")
+                message = "INFO: Last KKR did not converge. Trying decreasing mixfac"
+                self.report(message)
                 # reset last_remote to last successful calculation
                 last_calcs_list = list(range(len(self.ctx.calcs))) # needs to be list to support slicing
                 if len(last_calcs_list)>1: last_calcs_list = array(last_calcs_list)[::-1] # make sure to go from latest calculation backwards
                 for icalc in last_calcs_list:
-                    self.report("INFO: last calc success? {} {}".format(icalc, self.ctx.KKR_steps_stats['success'][icalc]))
+                    message = "INFO: last calc success? {} {}".format(icalc, self.ctx.KKR_steps_stats['success'][icalc])
+                    self.report(message)
                     if self.ctx.KKR_steps_stats['success'][icalc]:
                         if self.ctx.KKR_steps_stats['last_rms'][icalc] < self.ctx.KKR_steps_stats['first_rms'][icalc]:
                             self.ctx.last_remote = self.ctx.calcs[icalc].outputs.remote_folder
@@ -430,13 +439,15 @@ class kkr_imp_sub_wc(WorkChain):
                 # now cover case when last_remote needs to be set to initial remote folder (from input)
                 if self.ctx.last_remote is None:
                     if 'kkrimp_remote' in self.inputs:
-                        self.report('INFO: no successful and converging calculation to take RemoteData from. Reuse RemoteData from input instead.')
+                        messager = 'INFO: no successful and converging calculation to take RemoteData from. Reuse RemoteData from input instead.'
+                        self.report(message)
                         self.ctx.last_remote = self.inputs.kkrimp_remote
                     elif 'impurity_info' in self.inputs or 'remote_data' in self.inputs:
                         self.ctx.last_remote = None
                 # check if last_remote has finally been set and abort if this is not the case
                 if self.ctx.last_remote is None:
-                    self.report("ERROR: last remote not found")
+                    messager = "ERROR: last remote not found"
+                    self.report(message)
                     return self.exit_codes.ERROR_SETTING_LAST_REMOTE
 
             # check if mixing strategy should be changed
@@ -448,7 +459,8 @@ class kkr_imp_sub_wc(WorkChain):
                 last_rms = self.ctx.last_rms_all[-1]
                 if last_rms < self.ctx.threshold_aggressive_mixing and last_mixing_scheme == 0:
                     switch_agressive_mixing = True
-                    self.report("INFO: rms low enough, switch to agressive mixing")
+                    message = "INFO: rms low enough, switch to agressive mixing"
+                    self.report(message)
 
                 # check if switch to higher accuracy should be done
                 if not self.ctx.kkr_higher_accuracy:
@@ -484,7 +496,8 @@ class kkr_imp_sub_wc(WorkChain):
             # step 1: extract info from last input parameters and check consistency
             para_check = kkrparams(params_type='kkrimp')
             para_check.get_all_mandatory()
-            self.report('INFO: get kkrimp keywords')
+            message = 'INFO: get kkrimp keywords'
+            self.report(message)
 
             # init new_params dict where updated params are collected
             new_params = {}
@@ -499,10 +512,12 @@ class kkr_imp_sub_wc(WorkChain):
                         new_params[key_default] = kkrdefaults.get(key_default)
                         kkrdefaults_updated.append(key_default)
                 if len(kkrdefaults_updated)>0:
-                    self.report("ERROR: no default param found")
+                    message = "ERROR: no default param found"
+                    self.report(message)
                     return self.exit_codes.ERROR_MISSING_PARAMS
                 else:
-                    self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
+                    message = 'updated KKR parameter node with default values: {}'.format(kkrdefaults_updated)
+                    self.report(message)
 
             # step 2: change parameter (contained in new_params dictionary)
             last_mixing_scheme = para_check.get_value('IMIX')
@@ -613,18 +628,21 @@ class kkr_imp_sub_wc(WorkChain):
                 if nspin_in < 2:
                     self.report('WARNING: found NSPIN=1 but for maginit needs NPIN=2. Overwrite this automatically')
                     new_params['NSPIN'] = 2
-            self.report('new_params: {}'.format(new_params))
+            message = 'new_params: {}'.format(new_params)
+            self.report(message)
 
             # step 2.2 update values
             try:
                 for key, val in new_params.items():
                     para_check.set_value(key, val, silent=True)
             except:
-                self.report("ERROR: failed to set some parameters")
+                message = "ERROR: failed to set some parameters"
+                self.report(message)
                 return self.exit_codes.ERROR_PARAMETER_UPDATE
 
             # step 3:
-            self.report("INFO: update parameters to: {}".format(para_check.get_set_values()))
+            message = "INFO: update parameters to: {}".format(para_check.get_set_values())
+            self.report(message)
 
             #test
             self.ctx.last_params = Dict(dict={})
@@ -636,9 +654,11 @@ class kkr_imp_sub_wc(WorkChain):
             paranode_new = updatenode #update_params_wf(self.ctx.last_params, updatenode)
             self.ctx.last_params = paranode_new
         else:
-            self.report("INFO: reuse old settings")
+            message = "INFO: reuse old settings"
+            self.report(message)
 
-        self.report("INFO: done updating kkr param step")
+        message = "INFO: done updating kkr param step"
+        self.report(message)
 
 
 
@@ -646,7 +666,8 @@ class kkr_imp_sub_wc(WorkChain):
         """
         submit a KKR impurity calculation
         """
-        self.report("INFO: setting up kkrimp calculation step {}".format(self.ctx.loop_count))
+        message = "INFO: setting up kkrimp calculation step {}".format(self.ctx.loop_count)
+        self.report(message)
 
 
         label = 'KKRimp calculation step {} (IMIX={})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
@@ -676,14 +697,16 @@ class kkr_imp_sub_wc(WorkChain):
             imp_pot = kick_out_corestates_wf(imp_pot, Float(emin))
             self.ctx.sfd_pot_to_clean.append(imp_pot)
             if 'impurity_info' in self.inputs:
-                self.report('INFO: using impurity_info node as input for kkrimp calculation')
+                message = 'INFO: using impurity_info node as input for kkrimp calculation'
+                self.report(message)
                 imp_info = self.inputs.impurity_info
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_dict().get('Zimp'))
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
                                            not self.ctx.withmpi, imp_info=imp_info, host_GF=host_GF, imp_pot=imp_pot, host_GF_Efshift=host_GF_Efshift)
             else:
-                self.report('INFO: getting impurity_info node from previous GF calculation')
+                message = 'INFO: getting impurity_info node from previous GF calculation'
+                self.report(message)
                 label = 'KKRimp calculation step {} (IMIX={}, GF_remote: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, host_GF.pk)
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
@@ -691,21 +714,24 @@ class kkr_imp_sub_wc(WorkChain):
         elif last_remote is not None:
             # fix to get Zimp properly
             if 'impurity_info' in self.inputs:
-                self.report('INFO: using RemoteData from previous kkrimp calculation and impurity_info node as input')
+                message = 'INFO: using RemoteData from previous kkrimp calculation and impurity_info node as input'
+                self.report(message)
                 imp_info = self.inputs.impurity_info
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, imp_info.get_dict().get('Zimp'))
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
                                            not self.ctx.withmpi, imp_info=imp_info, host_GF=host_GF, kkrimp_remote=last_remote, host_GF_Efshift=host_GF_Efshift)
             else:
-                self.report('INFO: using RemoteData from previous kkrimp calculation as input')
+                message = 'INFO: using RemoteData from previous kkrimp calculation as input'
+                self.report(message)
                 label = 'KKRimp calculation step {} (IMIX={}, Zimp: {})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme, None)
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
                                            not self.ctx.withmpi, host_GF=host_GF, kkrimp_remote=last_remote, host_GF_Efshift=host_GF_Efshift)
 
         # run the KKR calculation
-        self.report('INFO: doing calculation')
+        message = 'INFO: doing calculation'
+        self.report(message)
         kkrimp_run = self.submit(KkrimpCalculation, **inputs)
 
         return ToContext(kkr=kkrimp_run, last_calc=kkrimp_run)
@@ -723,10 +749,12 @@ class kkr_imp_sub_wc(WorkChain):
         # check calculation state
         if not self.ctx.last_calc.is_finished_ok:
             self.ctx.kkrimp_step_success = False
-            self.report("ERROR: last calc not finished_ok")
+            message = "ERROR: last calc not finished_ok"
+            self.report(message)
             return self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED_OK
 
-        self.report("INFO: kkrimp_step_success: {}".format(self.ctx.kkrimp_step_success))
+        message = "INFO: kkrimp_step_success: {}".format(self.ctx.kkrimp_step_success)
+        self.report(message)
 
         # get potential from last calculation
         try:
@@ -749,17 +777,20 @@ class kkr_imp_sub_wc(WorkChain):
                     self.ctx.last_pot = SinglefileData(file=pot_file)
             self.ctx.sfd_pot_to_clean.append(self.ctx.last_pot)
         except:
-            self.report("ERROR: no output potential found")
+            message = "ERROR: no output potential found"
+            self.report(message)
             return self.exit_codes.ERROR_NO_OUTPUT_POT_FROM_LAST_CALC
 
         # extract convergence info about rms etc. (used to determine convergence behavior)
         try:
-            self.report("INFO: trying to find output of last_calc: {}".format(self.ctx.last_calc))
+            message = "INFO: trying to find output of last_calc: {}".format(self.ctx.last_calc)
+            self.report(message)
             last_calc_output = self.ctx.last_calc.outputs.output_parameters.get_dict()
             found_last_calc_output = True
         except:
             found_last_calc_output = False
-        self.report("INFO: found_last_calc_output: {}".format(found_last_calc_output))
+        message = "INFO: found_last_calc_output: {}".format(found_last_calc_output)
+        self.report(message)
 
         # try to extract remote folder
         try:
@@ -768,7 +799,8 @@ class kkr_imp_sub_wc(WorkChain):
             self.ctx.last_remote = None
             self.ctx.kkrimp_step_success = False
 
-        self.report("INFO: last_remote: {}".format(self.ctx.last_remote))
+        message = "INFO: last_remote: {}".format(self.ctx.last_remote)
+        self.report(message)
 
         if self.ctx.kkrimp_step_success and found_last_calc_output:
             # check convergence
@@ -784,9 +816,12 @@ class kkr_imp_sub_wc(WorkChain):
         else:
             self.ctx.kkr_converged = False
 
-        self.report("INFO: kkr_converged: {}".format(self.ctx.kkr_converged))
-        self.report("INFO: rms: {}".format(self.ctx.rms))
-        self.report("INFO: last_rms_all: {}".format(self.ctx.last_rms_all))
+        message = "INFO: kkr_converged: {}".format(self.ctx.kkr_converged)
+        self.report(message)
+        message = "INFO: rms: {}".format(self.ctx.rms)
+        self.report(message)
+        message = "INFO: last_rms_all: {}".format(self.ctx.last_rms_all)
+        self.report(message)
 
         # turn off initial magnetization once one step was successful (update_kkr_params) used in
         if self.ctx.mag_init and self.convergence_on_track(): # and self.ctx.kkrimp_step_success:
@@ -796,7 +831,8 @@ class kkr_imp_sub_wc(WorkChain):
 
         # store some statistics used to print table in the end of the report
         tmplist = self.ctx.KKR_steps_stats.get('success',[])
-        self.report('INFO: append kkr_step_success {}, {}'.format(tmplist, self.ctx.kkr_step_success))
+        message = 'INFO: append kkr_step_success {}, {}'.format(tmplist, self.ctx.kkr_step_success)
+        self.report(message)
         tmplist.append(self.ctx.kkr_step_success)
         self.ctx.KKR_steps_stats['success'] = tmplist
         try:
@@ -831,7 +867,8 @@ class kkr_imp_sub_wc(WorkChain):
             tmplist.append(val)
             self.ctx.KKR_steps_stats[name] = tmplist
 
-        self.report("INFO: done inspecting kkrimp results step")
+        message = "INFO: done inspecting kkrimp results step"
+        self.report(message)
 
 
 
@@ -858,27 +895,35 @@ class kkr_imp_sub_wc(WorkChain):
             if last_rms == 0:
                 last_rms = 10**-16
             r = last_rms/first_rms
-            self.report("INFO: convergence check: first/last rms {}, {}".format(first_rms, last_rms))
+            message = "INFO: convergence check: first/last rms {}, {}".format(first_rms, last_rms)
+            self.report(message)
             if r < 1:
-                self.report("INFO: convergence check: rms goes down")
+                message = "INFO: convergence check: rms goes down"
+                self.report(message)
                 on_track = True
             elif r > threshold:
-                self.report("INFO: convergence check: rms goes up too fast, convergence is not expected")
+                message = "INFO: convergence check: rms goes up too fast, convergence is not expected"
+                self.report(message)
                 on_track = False
             elif len(self.ctx.last_rms_all) == 1:
-                self.report("INFO: convergence check: already converged after single iteration")
+                message = "INFO: convergence check: already converged after single iteration"
+                self.report(message)
                 on_track = True
             else:
-                self.report("INFO: convergence check: rms does not shrink fast enough, convergence is not expected")
+                message = "INFO: convergence check: rms does not shrink fast enough, convergence is not expected"
+                self.report(message)
                 on_track = False
         elif calc_reached_qbound:
-            self.report("INFO: convergence check: calculation reached QBOUND")
+            message = "INFO: convergence check: calculation reached QBOUND"
+            self.report(message)
             on_track = True
         else:
-            self.report("INFO: convergence check: calculation unsuccessful")
+            message = "INFO: convergence check: calculation unsuccessful"
+            self.report(message)
             on_track = False
 
-        self.report("INFO: convergence check result: {}".format(on_track))
+        message = "INFO: convergence check result: {}".format(on_track)
+        self.report(message)
 
         return on_track
 
@@ -891,7 +936,8 @@ class kkr_imp_sub_wc(WorkChain):
         therefore it only uses results from context.
         """
 
-        self.report("INFO: entering return_results")
+        message = "INFO: entering return_results"
+        self.report(message)
 
         # try/except to capture as mnuch as possible (everything that is there even when workflow exits unsuccessfully)
         # capture pk and uuids of last calc, params and remote
@@ -937,7 +983,8 @@ class kkr_imp_sub_wc(WorkChain):
             last_rms = None
 
         # now collect results saved in results node of workflow
-        self.report("INFO: collect outputnode_dict")
+        message = "INFO: collect outputnode_dict"
+        self.report(message)
         outputnode_dict = {}
         outputnode_dict['workflow_name'] = self.__class__.__name__
         outputnode_dict['workflow_version'] = self._workflowversion
@@ -970,7 +1017,8 @@ class kkr_imp_sub_wc(WorkChain):
                         ''.format(self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps',[])), self.ctx.last_rms_all[-1]))
 
         # create results  node
-        self.report("INFO: create results nodes") #: {}".format(outputnode_dict))
+        message = "INFO: create results nodes"
+        self.report(message)
         outputnode_t = Dict(dict=outputnode_dict)
         outputnode_t.label = 'kkr_scf_wc_results'
         outputnode_t.description = 'Contains results of workflow (e.g. workflow version number, info about success of wf, lis tof warnings that occured during execution, ...)'

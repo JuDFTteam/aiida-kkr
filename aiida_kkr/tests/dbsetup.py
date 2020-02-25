@@ -20,6 +20,8 @@ codelocation = cwd+'/jukkr/'
 # change kkr_condename for testing (on mac)
 # also used for caching
 kkr_codename = 'kkrhost_intel19'
+kkrimp_codename = 'kkrimp_intel19'
+
 
 def prepare_computer(computername, workdir):
     """Create new computer in db or read computer from db if it already exists."""

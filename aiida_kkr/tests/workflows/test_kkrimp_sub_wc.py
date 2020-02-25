@@ -23,8 +23,26 @@ class Test_kkrimp_scf_workflow():
         from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
         from numpy import array
 
+
+        # import data from previous run to use caching
+        from aiida.tools.importexport import import_data
+        import_data('files/export_kkrimp_sub.tar.gz', extras_mode_existing='ncu', extras_mode_new='import')
+
+        # need to rehash after import, otherwise cashing does not work
+        from aiida.orm import Data, ProcessNode, QueryBuilder
+        entry_point = (Data, ProcessNode)
+        qb = QueryBuilder()
+        qb.append(entry_point, tag='node') # query for ProcessNodes
+        to_hash = qb.all()
+        num_nodes = qb.count()
+        print(num_nodes, to_hash)
+        for node in to_hash:
+            node[0].rehash()
+
+
         # prepare computer and code (needed so that
-        prepare_code(kkrimp_codename, codelocation, computername, workdir)
+        if kkrimp_codename=='kkrimp':
+            prepare_code(kkrimp_codename, codelocation, computername, workdir)
 
 
         wfd =kkr_imp_sub_wc.get_wf_defaults()
@@ -49,7 +67,9 @@ class Test_kkrimp_scf_workflow():
         neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.outputs.retrieved.open('scoef'), skiprows=1)[:,3]-1]
         settings_dict = {'pot1': 'out_potential',  'out_pot': 'potential_imp', 'neworder': neworder_pot1}
         settings = Dict(dict=settings_dict)
-        startpot_imp_sfd = neworder_potential_wf(settings_node=settings, parent_calc_folder=GF_host_calc.outputs.remote_folder)
+        from aiida.manage.caching import enable_caching
+        with enable_caching(): # should enable caching globally in this python interpreter 
+            startpot_imp_sfd = neworder_potential_wf(settings_node=settings, parent_calc_folder=GF_host_calc.outputs.remote_folder)
 
         label = 'kkrimp_scf Cu host_in_host'
         descr = 'kkrimp_scf workflow for Cu bulk'
@@ -65,9 +85,14 @@ class Test_kkrimp_scf_workflow():
         builder.host_imp_startpot = startpot_imp_sfd
 
         # now run calculation
-        from aiida.engine import run
-        print(builder)
-        out = run(builder)
+        from aiida.engine import run_get_node #run
+        from aiida.manage.caching import enable_caching
+        from aiida.manage.caching import get_use_cache
+        with enable_caching(): # should enable caching globally in this python interpreter 
+            out, node = run_get_node(builder)
+        print(out)
+        print(node)
+        print(node.process_status)
 
         n = out['workflow_info']
         n = n.get_dict()

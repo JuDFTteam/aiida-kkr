@@ -482,6 +482,7 @@ class kkr_startpot_wc(WorkChain):
             with potfile_overwrite.open(potfile_overwrite.filename) as f:
                 potfile_path = f.name
         else:
+            print(ret.list_object_names(), VoronoiCalculation._OUT_POTENTIAL_voronoi)
             with ret.open(VoronoiCalculation._OUT_POTENTIAL_voronoi) as f:
                 potfile_path = f.name
         self.ctx.efermi = get_ef_from_potfile(potfile_path)
