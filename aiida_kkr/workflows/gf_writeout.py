@@ -21,7 +21,7 @@ from aiida.common.exceptions import InputValidationError
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
 
 # ToDo: add more default values to wf_parameters
