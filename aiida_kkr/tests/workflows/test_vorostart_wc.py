@@ -6,7 +6,7 @@ import pytest
 from aiida_kkr.tests.dbsetup import *
 
 # tests
-@pytest.mark.usefixtures("aiida_env")
+@pytest.mark.usefixtures("fresh_aiida_env")
 class Test_vorostart_workflow():
     """
     Tests for the kkr_startpot workflow

@@ -1,31 +1,24 @@
 #rabbitMQ only works with trusty according to travis website
-dist: trusty
+dist: xenial
 language: python
 python:
   - "3.5"
   - "3.6"
   - "3.7"
   - "3.8"
-matrix:
-  # mark build as complete as soon as the versions that may not fail is finished
-  fast_finish: true
-  include:
-    - python: 3.7
-      dist: xenial
-      env: NO_RMQ='t'
 notifications:
   slack:
     on_success: never
 services:
   - postgresql
-  - rabbitmq
 addons:
   postgresql: '9.5'
   apt: # adapted from wannier90's travis.yml
     packages:
-      - gfortran
-      - libblas-dev
-      - liblapack-dev
+      #- gfortran
+      #- libblas-dev
+      #- liblapack-dev
+      - rabitmq-server
 cache: pip
 before_install:
   # this decripts the secrets tar ball
@@ -41,9 +34,6 @@ before_install:
   - sudo updatedb
 install: # python installations
   - pip install -U pip wheel setuptools
-  - pip install pip==18.1
-  # at the moment we take this branch which fixes issues encountered in aiida-core due to byte read/write and python2/3 issues
-  #- pip install -e git+https://github.com/PhilippRue/aiida_core.git@5d9051124a14fdff8bc79f4bde953f598603d614#egg=aiida_core
   - pip install -e .
   - reentry scan
   - pip install codecov

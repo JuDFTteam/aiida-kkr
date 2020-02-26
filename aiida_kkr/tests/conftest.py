@@ -11,7 +11,7 @@ def aiida_env():
     with fixture_manager() as manager:
         yield manager
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def fresh_aiida_env(aiida_env):
     aiida_env.reset_db()
     yield

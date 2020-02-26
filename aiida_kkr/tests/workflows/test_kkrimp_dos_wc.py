@@ -6,13 +6,13 @@ import pytest
 from aiida_kkr.tests.dbsetup import *
 
 # tests
+@pytest.mark.usefixtures("fresh_aiida_env")
 class Test_kkrimp_dos_workflow():
     """
     Tests for the kkrimp_scf workflow
     """
 
     @pytest.mark.timeout(300, method='thread')
-    @pytest.mark.usefixtures("fresh_aiida_env")
     def test_dos_startpot_wc(self):
         """
         simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
@@ -28,11 +28,6 @@ class Test_kkrimp_dos_workflow():
         # import data from previous run to use caching
         from aiida.tools.importexport import import_data
         import_data('files/export_kkrimp_dos.tar.gz', extras_mode_existing='ncu', extras_mode_new='import')
-        #import_data('export_kkrimp_dos.tar.gz', extras_mode_existing='ncu', extras_mode_new='import')
-
-        # import previous GF writeout, need to do this before rehashing
-        from aiida.tools.importexport import import_data
-        import_data('files/db_dump_kkrflex_create.tar.gz')
 
         # need to rehash after import, otherwise cashing does not work
         from aiida.orm import Data, ProcessNode, QueryBuilder

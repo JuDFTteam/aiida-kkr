@@ -9,7 +9,7 @@ from aiida_kkr.tests.dbsetup import *
 kkr_codename = 'kkrhost_intel19'
 
 # tests
-@pytest.mark.usefixtures("aiida_env")
+@pytest.mark.usefixtures("fresh_aiida_env")
 class Test_dos_workflow():
     """
     Tests for the kkr_startpot workflow

@@ -25,7 +25,7 @@ def print_clean_inouts(node):
 
 
 # tests
-@pytest.mark.usefixtures("aiida_env")
+@pytest.mark.usefixtures("fresh_aiida_env")
 class Test_scf_workflow():
     """
     Tests for the scf workfunction
