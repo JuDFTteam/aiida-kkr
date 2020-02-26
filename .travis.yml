@@ -50,6 +50,7 @@ script:
   ## First check if rabbitmq communication is working
   #- ./check_pika-rabbitmq.py | tee out_rmq_check
   #- ./verify_rmq_check.py
+  - verdi status
   # choose tests to run via environment variables:
   #- export RUN_VORONOI='yes' 
   #- export RUN_KKRHOST='yes' 
