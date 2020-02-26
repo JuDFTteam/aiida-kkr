@@ -2,9 +2,10 @@
 dist: trusty
 language: python
 python:
-  - "2.7"
   - "3.5"
   - "3.6"
+  - "3.7"
+  - "3.8"
 matrix:
   # mark build as complete as soon as the versions that may not fail is finished
   fast_finish: true
@@ -42,7 +43,7 @@ install: # python installations
   - pip install -U pip wheel setuptools
   - pip install pip==18.1
   # at the moment we take this branch which fixes issues encountered in aiida-core due to byte read/write and python2/3 issues
-  - pip install -e git+https://github.com/PhilippRue/aiida_core.git@5d9051124a14fdff8bc79f4bde953f598603d614#egg=aiida_core
+  #- pip install -e git+https://github.com/PhilippRue/aiida_core.git@5d9051124a14fdff8bc79f4bde953f598603d614#egg=aiida_core
   - pip install -e .
   - reentry scan
   - pip install codecov
@@ -60,8 +61,9 @@ script:
   #- ./check_pika-rabbitmq.py | tee out_rmq_check
   #- ./verify_rmq_check.py
   # choose tests to run via environment variables:
-  - export RUN_VORONOI='yes' 
-  - export RUN_KKRHOST='yes' 
+  #- export RUN_VORONOI='yes' 
+  #- export RUN_KKRHOST='yes' 
+  - export RUN_ALL='yes'
   # Then run all tests
   - bash ./run_all.sh
 after_success:
