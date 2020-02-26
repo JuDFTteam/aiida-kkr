@@ -19,7 +19,7 @@ import tarfile, os
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.8.2"
+__version__ = "0.8.3"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -217,7 +217,7 @@ class kkr_imp_sub_wc(WorkChain):
             self.report(message)
 
         # cleanup intermediate calculations (WARNING: THIS PREVENTS USING CACHING!!!)
-        self.ctx.do_final_cleanup = wf_dict.pop('do_final_cleanup')
+        self.ctx.do_final_cleanup = wf_dict.get('do_final_cleanup', self._wf_default['do_final_cleanup'])
 
         # set option parameters from input, or defaults
         self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])

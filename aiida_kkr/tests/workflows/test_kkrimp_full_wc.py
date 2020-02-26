@@ -23,11 +23,11 @@ class Test_kkrimp_full_workflow():
         from aiida_kkr.workflows.kkr_imp import kkr_imp_wc
         from numpy import array
 
+
         #"""
         # import data from previous run to use caching
         from aiida.tools.importexport import import_data
-        #import_data('files/export_kkrimp_full.tar.gz', extras_mode_existing='ncu', extras_mode_new='import')
-        import_data('export_kkrimp_full.tar.gz', extras_mode_existing='ncu', extras_mode_new='import')
+        import_data('files/export_kkrimp_full.tar.gz', extras_mode_existing='ncu', extras_mode_new='import')
 
         # need to rehash after import, otherwise cashing does not work
         from aiida.orm import Data, ProcessNode, QueryBuilder
@@ -53,6 +53,7 @@ class Test_kkrimp_full_workflow():
 
         wfd['nsteps'] = 20
         wfd['strmix'] = 0.05
+        wfd['do_final_cleanup'] = False
         options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'withmpi' : False, 'custom_scheduler_commands' : ''}
         options = Dict(dict=options)
         voro_aux_settings['check_dos'] = False
@@ -71,8 +72,6 @@ class Test_kkrimp_full_workflow():
 
         imp_info = Dict(dict={'Rcut':2.5533, 'ilayer_center': 0, 'Zimp':[30.]})
 
-        from aiida.tools.importexport import import_data
-        import_data('files/db_dump_kkrcalc.tar.gz')
         kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').outputs.remote_folder
 
         label = 'kkrimp_scf full Cu host_in_host'
