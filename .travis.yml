@@ -18,7 +18,7 @@ addons:
       #- gfortran
       #- libblas-dev
       #- liblapack-dev
-      - rabitmq-server
+      - rabbitmq-server
 cache: pip
 before_install:
   # this decripts the secrets tar ball
