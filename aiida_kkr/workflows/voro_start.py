@@ -24,7 +24,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.3"
+__version__ = "0.11.4"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -119,8 +119,8 @@ class kkr_startpot_wc(WorkChain):
           message='Voronoi calculation unsuccessful. Structure inconsistent. Maybe you need empty spheres?')
         spec.exit_code(206, 'ERROR_DOSRUN_FAILED',
           message='DOS run unsuccessful. Check inputs.')
-        spec.exit_code(207, 'ERROR_CORE_STATES_IN_CONTOUR',
-          message='ERROR: contour contains core states!!!')
+        #spec.exit_code(207, 'ERROR_CORE_STATES_IN_CONTOUR',
+        #  message='ERROR: contour contains core states!!!')
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -635,15 +635,17 @@ class kkr_startpot_wc(WorkChain):
             self.report("INFO: emin= {} Ry".format(emin))
             self.report("INFO: highest core state= {} Ry".format(ecore_max))
             if ecore_max is not None:
-                if ecore_max >= emin:
-                    error = "ERROR: contour contains core states!!!"
-                    self.report(error)
-                    dos_ok = False
-                    self.ctx.dos_check_fail_reason = 'core state in contour'
-                    # TODO maybe some logic to automatically deal with this issue?
-                    # for now stop if this case occurs
-                    return self.exit_codes.ERROR_CORE_STATES_IN_CONTOUR
-                elif abs(ecore_max-emin) < self.ctx.min_dist_core_states:
+                # comment this out since KkrCalculation can now take out core states on its own
+                #if ecore_max >= emin:
+                #    error = "ERROR: contour contains core states!!!"
+                #    self.report(error)
+                #    dos_ok = False
+                #    self.ctx.dos_check_fail_reason = 'core state in contour'
+                #    # TODO maybe some logic to automatically deal with this issue?
+                #    # for now stop if this case occurs
+                #    return self.exit_codes.ERROR_CORE_STATES_IN_CONTOUR
+                #elif abs(ecore_max-emin) < self.ctx.min_dist_core_states:
+                if abs(ecore_max-emin) < self.ctx.min_dist_core_states:
                     error = "ERROR: core states too close to energy contour start!!!"
                     self.report(error)
                     dos_ok = False

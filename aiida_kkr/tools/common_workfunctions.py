@@ -938,41 +938,41 @@ def kick_out_corestates(potfile, potfile_out, emin):
     # read core states
     nstates, energies, lmoments = get_corestates_from_potential(potfile)
 
+    # read potential file
     with open_general(potfile) as f:
-        # read potential file
         txt = f.readlines()
 
-        #get start of each potential part
-        istarts = [iline for iline in range(len(txt)) if 'POTENTIAL' in txt[iline]]
-        all_lines = list(range(len(txt))) # index array
+    #get start of each potential part
+    istarts = [iline for iline in range(len(txt)) if 'POTENTIAL' in txt[iline]]
+    all_lines = list(range(len(txt))) # index array
 
-        # change list of core states
-        for ipot in range(len(nstates)):
-            if nstates[ipot]>0:
-                m = where(energies[ipot]>emin)
-                if len(m[0])>0:
-                    istart = istarts[ipot]
-                    # change number of core states in potential
-                    #print(txt[istart+6])
-                    txt[istart+6] = '%i 1\n'%(nstates[ipot]-len(m[0]))
-                    # now remove energy line accordingly
-                    for ie_out in m[0][::-1]:
-                        m_out = where(array(all_lines)==istart+6+ie_out+1)[0][0]
-                        e_out = all_lines.pop(m_out)
+    # change list of core states
+    for ipot in range(len(nstates)):
+        if nstates[ipot]>0:
+            m = where(energies[ipot]>emin)
+            if len(m[0])>0:
+                istart = istarts[ipot]
+                # change number of core states in potential
+                #print(txt[istart+6])
+                txt[istart+6] = '%i 1\n'%(nstates[ipot]-len(m[0]))
+                # now remove energy line accordingly
+                for ie_out in m[0][::-1]:
+                    m_out = where(array(all_lines)==istart+6+ie_out+1)[0][0]
+                    e_out = all_lines.pop(m_out)
 
-        # find number of deleted lines
-        num_deleted = len(txt)-len(all_lines)
+    # find number of deleted lines
+    num_deleted = len(txt)-len(all_lines)
 
-        if num_deleted>0:
-            # write output potential
-            with open_general(potfile_out, u'w') as f2:
-                txt_new = []
-                for iline in all_lines:
-                    txt_new.append(str(txt[iline]))
-                f2.writelines(txt_new)
+    if num_deleted>0:
+        # write output potential
+        with open_general(potfile_out, u'w') as f2:
+            txt_new = []
+            for iline in all_lines:
+                txt_new.append(str(txt[iline]))
+            f2.writelines(txt_new)
 
-        # return number of lines that were deleted
-        return num_deleted
+    # return number of lines that were deleted
+    return num_deleted
 
 
 @calcfunction

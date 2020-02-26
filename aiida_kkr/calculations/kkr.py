@@ -15,10 +15,10 @@ from aiida.common.datastructures import CalcInfo, CodeInfo
 from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_structure,
                                                   check_2Dinput_consistency, update_params_wf,
-                                                  vca_check)
+                                                  vca_check, kick_out_corestates)
 from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
 from aiida_kkr.tools.tools_kkrimp import make_scoef
-from masci_tools.io.kkr_params import __kkr_default_params__
+from masci_tools.io.kkr_params import __kkr_default_params__, kkrparams
 import six
 from six.moves import range
 
@@ -26,7 +26,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.2"
+__version__ = "0.11.3"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -408,32 +408,13 @@ class KkrCalculation(CalcJob):
                     voro_retrieved = voro_parent.outputs.retrieved
                     local_copy_list.append((voro_retrieved.uuid, VoronoiCalculation._SHAPEFUN, self._SHAPEFUN))
 
-            # for set-ef option:
+            # check if core state lie within energy contour and take them out if needed
+            local_copy_list = self._kick_out_corestates_kkrhost(local_copy_list, tempfolder)
+
+            # for set-ef option (needs to be done AFTER kicking out core states):
             ef_set = parameters.get_dict().get('ef_set', None)
             if ef_set is not None:
-                print('local copy list before change: {}'.format(local_copy_list))
-                print("found 'ef_set' in parameters: change EF of potential to this value")
-                potcopy_info = [i for i in local_copy_list if i[2]==self._POTENTIAL][0]
-                with load_node(potcopy_info[0]).open(potcopy_info[1]) as potfile:
-                    # remove previous output potential from copy list
-                    local_copy_list.remove(potcopy_info)
-                    # create potential here by readin in old potential and overwriting with changed Fermi energy
-                    with tempfolder.open(self._POTENTIAL, 'w') as pot_new_ef:
-                        # change potential
-                        txt = potfile.readlines()
-                        potstart = []
-                        for iline in range(len(txt)):
-                            line = txt[iline]
-                            if 'exc:' in line:
-                                potstart.append(iline)
-                        for ipotstart in potstart:
-                            tmpline = txt[ipotstart+3]
-                            tmpline = tmpline.split()
-                            newline = '%10.5f%20.14f%20.14f\n'%(float(tmpline[0]), ef_set, float(tmpline[-1]))
-                            txt[ipotstart+3] = newline
-                        # write new file
-                        pot_new_ef.writelines(txt)
-                    # now this directory contains the updated potential file, thus it is not needed to put it in the local copy list anymore
+                local_copy_list = self._set_ef_value_potential(ef_set, local_copy_list, tempfolder)
 
             # TODO different copy lists, depending on the keywors input
             print('local copy list: {}'.format(local_copy_list))
@@ -549,3 +530,73 @@ class KkrCalculation(CalcJob):
             raise ValidationError("Cannot set several parent calculation to a KKR calculation")
 
         self.use_parent_folder(remotedata)
+
+    def _set_ef_value_potential(self, ef_set, local_copy_list, tempfolder):
+        """
+        Set EF value ef_set in the potential file.
+        """
+        print('local copy list before change: {}'.format(local_copy_list))
+        print("found 'ef_set' in parameters: change EF of potential to this value")
+
+        # first read old potential
+        if self._POTENTIAL not in tempfolder.list_object_names():
+            # this is the case when we take the potential from an existing folder
+            potcopy_info = [i for i in local_copy_list if i[2]==self._POTENTIAL][0]
+            with load_node(potcopy_info[0]).open(potcopy_info[1]) as potfile:
+                # remove previous output potential from copy list
+                local_copy_list.remove(potcopy_info)
+                # read potential
+                txt = potfile.readlines()
+        else:
+            # this is the case if we kicked out core states before
+            with tempfolder.open(self._POTENTIAL) as potfile:
+                # read potential
+                txt = potfile.readlines()
+
+        # change value of Fermi level in potential text
+        potstart = []
+        for iline in range(len(txt)):
+            line = txt[iline]
+            if 'exc:' in line:
+                potstart.append(iline)
+        for ipotstart in potstart:
+            tmpline = txt[ipotstart+3]
+            tmpline = tmpline.split()
+            newline = '%10.5f%20.14f%20.14f\n'%(float(tmpline[0]), ef_set, float(tmpline[-1]))
+            txt[ipotstart+3] = newline
+
+        # now (over)writing potential file in tempfolder with changed Fermi energy
+        with tempfolder.open(self._POTENTIAL, 'w') as pot_new_ef:
+            # write new file
+            pot_new_ef.writelines(txt)
+            # now this directory (tempfolder) contains the updated potential file
+            # thus it is not needed to put it in the local copy list anymore
+
+        # return updated local_copy_list
+        return local_copy_list
+
+
+    def _kick_out_corestates_kkrhost(self, local_copy_list, tempfolder):
+        """
+        Compare value of core states from potential file in local_copy_list with EMIN
+        and kick corestate out of potential if they lie inside the energy contour.
+        """
+
+        # read EMIN value from inputcard
+        params = kkrparams()
+        with tempfolder.open(self._INPUT_FILE_NAME) as input_file:
+            params.read_keywords_from_inputcard(input_file)
+        emin = params.get_value('EMIN')
+
+        # run kick_out_corestates routine to remove core states that lie above emin 
+        potcopy_info = [i for i in local_copy_list if i[2]==self._POTENTIAL][0]
+        with tempfolder.open(self._POTENTIAL, 'w') as potfile_out:
+            with load_node(potcopy_info[0]).open(potcopy_info[1]) as potfile_in:
+                num_deleted = kick_out_corestates(potfile_in, potfile_out, emin)
+
+        # remove changed potential from local copy list (already in tempfolder without overlapping core states)
+        if num_deleted>0:
+            local_copy_list.remove(potcopy_info)
+
+        # return updated local_copy_list
+        return local_copy_list
