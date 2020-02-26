@@ -59,13 +59,13 @@ def prepare_code(codename, codelocation, computername, workdir):
     # first create or read computer
     comp = prepare_computer(computername, workdir)
     # now decide which code to add
-    if codename == 'kkrhost':
+    if 'kkrhost' in codename:
         execname = 'kkr.x'
         pluginname = 'kkr.kkr'
-    elif codename == 'voronoi':
+    elif 'voronoi' in codename:
         execname = 'voronoi.exe'
         pluginname = 'kkr.voro'
-    elif codename == 'kkrimp':
+    elif 'kkrimp' in codename:
         execname = 'kkrflex.exe'
         pluginname = 'kkr.kkrimp'
     else:
@@ -81,6 +81,6 @@ def prepare_code(codename, codelocation, computername, workdir):
         code.description = ''
         code.set_remote_computer_exec((comp, codelocation+execname))
         code.set_input_plugin_name(pluginname)
-        if codename == 'voronoi':
+        if 'voronoi' in codename:
             code.set_prepend_text('ln -s '+codelocation+'ElementDataBase .')
         code.store()

@@ -21,8 +21,8 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.1"
-__contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
+__version__ = "0.6.2"
+__contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
 
 #TODO: improve workflow output node structure
 #TODO: generalise search for imp_info and conv_host from startpot
@@ -378,7 +378,9 @@ label: {}
         self.ctx.kkrimp_params_dict = Dict(dict={'nspin': nspin,
                                                  'nsteps': self.ctx.nsteps,
                                                  'kkr_runmax': self.ctx.kkr_runmax,
-                                                 'dos_run': True})
+                                                 'dos_run': True,
+                                                 'do_final_cleanup': self.ctx.cleanup_impcalc_output
+                                                 })
         kkrimp_params = self.ctx.kkrimp_params_dict
         label_imp = 'KKRimp DOS (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {})'.format(
                     gf_writeout_calc.pk, impurity_pot_or_remote.pk, imps.get_dict().get('Zimp'), imps.get_dict().get('ilayer_center'))

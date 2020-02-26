@@ -24,16 +24,16 @@ class Test_kkrimp_dos_workflow():
         from numpy import array
 
 
+        #"""
         # import data from previous run to use caching
         from aiida.tools.importexport import import_data
         import_data('files/export_kkrimp_dos.tar.gz', extras_mode_existing='ncu', extras_mode_new='import')
+        #import_data('export_kkrimp_dos.tar.gz', extras_mode_existing='ncu', extras_mode_new='import')
 
         # import previous GF writeout, need to do this before rehashing
         from aiida.tools.importexport import import_data
         import_data('files/db_dump_kkrflex_create.tar.gz')
-        GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
 
-        #"""
         # need to rehash after import, otherwise cashing does not work
         from aiida.orm import Data, ProcessNode, QueryBuilder
         entry_point = (Data, ProcessNode)
@@ -46,6 +46,8 @@ class Test_kkrimp_dos_workflow():
             node[0].rehash()
         #"""
 
+        GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
+
         # prepare computer and code (needed so that
         if kkrimp_codename=='kkrimp':
             prepare_code(kkrimp_codename, codelocation, computername, workdir)
@@ -54,6 +56,7 @@ class Test_kkrimp_dos_workflow():
 
 
         wfd =kkr_imp_dos_wc.get_wf_defaults()
+        wfd['clean_impcalc_retrieved'] = False # deactivate cleaning of unused data to regain cachability
 
         options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'withmpi' : False, 'custom_scheduler_commands' : ''}
         options = Dict(dict=options)
@@ -115,7 +118,7 @@ class Test_kkrimp_dos_workflow():
 
         # create export file
         #from aiida.tools.importexport import export
-        #export([node], outfile='export_kkrimp_dos.tar.gz', overwrite=True, silent=False)
+        #export([startpot_imp_sfd, node], outfile='export_kkrimp_dos.tar.gz', overwrite=True, silent=False)
 
     """
     @pytest.mark.timeout(300, method='thread')
