@@ -70,7 +70,7 @@ script:
   #- export RUN_KKRHOST='yes' 
   - export RUN_ALL='yes'
   # Then run all tests
-  - travis_wait 15 bash ./run_all.sh -v
+  - bash ./run_all.sh -v
 after_success:
   - codecov
   #deploy to pypi using poetry
