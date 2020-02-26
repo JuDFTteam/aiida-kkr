@@ -1,24 +1,44 @@
 #rabbitMQ only works with trusty according to travis website
-dist: xenial
 language: python
-python:
-  - "3.5"
-  - "3.6"
-  - "3.7"
-  - "3.8"
+matrix:
+  # mark build as complete as soon as the versions that may not fail is finished
+  fast_finish: true
+  include:
+    - python: 3.5
+      dist: trusty
+      addons:
+        postgresql: '9.5'
+        apt:
+          packages:
+            - rabbitmq-server
+    - python: 3.6
+      dist: trusty
+      addons:
+        postgresql: '9.5'
+        apt:
+          packages:
+            - rabbitmq-server
+    - python: 3.7
+      dist: xenial
+      #env: NO_RMQ='t'
+      addons:
+        postgresql: '9.5'
+        apt:
+          packages:
+            - rabbitmq-server
+    - python: 3.8
+      dist: xenial
+      addons:
+        postgresql: '9.5'
+        apt:
+          packages:
+            - rabbitmq-server
 notifications:
   slack:
     on_success: never
 services:
   - postgresql
-addons:
-  postgresql: '9.5'
-  apt: # adapted from wannier90's travis.yml
-    packages:
-      #- gfortran
-      #- libblas-dev
-      #- liblapack-dev
-      - rabbitmq-server
+  - rabbitmq
 cache: pip
 before_install:
   # this decripts the secrets tar ball
