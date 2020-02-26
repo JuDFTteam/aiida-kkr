@@ -19,7 +19,7 @@ import tarfile, os
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.8.1"
+__version__ = "0.8.2"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -75,6 +75,7 @@ class kkr_imp_sub_wc(WorkChain):
                    'hfield' : [0.02, 5], # Ry                     # external magnetic field used in initialization step
                    'init_pos' : None,                             # position in unit cell where magnetic field is applied [default (None) means apply to all]
                    'dos_run': False,                              # specify if DOS should be calculated (!KKRFLEXFILES with energy contour necessary as GF_remote_data!)
+                   'do_final_cleanup': True,                      # decide whether or not to clean up intermediate files (THIS BREAKS CACHABILITY!)
 #                   # Some parameter for direct solver (if None, use the same as in host code, otherwise overwrite)
                    'accuracy_params': {'RADIUS_LOGPANELS': None,  # where to set change of logarithmic to linear radial mesh
                                        'NPAN_LOG': None,          # number of panels in log mesh
@@ -214,6 +215,9 @@ class kkr_imp_sub_wc(WorkChain):
             wf_dict = self._wf_default
             message = 'INFO: using default wf parameter'
             self.report(message)
+
+        # cleanup intermediate calculations (WARNING: THIS PREVENTS USING CACHING!!!)
+        self.ctx.do_final_cleanup = wf_dict.pop('do_final_cleanup')
 
         # set option parameters from input, or defaults
         self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
@@ -760,22 +764,29 @@ class kkr_imp_sub_wc(WorkChain):
         try:
             retrieved_folder = self.ctx.kkr.outputs.retrieved
             if KkrimpCalculation._FILENAME_TAR in retrieved_folder.list_object_names():
+                print('take potfile from tar file of retrieved')
                 # take potfile after extracting tar file
                 # get full filename
                 with retrieved_folder.open(KkrimpCalculation._FILENAME_TAR) as tar_file:
                     tarfilename = tar_file.name
+                print('tarfile name:', tarfilename)
                 # open tarfile and extract potfile
                 with tarfile.open(tarfilename) as tar_file:
+                    print('extract potfile:', KkrimpCalculation._OUT_POTENTIAL)
                     tar_file.extract(KkrimpCalculation._OUT_POTENTIAL, os.path.dirname(tarfilename))
                     with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
+                        print('get potfile sfd:', pot_file)
                         self.ctx.last_pot = SinglefileData(file=pot_file)
-                    # delete extracted potfile again
-                    retrieved_folder.delete_object(KkrimpCalculation._OUT_POTENTIAL, force=True)
+                    
+                # delete extracted potfile again
+                print('delete potfile from outfile:', KkrimpCalculation._OUT_POTENTIAL)
+                retrieved_folder.delete_object(KkrimpCalculation._OUT_POTENTIAL, force=True)
             else:
                 # take potfile directly from output
                 with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
                     self.ctx.last_pot = SinglefileData(file=pot_file)
             self.ctx.sfd_pot_to_clean.append(self.ctx.last_pot)
+            print('use potfile sfd:', self.ctx.last_pot)
         except:
             message = "ERROR: no output potential found"
             self.report(message)
@@ -1054,16 +1065,18 @@ class kkr_imp_sub_wc(WorkChain):
             """
         self.report(message)
 
+        # cleanup of unnecessary files after convergence
+        # WARNING: THIS DESTROYS CACHABILITY OF THE WORKFLOW!!! 
+        if self.ctx.do_final_cleanup:
+            if self.ctx.successful:
+                self.report("INFO: clean output of calcs")
+                remove_out_pot_impcalcs(self.ctx.successful, all_pks)
+                self.report("INFO: clean up raw_input folders")
+                clean_raw_input(self.ctx.successful, all_pks)
 
-        if self.ctx.successful:
-            self.report("INFO: clean output of calcs")
-            remove_out_pot_impcalcs(self.ctx.successful, all_pks)
-            self.report("INFO: clean up raw_input folders")
-            clean_raw_input(self.ctx.successful, all_pks)
-
-        # clean intermediate single file data which are not needed after successful run or after DOS run
-        if self.ctx.successful or self.ctx.dos_run:
-            self.final_cleanup()
+            # clean intermediate single file data which are not needed after successful run or after DOS run
+            if self.ctx.successful or self.ctx.dos_run:
+                self.final_cleanup()
 
         self.report("INFO: done with kkr_scf workflow!\n")
 

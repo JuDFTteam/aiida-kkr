@@ -23,10 +23,11 @@ class Test_kkrimp_scf_workflow():
         from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
         from numpy import array
 
-
+        #"""
         # import data from previous run to use caching
         from aiida.tools.importexport import import_data
         import_data('files/export_kkrimp_sub.tar.gz', extras_mode_existing='ncu', extras_mode_new='import')
+        #import_data('export_kkrimp_sub.tar.gz', extras_mode_existing='ncu', extras_mode_new='import')
 
         # need to rehash after import, otherwise cashing does not work
         from aiida.orm import Data, ProcessNode, QueryBuilder
@@ -38,7 +39,7 @@ class Test_kkrimp_scf_workflow():
         print(num_nodes, to_hash)
         for node in to_hash:
             node[0].rehash()
-
+        #"""
 
         # prepare computer and code (needed so that
         if kkrimp_codename=='kkrimp':
@@ -49,6 +50,8 @@ class Test_kkrimp_scf_workflow():
 
         wfd['nsteps'] = 20
         wfd['strmix'] = 0.05
+        # deactivate final cleanup to be able to use caching
+        wfd['do_final_cleanup'] = False
 
         options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'withmpi' : False, 'custom_scheduler_commands' : ''}
         options = Dict(dict=options)
@@ -99,6 +102,11 @@ class Test_kkrimp_scf_workflow():
 
         assert n.get('successful')
         assert n.get('convergence_reached')
+
+        # create export file
+        #from aiida.tools.importexport import export
+        #export([node], outfile='export_kkrimp_sub.tar.gz', overwrite=True, silent=False)
+
 
 #run test manually
 if __name__=='__main__':

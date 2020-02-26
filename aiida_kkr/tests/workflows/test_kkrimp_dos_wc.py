@@ -33,6 +33,7 @@ class Test_kkrimp_dos_workflow():
         import_data('files/db_dump_kkrflex_create.tar.gz')
         GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
 
+        #"""
         # need to rehash after import, otherwise cashing does not work
         from aiida.orm import Data, ProcessNode, QueryBuilder
         entry_point = (Data, ProcessNode)
@@ -43,7 +44,7 @@ class Test_kkrimp_dos_workflow():
         print(num_nodes, to_hash)
         for node in to_hash:
             node[0].rehash()
-
+        #"""
 
         # prepare computer and code (needed so that
         if kkrimp_codename=='kkrimp':
@@ -112,6 +113,11 @@ class Test_kkrimp_dos_workflow():
         assert len(out['dos_data_interpol'].get_y()[0][0]) == 20
 
 
+        # create export file
+        #from aiida.tools.importexport import export
+        #export([node], outfile='export_kkrimp_dos.tar.gz', overwrite=True, silent=False)
+
+    """
     @pytest.mark.timeout(300, method='thread')
     def test_dos_reuse_gf_writeout(self):
         pass
@@ -125,6 +131,7 @@ class Test_kkrimp_dos_workflow():
     @pytest.mark.timeout(300, method='thread')
     def test_dos_from_kkrimp_full(self):
         pass
+    """
 
 #run test manually
 if __name__=='__main__':
@@ -132,6 +139,6 @@ if __name__=='__main__':
    load_profile()
    Test = Test_kkrimp_dos_workflow()
    Test.test_dos_startpot_wc()
-   Test.test_dos_reuse_gf_writeout()
-   Test.test_dos_from_kkrimp_sub()
-   Test.test_dos_from_kkrimp_full()
+   #Test.test_dos_reuse_gf_writeout()
+   #Test.test_dos_from_kkrimp_sub()
+   #Test.test_dos_from_kkrimp_full()
