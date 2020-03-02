@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 
 [tool.poetry]
 name = "aiida-kkr"
-version = "1.1.11-dev"
+version = "1.1.11-dev2"
 description = "AiiDA plugin for the KKR code"
 authors = ["Philipp Rüssmann <p.ruessmann@fz-juelich.de>",
            "Jens Bröder <j.broeder@fz-juelich.de>",
@@ -34,7 +34,7 @@ classifiers = ["Development Status :: 4 - Beta",
 [tool.poetry.dependencies]
 aiida-core = "^1.0.0b6"
 python = "^2.7"
-masci-tools = ">0.3.11"
+masci-tools = "^0.3.12.dev2"
 seekpath = "*"
 pgtest = "*"
 pytest-cov = "^2.5.0"

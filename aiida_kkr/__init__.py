@@ -2,4 +2,4 @@
 AiiDA KKR
 """
 
-__version__ = "1.1.11-dev"
+__version__ = "1.1.11-dev2"
