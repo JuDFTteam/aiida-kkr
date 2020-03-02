@@ -14,14 +14,14 @@ from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from aiida.common.exceptions import InputValidationError
 from masci_tools.io.parsers.kkrparser_functions import check_error_category
 from masci_tools.io.common_functions import open_general
-from aiida_kkr.tools.tools_kkrimp import kkrimp_parser_functions
+from masci_tools.io.parsers.kkrimp_parser_functions import KkrimpParserFunctions
 from six.moves import range
 
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -152,7 +152,7 @@ class KkrimpParser(Parser):
         out_dict = {'parser_version': self._ParserVersion,
                     'calculation_plugin_version': KkrimpCalculation._CALCULATION_PLUGIN_VERSION}
 
-        success, msg_list, out_dict = kkrimp_parser_functions().parse_kkrimp_outputfile(out_dict, files)
+        success, msg_list, out_dict = KkrimpParserFunctions().parse_kkrimp_outputfile(out_dict, files)
 
         out_dict['parser_errors'] = msg_list
          # add file open errors to parser output of error messages

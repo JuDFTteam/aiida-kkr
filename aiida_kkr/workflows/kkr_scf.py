@@ -24,7 +24,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.1"
+__version__ = "0.10.2"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -668,7 +668,7 @@ class kkr_scf_wc(WorkChain):
 
                 # check if switch to higher accuracy should be done
                 if not self.ctx.kkr_higher_accuracy:
-                    if self.ctx.kkr_converged or last_rms < self.ctx.threshold_switch_high_accuracy:
+                    if last_rms < self.ctx.threshold_switch_high_accuracy:
                         switch_higher_accuracy = True
                         self.report("INFO: rms low enough, switch to higher accuracy settings")
         else:
@@ -904,9 +904,21 @@ class kkr_scf_wc(WorkChain):
         if self.ctx.kkr_step_success and found_last_calc_output:
             # check convergence
             self.ctx.kkr_converged = last_calc_output['convergence_group']['calculation_converged']
-            # check rms
-            self.ctx.rms.append(last_calc_output['convergence_group']['rms'])
-            rms_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_all_iterations'])
+            # check rms, compare spin and charge values and take bigger one
+            rms_charge = last_calc_output['convergence_group']['rms']
+            rms_spin = last_calc_output['convergence_group'].get('rms_spin', 0) # returning 0 if not found allows to reuse older verisons (e.g. in caching)
+            if rms_spin is None: rms_spin = 0 # this happens for NSPIN==1
+            if rms_charge>=rms_spin:
+                rms_max = rms_charge
+                use_rms_charge = True
+            else:
+                rms_max = rms_spin
+                use_rms_charge = False
+            self.ctx.rms.append(rms_max)
+            if use_rms_charge:
+                rms_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_all_iterations'])
+            else:
+                rms_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_spin_all_iterations'])
             #check charge neutrality
             self.ctx.neutr.append(last_calc_output['convergence_group']['charge_neutrality'])
             neutr_all_iter_last_calc = list(last_calc_output['convergence_group']['charge_neutrality_all_iterations'])

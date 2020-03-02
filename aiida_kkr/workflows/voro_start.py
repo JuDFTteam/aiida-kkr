@@ -13,6 +13,7 @@ from masci_tools.io.common_functions import get_ef_from_potfile, get_Ry2eV
 from masci_tools.io.common_functions import get_alat_from_bravais
 from aiida.orm import Code, StructureData, Dict, XyData, RemoteData, SinglefileData
 from aiida.engine import WorkChain, while_, if_, ToContext, submit, calcfunction
+from aiida.common.exceptions import NotExistent
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.workflows.dos import kkr_dos_wc
@@ -24,7 +25,7 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.4"
+__version__ = "0.11.5"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -140,7 +141,8 @@ class kkr_startpot_wc(WorkChain):
                     cls.check_dos)
             ),
             # collect results and return
-            cls.return_results
+            cls.return_results,
+            cls.error_handler
         )
 
 
@@ -154,7 +156,8 @@ class kkr_startpot_wc(WorkChain):
         ####### init    #######
 
         # internal para /control para
-        self.ctx.abort = False
+        self.ctx.exit_code = None
+
 
         # input para
         wf_dict = self.inputs.wf_parameters.get_dict()
@@ -433,14 +436,16 @@ class kkr_startpot_wc(WorkChain):
         if not self.ctx.voro_calc.is_finished_ok:
             self.report("ERROR: Voronoi calculation not in FINISHED state")
             self.ctx.voro_ok = False
-            return self.exit_codes.ERROR_VORONOI_FAILED
+            self.ctx.exit_code = self.exit_codes.ERROR_VORONOI_FAILED
+            return False
 
         # check if parser returned some error
         voro_parser_errors = self.ctx.voro_calc.res.parser_errors
         if voro_parser_errors != []:
             self.report("ERROR: Voronoi Parser returned Error(s): {}".format(voro_parser_errors))
             self.ctx.voro_ok = False
-            return self.exit_codes.ERROR_VORONOI_PARSING_FAILED
+            self.ctx.exit_code = self.exit_codes.ERROR_VORONOI_PARSING_FAILED
+            return False
 
         # check self.ctx.nclsmin condition
         clsinfo = self.ctx.voro_calc.res.cluster_info_group
@@ -464,7 +469,8 @@ class kkr_startpot_wc(WorkChain):
         if r_ratio1>=100. or r_ratio2>=100.:
             self.report("ERROR: radii information inconsistent: Rout/dis_NN={}, RMT0/Rout={}".format(r_ratio1, r_ratio2))
             self.ctx.voro_ok = False
-            return self.exit_codes.ERROR_VORONOI_INVALID_RADII
+            self.ctx.exit_code = self.exit_codes.ERROR_VORONOI_INVALID_RADII
+            return False
 
         # fix emin/emax
         # remember: efermi, emin and emax are in internal units (Ry) but delta_e is in eV!
@@ -504,6 +510,9 @@ class kkr_startpot_wc(WorkChain):
         """
         check if another iteration should be done
         """
+        if self.ctx.exit_code is not None:
+            # break out of while loop if an error was caught
+            return False
         if self.ctx.is_starting_iter:
             # initial iteration (at least one has to be done)
             # reset starting iter flag
@@ -684,12 +693,12 @@ class kkr_startpot_wc(WorkChain):
             voro_pk = None
         try:
             voro_calc = self.ctx.voro_calc.outputs.output_parameters
-        except AttributeError:
+        except NotExistent:
             self.report("ERROR: Results ParameterNode of voronoi (pk={}) not found".format(voro_pk))
             voro_calc = None
         try:
             voro_remote = self.ctx.voro_calc.outputs.remote_folder
-        except AttributeError:
+        except NotExistent:
             self.report("ERROR: RemoteFolderNode of voronoi (pk={}) not found".format(voro_pk))
             voro_remote = None
         try:
@@ -811,6 +820,12 @@ class kkr_startpot_wc(WorkChain):
 
         # return cluster radius
         return r_cls_alat
+
+
+    def error_handler(self):
+        """Capture errors raised in validate_input"""
+        if self.ctx.exit_code is not None:
+            return self.ctx.exit_code
 
 
 @calcfunction

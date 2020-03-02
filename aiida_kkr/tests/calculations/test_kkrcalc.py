@@ -1,16 +1,21 @@
 #!/usr/bin/env python
 
 from __future__ import absolute_import
+from __future__ import print_function
 from builtins import object
 import pytest
+from aiida.engine import run, run_get_node
 from aiida_kkr.tests.calculations.test_vorocalc import wait_for_it
 from aiida_kkr.tests.dbsetup import *
 
 # some global settings
 eps = 10**-14 # threshold for float comparison equivalence
 
-
+#kkr_codename = 'kkrhost_intel19'
 kkr_codename = 'kkrhost'
+
+dry_run = True
+
 
 # tests
 class Test_kkr_calculation(object):
@@ -51,9 +56,13 @@ class Test_kkr_calculation(object):
         builder.metadata.options = options
         builder.parameters = params_node
         builder.parent_folder = voro_calc.outputs.remote_folder
-        builder.metadata.dry_run = True
-        from aiida.engine import run
-        run(builder)
+        builder.metadata.dry_run = dry_run
+        out, node = run_get_node(builder)
+        print((node, out))
+        print(code)
+        print((node.get_cache_source()))
+        #print((out['retrieved'].list_object_names()))
+        #print((out['output_parameters'].get_dict()))
 
 
     @pytest.mark.usefixtures("fresh_aiida_env")
@@ -84,9 +93,9 @@ class Test_kkr_calculation(object):
         builder.metadata.options = options
         builder.parameters = params_node
         builder.parent_folder = kkr_calc.outputs.remote_folder
-        builder.metadata.dry_run = True
-        from aiida.engine import run
-        run(builder)
+        builder.metadata.dry_run = dry_run
+        out = run(builder)
+        print(out)
 
 
     @pytest.mark.usefixtures("fresh_aiida_env")
@@ -126,9 +135,9 @@ class Test_kkr_calculation(object):
         builder.parameters = params_node
         builder.parent_folder = kkr_calc.outputs.remote_folder
         builder.impurity_info = imp_info
-        builder.metadata.dry_run = True
-        from aiida.engine import run
-        run(builder)
+        builder.metadata.dry_run = dry_run
+        out = run(builder)
+        print(out)
 
 
     @pytest.mark.usefixtures("fresh_aiida_env")
@@ -167,9 +176,9 @@ class Test_kkr_calculation(object):
         builder.parameters = params_node
         builder.parent_folder = kkr_calc.outputs.remote_folder
         builder.kpoints = kpoints
-        builder.metadata.dry_run = True
-        from aiida.engine import run
-        run(builder)
+        builder.metadata.dry_run = dry_run
+        out = run(builder)
+        print(out)
 
 
 #run test manually

@@ -9,14 +9,14 @@ from __future__ import absolute_import
 from aiida.parsers.parser import Parser
 from aiida.orm import Dict
 from aiida_kkr.calculations.kkr import KkrCalculation
-from aiida.common.exceptions import InputValidationError
+from aiida.common.exceptions import InputValidationError, NotExistent
 from masci_tools.io.parsers.kkrparser_functions import parse_kkr_outputfile, check_error_category
 from masci_tools.io.common_functions import search_string
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.3"
+__version__ = "0.6.4"
 __contributors__ = ("Jens Broeder", u"Philipp Rüßmann")
 
 
@@ -59,7 +59,7 @@ class KkrParser(Parser):
         # Get retrieved folders
         try:
             out_folder = self.retrieved
-        except exceptions.NotExistent:
+        except NotExistent:
             return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
 
         # check what is inside the folder
