@@ -73,14 +73,10 @@ echo
 # Now run tests
 
 if [[ ! -z "$RUN_ALL" ]]; then
-  echo "run all tests (in 3 steps)"
-  pytest --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr --mpl -p no:warnings $addopt \
-    --ignore=workflows/test_vorostart_wc.py \
-    --ignore=workflows/test_scf_wc_simple.py \
-    --ignore=workflows/test_kkrimp_dos_wc.py # run everything except for kkr_scf_simple and kkrimp_dos
-  pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr -k Test_vorostart_workflow # run vorostart
-  pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr -k Test_kkrimp_dos_workflow # run kkrimp_dos
-  pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr -k Test_scf_workflow # run kkr_scf_simple
+  echo "run all tests (first non-workflow tests, then workflow tests)"
+  pytest --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr --mpl -p no:warnings $addopt --ignore=workflows
+  # now workflow tests
+  pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr workflows/
 else
   # tests without running actual calculations
   if [[ -z "$SKIP_NOWORK" ]] && [[ -z "$NO_RMQ" ]]; then
