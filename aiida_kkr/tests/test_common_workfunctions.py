@@ -105,8 +105,7 @@ class Test_common_workfunctions(object):
         p = Dict(dict={'INTERFACE':True, '<NRBASIS>':1,})
         input_check = check_2Dinput_consistency(s, p)
         assert not input_check[0]
-        assert input_check[1] == "2D info given in parameters but structure is 3D\nstructure is 2D? {}\ninput has 2D info? {}\nset keys are: {}".format(True, False, ['INTERFACE', '<NRBASIS>'])
-
+        assert list(input_check[1]).sort() == list("2D info given in parameters but structure is 3D\nstructure is 2D? {}\ninput has 2D info? {}\nset keys are: {}".format(True, False, ['INTERFACE', '<NRBASIS>'])).sort()
 
     def test_check_2Dinput_consistency_4(self):
         # case 3: 2D structure but interface parameter set to False

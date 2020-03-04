@@ -156,7 +156,7 @@ class Test_scf_workflow():
         assert out['convergence_value'] < 10**-4
 
         print('charge_neutrality', abs(out['charge_neutrality']))
-        assert abs(out['charge_neutrality']) < 5*10**-4
+        assert abs(out['charge_neutrality']) < 8*10**-4
 
         print('used_higher_accuracy', out['used_higher_accuracy'])
         assert out['used_higher_accuracy']

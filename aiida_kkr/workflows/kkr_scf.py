@@ -24,7 +24,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.2"
+__version__ = "0.10.3"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -81,6 +81,7 @@ class kkr_scf_wc(WorkChain):
     _wf_default = {'kkr_runmax': 5,                           # Maximum number of kkr jobs/starts (defauld iterations per start)
                    'convergence_criterion' : 10**-8,          # Stop if charge denisty is converged below this value
                    'mixreduce': 0.5,                          # reduce mixing factor by this factor if calculaito fails due to too large mixing
+                   'qbound_simple_mixing': 10**-3,            # qbound value for simple mixing (lower than threshold_aggressive mixing because somtimes convergence gets stuck)
                    'threshold_aggressive_mixing': 8*10**-3,   # threshold after which agressive mixing is used
                    'strmix': 0.03,                            # mixing factor of simple mixing
                    'brymix': 0.05,                            # mixing factor of aggressive mixing
@@ -289,6 +290,7 @@ class kkr_scf_wc(WorkChain):
         self.ctx.convergence_setting_fine = wf_dict.get('convergence_setting_fine', self._wf_default['convergence_setting_fine'])
         self.ctx.mixreduce = wf_dict.get('mixreduce', self._wf_default['mixreduce'])
         self.ctx.nsteps = wf_dict.get('nsteps', self._wf_default['nsteps'])
+        self.ctx.qbound_simple_mixing = wf_dict.get('qbound_simple_mixing', self._wf_default['qbound_simple_mixing'])
         self.ctx.threshold_aggressive_mixing = wf_dict.get('threshold_aggressive_mixing', self._wf_default['threshold_aggressive_mixing'])
         self.ctx.threshold_switch_high_accuracy = wf_dict.get('threshold_switch_high_accuracy', self._wf_default['threshold_switch_high_accuracy'])
 
@@ -322,6 +324,7 @@ class kkr_scf_wc(WorkChain):
                     'Anderson mixing factor: {}\n'
                     'Nsteps scf cycle: {}\n'
                     'Convergence criterion: {}\n'
+                    'qbound_simple_mixing: {}\n'
                     'threshold_aggressive_mixing: {}\n'
                     'threshold_switch_high_accuracy: {}\n'
                     'convergence_setting_coarse: {}\n'
@@ -339,6 +342,7 @@ class kkr_scf_wc(WorkChain):
                                 self.ctx.description_wf, self.ctx.label_wf,
                                 self.ctx.strmix, self.ctx.brymix, self.ctx.nsteps,
                                 self.ctx.convergence_criterion,
+                                self.ctx.qbound_simple_mixing,
                                 self.ctx.threshold_aggressive_mixing,
                                 self.ctx.threshold_switch_high_accuracy,
                                 self.ctx.convergence_setting_coarse,
@@ -775,7 +779,7 @@ class kkr_scf_wc(WorkChain):
 
             # add convegence settings
             if self.ctx.loop_count == 1 or self.ctx.last_mixing_scheme == 0:
-                new_params['QBOUND'] = self.ctx.threshold_aggressive_mixing
+                new_params['QBOUND'] = min(self.ctx.qbound_simple_mixing, self.ctx.threshold_aggressive_mixing) # take lower values to make sure we can in principle go below the threshold
             else:
                 new_params['QBOUND'] = self.ctx.convergence_criterion
             new_params['NPOL'] = convergence_settings['npol']
