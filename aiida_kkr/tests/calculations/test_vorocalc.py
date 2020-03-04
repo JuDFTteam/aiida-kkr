@@ -65,19 +65,7 @@ def test_startpot_Cu_simple(aiida_profile, voronoi_local_code, run_with_cache):
     params = kkrparams(params_type='voronoi')
     params.set_multiple_values(LMAX=2, NSPIN=1, RCLUSTZ=2.3)
     ParaNode = Dict(dict=params.get_dict())
-
-    # import computer etc from database dump
-    #from aiida.tools.importexport import import_data
-    #import_data('files/db_dump_vorocalc.tar.gz')
-
-    # prepare computer and code (needed so that
-    #prepare_code(voro_codename, codelocation, computername, workdir)
-
-    # load code from database and create new voronoi calculation
-    #code = Code.get_from_string(codename)
-    #code = Code.get_from_string(voro_codename+'@'+computername)
-
-    #code = Code.get_from_string('voronoi@localhost_new')
+    
     options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
     builder = VoronoiCalculation.get_builder()
     builder.code = voronoi_local_code
@@ -85,16 +73,16 @@ def test_startpot_Cu_simple(aiida_profile, voronoi_local_code, run_with_cache):
     builder.parameters = ParaNode
     builder.structure = Cu
     builder._hash_ignored_inputs = ['code']
-    #builder.metadata.dry_run = True
-    #from aiida.engine import run
-    #run(builder)
-    out, node = run_with_cache(builder)
-    print(out, node)
-    print(node.get_cache_source())
-    print(node.get_hash())
-    print(voronoi_local_code.get_hash())
-    print(voronoi_local_code._get_objects_to_hash())
-    print(voronoi_local_code._hash_ignored_attributes)
+    builder.metadata.dry_run = True
+    from aiida.engine import run
+    run(builder)
+    #out, node = run_with_cache(builder)
+    #print(out, node)
+    #print(node.get_cache_source())
+    #print(node.get_hash())
+    #print(voronoi_local_code.get_hash())
+    #print(voronoi_local_code._get_objects_to_hash())
+    #print(voronoi_local_code._hash_ignored_attributes)
 
 
 def test_vca_structure(aiida_profile, voronoi_local_code):

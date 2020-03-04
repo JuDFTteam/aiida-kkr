@@ -4,133 +4,98 @@ from __future__ import absolute_import
 from __future__ import print_function
 import pytest
 from aiida_kkr.tests.dbsetup import *
+from aiida_testing.export_cache._fixtures import run_with_cache
+from ..conftest import voronoi_local_code, kkrhost_local_code
+from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 
-# tests
-@pytest.mark.usefixtures("fresh_aiida_env")
-class Test_eos_workflow():
+
+
+@pytest.mark.timeout(500, method='thread')
+def test_eos_wc_Cu_simple(aiida_profile, voronoi_local_code, kkrhost_local_code, run_with_cache):
     """
-    Tests for the scf workfunction
+    simple Cu noSOC, FP, lmax2 full example using scf workflow
     """
+    from aiida.orm import Code, load_node, Dict, StructureData
+    from masci_tools.io.kkr_params import kkrparams
+    from aiida_kkr.workflows.eos import kkr_eos_wc
+    from pprint import pprint
+    from numpy import array
 
-    @pytest.mark.timeout(500, method='thread')
-    def test_eos_wc_Cu_simple(self):
-        """
-        simple Cu noSOC, FP, lmax2 full example using scf workflow
-        """
-        from aiida.orm import Code, load_node, Dict, StructureData
-        from masci_tools.io.kkr_params import kkrparams
-        from aiida_kkr.workflows.eos import kkr_eos_wc
-        from pprint import pprint
-        from numpy import array
+    # create structure
+    alat = 6.83 # in a_Bohr
+    abohr = 0.52917721067 # conversion factor to Angstroem units
+    # bravais vectors
+    bravais = array([[0.5, 0.5, 0.0], [0.5, 0.0, 0.5], [0.0, 0.5, 0.5]])
 
+    a = 0.5*alat*abohr
+    Cu = StructureData(cell=[[a, a, 0.0], [a, 0.0, a], [0.0, a, a]])
+    Cu.append_atom(position=[0.0, 0.0, 0.0], symbols='Cu')
 
+    Cu.store()
 
-        # import data from previous run to use caching
-        from aiida.tools.importexport import import_data
-        import_data('files/export_kkr_eos.tar.gz', extras_mode_existing='ncu', extras_mode_new='import')
+    # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
+    wfd, options = kkr_eos_wc.get_wf_defaults()
+    wfd['nsteps'] = 3
+    wfd['settings_kkr_scf']['convergence_criterion'] = 10**-4
+    wfd['settings_kkr_scf']['convergence_setting_fine'] = wfd['settings_kkr_scf']['convergence_setting_coarse']
+    wfd['settings_kkr_scf']['nsteps'] = 80
+    wfd['settings_kkr_scf']['num_rerun'] = 2
+    wfd['settings_kkr_scf']['natom_in_cls_min'] = 20
+    wfd['settings_kkr_startpot']['natom_in_cls_min'] = 20
+    wfd['settings_kkr_startpot']['num_rerun'] = 2
+    wfd['fitfunction'] = 'sj' # for only three points only sj fit works
 
-        # need to rehash after import, otherwise cashing does not work
-        from aiida.orm import Data, ProcessNode, QueryBuilder
-        entry_point = (Data, ProcessNode)
-        qb = QueryBuilder()
-        qb.append(ProcessNode, tag='node') # query for ProcessNodes
-        to_hash = qb.all()
-        num_nodes = qb.count()
-        print(num_nodes, to_hash)
-        for node in to_hash:
-            node[0].rehash()
+    KKReos_wf_parameters = Dict(dict=wfd)
+    options['queue_name'] = queuename
+    options['max_wallclock_seconds'] = 5*60
+    options['withmpi'] = False
+    options = Dict(dict=options)
 
+    # Finally we use the kkrparams class to prepare a valid set of KKR parameters that are stored as a Dict object for the use in aiida
+    ParaNode = Dict(dict=kkrparams(LMAX=2, RMAX=7, GMAX=65, NSPIN=1, RCLUSTZ=1.9).get_dict())
 
-        # prepare computer and code (needed so that
-        prepare_code(voro_codename, codelocation, computername, workdir)
-        if kkr_codename=='kkrhost':
-            prepare_code(kkr_codename, codelocation, computername, workdir)
-        
+    label = 'KKR-eos for Cu bulk'
+    descr = 'KKR equation of states for Cu bulk'
 
-        # create structure
-        alat = 6.83 # in a_Bohr
-        abohr = 0.52917721067 # conversion factor to Angstroem units
-        # bravais vectors
-        bravais = array([[0.5, 0.5, 0.0], [0.5, 0.0, 0.5], [0.0, 0.5, 0.5]])
+    # create process builder to set parameters
+    builder = kkr_eos_wc.get_builder()
+    builder.calc_parameters = ParaNode
+    builder.voronoi = voronoi_local_code
+    builder.kkr = kkrhost_local_code
+    builder.structure = Cu
+    builder.wf_parameters = KKReos_wf_parameters
+    builder.options = options
+    builder.metadata.label = label
+    builder.metadata.description = descr
 
-        a = 0.5*alat*abohr
-        Cu = StructureData(cell=[[a, a, 0.0], [a, 0.0, a], [0.0, a, a]])
-        Cu.append_atom(position=[0.0, 0.0, 0.0], symbols='Cu')
+    # now run calculation
+    out, node = run_with_cache(builder)
 
-        Cu.store()
+    # load node of workflow
+    print(out)
+    n = out['eos_results']
 
-        # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
-        wfd, options = kkr_eos_wc.get_wf_defaults()
-        wfd['nsteps'] = 3
-        wfd['settings_kkr_scf']['convergence_criterion'] = 10**-4
-        wfd['settings_kkr_scf']['convergence_setting_fine'] = wfd['settings_kkr_scf']['convergence_setting_coarse']
-        wfd['settings_kkr_scf']['nsteps'] = 80
-        wfd['settings_kkr_scf']['num_rerun'] = 2
-        wfd['settings_kkr_scf']['natom_in_cls_min'] = 20
-        wfd['settings_kkr_startpot']['natom_in_cls_min'] = 20
-        wfd['settings_kkr_startpot']['num_rerun'] = 2
-        wfd['fitfunction'] = 'sj' # for only three points only sj fit works
+    # get output dictionary
+    out = n.get_dict()
+    print('\n\noutput dictionary:\n-------------------------------------------------')
+    pprint(out)
 
-        KKReos_wf_parameters = Dict(dict=wfd)
-        options['queue_name'] = queuename
-        options['max_wallclock_seconds'] = 5*60
-        options['withmpi'] = False
-        options = Dict(dict=options)
+    # finally check some output
+    print('\n\ncheck values ...\n-------------------------------------------------')
 
-        # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
-        VoroCode = Code.get_from_string(voro_codename+'@'+computername)
-        KKRCode = Code.get_from_string(kkr_codename+'@'+computername)
+    print('successful', out['successful'])
+    assert out['successful']
 
-        # Finally we use the kkrparams class to prepare a valid set of KKR parameters that are stored as a Dict object for the use in aiida
-        ParaNode = Dict(dict=kkrparams(LMAX=2, RMAX=7, GMAX=65, NSPIN=1, RCLUSTZ=1.9).get_dict())
+    print('rms', out['rms'])
+    assert max(out['rms'])<10**-4
 
-        label = 'KKR-eos for Cu bulk'
-        descr = 'KKR equation of states for Cu bulk'
+    print('gs_scale_factor', out['gs_scale_factor'])
+    assert abs(out['gs_scale_factor']-1.0707334700693) < 10**-7
 
-        # create process builder to set parameters
-        builder = kkr_eos_wc.get_builder()
-        builder.calc_parameters = ParaNode
-        builder.voronoi = VoroCode
-        builder.kkr = KKRCode
-        builder.structure = Cu
-        builder.wf_parameters = KKReos_wf_parameters
-        builder.options = options
-        builder.metadata.label = label
-        builder.metadata.description = descr
-
-        # now run calculation
-        from aiida.engine import run_get_node #run
-        from aiida.manage.caching import enable_caching
-        from aiida.manage.caching import get_use_cache
-        with enable_caching(): # should enable caching globally in this python interpreter 
-            out, node = run_get_node(builder)
-
-        # load node of workflow
-        print(out)
-        n = out['eos_results']
-
-        # get output dictionary
-        out = n.get_dict()
-        print('\n\noutput dictionary:\n-------------------------------------------------')
-        pprint(out)
-
-        # finally check some output
-        print('\n\ncheck values ...\n-------------------------------------------------')
-
-        print('successful', out['successful'])
-        assert out['successful']
-
-        print('rms', out['rms'])
-        assert max(out['rms'])<10**-4
-
-        print('gs_scale_factor', out['gs_scale_factor'])
-        assert abs(out['gs_scale_factor']-1.07077031740822) < 10**-7
-
-        print('\ndone with checks\n')
+    print('\ndone with checks\n')
 
 #run test manually
 if __name__=='__main__':
    from aiida import load_profile
    load_profile()
-   Test = Test_eos_workflow()
-   Test.test_eos_wc_Cu_simple()
+   test_eos_wc_Cu_simple()
