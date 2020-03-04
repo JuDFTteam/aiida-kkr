@@ -12,6 +12,21 @@ import shutil
 #from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory
 
 
+#########################################################
+
+from aiida.manage.fixtures import fixture_manager
+@pytest.fixture(scope='session')
+def aiida_env():
+    with fixture_manager() as manager:
+        yield manager
+
+@pytest.fixture(scope='function')
+def fresh_aiida_env(aiida_env):
+    aiida_env.reset_db()
+    yield
+    aiida_env.reset_db()
+
+#########################################################
 
 @pytest.fixture(scope='function')
 def temp_dir_session():
