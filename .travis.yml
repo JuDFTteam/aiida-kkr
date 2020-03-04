@@ -62,6 +62,7 @@ script:
   - echo "iffgit.fz-juelich.de,134.94.161.83 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH2UDrT0bZP+WmJGGbtLPtFyC5FgQgOM1XvVJ6u5XBJrYMnKNVb9jAttL+k8VvDgcK6b3dFJnvt7eiXtG/hnqCo=" >> ~/.ssh/known_hosts
   # clone the code and install
   - cd aiida_kkr/tests && ./jukkr_installation.sh
+  - pip install git+https://github.com/broeder-j/aiida-testing.git@8f5e9a83e13ea73e12ab1c23cabb98c05cca38c9
   ## First check if rabbitmq communication is working
   #- ./check_pika-rabbitmq.py | tee out_rmq_check
   #- ./verify_rmq_check.py

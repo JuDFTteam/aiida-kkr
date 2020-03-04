@@ -432,10 +432,17 @@ class kkr_startpot_wc(WorkChain):
         #do some checks with the voronoi output (finally sets self.ctx.voro_ok)
         self.ctx.voro_ok = True
 
+        #TODO: print some info if voro_calc does not finish ok (need to find the reason for it)
+
+        print('check_voro_calc', self.ctx.voro_calc, self.ctx.voro_calc.is_finished_ok)
+        from pprint import pprint
+        pprint(self.ctx.voro_calc.attributes)
+
         # check calculation state (calculation must be completed)
         if not self.ctx.voro_calc.is_finished_ok:
             self.report("ERROR: Voronoi calculation not in FINISHED state")
             self.ctx.voro_ok = False
+            print('abort with', self.exit_codes.ERROR_VORONOI_FAILED)
             self.ctx.exit_code = self.exit_codes.ERROR_VORONOI_FAILED
             return False
 
@@ -548,6 +555,9 @@ class kkr_startpot_wc(WorkChain):
             wfdospara_node.description = 'DOS parameters passed from kkr_startpot_wc input to DOS sub-workflow'
 
             code = self.inputs.kkr
+            print('VORO_CALC:', self.ctx.voro_calc)
+            print('VORO_CALC ok?', self.ctx.voro_calc.is_finished_ok)
+            print('OUTGOINGS:', self.ctx.voro_calc.get_outgoing().all())
             remote = self.ctx.voro_calc.outputs.remote_folder
             wf_label= 'DOS calculation'
             wf_desc = 'subworkflow of a DOS calculation that perform a singe-shot KKR calc.'
@@ -575,8 +585,12 @@ class kkr_startpot_wc(WorkChain):
         if self.ctx.check_dos:
             # check parser output
             doscal = self.ctx.doscal
+            print('check doscal', doscal)
+            from pprint import pprint
+            pprint(doscal.attributes)
             try:
                 dos_outdict = doscal.outputs.results_wf.get_dict()
+                print(dos_outdict)
                 if not dos_outdict['successful']:
                     self.report("ERROR: DOS workflow unsuccessful")
                     self.ctx.doscheck_ok = False

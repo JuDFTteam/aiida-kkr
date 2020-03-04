@@ -324,6 +324,11 @@ class kkr_dos_wc(WorkChain):
             self.ctx.successful = False
             error = ('ERROR: DOS calculation failed somehow it is '
                     'in state {}'.format(self.ctx.dosrun.process_state))
+            print(error)
+            from pprint import pprint
+            pprint(self.ctx.dosrun.attributes)
+            print('stdout', self.ctx.dosrun.get_scheduler_stdout())
+            print('stderr', self.ctx.dosrun.get_scheduler_stderr())
             self.report(error)
             self.ctx.errors.append(error)
             return self.exit_codes.ERROR_DOS_CALC_FAILED
