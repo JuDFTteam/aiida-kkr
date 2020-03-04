@@ -76,7 +76,7 @@ if [[ ! -z "$RUN_ALL" ]]; then
   echo "run all tests (first non-workflow tests, then workflow tests)"
   pytest --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr --mpl -p no:warnings $addopt --ignore=workflows
   # now workflow tests
-  pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr workflows/ -sv
+  pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr workflows/ $addopt
 else
   # tests without running actual calculations
   if [[ -z "$SKIP_NOWORK" ]] && [[ -z "$NO_RMQ" ]]; then
