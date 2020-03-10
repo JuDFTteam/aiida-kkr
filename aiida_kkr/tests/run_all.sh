@@ -77,6 +77,8 @@ if [[ ! -z "$RUN_ALL" ]]; then
   pytest --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr --mpl -p no:warnings $addopt --ignore=workflows
   # now workflow tests
   pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr workflows/ $addopt
+  #pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr workflows/ --ignore=workflows/test_kkrimp_full_wc.py $addopt
+  #pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr workflows/test_kkrimp_full_wc.py $addopt
 else
   # tests without running actual calculations
   if [[ -z "$SKIP_NOWORK" ]] && [[ -z "$NO_RMQ" ]]; then

@@ -90,7 +90,7 @@ def test_eos_wc_Cu_simple(aiida_profile, voronoi_local_code, kkrhost_local_code,
     assert max(out['rms'])<10**-4
 
     print('gs_scale_factor', out['gs_scale_factor'])
-    assert abs(out['gs_scale_factor']-1.0707334700693) < 10**-7
+    assert abs(out['gs_scale_factor']-1.0707660727038) < 10**-7
 
     print('\ndone with checks\n')
 
