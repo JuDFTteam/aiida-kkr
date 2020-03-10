@@ -4,10 +4,10 @@ matrix:
   # mark build as complete as soon as the versions that may not fail is finished
   fast_finish: true
   include:
-    - python: 3.5
-      dist: trusty
-      addons:
-        postgresql: '9.5'
+    #- python: 3.5
+    #  dist: trusty
+    #  addons:
+    #    postgresql: '9.5'
     - python: 3.6
       dist: trusty
       addons:
