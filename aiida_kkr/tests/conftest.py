@@ -139,7 +139,7 @@ def aiida_local_code_factory_session(aiida_localhost_session):  # pylint: disabl
 @pytest.fixture(scope='session')
 def reuse_local_code(aiida_local_code_factory_session):
 
-    def _get_code(executable, exec_relpath, entrypoint, prepend_text=None):
+    def _get_code(executable, exec_relpath, entrypoint, prepend_text=None, use_export_file=True):
         import os, pathlib
         from aiida.tools.importexport import import_data, export
         from aiida.orm import ProcessNode, QueryBuilder, Code, load_node
@@ -148,7 +148,7 @@ def reuse_local_code(aiida_local_code_factory_session):
         data_dir = (cwd / 'data_dir')                    # TODO: get from config?
         full_import_path = str(data_dir)+'/'+executable+'.tar.gz'
         # check if exported code exists and load it, otherwise create new code (will have different has due to different working directory)
-        if pathlib.Path(full_import_path).exists():
+        if use_export_file and pathlib.Path(full_import_path).exists():
             import_data(full_import_path)
             codes = Code.objects.find(filters={'label': executable})  # pylint: disable=no-member
             code = codes[0]
@@ -161,13 +161,31 @@ def reuse_local_code(aiida_local_code_factory_session):
             # get code using aiida_local_code_factory fixture
             code = aiida_local_code_factory_session(entrypoint, executable, prepend_text=prepend_text)
             
-            #export for later reuse
-            export([code], outfile=full_import_path, overwrite=True) # add export of extras automatically
+            if use_export_file:
+                #export for later reuse
+                export([code], outfile=full_import_path, overwrite=True) # add export of extras automatically
 
         return code
 
     return _get_code
 
+
+@pytest.fixture(scope='session')
+def voronoi_local_code_import(reuse_local_code):
+    """
+    Create or load KKRhost code
+    """
+    import os
+    executable = 'voronoi.exe' # name of the KKRimp executable
+    exec_rel_path = 'jukkr/'   # location where it is found
+    entrypoint = 'kkr.voro'    # entrypoint
+    # prepend text to be added before execution
+    prepend_text = """
+ulimit -s hard
+ln -s {}/ElementDataBase .""".format(os.path.abspath(exec_rel_path))
+    voro_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text)
+    
+    return voro_code
 
 @pytest.fixture(scope='session')
 def voronoi_local_code(reuse_local_code):
@@ -182,7 +200,7 @@ def voronoi_local_code(reuse_local_code):
     prepend_text = """
 ulimit -s hard
 ln -s {}/ElementDataBase .""".format(os.path.abspath(exec_rel_path))
-    voro_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text)
+    voro_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text, use_export_file=False)
     
     return voro_code
 

@@ -6,7 +6,7 @@ from __future__ import absolute_import
 from builtins import object
 from aiida_kkr.tests.dbsetup import *
 from ..conftest import voronoi_local_code
-from aiida_testing.export_cache._fixtures import run_with_cache
+from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 import pytest
 
@@ -47,7 +47,7 @@ def wait_for_it(calc, maxwait=300, dT=10):
 
 
 # tests
-def test_startpot_Cu_simple(aiida_profile, voronoi_local_code, run_with_cache):
+def test_voronoi_dry_run(aiida_profile, voronoi_local_code):
     """
     simple Cu noSOC, FP, lmax2 full example
     """
@@ -76,13 +76,46 @@ def test_startpot_Cu_simple(aiida_profile, voronoi_local_code, run_with_cache):
     builder.metadata.dry_run = True
     from aiida.engine import run
     run(builder)
-    #out, node = run_with_cache(builder)
-    #print(out, node)
-    #print(node.get_cache_source())
-    #print(node.get_hash())
-    #print(voronoi_local_code.get_hash())
-    #print(voronoi_local_code._get_objects_to_hash())
-    #print(voronoi_local_code._hash_ignored_attributes)
+
+def test_voronoi_cached(aiida_profile, voronoi_local_code, run_with_cache):
+    """
+    simple Cu noSOC, FP, lmax2 full example
+    """
+    from aiida.orm import Code, Dict, StructureData
+    from masci_tools.io.kkr_params import kkrparams
+    from aiida_kkr.calculations.voro import VoronoiCalculation
+
+    # create StructureData instance for Cu
+    alat = 3.61 # lattice constant in Angstroem
+    bravais = [[0.5*alat, 0.5*alat, 0], [0.5*alat, 0, 0.5*alat], [0, 0.5*alat, 0.5*alat]] # Bravais matrix in Ang. units
+    Cu = StructureData(cell=bravais)
+    Cu.append_atom(position=[0,0,0], symbols='Cu')
+
+    # create Dict input node using kkrparams class from masci-tools
+    params = kkrparams(params_type='voronoi')
+    params.set_multiple_values(LMAX=2, NSPIN=1, RCLUSTZ=2.3)
+    ParaNode = Dict(dict=params.get_dict())
+    
+    options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
+    builder = VoronoiCalculation.get_builder()
+    builder.code = voronoi_local_code
+    builder.metadata.options = options
+    builder.parameters = ParaNode
+    builder.structure = Cu
+    builder._hash_ignored_inputs = ['code']
+    builder.metadata.dry_run = False
+    #from aiida.engine import run
+    #run(builder)
+    out, node = run_with_cache(builder)
+    print('out, node:', out, node)
+    print('cache_source:', node.get_cache_source())
+    print('hash', node.get_hash())
+    print('_get_objects_to_hash', node._get_objects_to_hash())
+    assert node.get_cache_source() is not None
+    print('code hash:', voronoi_local_code.get_hash())
+    assert voronoi_local_code.get_hash() == 'd7c5e42ca8227f7e92d31294ae162d74a96296ac585b94b4c193928d215cb15d'
+    print('code objects to hash:', voronoi_local_code._get_objects_to_hash())
+    print('ignored attributes:', voronoi_local_code._hash_ignored_attributes)
 
 
 def test_vca_structure(aiida_profile, voronoi_local_code):
