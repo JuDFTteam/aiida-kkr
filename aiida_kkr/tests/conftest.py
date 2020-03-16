@@ -218,7 +218,7 @@ def kkrhost_local_code(reuse_local_code):
 ulimit -s hard
 export OMP_STACKSIZE=2G
 source compiler-select intel"""
-    kkrhost_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text)
+    kkrhost_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text, use_export_file=False)
     
     return kkrhost_code
 
@@ -236,7 +236,7 @@ def kkrimp_local_code(reuse_local_code):
 ulimit -s hard
 export OMP_STACKSIZE=2G
 source compiler-select intel"""
-    kkrimp_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text)
+    kkrimp_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text, use_export_file=False)
     
     return kkrimp_code
 

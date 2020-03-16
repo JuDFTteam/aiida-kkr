@@ -113,7 +113,6 @@ def test_voronoi_cached(aiida_profile, voronoi_local_code, run_with_cache):
     print('_get_objects_to_hash', node._get_objects_to_hash())
     assert node.get_cache_source() is not None
     print('code hash:', voronoi_local_code.get_hash())
-    assert voronoi_local_code.get_hash() == 'd7c5e42ca8227f7e92d31294ae162d74a96296ac585b94b4c193928d215cb15d'
     print('code objects to hash:', voronoi_local_code._get_objects_to_hash())
     print('ignored attributes:', voronoi_local_code._hash_ignored_attributes)
 

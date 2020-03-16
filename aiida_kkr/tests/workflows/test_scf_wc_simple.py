@@ -8,6 +8,7 @@ from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, l
 from ..conftest import voronoi_local_code, kkrhost_local_code
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 
+from aiida.manage.tests.pytest_fixtures import clear_database
 
 # helper function
 def print_clean_inouts(node):
@@ -30,7 +31,7 @@ def print_clean_inouts(node):
 
 
 @pytest.mark.timeout(300, method='thread')
-def test_scf_wc_Cu_simple(aiida_profile, voronoi_local_code, kkrhost_local_code, run_with_cache):
+def test_scf_wc_Cu_simple(aiida_profile, voronoi_local_code, kkrhost_local_code, run_with_cache, clear_database):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow
     """

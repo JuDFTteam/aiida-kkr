@@ -8,10 +8,11 @@ from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, l
 from ..conftest import kkrimp_local_code
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 
+from aiida.manage.tests.pytest_fixtures import clear_database
 
 
 @pytest.mark.timeout(600, method='thread')
-def test_kkrimp_sub_wc(aiida_profile, kkrimp_local_code, run_with_cache):
+def test_kkrimp_sub_wc(aiida_profile, kkrimp_local_code, run_with_cache, clear_database):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
     """
