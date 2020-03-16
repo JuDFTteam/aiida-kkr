@@ -14,7 +14,7 @@ class Test_plot_kkr(object):
     Tests for the plot_kkr tool
     """
 
-    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='kkr.png')
+    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='kkr.png', tolerance=6)
     def test_plot_kkr_calc(self):
         basic_test('1792144e-746c-4575-a1e1-40125a26778c', strucplot=False, noshow=True)
         return gcf()
@@ -36,7 +36,7 @@ class Test_plot_kkr(object):
         basic_test('a0d0d29f-7b22-4ca4-ba55-6b97569d94af', strucplot=False, noshow=True)
         return gcf()
 
-    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='vorostart.png')
+    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='vorostart.png', tolerance=5)
     def test_plot_vorostart_wc(self):
         basic_test('0c52eff5-3c5a-4623-a278-8febab698d30', strucplot=False, noshow=True)
         return gcf()
