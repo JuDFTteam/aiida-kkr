@@ -8,7 +8,7 @@ from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, l
 from ..conftest import voronoi_local_code, kkrhost_local_code
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 
-from aiida.manage.tests.pytest_fixtures import clear_database
+from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
 
 @pytest.mark.timeout(500, method='thread')
 def test_vorostart_wc_Cu(aiida_profile, voronoi_local_code, kkrhost_local_code, run_with_cache, clear_database):

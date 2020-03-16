@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.1"
+__version__ = "0.7.2"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -143,6 +143,8 @@ class kkr_imp_wc(WorkChain):
                     "proceed with this workflow!")
         spec.exit_code(144, 'ERROR_KKRIMP_SUB_WORKFLOW_FAILURE',
             message="ERROR: sub-workflow for KKRimp convergence failed")
+        spec.exit_code(145, 'ERROR_KKRSTARTPOT_WORKFLOW_FAILURE',
+            message="ERROR: sub-workflow Kkr_startpot failed (look for failure of voronoi calculation).")
 
 
         # define the outputs of the workflow
@@ -492,6 +494,10 @@ class kkr_imp_wc(WorkChain):
         KKR impurity sub workflow
         """
 
+        if not self.ctx.last_voro_calc.is_finished_ok:
+            self.report(self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE)
+            return self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE
+
         # collect all nodes necessary to construct the startpotential
         if self.ctx.do_gf_calc:
             GF_host_calc_pk = self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc')
@@ -552,6 +558,7 @@ class kkr_imp_wc(WorkChain):
         settings = Dict(dict={'pot1': potname_converged,  'out_pot': potname_imp, 'neworder': neworder_pot1,
                               'pot2': potname_impvorostart, 'replace_newpos': replacelist_pot2, 'label': settings_label,
                               'description': settings_description})
+        print('startpot_kkrimp construction:', settings, converged_host_remote, voro_calc_remote)
         startpot_kkrimp = neworder_potential_wf(settings_node=settings, parent_calc_folder=converged_host_remote,
                                                 parent_calc_folder2=voro_calc_remote)
 

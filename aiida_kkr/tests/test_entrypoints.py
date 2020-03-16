@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from builtins import object
 import pytest
 
-@pytest.mark.usefixtures("aiida_env")
+@pytest.mark.usefixtures("aiida_profile")
 class TestAiida_kkr_entrypoints(object):
     """
     tests all the entry points of the Kkr plugin. Therefore if the plugin is reconized by AiiDA

@@ -7,6 +7,9 @@ import pytest
 from aiida.engine import run, run_get_node
 from aiida_kkr.tests.calculations.test_vorocalc import wait_for_it
 from aiida_kkr.tests.dbsetup import *
+from ..conftest import kkrhost_local_code
+from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
+from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 
 # some global settings
 eps = 10**-14 # threshold for float comparison equivalence
@@ -63,6 +66,47 @@ class Test_kkr_calculation(object):
         print((node.get_cache_source()))
         #print((out['retrieved'].list_object_names()))
         #print((out['output_parameters'].get_dict()))
+
+
+    def test_kkr_cached(self, aiida_profile, kkrhost_local_code, run_with_cache):
+        """
+        simple Cu noSOC, FP, lmax2 full example
+        """
+        from aiida.orm import Code, load_node, Dict
+        from masci_tools.io.kkr_params import kkrparams
+        from aiida_kkr.calculations.kkr import KkrCalculation
+
+        # load necessary files from db_dump files
+        from aiida.tools.importexport import import_data
+        import_data('files/db_dump_vorocalc.tar.gz', extras_mode_existing='nnl')
+
+        # first load parent voronoi calculation
+        voro_calc = load_node('559b9d9b-3525-402e-9b24-ecd8b801853c')
+
+        # extract and update KKR parameter (add missing values)
+        params = kkrparams(**voro_calc.inputs.parameters.get_dict())
+        params.set_multiple_values(RMAX=7., GMAX=65.)
+        params_node = Dict(dict=params.get_dict())
+
+        options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
+        builder = KkrCalculation.get_builder()
+        builder.code = kkrhost_local_code
+        builder.metadata.options = options
+        builder.parameters = params_node
+        builder.parent_folder = voro_calc.outputs.remote_folder
+        builder.metadata.dry_run = False
+        print(options)
+        print(params_node)
+        print(kkrhost_local_code)
+        print(voro_calc)
+        print(builder)
+        out, node = run_with_cache(builder)
+        print((node, out))
+        print((node.get_cache_source()))
+        assert node.get_cache_source() is not None
+        out_dict = node.outputs.output_parameters.get_dict()
+        from pprint import pprint 
+        pprint(out_dict)
 
 
     @pytest.mark.usefixtures("fresh_aiida_env")

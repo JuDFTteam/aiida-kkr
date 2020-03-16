@@ -8,7 +8,7 @@ import matplotlib
 matplotlib.use('Agg')
 from matplotlib.pyplot import gcf, title
 
-@pytest.mark.usefixtures("aiida_env")
+@pytest.mark.usefixtures("aiida_profile")
 class Test_plot_kkr(object):
     """
     Tests for the plot_kkr tool

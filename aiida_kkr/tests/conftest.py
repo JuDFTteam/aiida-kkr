@@ -9,22 +9,17 @@ from aiida.common.hashing import make_hash
 
 import tempfile
 import shutil
-#from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory
+
+from aiida.manage.tests.pytest_fixtures import aiida_profile
 
 
 #########################################################
 
-from aiida.manage.fixtures import fixture_manager
-@pytest.fixture(scope='session')
-def aiida_env():
-    with fixture_manager() as manager:
-        yield manager
-
 @pytest.fixture(scope='function')
-def fresh_aiida_env(aiida_env):
-    aiida_env.reset_db()
+def fresh_aiida_env(aiida_profile):
+    aiida_profile.reset_db()
     yield
-    aiida_env.reset_db()
+    aiida_profile.reset_db()
 
 #########################################################
 
@@ -199,7 +194,8 @@ def voronoi_local_code(reuse_local_code):
     # prepend text to be added before execution
     prepend_text = """
 ulimit -s hard
-ln -s {}/ElementDataBase .""".format(os.path.abspath(exec_rel_path))
+ln -s {}/ElementDataBase .
+source compiler-select intel""".format(os.path.abspath(exec_rel_path))
     voro_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text, use_export_file=False)
     
     return voro_code

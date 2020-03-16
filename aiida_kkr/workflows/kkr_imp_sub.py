@@ -737,6 +737,9 @@ class kkr_imp_sub_wc(WorkChain):
         message = 'INFO: doing calculation'
         self.report(message)
         kkrimp_run = self.submit(KkrimpCalculation, **inputs)
+        print('caching_info KKRimpCalc:', kkrimp_run.get_cache_source())
+        print('hash: ', kkrimp_run.get_hash())
+        print('_get_objects_to_hash: ', kkrimp_run._get_objects_to_hash())
 
         return ToContext(kkr=kkrimp_run, last_calc=kkrimp_run)
 

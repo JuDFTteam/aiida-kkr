@@ -4,11 +4,10 @@ from __future__ import absolute_import
 from __future__ import print_function
 import pytest
 from aiida_kkr.tests.dbsetup import *
-from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
+from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint, with_export_cache
 from ..conftest import kkrimp_local_code
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
-
-from aiida.manage.tests.pytest_fixtures import clear_database
+from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
 
 
 @pytest.mark.timeout(600, method='thread')
@@ -44,7 +43,7 @@ def test_kkrimp_sub_wc(aiida_profile, kkrimp_local_code, run_with_cache, clear_d
     settings_dict = {'pot1': 'out_potential',  'out_pot': 'potential_imp', 'neworder': neworder_pot1}
     settings = Dict(dict=settings_dict)
     from aiida.manage.caching import enable_caching
-    with enable_caching(): # should enable caching globally in this python interpreter 
+    with enable_caching():
         startpot_imp_sfd = neworder_potential_wf(settings_node=settings, parent_calc_folder=GF_host_calc.outputs.remote_folder)
 
     label = 'kkrimp_scf Cu host_in_host'
@@ -60,10 +59,12 @@ def test_kkrimp_sub_wc(aiida_profile, kkrimp_local_code, run_with_cache, clear_d
     builder.wf_parameters = Dict(dict=wfd)
     builder.host_imp_startpot = startpot_imp_sfd
 
+    print('builder', builder)
+
     # now run calculation
     out, node = run_with_cache(builder)
-    print(out)
-    print(node)
+    print('out', out)
+    print('node', node)
     print(node.process_status)
 
     n = out['workflow_info']

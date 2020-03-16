@@ -8,7 +8,7 @@ from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, l
 from ..conftest import voronoi_local_code, kkrhost_local_code
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 
-from aiida.manage.tests.pytest_fixtures import clear_database
+from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
 
 # change kkr_condename for testing (on mac)
 kkr_codename = 'kkrhost_intel19'

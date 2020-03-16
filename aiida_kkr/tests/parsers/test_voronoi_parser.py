@@ -5,7 +5,7 @@ from builtins import object
 import pytest
 
 # tests
-@pytest.mark.usefixtures("aiida_env")
+@pytest.mark.usefixtures("aiida_profile")
 class Test_voronoi_parser(object):
     """
     Tests for the voronoi parser

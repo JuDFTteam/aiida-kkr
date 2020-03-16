@@ -5,10 +5,10 @@ from __future__ import print_function
 import pytest
 from aiida_kkr.tests.dbsetup import *
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
-from ..conftest import voronoi_local_code, kkrhost_local_code
+from aiida_kkr.tests.conftest import voronoi_local_code, kkrhost_local_code
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 
-from aiida.manage.tests.pytest_fixtures import clear_database
+from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
 
 @pytest.mark.timeout(300, method='thread')
 def test_dos_startpot_wc(aiida_profile, kkrimp_local_code, kkrhost_local_code, run_with_cache, clear_database):

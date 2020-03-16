@@ -854,6 +854,11 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
                         "".format(n_parents, "" if n_parents == 0 else "s"))
             else:
                 parent_calc = parent_calcs[0].node
+            if pot2 not in parent_calc.outputs.retrieved.list_object_names():
+                raise InputValidationError('neworder_potential_wf: pot2 does not exist', 
+                                           pot2,
+                                           parent_calc.outputs.retrieved.list_object_names()
+                                          )
             pot2_fhandle = parent_calc.outputs.retrieved.open(pot2)
         else:
             pot2_fhandle = None

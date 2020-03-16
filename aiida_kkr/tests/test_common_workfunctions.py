@@ -9,7 +9,7 @@ import pytest
 from six.moves import range
 from numpy import sort
 
-@pytest.mark.usefixtures("aiida_env")
+@pytest.mark.usefixtures("aiida_profile")
 class Test_common_workfunctions(object):
     """
     Tests for the common workfunctions from tools.common_workfunctions,
