@@ -4,16 +4,15 @@ from __future__ import absolute_import
 from builtins import object
 import pytest
 
-# some global settings
+from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
 
 # tests
-@pytest.mark.usefixtures("fresh_aiida_env")
 class Test_kkr_parser(object):
     """
     Tests for the kkr parser
     """
 
-    def test_parse_kkr_calc(self):
+    def test_parse_kkr_calc(self, clear_database):
         """
         ...
         """

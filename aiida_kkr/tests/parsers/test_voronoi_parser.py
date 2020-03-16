@@ -3,15 +3,15 @@
 from __future__ import absolute_import
 from builtins import object
 import pytest
+from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
 
 # tests
-@pytest.mark.usefixtures("aiida_profile")
 class Test_voronoi_parser(object):
     """
     Tests for the voronoi parser
     """
 
-    def test_parse_voronoi_calc(self):
+    def test_parse_voronoi_calc(self, aiida_profile):
         """
         ...
         """

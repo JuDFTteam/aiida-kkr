@@ -7,6 +7,8 @@ import pytest
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib.pyplot import gcf, title
+from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
+
 
 @pytest.mark.usefixtures("aiida_profile")
 class Test_plot_kkr(object):

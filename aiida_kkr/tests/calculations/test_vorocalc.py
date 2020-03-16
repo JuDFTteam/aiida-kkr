@@ -7,7 +7,7 @@ from builtins import object
 from aiida_kkr.tests.dbsetup import *
 from ..conftest import voronoi_local_code
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
-from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
+from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 import pytest
 
 
@@ -77,7 +77,7 @@ def test_voronoi_dry_run(aiida_profile, voronoi_local_code):
     from aiida.engine import run
     run(builder)
 
-def test_voronoi_cached(aiida_profile, voronoi_local_code, run_with_cache):
+def test_voronoi_cached(clear_database_before_test, voronoi_local_code, run_with_cache):
     """
     simple Cu noSOC, FP, lmax2 full example
     """

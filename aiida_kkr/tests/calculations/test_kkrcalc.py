@@ -9,7 +9,7 @@ from aiida_kkr.tests.calculations.test_vorocalc import wait_for_it
 from aiida_kkr.tests.dbsetup import *
 from ..conftest import kkrhost_local_code
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
-from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
+from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile, clear_database, clear_database_after_test
 
 # some global settings
 eps = 10**-14 # threshold for float comparison equivalence
@@ -26,8 +26,7 @@ class Test_kkr_calculation(object):
     Tests for the kkr calculation
     """
 
-    @pytest.mark.usefixtures("fresh_aiida_env")
-    def test_kkr_from_voronoi(self):
+    def test_kkr_from_voronoi(self, clear_database):
         """
         simple Cu noSOC, FP, lmax2 full example
         """
@@ -109,8 +108,7 @@ class Test_kkr_calculation(object):
         pprint(out_dict)
 
 
-    @pytest.mark.usefixtures("fresh_aiida_env")
-    def test_kkr_from_kkr(self):
+    def test_kkr_from_kkr(self, clear_database):
         """
         continue KKR calculation after a previous KKR calculation instead of starting from voronoi
         """
@@ -142,8 +140,7 @@ class Test_kkr_calculation(object):
         print(out)
 
 
-    @pytest.mark.usefixtures("fresh_aiida_env")
-    def test_kkrflex(self):
+    def test_kkrflex(self, clear_database):
         """
         test kkrflex file writeout (GF writeout for impurity calculation)
         """
@@ -184,8 +181,7 @@ class Test_kkr_calculation(object):
         print(out)
 
 
-    @pytest.mark.usefixtures("fresh_aiida_env")
-    def test_kkr_qdos(self):
+    def test_kkr_qdos(self, clear_database):
         """
         run bandstructure calculation
         """

@@ -8,6 +8,8 @@ from builtins import object
 import pytest
 from six.moves import range
 from numpy import sort
+from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
+
 
 @pytest.mark.usefixtures("aiida_profile")
 class Test_common_workfunctions(object):

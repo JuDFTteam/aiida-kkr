@@ -3,6 +3,8 @@
 from __future__ import absolute_import
 from builtins import object
 import pytest
+from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
+
 
 # tests
 class Test_kkrimp_parser(object):
@@ -10,8 +12,7 @@ class Test_kkrimp_parser(object):
     Tests for the kkrimp calculation
     """
 
-    @pytest.mark.usefixtures("fresh_aiida_env")
-    def test_parse_kkrimp_calc(self):
+    def test_parse_kkrimp_calc(self, clear_database):
         """
         simple Cu noSOC, FP, lmax2
         """

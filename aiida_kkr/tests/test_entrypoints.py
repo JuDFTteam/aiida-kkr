@@ -3,6 +3,8 @@
 from __future__ import absolute_import
 from builtins import object
 import pytest
+from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
+
 
 @pytest.mark.usefixtures("aiida_profile")
 class TestAiida_kkr_entrypoints(object):

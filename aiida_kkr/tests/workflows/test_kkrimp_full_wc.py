@@ -7,11 +7,10 @@ from aiida_kkr.tests.dbsetup import *
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
 from ..conftest import voronoi_local_code, kkrhost_local_code
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
-
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
+from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 
 @pytest.mark.timeout(600, method='thread')
-def test_kkrimp_full_wc(aiida_profile, voronoi_local_code, kkrhost_local_code, kkrimp_local_code, run_with_cache, clear_database):
+def test_kkrimp_full_wc(clear_database_before_test, voronoi_local_code, kkrhost_local_code, kkrimp_local_code, run_with_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
     """

@@ -10,40 +10,17 @@ from aiida.common.hashing import make_hash
 import tempfile
 import shutil
 
-from aiida.manage.tests.pytest_fixtures import aiida_profile
+from aiida.manage.tests.pytest_fixtures import aiida_profile, temp_dir
+
+@pytest.fixture(scope='function', autouse=True)
+def clear_database_auto(clear_database):
+    """Automatically clear database in between tests."""
+    pass
 
 
-#########################################################
-
+# need fixed aiida_localhost to have set_default_mpiprocs_per_machine set to 1
 @pytest.fixture(scope='function')
-def fresh_aiida_env(aiida_profile):
-    aiida_profile.reset_db()
-    yield
-    aiida_profile.reset_db()
-
-#########################################################
-
-@pytest.fixture(scope='session')
-def temp_dir_session():
-    """Get a temporary directory.
-
-    E.g. to use as the working directory of an AiiDA computer.
-
-    :return: The path to the directory
-    :rtype: str
-
-    """
-    try:
-        dirpath = tempfile.mkdtemp()
-        yield dirpath
-    finally:
-        # after the test function has completed, remove the directory again
-        shutil.rmtree(dirpath)
-
-
-
-@pytest.fixture(scope='session')
-def aiida_localhost_session(temp_dir_session):  # pylint: disable=redefined-outer-name
+def aiida_localhost_serial(temp_dir):  # pylint: disable=redefined-outer-name
     """Get an AiiDA computer for localhost.
 
     Usage::
@@ -68,7 +45,7 @@ def aiida_localhost_session(temp_dir_session):  # pylint: disable=redefined-oute
             name=name,
             description='localhost computer set up by test manager',
             hostname=name,
-            workdir=temp_dir_session,
+            workdir=temp_dir,
             transport_type='local',
             scheduler_type='direct'
         )
@@ -81,8 +58,8 @@ def aiida_localhost_session(temp_dir_session):  # pylint: disable=redefined-oute
 
 
 
-@pytest.fixture(scope='session')
-def aiida_local_code_factory_session(aiida_localhost_session):  # pylint: disable=redefined-outer-name
+@pytest.fixture(scope='function')
+def aiida_local_code_factory_prepend(aiida_localhost_serial): # pylint: disable=redefined-outer-name
     """Get an AiiDA code on localhost.
 
     Searches in the PATH for a given executable and creates an AiiDA code with provided entry point.
@@ -97,7 +74,7 @@ def aiida_local_code_factory_session(aiida_localhost_session):  # pylint: disabl
     :rtype: object
     """
 
-    def get_code(entry_point, executable, computer=aiida_localhost_session, prepend_text=None):
+    def get_code(entry_point, executable, computer=aiida_localhost_serial, prepend_text=None):
         """Get local code.
         Sets up code for given entry point on given computer.
 
@@ -131,8 +108,8 @@ def aiida_local_code_factory_session(aiida_localhost_session):  # pylint: disabl
 
 
 
-@pytest.fixture(scope='session')
-def reuse_local_code(aiida_local_code_factory_session):
+@pytest.fixture(scope='function')
+def reuse_local_code(aiida_local_code_factory_prepend):
 
     def _get_code(executable, exec_relpath, entrypoint, prepend_text=None, use_export_file=True):
         import os, pathlib
@@ -154,7 +131,7 @@ def reuse_local_code(aiida_local_code_factory_session):
             _exe_path = os.path.abspath(exec_relpath)
             os.environ['PATH']+=':'+_exe_path
             # get code using aiida_local_code_factory fixture
-            code = aiida_local_code_factory_session(entrypoint, executable, prepend_text=prepend_text)
+            code = aiida_local_code_factory_prepend(entrypoint, executable, prepend_text=prepend_text)
             
             if use_export_file:
                 #export for later reuse
@@ -165,13 +142,13 @@ def reuse_local_code(aiida_local_code_factory_session):
     return _get_code
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='function')
 def voronoi_local_code_import(reuse_local_code):
     """
     Create or load KKRhost code
     """
     import os
-    executable = 'voronoi.exe' # name of the KKRimp executable
+    executable = 'voronoi.exe' # name of the Voronoi executable
     exec_rel_path = 'jukkr/'   # location where it is found
     entrypoint = 'kkr.voro'    # entrypoint
     # prepend text to be added before execution
@@ -182,13 +159,13 @@ ln -s {}/ElementDataBase .""".format(os.path.abspath(exec_rel_path))
     
     return voro_code
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='function')
 def voronoi_local_code(reuse_local_code):
     """
     Create or load KKRhost code
     """
     import os
-    executable = 'voronoi.exe' # name of the KKRimp executable
+    executable = 'voronoi.exe' # name of the Voronoi executable
     exec_rel_path = 'jukkr/'   # location where it is found
     entrypoint = 'kkr.voro'    # entrypoint
     # prepend text to be added before execution
@@ -201,12 +178,12 @@ source compiler-select intel""".format(os.path.abspath(exec_rel_path))
     return voro_code
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='function')
 def kkrhost_local_code(reuse_local_code):
     """
     Create or load KKRhost code
     """
-    executable = 'kkr.x' # name of the KKRimp executable
+    executable = 'kkr.x' # name of the KKRhost executable
     exec_rel_path = 'jukkr/build_new_kkrhost/'   # location where it is found
     entrypoint = 'kkr.kkr'  # entrypoint
     # prepend text to be added before execution
@@ -219,7 +196,7 @@ source compiler-select intel"""
     return kkrhost_code
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='function')
 def kkrimp_local_code(reuse_local_code):
     """
     Create or load KKRimp code
