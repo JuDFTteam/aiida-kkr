@@ -17,7 +17,7 @@ import six
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -271,13 +271,31 @@ class VoronoiCalculation(CalcJob):
         get the  parent folder of the calculation. If not parent was found return input folder
         """
         input_folder_tmp0 = input_folder
+
+        # first option: parent_calc_folder (KkrimpCalculation)
         try:
             parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_calc_folder')
+            return_input = False
         except NotExistent:
-            try:
-                parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_folder')
-            except NotExistent:
-                parent_folder_tmp = input_folder_tmp0
+            return_input = True
+
+        # second option: parent_folder (KkrCalculation)
+        try:
+            parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_folder')
+            return_input = False
+        except NotExistent:
+            return_input = return_input & True
+
+        # third option: parent_KKR option (special mode of VoronoiCalculation)
+        try:
+            parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_KKR')
+            return_input = False
+        except NotExistent:
+            return_input = return_input & True
+
+        if return_input:
+            parent_folder_tmp = input_folder_tmp0
+
         return parent_folder_tmp
 
 
@@ -297,4 +315,4 @@ class VoronoiCalculation(CalcJob):
             struc = self._get_struc(parent_folder_tmp)
             return struc, parent_folder_tmp
         else:
-            raise ValueError("structure not found".format(parent_folder_tmp0))
+            raise ValueError("structure not found".format(parent_folder_tmp))

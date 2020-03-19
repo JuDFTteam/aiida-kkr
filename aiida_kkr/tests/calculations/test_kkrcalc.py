@@ -194,13 +194,45 @@ class Test_kkr_calculation(object):
         out = run(builder)
         print(out)
 
+
     def test_kkr_increased_lmax(self, kkrhost_local_code, run_with_cache):
         """
         run kkr calculation from output of previous calculation but with increased lmax
         (done with auxiliary voronoi calculation which is imported here).
         """
+        from aiida.orm import load_node
+        from aiida_kkr.calculations import KkrCalculation
 
-        # import previous voronoi calc (ran with overwrite potential mode)
+        # import previous voronoi calc (ran with parent_KKR mode and increased LMAX in input params)
+        from aiida.tools.importexport import import_data
+        import_data('data_dir/VoronoiCalculation-nodes-8c7aed435f2140768f52c78b0b1b0629.tar.gz')
+        voro_with_kkr_input = load_node('5eb46c06-c158-42e7-9a15-217763a63717')
 
+        # extract KKR parameter from imported voronoi calc
+        params_node = voro_with_kkr_input.inputs.parameters
 
+        # construct process builder and run calc
+        options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
+        builder = KkrCalculation.get_builder()
+        builder.code = kkrhost_local_code
+        builder.metadata.options = options
+        builder.parameters = params_node
+        builder.parent_folder = voro_with_kkr_input.outputs.remote_folder
+
+        # now run or load from cached data
+        out, node = run_with_cache(builder)
+        print('cache_source:', node.get_hash())
+        print('cache_source:', node.get_cache_source())
+        print('code objects to hash:', node._get_objects_to_hash())
+        print('ignored attributes:', node._hash_ignored_attributes)
+
+        # inspect result
+        out_dict = node.outputs.output_parameters.get_dict()
+        assert len(out_dict['parser_errors']) < 2
+        assert node.inputs.parameters.get_dict().get('LMAX') == 3
+        # check if parent voronoi calculation had parent_KKR input
+        from aiida.orm import RemoteData
+        input_remote = node.get_incoming(node_class=RemoteData).first().node
+        v = input_remote.get_incoming().first().node
+        assert 'parent_KKR' in [i.link_label for i in v.get_incoming()]
 

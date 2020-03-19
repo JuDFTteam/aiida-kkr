@@ -5,7 +5,7 @@ Input plug-in for a KKR calculation.
 from __future__ import print_function, absolute_import
 from __future__ import unicode_literals
 import os
-from numpy import pi, array
+from numpy import pi, array, ndarray
 from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData
 from .voro import VoronoiCalculation
