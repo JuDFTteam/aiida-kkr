@@ -20,7 +20,11 @@ The plugin is available at https://github.com/JuDFTteam/aiida-kkr
 
 If you use this plugin for your research, please cite the following work:
 
-.. highlights:: Philipp Rüßmann, Fabian Bertoldo, and Stefan Blügel, *The AiiDA-KKR plugin and its application to high-throughput impurity embedding into a topological insulator*, in preparation (2020).
+.. highlights:: Philipp Rüßmann, Fabian Bertoldo, and Stefan Blügel, 
+  *The AiiDA-KKR plugin and its application to high-throughput impurity 
+  embedding into a topological insulator*, 
+  arXiv:2003.08315 [cond-mat.mtrl-sci] (2020); https://arxiv.org/abs/2003.08315
+
 
 Also please cite the original `AiiDA`_ paper:
 
