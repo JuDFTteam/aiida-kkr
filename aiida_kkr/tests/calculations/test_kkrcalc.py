@@ -5,7 +5,6 @@ from __future__ import print_function
 from builtins import object
 import pytest
 from aiida.engine import run, run_get_node
-from aiida_kkr.tests.calculations.test_vorocalc import wait_for_it
 from aiida_kkr.tests.dbsetup import *
 from ..conftest import kkrhost_local_code
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
@@ -26,20 +25,17 @@ class Test_kkr_calculation(object):
     Tests for the kkr calculation
     """
 
-    def test_kkr_from_voronoi(self, clear_database):
+    def test_kkr_from_voronoi(self, kkrhost_local_code):
         """
         simple Cu noSOC, FP, lmax2 full example
         """
-        from aiida.orm import Code, load_node, Dict
+        from aiida.orm import load_node, Dict
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkr import KkrCalculation
 
         # load necessary files from db_dump files
         from aiida.tools.importexport import import_data
         import_data('files/db_dump_vorocalc.tar.gz', extras_mode_existing='nnl')
-
-        # prepare computer and code (needed so that
-        prepare_code(kkr_codename, codelocation, computername, workdir)
 
         # first load parent voronoi calculation
         voro_calc = load_node('559b9d9b-3525-402e-9b24-ecd8b801853c')
@@ -49,29 +45,21 @@ class Test_kkr_calculation(object):
         params.set_multiple_values(RMAX=7., GMAX=65.)
         params_node = Dict(dict=params.get_dict())
 
-        # load code from database and create new voronoi calculation
-        #code = Code.get_from_string(codename)
-        code = Code.get_from_string(kkr_codename+'@'+computername)
         options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
         builder = KkrCalculation.get_builder()
-        builder.code = code
+        builder.code = kkrhost_local_code
         builder.metadata.options = options
         builder.parameters = params_node
         builder.parent_folder = voro_calc.outputs.remote_folder
         builder.metadata.dry_run = dry_run
         out, node = run_get_node(builder)
-        print((node, out))
-        print(code)
-        print((node.get_cache_source()))
-        #print((out['retrieved'].list_object_names()))
-        #print((out['output_parameters'].get_dict()))
 
 
     def test_kkr_cached(self, aiida_profile, kkrhost_local_code, run_with_cache):
         """
         simple Cu noSOC, FP, lmax2 full example
         """
-        from aiida.orm import Code, load_node, Dict
+        from aiida.orm import load_node, Dict
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkr import KkrCalculation
 
@@ -108,11 +96,11 @@ class Test_kkr_calculation(object):
         pprint(out_dict)
 
 
-    def test_kkr_from_kkr(self, clear_database):
+    def test_kkr_from_kkr(self, kkrhost_local_code):
         """
         continue KKR calculation after a previous KKR calculation instead of starting from voronoi
         """
-        from aiida.orm import Code, load_node, Dict
+        from aiida.orm import load_node, Dict
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkr import KkrCalculation
 
@@ -121,17 +109,12 @@ class Test_kkr_calculation(object):
         import_data('files/db_dump_kkrcalc.tar.gz')
         kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
 
-        # prepare computer and code (needed so that
-        prepare_code(kkr_codename, codelocation, computername, workdir)
-
         # extract KKR parameter (add missing values)
         params_node = kkr_calc.inputs.parameters
 
-        # load code from database and create new voronoi calculation
-        code = Code.get_from_string(kkr_codename+'@'+computername)
         options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
         builder = KkrCalculation.get_builder()
-        builder.code = code
+        builder.code = kkrhost_local_code
         builder.metadata.options = options
         builder.parameters = params_node
         builder.parent_folder = kkr_calc.outputs.remote_folder
@@ -140,11 +123,11 @@ class Test_kkr_calculation(object):
         print(out)
 
 
-    def test_kkrflex(self, clear_database):
+    def test_kkrflex(self, kkrhost_local_code):
         """
         test kkrflex file writeout (GF writeout for impurity calculation)
         """
-        from aiida.orm import Code, load_node, Dict
+        from aiida.orm import load_node, Dict
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkr import KkrCalculation
 
@@ -164,14 +147,9 @@ class Test_kkr_calculation(object):
         # create an impurity_info node
         imp_info = Dict(dict={'Rcut':1.01, 'ilayer_center': 0, 'Zimp':[29.]})
 
-        # prepare computer and code (needed so that
-        prepare_code(kkr_codename, codelocation, computername, workdir)
-
-        # load code from database and create new voronoi calculation
-        code = Code.get_from_string(kkr_codename+'@'+computername)
         options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
         builder = KkrCalculation.get_builder()
-        builder.code = code
+        builder.code = kkrhost_local_code
         builder.metadata.options = options
         builder.parameters = params_node
         builder.parent_folder = kkr_calc.outputs.remote_folder
@@ -181,11 +159,11 @@ class Test_kkr_calculation(object):
         print(out)
 
 
-    def test_kkr_qdos(self, clear_database):
+    def test_kkr_qdos(self, kkrhost_local_code):
         """
         run bandstructure calculation
         """
-        from aiida.orm import Code, load_node, Dict, KpointsData
+        from aiida.orm import load_node, Dict, KpointsData
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkr import KkrCalculation
 
@@ -198,20 +176,16 @@ class Test_kkr_calculation(object):
         from aiida.tools.importexport import import_data
         import_data('files/db_dump_kkrcalc.tar.gz')
 
-        # prepare computer and code (needed so that
-        prepare_code(kkr_codename, codelocation, computername, workdir)
-
         # first load parent voronoi calculation
         kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
 
         # extract KKR parameter (add missing values)
         params_node = kkr_calc.inputs.parameters
 
-        # load code from database and create new voronoi calculation
-        code = Code.get_from_string(kkr_codename+'@'+computername)
+        # construct process builder and run calc
         options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
         builder = KkrCalculation.get_builder()
-        builder.code = code
+        builder.code = kkrhost_local_code
         builder.metadata.options = options
         builder.parameters = params_node
         builder.parent_folder = kkr_calc.outputs.remote_folder
@@ -220,13 +194,13 @@ class Test_kkr_calculation(object):
         out = run(builder)
         print(out)
 
+    def test_kkr_increased_lmax(self, kkrhost_local_code, run_with_cache):
+        """
+        run kkr calculation from output of previous calculation but with increased lmax
+        (done with auxiliary voronoi calculation which is imported here).
+        """
 
-#run test manually
-if __name__=='__main__':
-   from aiida import load_profile
-   load_profile()
-   Test = Test_kkr_calculation()
-   Test.test_kkr_from_voronoi()
-   Test.test_kkr_from_kkr()
-   Test.test_kkrflex()
-   Test.test_kkr_qdos()
+        # import previous voronoi calc (ran with overwrite potential mode)
+
+
+

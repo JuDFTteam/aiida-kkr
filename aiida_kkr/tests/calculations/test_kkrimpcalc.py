@@ -3,7 +3,6 @@
 from __future__ import absolute_import
 from builtins import object
 import pytest
-from aiida_kkr.tests.calculations.test_vorocalc import wait_for_it
 from aiida_kkr.tests.dbsetup import *
 from aiida.manage.tests.pytest_fixtures import aiida_profile, clear_database, clear_database_after_test
 

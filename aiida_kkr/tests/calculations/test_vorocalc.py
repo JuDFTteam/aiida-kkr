@@ -20,31 +20,6 @@ kkr_codename = 'kkrhost'
 # * test_voronoi_after_kkr
 # * test_overwrite_potential
 
-def wait_for_it(calc, maxwait=300, dT=10):
-    """
-    helper function used to wait until calculation reaches FINISHED state
-    wait for maximally <maxwait> seconds and check the calculation's state every <dT> seconds
-    """
-    from time import sleep
-    nsteps = maxwait/dT
-    print('waiting for calculation to finish (maximally wait for {} seconds)'.format(maxwait))
-    istep = 0
-    calcstate = u'UNKNOWN'
-    while istep < nsteps:
-        print('checking status')
-        sleep(dT)
-        calcstate = calc.get_state()
-        istep += 1
-        if calcstate == u'FINISHED' or calcstate == u'FAILED':
-            break
-
-    if calcstate == u'FINISHED':
-        print('calculation reached FINISHED state')
-    elif calcstate == u'FAILED':
-        print('calculation in FAILED state')
-    else:
-        print('maximum waiting time exhausted')
-
 
 # tests
 def test_voronoi_dry_run(aiida_profile, voronoi_local_code):
@@ -96,17 +71,19 @@ def test_voronoi_cached(clear_database_before_test, voronoi_local_code, run_with
     params.set_multiple_values(LMAX=2, NSPIN=1, RCLUSTZ=2.3)
     ParaNode = Dict(dict=params.get_dict())
     
+    # computer options
     options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
+
+    # set up builder
     builder = VoronoiCalculation.get_builder()
     builder.code = voronoi_local_code
     builder.metadata.options = options
     builder.parameters = ParaNode
     builder.structure = Cu
     builder._hash_ignored_inputs = ['code']
-    builder.metadata.dry_run = False
-    #from aiida.engine import run
-    #run(builder)
+    # now run calculation or use cached result
     out, node = run_with_cache(builder)
+    # check output
     print('out, node:', out, node)
     print('cache_source:', node.get_cache_source())
     print('hash', node.get_hash())
@@ -123,17 +100,65 @@ def test_vca_structure(aiida_profile, voronoi_local_code):
     """
     pass
 
+
 def test_overwrite_alat_input(aiida_profile, voronoi_local_code):
     """
     test using 'use_alat_input' keyword in input parameters
     """
     pass
 
-def test_voronoi_after_kkr(aiida_profile, voronoi_local_code):
+
+def test_voronoi_after_kkr(aiida_profile, voronoi_local_code, run_with_cache):
     """
     test voronoi run from parent kkr calculation (e.g. to update to a higher lmax value)
     """
-    pass
+    from aiida.orm import Dict, load_node
+    from masci_tools.io.kkr_params import kkrparams
+    from aiida_kkr.calculations.voro import VoronoiCalculation
+
+    # load necessary files from db_dump files
+    from aiida.tools.importexport import import_data
+    import_data('files/db_dump_kkrcalc.tar.gz')
+
+    # first load parent voronoi calculation
+    kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
+
+    # extract KKR parameter and remote_data folder
+    params_kkr_parent = kkr_calc.inputs.parameters
+    parent_calc_remote = kkr_calc.outputs.remote_folder
+
+    # set computer options
+    options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
+
+    # increase LMAX value from previous run
+    params = kkrparams(params_type='voronoi', **params_kkr_parent)
+    params.set_multiple_values(LMAX=3) #, RCLUSTZ=2.3)
+    new_params = Dict(dict=params.get_dict())
+
+    builder = VoronoiCalculation.get_builder()
+    builder.code = voronoi_local_code
+    builder.metadata.options = options
+    builder.parameters = new_params
+    builder.parent_KKR = parent_calc_remote
+
+    # now run calculation (or use cached results)
+    out, node = run_with_cache(builder)
+
+    print(out, node)
+
+    # extract output nodes
+    out_dict = node.outputs.output_parameters
+    ret = node.outputs.retrieved
+
+    # check if LMAX was increased
+    assert params_kkr_parent.get_dict().get('LMAX') < new_params.get_dict().get('LMAX')
+
+    # check if parsing was successful
+    assert out_dict.get_dict().get('parser_errors') == []
+
+    # check if overwrite_potential file is present
+    assert 'overwrite_potential' in ret.list_object_names()
+
 
 def test_overwrite_potential(aiida_profile, voronoi_local_code):
     """
@@ -141,10 +166,3 @@ def test_overwrite_potential(aiida_profile, voronoi_local_code):
     """
     pass
 
-
-#run test manually
-if __name__=='__main__':
-   from aiida import load_profile
-   load_profile()
-   Test = Test_voronoi_calculation()
-   Test.test_startpot_Cu_simple()

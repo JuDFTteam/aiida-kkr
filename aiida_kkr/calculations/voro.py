@@ -17,7 +17,7 @@ import six
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -143,12 +143,12 @@ class VoronoiCalculation(CalcJob):
             raise InputValidationError(msg)
 
         # Prepare inputcard from Structure and input parameter data
-        input_file = tempfolder.open(self._INPUT_FILE_NAME, u'w')
-        try:
-            use_alat_input = parameters.get_dict().get('use_input_alat', False)
-            natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_file, isvoronoi=True, vca_structure=vca_structure, use_input_alat=use_alat_input)
-        except ValueError as e:
-            raise InputValidationError("Input Dict not consistent: {}".format(e))
+        with tempfolder.open(self._INPUT_FILE_NAME, u'w') as input_file:
+            try:
+                use_alat_input = parameters.get_dict().get('use_input_alat', False)
+                natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_file, isvoronoi=True, vca_structure=vca_structure, use_input_alat=use_alat_input)
+            except ValueError as e:
+                raise InputValidationError("Input Dict not consistent: {}".format(e))
 
         # Decide what files to copy
         local_copy_list = []
@@ -157,7 +157,7 @@ class VoronoiCalculation(CalcJob):
             # warning, now this will throw an error
             if found_parent and self._is_KkrCalc(parent_calc):
                 outfolder = parent_calc.outputs.retrieved # copy from remote folder
-                copylist = [parent_calc._OUT_POTENTIAL]
+                copylist = [parent_calc.process_class._OUT_POTENTIAL]
             elif has_potfile_overwrite:
                 outfolder = potfile_overwrite # copy from potential sfd
                 copylist = [potfile_overwrite.filename]
@@ -225,9 +225,10 @@ class VoronoiCalculation(CalcJob):
         check if calc contains the file out_potential
         """
         is_KKR = False
-        retrieved_node = calc.get_retrieved_node()
-        if 'out_potential' in retrieved_node.list_object_names():
-            is_KKR = True
+        if calc.process_type == 'aiida.calculations:kkr.kkr':
+            retrieved_node = calc.get_retrieved_node()
+            if 'out_potential' in retrieved_node.list_object_names():
+                is_KKR = True
 
         return is_KKR
 
