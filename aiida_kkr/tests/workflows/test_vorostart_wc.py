@@ -11,7 +11,7 @@ from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_l
 from aiida.manage.tests.pytest_fixtures import clear_database_before_test, clear_database, clear_database_after_test
 
 @pytest.mark.timeout(500, method='thread')
-def test_vorostart_wc_Cu(clear_database_before_test, voronoi_local_code, kkrhost_local_code, run_with_cache):
+def test_kkr_startpot_wc_Cu(clear_database_before_test, voronoi_local_code, kkrhost_local_code, run_with_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow
     """
@@ -74,7 +74,6 @@ def test_vorostart_wc_Cu(clear_database_before_test, voronoi_local_code, kkrhost
     print('caching info calcul.d kkr ', kkrcalc._get_objects_to_hash())
 
 
-    
     # find imported and new calculations
     from aiida_kkr.calculations import VoronoiCalculation, KkrCalculation
     from aiida.orm import QueryBuilder
@@ -97,6 +96,59 @@ def test_vorostart_wc_Cu(clear_database_before_test, voronoi_local_code, kkrhost
     qub.append(KkrCalculation)
     kkr_calcs = qub.all()
     print('\n\nkkr calculations:', kkr_calcs)
+
+
+@pytest.mark.timeout(500, method='thread')
+def test_kkr_startpot_parent_KKR(clear_database_before_test, voronoi_local_code, run_with_cache):
+    """
+    simple Cu noSOC, FP, lmax2 full example using scf workflow
+    """
+    from aiida.orm import Code, load_node, Dict, StructureData
+    from masci_tools.io.kkr_params import kkrparams
+    from aiida_kkr.workflows.voro_start import kkr_startpot_wc
+    from numpy import array
+
+    # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
+    wfd = kkr_startpot_wc.get_wf_defaults()
+    wfd['check_dos'] = False 
+    wfd['natom_in_cls_min'] = 20
+    wfd['num_rerun'] = 2
+    options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'withmpi' : False, 'custom_scheduler_commands' : ''}
+
+    # load necessary files from db_dump files
+    from aiida.tools.importexport import import_data
+    import_data('files/db_dump_kkrcalc.tar.gz')
+
+    # first load parent voronoi calculation
+    kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
+
+    # extract KKR parameter and remote_data folder
+    params_kkr_parent = kkr_calc.inputs.parameters
+    parent_calc_remote = kkr_calc.outputs.remote_folder
+
+    # increase lmax value
+    params = kkrparams(params_type='voronoi', **params_kkr_parent)
+    params.set_multiple_values(LMAX=3)
+
+    # create process builder to set parameters
+    builder = kkr_startpot_wc.get_builder()
+    builder.calc_parameters = Dict(dict=params.get_dict())
+    builder.metadata.description = 'voronoi startpot workflow with parent_KKR input'
+    builder.metadata.label = 'startpot for increased lmax'
+    builder.voronoi = voronoi_local_code
+    builder.wf_parameters = Dict(dict=wfd)
+    builder.options = Dict(dict=options)
+    builder.parent_KKR = parent_calc_remote
+
+
+    out, node = run_with_cache(builder)
+    print('outputs:', node, out)
+
+    # check output
+    n = out['results_vorostart_wc']
+    n = n.get_dict()
+    print('results_dict:', n)
+    assert n.get('successful', False)
 
     
 #run test manually

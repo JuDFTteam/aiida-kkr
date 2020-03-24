@@ -279,7 +279,7 @@ def get_inputs_kkrimporter(code, remote, options, label='', description='', para
     return inputs
 
 
-def get_inputs_voronoi(code, structure, options, label='', description='', params=None, serial=True):
+def get_inputs_voronoi(code, structure, options, label='', description='', params=None, serial=True, parent_KKR=None):
     """
     Get the input for a voronoi calc.
     Wrapper for VoronoiProcess setting structure, code, options, label, description etc.
@@ -288,8 +288,14 @@ def get_inputs_voronoi(code, structure, options, label='', description='', param
     from aiida_kkr.calculations.voro import VoronoiCalculation
 
     # then reuse common inputs setter all options
-    builder = get_inputs_common(VoronoiCalculation, code, None, structure, options, label,
-                               description, params, serial)
+    if structure is not None:
+        # for 'normal' case starting from structure
+        builder = get_inputs_common(VoronoiCalculation, code, None, structure, options, label,
+                                description, params, serial)
+    else:
+        # for parent_KKR feature used to increase lmax which cannot have 'structure' in inputs
+        builder = get_inputs_common(VoronoiCalculation, code, None, None, options, label,
+                                description, params, serial, parent_KKR=parent_KKR)
 
     return builder
 
@@ -311,7 +317,7 @@ def get_inputs_kkrimp(code, options, label='', description='', parameters=None, 
     return builder
 
 
-def get_inputs_common(calculation, code, remote, structure, options, label, description, params, serial, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None, host_GF_Efshift=None):
+def get_inputs_common(calculation, code, remote, structure, options, label, description, params, serial, imp_info=None, host_GF=None, imp_pot=None, kkrimp_remote=None, host_GF_Efshift=None, **kwargs):
     """
     Base function common in get_inputs_* functions for different codes
     """
@@ -385,6 +391,10 @@ def get_inputs_common(calculation, code, remote, structure, options, label, desc
 
     if kkrimp_remote is not None:
         inputs.parent_calc_folder = kkrimp_remote
+
+    # add additional inputs
+    for link_label, node in kwargs.items():
+        inputs[link_label] = node
 
     return inputs
 

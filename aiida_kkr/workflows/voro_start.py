@@ -26,7 +26,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.6"
+__version__ = "0.12.0"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -92,14 +92,19 @@ class kkr_startpot_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_startpot_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._wf_default))
+                   default=Dict(dict=cls._wf_default), help="Parameters that control the behavior of the workflow")
         spec.input("options", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._options_default))
-        spec.input("structure", valid_type=StructureData, required=True)
-        spec.input("kkr", valid_type=Code, required=False)
-        spec.input("voronoi", valid_type=Code, required=True)
-        spec.input("calc_parameters", valid_type=Dict, required=False)
-        spec.input("startpot_overwrite", valid_type=SinglefileData, required=False)
+                   default=Dict(dict=cls._options_default), help="Computer options passed onto the calculations")
+        spec.input("structure", valid_type=StructureData, required=False, help="Structure for which the starting potential"
+            " should be constructed, not needed if parent_KKR is given (typically used to increase the lmax but use the "
+            "output potential of the parent_KKR as starting potential).")
+        spec.input("kkr", valid_type=Code, required=False, help="Kkr code, only needed only if DOS is calculated.")
+        spec.input("voronoi", valid_type=Code, required=True, help="Voronoi code")
+        spec.input("calc_parameters", valid_type=Dict, required=False, help="KKR-secific parameters passed onto the VoronoiCalculation (lmax etc.).")
+        spec.input("startpot_overwrite", valid_type=SinglefileData, required=False, help="Potential which can be used instead of the output potential Voronoi constructs.")
+        spec.input("parent_KKR", valid_type=RemoteData, required=False, help="RemoteData node of a KKR calculation which "
+            "is used to overwrite the output potential Voronoi constructs (typically used to increase lmax). Cannot be "
+            "used with a different structure in the input since the structure is extracted from the parent_KKR.")
         # define output nodes
         spec.output('results_vorostart_wc', valid_type=Dict, required=True, help='')
         spec.output('last_doscal_results', valid_type=Dict, required=False, help='')
@@ -121,6 +126,10 @@ class kkr_startpot_wc(WorkChain):
           message='Voronoi calculation unsuccessful. Structure inconsistent. Maybe you need empty spheres?')
         spec.exit_code(206, 'ERROR_DOSRUN_FAILED',
           message='DOS run unsuccessful. Check inputs.')
+        spec.exit_code(207, 'ERROR_BOTH_STRUCTURE_AND_PARENT_KKR_GIVEN',
+          message='Can only take either structure or parent_KKR as input.')
+        spec.exit_code(208, 'ERROR_NEITHER_STRUCTURE_NOR_PARENT_KKR_GIVEN',
+          message='Need either structure or parent_KKR as input.')
         #spec.exit_code(207, 'ERROR_CORE_STATES_IN_CONTOUR',
         #  message='ERROR: contour contains core states!!!')
 
@@ -153,6 +162,27 @@ class kkr_startpot_wc(WorkChain):
         """
         self.report('INFO: started VoroStart workflow version {}'
                     ''.format(self._workflowversion))
+
+        # check input port consistency and set structure
+        if 'structure' in self.inputs:
+            has_struc = True
+            # save structure in context
+            self.ctx.structure = self.inputs.structure
+        else:
+            has_struc = False
+        if 'parent_KKR' in self.inputs:
+            has_parent_KKR = True
+            # find structure from parent_KKR
+            self.ctx.structure, _ = VoronoiCalculation.find_parent_structure(self.inputs.parent_KKR) 
+        else:
+            has_parent_KKR = False
+
+        if has_struc and has_parent_KKR:
+            self.report('ERROR: caught exit code ERROR_BOTH_STRUCTURE_AND_PARENT_KKR_GIVEN')
+            return self.exit_codes.ERROR_BOTH_STRUCTURE_AND_PARENT_KKR_GIVEN
+        if (not has_struc) and (not has_parent_KKR):
+            self.report('ERROR: caught exit code ERROR_NEITHER_STRUCTURE_NOR_PARENT_KKR_GIVEN')
+            return self.exit_codes.ERROR_NEITHER_STRUCTURE_NOR_PARENT_KKR_GIVEN
 
         ####### init    #######
 
@@ -272,7 +302,7 @@ class kkr_startpot_wc(WorkChain):
             if self.ctx.dos_check_fail_reason not in ['EMIN too high', 'core state in contour', 'core state too close']:
                 self.ctx.r_cls = self.ctx.r_cls * self.ctx.fac_clsincrease
 
-        structure = self.inputs.structure
+        structure = self.ctx.structure
         self.ctx.formula = structure.get_formula()
         label = 'voronoi calculation step {}'.format(self.ctx.iter)
         description = '{} vornoi on {}'.format(self.ctx.description_wf, self.ctx.formula)
@@ -405,7 +435,12 @@ class kkr_startpot_wc(WorkChain):
                        'max_wallclock_seconds' : self.ctx.max_wallclock_seconds,
                        'custom_scheduler_commands' : self.ctx.custom_scheduler_commands}
 
-            builder = get_inputs_voronoi(voronoicode, structure, options, label, description, params=params)
+            if 'structure' in self.inputs:
+                # normal mode starting from structure
+                builder = get_inputs_voronoi(voronoicode, structure, options, label, description, params=params)
+            else:
+                # parent_KKR mode
+                builder = get_inputs_voronoi(voronoicode, None, options, label, description, params=params, parent_KKR=self.inputs.parent_KKR)
             if 'startpot_overwrite' in self.inputs:
                 builder.potential_overwrite = self.inputs.startpot_overwrite
             self.report('INFO: run voronoi step {}'.format(self.ctx.iter))
@@ -496,8 +531,11 @@ class kkr_startpot_wc(WorkChain):
             with potfile_overwrite.open(potfile_overwrite.filename) as f:
                 potfile_path = f.name
         else:
-            print(ret.list_object_names(), VoronoiCalculation._OUT_POTENTIAL_voronoi)
-            with ret.open(VoronoiCalculation._OUT_POTENTIAL_voronoi) as f:
+            potfile_name = VoronoiCalculation._OUT_POTENTIAL_voronoi
+            if 'parent_KKR' in self.ctx.voro_calc.inputs:
+                potfile_name = VoronoiCalculation._POTENTIAL_IN_OVERWRITE
+            print(ret.list_object_names(), potfile_name)
+            with ret.open(potfile_name) as f:
                 potfile_path = f.name
         self.ctx.efermi = get_ef_from_potfile(potfile_path)
         emax = self.ctx.dos_params_dict['emax']
@@ -812,7 +850,7 @@ class kkr_startpot_wc(WorkChain):
         nbins = 10000 # binning for find_cluster radius (higher=more accurate)
         ncls_target = self.ctx.nclsmin/1.15 # make target number smaller to not overshoot in the beginning
                                             # the tradeoff is to have more voronoi calculations in the database
-        structure = self.inputs.structure
+        structure = self.ctx.structure
 
         # first find cluster radius in Ang. units
         r_cls_ang = find_cluster_radius(structure, ncls_target, nbins=nbins)[0]
