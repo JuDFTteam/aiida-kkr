@@ -16,12 +16,13 @@ from aiida.orm import CalcJobNode
 from masci_tools.io.common_functions import get_Ry2eV
 from aiida.orm import WorkChainNode, RemoteData, StructureData, Dict, FolderData
 from aiida.common.exceptions import InputValidationError
+from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
 
 # ToDo: add more default values to wf_parameters
@@ -384,33 +385,18 @@ class kkr_flex_wc(WorkChain):
         outputnode_dict['pk_flexcalc'] = self.ctx.flexrun.pk
         outputnode_dict['list_of_errors'] = self.ctx.errors
 
-        outputnode = Dict(dict=outputnode_dict)
+        # create results node with calcfuntion for data provenance
+        outputnode = create_out_dict_node(Dict(dict=outputnode_dict), GF_host_remote=self.ctx.flexrun.outputs.remote_folder)
         outputnode.label = 'kkr_flex_wc_results'
         outputnode.description = ''
-        outputnode.store()
+        
 
-        # return the input remote_data folder as output node
-        #self.out('remote_data', self.inputs.remote_data)
         # return Dict node containing information about previous calculation
         self.out('workflow_info', outputnode)
         # return retrieved data from kkrflex calculation
         self.out('GF_host_remote', self.ctx.flexrun.outputs.remote_folder)
 
         self.report('INFO: created GF writeout result nodes')
-
-#        self.report("INFO: create GF writeout results nodes: outputnode={}".format(outputnode))
-#        try:
-#            self.report("INFO: create GF writeout results nodes. KKRFLEX calc retrieved node={}".format(self.ctx.flexrun.outputs.retrieved))
-#            has_flexrun = True
-#        except AttributeError as e:
-#            self.report("ERROR: no KKRFLEX calc retrieved node found")
-#            self.report("Caught AttributeError {}".format(e))
-#            has_flexrun = False
-
-        #for link_name, node in outdict.iteritems():
-            #self.report("INFO: storing node '{}' with link name '{}'".format(node, link_name))
-            #self.report("INFO: node type: {}".format(type(node)))
-            #self.out(link_name, node)
 
         self.report("INFO: done with KKRFLEX GF writeout workflow!\n")
 #        self.report("Successful run: {}".format(has_flexrun))

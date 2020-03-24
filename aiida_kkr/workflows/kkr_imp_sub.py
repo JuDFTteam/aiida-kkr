@@ -14,12 +14,13 @@ from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from numpy import array
 from six.moves import range
 import tarfile, os
+from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.8.3"
+__version__ = "0.8.4"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -1030,13 +1031,18 @@ class kkr_imp_sub_wc(WorkChain):
                         'after {} KKR runs and {} iterations is {} "me/bohr^3"\n'
                         ''.format(self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps',[])), self.ctx.last_rms_all[-1]))
 
-        # create results  node
+        # create results node and link all calculations
         message = "INFO: create results nodes"
         self.report(message)
-        outputnode_t = Dict(dict=outputnode_dict)
+        link_nodes = {}
+        icalc = 0
+        for calc in self.ctx.calcs:
+            link_nodes['KkrimpCalc{}'.format(icalc)] = calc.outputs.remote_folder
+            icalc+=1
+        if not self.ctx.dos_run: link_nodes['final_imp_potential'] = self.ctx.last_pot
+        outputnode_t = create_out_dict_node(Dict(dict=outputnode_dict), **link_nodes)
         outputnode_t.label = 'kkr_scf_wc_results'
         outputnode_t.description = 'Contains results of workflow (e.g. workflow version number, info about success of wf, lis tof warnings that occured during execution, ...)'
-        outputnode_t.store()
 
         self.out('workflow_info', outputnode_t)
         # store out_potential as SingleFileData only if this was no DOS run

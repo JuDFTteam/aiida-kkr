@@ -20,12 +20,13 @@ from masci_tools.io.common_functions import get_Ry2eV
 from ase.eos import EquationOfState
 from numpy import array, mean, std, min, sort
 from six.moves import range
+from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.1"
+__version__ = "0.9.2"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -433,14 +434,22 @@ class kkr_eos_wc(WorkChain):
             outdict['gs_structure_uuid'] = gs_structure.uuid
 
         # create output nodes in dict with link names
-        outnode = Dict(dict=outdict)
-        outnode.store()
-        outnodes = {'eos_results': outnode}
+        outnodes = {}
         if self.ctx.successful and self.ctx.return_gs_struc:
             outnodes['gs_structure'] = gs_structure
             if self.ctx.use_primitive_structure:
                 outnodes['explicit_kpoints'] = explicit_kpoints
                 outnodes['get_explicit_kpoints_path_parameters'] = parameters
+
+        # create results node with calcfunction for data provenance
+        link_nodes = outnodes.copy()
+        for wf_label,sub_wf_uuid in self.ctx.sub_wf_ids.items():
+            if 'kkr_scf' in wf_label:
+                link_nodes[wf_label] = load_node(sub_wf_uuid).outputs.output_kkr_scf_wc_ParameterResults
+            else:
+                link_nodes[wf_label] = load_node(sub_wf_uuid).outputs.results_vorostart_wc
+        outnodes['eos_results'] = create_out_dict_node(Dict(dict=outdict), **link_nodes)
+        
         # set out nodes and corresponding link names
         for link_name, node in outnodes.items():
             self.out(link_name, node)

@@ -16,11 +16,12 @@ from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc, clean_sfd
 import numpy as np
+from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.2"
+__version__ = "0.7.3"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -465,6 +466,7 @@ class kkr_imp_wc(WorkChain):
         return ToContext(last_voro_calc=future)
 
 
+
     def get_ef_from_parent(self):
         """
         Extract Fermi level in Ry to which starting potential is set
@@ -625,6 +627,8 @@ class kkr_imp_wc(WorkChain):
         self.report('INFO: creating output nodes for the KKR impurity workflow ...')
 
         if self.ctx.kkrimp_scf_sub.is_finished_ok:
+            link_nodes = {'results_scf_workflow': self.ctx.kkrimp_scf_sub.outputs.workflow_info}
+
             last_calc_pk = self.ctx.kkrimp_scf_sub.outputs.workflow_info.get_dict().get('last_calc_nodeinfo')['pk']
             last_calc_output_params = load_node(last_calc_pk).outputs.output_parameters
             last_calc_info = self.ctx.kkrimp_scf_sub.outputs.workflow_info
@@ -635,22 +639,25 @@ class kkr_imp_wc(WorkChain):
                 outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk,
                                                         'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}
                 outputnode_dict['gf_wc_success'] = self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('successful')
+                link_nodes['gf_writeout'] = self.ctx.gf_writeout.outputs.workflow_info
             else:
                 outputnode_dict['used_subworkflows'] = {'kkr_imp_sub': self.ctx.kkrimp_scf_sub.pk}
             if self.ctx.create_startpot:
                 outputnode_dict['used_subworkflows']['auxiliary_voronoi'] = self.ctx.last_voro_calc.pk
                 res_voro_info = self.ctx.last_voro_calc.outputs.results_vorostart_wc
                 outputnode_dict['voro_wc_success'] = res_voro_info.get_dict().get('successful')
+                link_nodes['results_startpot_workflow'] = self.ctx.last_voro_calc.outputs.results_vorostart_wc
             outputnode_dict['converged'] = last_calc_info.get_dict().get('convergence_reached')
             outputnode_dict['number_of_rms_steps'] = len(last_calc_info.get_dict().get('convergence_values_all_steps'))
             outputnode_dict['convergence_values_all_steps'] = last_calc_info.get_dict().get('convergence_values_all_steps')
             outputnode_dict['impurity_info'] = self.inputs.impurity_info.get_dict()
             outputnode_dict['kkrimp_wc_success'] = last_calc_info.get_dict().get('successful')
             outputnode_dict['last_calculation_uuid'] = load_node(last_calc_pk).uuid
-            outputnode_t = Dict(dict=outputnode_dict)
+
+            # create results node and link all sub-workflow output nodes
+            outputnode_t = create_out_dict_node(Dict(dict=outputnode_dict), **link_nodes)
             outputnode_t.label = 'kkrimp_wc_inform'
             outputnode_t.description = 'Contains information for workflow'
-            outputnode_t.store()
             self.report('INFO: workflow_info node: {}'.format(outputnode_t.uuid))
 
             self.out('workflow_info', outputnode_t)

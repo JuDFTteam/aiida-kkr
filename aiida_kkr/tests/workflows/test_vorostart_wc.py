@@ -8,10 +8,10 @@ from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, l
 from ..conftest import voronoi_local_code, kkrhost_local_code
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
+from aiida.manage.tests.pytest_fixtures import clear_database_before_test, clear_database, clear_database_after_test
 
 @pytest.mark.timeout(500, method='thread')
-def test_vorostart_wc_Cu(aiida_profile, voronoi_local_code, kkrhost_local_code, run_with_cache, clear_database):
+def test_vorostart_wc_Cu(clear_database_before_test, voronoi_local_code, kkrhost_local_code, run_with_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow
     """
@@ -55,10 +55,12 @@ def test_vorostart_wc_Cu(aiida_profile, voronoi_local_code, kkrhost_local_code, 
 
 
     out, node = run_with_cache(builder)
+    print('outputs:', node, out)
 
     # check output
     n = out['results_vorostart_wc']
     n = n.get_dict()
+    print('results_dict:', n)
     assert n.get('successful')
     assert n.get('last_voro_ok')
     assert n.get('list_of_errors') == []

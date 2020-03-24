@@ -20,12 +20,13 @@ from aiida_kkr.workflows.dos import kkr_dos_wc
 from aiida_kkr.tools import find_cluster_radius
 from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, update_params,
                                                   update_params_wf, get_inputs_voronoi)
+from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
 
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.5"
+__version__ = "0.11.6"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -750,16 +751,21 @@ class kkr_startpot_wc(WorkChain):
         except:
             self.report("INFO: no doscal data")
 
-        voronodes_present = False
+        # collect output nodes
+        link_nodes = {}
+
         if voro_calc is not None:
             if voro_remote is not None:
                 if last_params is not None:
-                    voronodes_present = True
-        dosnodes_present = False
+                    link_nodes['last_voronoi_results'] = voro_calc
+                    link_nodes['last_voronoi_remote'] = voro_remote
+                    link_nodes['last_params_voronoi'] = last_params
         if doscal is not None:
             if dosdata is not None:
                 if dosdata_interpol is not None:
-                    dosnodes_present = True
+                    link_nodes['last_doscal_results'] = doscal
+                    link_nodes['last_doscal_dosdata'] = dosdata
+                    link_nodes['last_doscal_dosdata_interpol'] = dosdata_interpol
 
         # create dict to store results of workflow output
         res_node_dict = {}
@@ -783,22 +789,16 @@ class kkr_startpot_wc(WorkChain):
         res_node_dict['last_voro_ok'] = self.ctx.voro_ok
         res_node_dict['last_dos_ok'] = self.ctx.doscheck_ok
         res_node_dict['starting_fermi_energy'] = self.ctx.efermi
-        # create output Dict node
-        res_node = Dict(dict=res_node_dict)
+
+        # create output Dict node and connect to the rest of the output nodes
+        res_node = create_out_dict_node(Dict(dict=res_node_dict), **link_nodes)
         res_node.label = 'vorostart_wc_results'
         res_node.description = ''
-        res_node.store()
 
         # fill output_nodes dict with
         self.out('results_vorostart_wc', res_node)
-        if dosnodes_present:
-            self.out('last_doscal_results', doscal)
-            self.out('last_doscal_dosdata', dosdata)
-            self.out('last_doscal_dosdata_interpol', dosdata_interpol)
-        if voronodes_present:
-            self.out('last_voronoi_results',  voro_calc)
-            self.out('last_voronoi_remote', voro_remote)
-            self.out('last_params_voronoi', last_params)
+        for link_label, node in link_nodes.items():
+            self.out(link_label, node)
 
         self.report("INFO: done with kkr_startpot workflow!\n")
 

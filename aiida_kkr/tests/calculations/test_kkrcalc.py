@@ -206,7 +206,7 @@ class Test_kkr_calculation(object):
         # import previous voronoi calc (ran with parent_KKR mode and increased LMAX in input params)
         from aiida.tools.importexport import import_data
         import_data('data_dir/VoronoiCalculation-nodes-8c7aed435f2140768f52c78b0b1b0629.tar.gz')
-        voro_with_kkr_input = load_node('5eb46c06-c158-42e7-9a15-217763a63717')
+        voro_with_kkr_input = load_node('69441815-8d55-4412-baf6-1793665aba19')
 
         # extract KKR parameter from imported voronoi calc
         params_node = voro_with_kkr_input.inputs.parameters

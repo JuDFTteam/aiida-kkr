@@ -873,6 +873,8 @@ class kkr_scf_wc(WorkChain):
         """
         self.report("INFO: inspecting kkr results step")
 
+        self.report("Caching info: {}".format(self.ctx.last_calc.get_cache_source()))
+
         self.ctx.calcs.append(self.ctx.last_calc)
         self.ctx.kkr_step_success = True
 

@@ -15,14 +15,15 @@ from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida.engine import CalcJob
+from aiida.engine import CalcJob, calcfunction
 from aiida.common.exceptions import InputValidationError
+from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.1"
+__version__ = "0.7.2"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -309,9 +310,7 @@ class kkr_dos_wc(WorkChain):
 
     def return_results(self):
         """
-        return the results of the dos calculations
-        This should run through and produce output nodes even if everything failed,
-        therefore it only uses results from context.
+        Collect results, parse DOS output and link output nodes to workflow node
         """
 
         # check wether or not calculation was taked from cached node
@@ -352,12 +351,13 @@ class kkr_dos_wc(WorkChain):
             self.ctx.errors.append(error)
         outputnode_dict['successful'] = self.ctx.successful
         outputnode_dict['list_of_errors'] = self.ctx.errors
-
+        
+        # create output node with data-provenance
         outputnode = Dict(dict=outputnode_dict)
         outputnode.label = 'kkr_scf_wc_results'
         outputnode.description = ''
 
-        self.report("INFO: create dos results nodes: outputnode={}".format(outputnode))
+        self.report("INFO: create dos results nodes")
         try:
             self.report("INFO: create dos results nodes. dos calc retrieved node={}".format(self.ctx.dosrun.outputs.retrieved))
             has_dosrun = True
@@ -366,37 +366,41 @@ class kkr_dos_wc(WorkChain):
             self.report("Caught AttributeError {}".format(e))
             has_dosrun = False
 
-        outdict = {}
-        outdict['results_wf'] = outputnode
         # interpol dos file and store to XyData nodes
         if has_dosrun:
             dos_retrieved = self.ctx.dosrun.outputs.retrieved
             if 'complex.dos' in dos_retrieved.list_object_names():
-                dosXyDatas = parse_dosfiles(dos_retrieved.open('complex.dos'))
-                dos_extracted = True
-            else:
-                dos_extracted = False
-            if dos_extracted:
-                outdict['dos_data'] = dosXyDatas[0]
-                outdict['dos_data_interpol'] = dosXyDatas[1]
+                dosXyDatas = parse_dosfiles(dos_retrieved)
 
+        # collect output nodes with link labels
+        outdict = {}
+        if has_dosrun:
+            outdict['dos_data'] = dosXyDatas['dos_data']
+            outdict['dos_data_interpol'] = dosXyDatas['dos_data_interpol']
+        # create data provenance of results node
+        link_nodes = outdict.copy() # link also dos output nodes
+        if has_dosrun: link_nodes['doscalc_remote'] =self.ctx.dosrun.outputs.remote_folder
+        outdict['results_wf'] = create_out_dict_node(outputnode, **link_nodes)
+
+        # create links to output nodes
         for link_name, node in outdict.items():
-            if not node.is_stored: node.store()
             self.out(link_name, node)
 
         self.report("INFO: done with DOS workflow!\n")
 
-
-def parse_dosfiles(dosfolder):
+@calcfunction
+def parse_dosfiles(dos_retrieved):
     """
     parse dos files to XyData nodes
     """
     from masci_tools.io.common_functions import interpolate_dos
     from masci_tools.io.common_functions import get_Ry2eV
 
+
     eVscale = get_Ry2eV()
 
-    ef, dos, dos_int = interpolate_dos(dosfolder, return_original=True)
+    with dos_retrieved.open('complex.dos') as dosfolder:
+        ef, dos, dos_int = interpolate_dos(dosfolder, return_original=True)
 
     # convert to eV units
     dos[:,:,0] = (dos[:,:,0]-ef)*eVscale
@@ -430,4 +434,4 @@ def parse_dosfiles(dosfolder):
     dosnode2.label = 'dos_interpol_data'
     dosnode2.description = 'Array data containing interpolated DOS (i.e. dos at real axis). 3D array with (atoms, energy point, l-channel) dimensions.'
 
-    return dosnode, dosnode2
+    return {'dos_data': dosnode,'dos_data_interpol':  dosnode2}

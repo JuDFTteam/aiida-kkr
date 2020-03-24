@@ -17,11 +17,12 @@ from aiida_kkr.calculations import KkrimpCalculation
 import tarfile
 import os
 from six.moves import range
+from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
 
 #TODO: improve workflow output node structure
@@ -451,16 +452,20 @@ label: {}
             else:
                 outputnode_dict['used_subworkflows'] = {}
             outputnode_dict['used_subworkflows']['impurity_dos'] = self.ctx.kkrimp_dos.pk
-            outputnode_t = Dict(dict=outputnode_dict)
-            outputnode_t.label = 'kkr_imp_dos_wc_inform'
-            outputnode_t.description = 'Contains information for workflow'
-            outputnode_t.store()
 
             # interpol dos file and store to XyData nodes
             dos_extracted, dosXyDatas = self.extract_dos_data(last_calc)
             message = 'INFO: extracted DOS data? {}'.format(dos_extracted)
             print(message)
             self.report(message)
+
+            # create results node and link rest of results
+            link_nodes = dosXyDatas.copy()
+            link_nodes['last_calc_output_parameters'] = last_calc_output_params
+            link_nodes['last_calc_remote'] = last_calc.outputs.remote_folder
+            outputnode_t = create_out_dict_node(Dict(dict=outputnode_dict), **link_nodes)
+            outputnode_t.label = 'kkr_imp_dos_wc_inform'
+            outputnode_t.description = 'Contains information for workflow'
 
             if dos_extracted:
                 self.out('dos_data', dosXyDatas['dos_data'])

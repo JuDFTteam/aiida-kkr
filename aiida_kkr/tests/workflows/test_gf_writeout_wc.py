@@ -8,10 +8,10 @@ from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, l
 from ..conftest import voronoi_local_code, kkrhost_local_code
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
+from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 
 @pytest.mark.timeout(240, method='thread')
-def test_kkrflex_writeout_wc(aiida_profile, kkrhost_local_code, run_with_cache, clear_database):
+def test_kkrflex_writeout_wc(clear_database_before_test, kkrhost_local_code, run_with_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow
     """
