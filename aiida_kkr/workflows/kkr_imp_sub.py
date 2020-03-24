@@ -20,7 +20,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.8.4"
+__version__ = "0.8.5"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -614,7 +614,7 @@ class kkr_imp_sub_wc(WorkChain):
 
             # initial magnetization
             if initial_settings and self.ctx.mag_init:
-                if self.ctx.hfield <= 0:
+                if self.ctx.hfield[0] <= 0.0 or self.ctx.hfield[1] == 0:
                     self.report('\nWARNING: magnetization initialization chosen but hfield is zero. Automatically change back to default value (hfield={})\n'.format(self._wf_default['hfield']))
                     self.ctx.hfield = self._wf_default['hfield']
                 new_params['HFIELD'] = self.ctx.hfield

@@ -132,7 +132,7 @@ def test_voronoi_after_kkr(aiida_profile, voronoi_local_code, run_with_cache):
 
     # increase LMAX value from previous run
     params = kkrparams(params_type='voronoi', **params_kkr_parent)
-    params.set_multiple_values(LMAX=3) #, RCLUSTZ=2.3)
+    params.set_multiple_values(LMAX=3)
     new_params = Dict(dict=params.get_dict())
 
     builder = VoronoiCalculation.get_builder()
