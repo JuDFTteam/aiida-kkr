@@ -13,12 +13,16 @@ from six.moves import range
 from six.moves import input
 from masci_tools.io.common_functions import open_general
 from masci_tools.io.common_functions import search_string
+import numpy as np
+from masci_tools.io.common_functions import get_alat_from_bravais
+from masci_tools.io.common_functions import vec_to_angles
+from aiida.common.constants import elements as PeriodicTableElements
 
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH,"
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -134,7 +138,6 @@ class modify_potential(object):
         :usage:
             1. modify_potential().neworder_potential(<path_to_input_pot>, <path_to_output_pot>, [])
         """
-        from numpy import array, shape
 
         index1, index2, data = self._read_input(potfile_in)
 
@@ -144,8 +147,8 @@ class modify_potential(object):
             if replace_from_pot2 is None:
                 raise ValueError('replace_from_pot2 not given')
             else:
-                replace_from_pot2 = array(replace_from_pot2)
-                if shape(replace_from_pot2)[1]!=2:
+                replace_from_pot2 = np.array(replace_from_pot2)
+                if np.shape(replace_from_pot2)[1]!=2:
                     raise ValueError('replace_from_pot2 needs to be a 2D array!')
         else:
             if replace_from_pot2 is not None:
@@ -173,7 +176,6 @@ class modify_potential(object):
 
 ####################################################################################
 # for create scoef functions
-import numpy as np
 
 def get_structure_data(structure):
     """
@@ -191,10 +193,6 @@ def get_structure_data(structure):
 
     :note:
     """
-
-    #import packages
-    from aiida.common.constants import elements as PeriodicTableElements
-    import numpy as np
 
     #get the connection between coordination number and element symbol
     _atomic_numbers = {data['symbol']:num for num,
@@ -246,9 +244,6 @@ def select_reference(structure_array, i):
     :note: the first atom in the structure_array is labelled with 0, the second with 1, ...
     """
 
-    #import packages
-    import numpy as np
-
     #initialize new array for data centered around atom i
     x = np.zeros((len(structure_array),6))
 
@@ -275,16 +270,13 @@ def get_distance(structure_array, i, j):
     :note:
     """
 
-    #import math package for square root calculation
-    import math
-
     #calculate x-, y-, z-components of distance of i and j
     del_x = structure_array[i][0] - structure_array[j][0]
     del_y = structure_array[i][1] - structure_array[j][1]
     del_z = structure_array[i][2] - structure_array[j][2]
 
     #return absolute value of the distance of atom i and j
-    return math.sqrt(del_x*del_x + del_y*del_y + del_z*del_z)
+    return np.sqrt(del_x*del_x + del_y*del_y + del_z*del_z)
 
 def rotate_onto_z(structure, structure_array, vector):
     """
@@ -297,10 +289,6 @@ def rotate_onto_z(structure, structure_array, vector):
 
     :return: rotated system, now the 'orient'-axis is aligned with the z-axis
     """
-
-    from masci_tools.io.common_functions import vec_to_angles
-    import math
-    import numpy as np
 
     #get angles, from vector
     angles = vec_to_angles(vector)
@@ -315,13 +303,13 @@ def rotate_onto_z(structure, structure_array, vector):
     #define rotation matrices
     #========================
     #rotation around z-axis with angle phi
-    R_z = np.array([[math.cos(-phi), -math.sin(-phi), 0.],
-                    [math.sin(-phi), math.cos(-phi), 0.],
+    R_z = np.array([[np.cos(-phi), -np.sin(-phi), 0.],
+                    [np.sin(-phi), np.cos(-phi), 0.],
                     [0., 0., 1]])
     #rotation around y-axis with angle theta
-    R_y = np.array([[math.cos(-theta), 0, math.sin(-theta)],
+    R_y = np.array([[np.cos(-theta), 0, np.sin(-theta)],
                     [0., 1., 0.],
-                    [-math.sin(-theta), 0., math.cos(-theta)]])
+                    [-np.sin(-theta), 0., np.cos(-theta)]])
 
     #first rotate around z-axis
     for i in range(len(structure_array)):
@@ -354,10 +342,6 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
     :ToDo: - dynamical box construction (r_cut determines which values n1, n2, n3 have)
            - different cluster forms (spherical, cylinder, ...), add default parameters, better solution for 'orient'
     """
-
-    #import packages
-    import numpy as np
-    import math
 
     # make sure we take the correct cell length for 2D structures
     if not structure.pbc[2]:
@@ -432,7 +416,7 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
 
             #calculate in plane distance and vertical distance
             vert_dist = np.absolute(x_help[j][2])
-            inplane_dist = math.sqrt(x_help[j][0]**2 + x_help[j][1]**2)
+            inplane_dist = np.sqrt(x_help[j][0]**2 + x_help[j][1]**2)
             #print(vert_dist, inplane_dist)
             if vert_dist <= h/2. and inplane_dist <= radius and x_new[j][5] > 0.:
                 x_res = np.append(x_res, [[x_temp[j][0],
@@ -454,10 +438,6 @@ def write_scoef(x_res, path):
     :output: returns scoef file with the total number of atoms in the first line, then with the formatted positions,
              indices, charges and distances in the subsequent lines.
     """
-
-    #sort the data from x_res with respect to distance to the centered atom
-    m = x_res[:,-1].argsort()
-    x_res = x_res[m]
 
     #write data of x_res into the 'scoef'-file
     with open_general(path, 'w') as file:
@@ -492,7 +472,6 @@ def create_scoef_array(structure, radius, h=-1, vector=[0., 0., 1.], i=0, alat_i
     :param i: atom index around which the cluster should be centered. Default: 0 (first atom in the structure).
     :param alat_input: input lattice constant in Ang. If `None` use the lattice constant that is automatically found. Otherwise rescale everything.
     """
-    from masci_tools.io.common_functions import get_alat_from_bravais
 
     #shape of the cluster is specified
     if h < 0.:
@@ -507,13 +486,18 @@ def create_scoef_array(structure, radius, h=-1, vector=[0., 0., 1.], i=0, alat_i
     c = find_neighbors(structure, structure_array, i, radius, clust_shape, h, vector)
 
     # convert to internal units (units of the lattice constant)
-    alat = get_alat_from_bravais(array(structure.cell), structure.pbc[2])
+    alat = get_alat_from_bravais(np.array(structure.cell), structure.pbc[2])
     if alat_input is not None:
         # use input lattice constant instead of automatically found alat
         alat = alat_input
     # now take out alat factor
     c[:,:3] = c[:,:3] / alat # rescale atom positions
     c[:,-1] = c[:,-1] / alat # rescale distances
+
+
+    #sort the data from c with respect to distance to the centered atom
+    m = c[:,-1].argsort()
+    c = c[m]
 
     return c
 
@@ -532,7 +516,27 @@ def make_scoef(structure, radius, path, h=-1., vector=[0., 0., 1.], i=0, alat_in
     :param alat_input: input lattice constant in Ang. If `None` use the lattice constant that is automatically found. Otherwise rescale everything.
     """
 
+    # returns sorted cluster array
     c = create_scoef_array(structure, radius, h, vector, i, alat_input)
+
     #writes out the 'scoef'-file
     write_scoef(c, path)
+
     return c
+
+
+def write_scoef_full_imp_cls(imp_info_node, path):
+    """
+    write scoef file from imp_cls info in imp_info_node
+    """
+    # get dictionay from node
+    imp_info = imp_info_node.get_dict()
+    
+    # consistency check
+    if 'imp_cls' not in list(imp_info.keys()):
+        raise InputValidationError("imp_info node does not contain 'imp_cls'")
+        
+    imp_cls = imp_info.get('imp_cls')
+    
+    # write scoef file
+    write_scoef(imp_cls, path)

@@ -8,7 +8,8 @@ from aiida.engine import run, run_get_node
 from aiida_kkr.tests.dbsetup import *
 from ..conftest import kkrhost_local_code
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
-from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile, clear_database, clear_database_after_test
+from aiida.manage.tests.pytest_fixtures import (aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile, 
+                                                clear_database, clear_database_after_test, clear_database_before_test)
 
 # some global settings
 eps = 10**-14 # threshold for float comparison equivalence
@@ -195,18 +196,29 @@ class Test_kkr_calculation(object):
         print(out)
 
 
-    def test_kkr_increased_lmax(self, kkrhost_local_code, run_with_cache):
+    def test_kkr_increased_lmax(self, clear_database_before_test, kkrhost_local_code, run_with_cache):
         """
         run kkr calculation from output of previous calculation but with increased lmax
         (done with auxiliary voronoi calculation which is imported here).
         """
-        from aiida.orm import load_node
-        from aiida_kkr.calculations import KkrCalculation
+        from aiida.orm import load_node, CalcJobNode
+        from aiida_kkr.calculations import KkrCalculation, VoronoiCalculation
 
         # import previous voronoi calc (ran with parent_KKR mode and increased LMAX in input params)
         from aiida.tools.importexport import import_data
-        import_data('data_dir/VoronoiCalculation-nodes-8c7aed435f2140768f52c78b0b1b0629.tar.gz')
-        voro_with_kkr_input = load_node('69441815-8d55-4412-baf6-1793665aba19')
+        imported_nodes = import_data('data_dir/VoronoiCalculation-nodes-8c7aed435f2140768f52c78b0b1b0629.tar.gz')['Node']
+        imported_nodes = imported_nodes['new'] + imported_nodes['existing']
+        # find voronoi calculation with larges (imported) pk from imported nodes
+        voro_calc_pks = (0,0)
+        for node_pk, node_pk_import in imported_nodes:
+            node = load_node(node_pk_import)
+            node_pk = int(node_pk)
+            if isinstance(node, CalcJobNode):
+                if node.process_class == VoronoiCalculation:
+                    if voro_calc_pks[0]==0 or node_pk>voro_calc_pks[0]:
+                        voro_calc_pks = (node_pk, node_pk_import) 
+        # load voro calc
+        voro_with_kkr_input = load_node(voro_calc_pks[1])
 
         # extract KKR parameter from imported voronoi calc
         params_node = voro_with_kkr_input.inputs.parameters
@@ -236,3 +248,39 @@ class Test_kkr_calculation(object):
         v = input_remote.get_incoming().first().node
         assert 'parent_KKR' in [i.link_label for i in v.get_incoming()]
 
+
+    def test_kkr_gf_writeout_full_impcls(self, kkrhost_local_code, run_with_cache):
+        """
+        run kkr calculation from output of previous calculation but with increased lmax
+        (done with auxiliary voronoi calculation which is imported here).
+        """
+        from aiida.orm import load_node, Dict
+        from masci_tools.io.kkr_params import kkrparams
+        from aiida_kkr.calculations.kkr import KkrCalculation
+
+        # load necessary files from db_dump files
+        from aiida.tools.importexport import import_data
+        import_data('files/db_dump_kkrcalc.tar.gz')
+
+        # first load parent voronoi calculation
+        kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
+
+        # extract KKR parameter (add KKRFLEX option)
+        params_node = kkr_calc.inputs.parameters
+        params = params_node.get_dict()
+        params['RUNOPT'] = ['KKRFLEX']
+        params_node = Dict(dict=params)
+
+        # create an impurity_info node
+        imp_info = Dict(dict={'imp_cls':[]})
+
+        options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
+        builder = KkrCalculation.get_builder()
+        builder.code = kkrhost_local_code
+        builder.metadata.options = options
+        builder.parameters = params_node
+        builder.parent_folder = kkr_calc.outputs.remote_folder
+        builder.impurity_info = imp_info
+        builder.metadata.dry_run = dry_run
+        out = run(builder)
+        print(out)

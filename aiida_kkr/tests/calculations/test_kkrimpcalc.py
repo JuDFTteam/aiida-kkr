@@ -6,15 +6,13 @@ import pytest
 from aiida_kkr.tests.dbsetup import *
 from aiida.manage.tests.pytest_fixtures import aiida_profile, clear_database, clear_database_after_test
 
-kkrimp_codename = 'kkrimp'
-
 # tests
 class Test_kkrimp_calculation(object):
     """
     Tests for the kkrimp calculation
     """
 
-    def test_host_in_host(self, clear_database):
+    def test_host_in_host(self, clear_database, kkrimp_local_code):
         """
         simple Cu noSOC, FP, lmax2
         """
@@ -26,9 +24,6 @@ class Test_kkrimp_calculation(object):
         from aiida.tools.importexport import import_data
         import_data('files/db_dump_kkrflex_create.tar.gz')
         GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
-
-        # prepare computer and code (needed so that
-        prepare_code(kkrimp_codename, codelocation, computername, workdir)
 
         # now create a SingleFileData node containing the impurity starting potential
         from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
@@ -44,11 +39,9 @@ class Test_kkrimp_calculation(object):
         ParamsKKRimp = Dict(dict=kkrimp_params.get_dict())
 
         # create new KKRimp calculation
-        #kkrimp_code = Code.get_from_string(codename)
-        kkrimp_code = Code.get_from_string(kkrimp_codename+'@'+computername)
         options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
         builder = KkrimpCalculation.get_builder()
-        builder.code = kkrimp_code
+        builder.code = kkrimp_local_code
         builder.host_Greenfunction_folder = GF_host_calc.outputs.remote_folder
         builder.impurity_potential = startpot_imp_sfd
         builder.metadata.options = options

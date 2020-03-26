@@ -17,7 +17,7 @@ from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_struct
                                                   check_2Dinput_consistency, update_params_wf,
                                                   vca_check, kick_out_corestates)
 from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
-from aiida_kkr.tools.tools_kkrimp import make_scoef
+from aiida_kkr.tools.tools_kkrimp import make_scoef, write_scoef_full_imp_cls
 from masci_tools.io.kkr_params import __kkr_default_params__, kkrparams
 import six
 from six.moves import range
@@ -26,7 +26,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.3"
+__version__ = "0.11.4"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -244,6 +244,7 @@ class KkrCalculation(CalcJob):
         write_scoef = False
         runopt = parameters.get_dict().get('RUNOPT', None)
         kkrflex_opt = False
+
         if runopt is not None:
             if 'KKRFLEX' in runopt:
                 kkrflex_opt = True
@@ -255,25 +256,36 @@ class KkrCalculation(CalcJob):
             runopt = parameters.get_dict().get('RUNOPT', [])
             runopt.append('KKRFLEX')
             parameters = update_params_wf(parameters, Dict(dict={'RUNOPT':runopt, 'nodename': 'update_KKRFLEX', 'nodedesc':'Update Parameter node with KKRFLEX runopt'}))
+        
         if found_imp_info and write_scoef:
+        
             imp_info_dict = imp_info.get_dict()
-            Rcut = imp_info_dict.get('Rcut', None)
-            hcut = imp_info_dict.get('hcut', -1.)
-            cylinder_orient = imp_info_dict.get('cylinder_orient', [0., 0., 1.])
-            ilayer_center = imp_info_dict.get('ilayer_center', 0)
-            for i in range(len(cylinder_orient)):
-                try:
-                  len(cylinder_orient[i])
-                  vec_shape = False
-                except TypeError:
-                  vec_shape = True
-            if ilayer_center > len(structure.sites) - 1:
-                raise IndexError('Index of the reference site is out of range! Possible values: 0 to {}.'.format(len(structure.sites) - 1))
-            elif Rcut < 0:
-                raise ValueError('Cutoff radius has to be positive!')
-            elif vec_shape == False or len(cylinder_orient) != 3:
-                raise TypeError('Input orientation vector ({}) has the wrong shape! It needs to be a 3D-vector!'.format(cylinder_orient))
-            else:
+
+            # create scoef file
+            if 'imp_cls' not in imp_info_dict:
+                # this means cluster is found from paraeters in imp_info
+
+                # extract cluster settings
+                Rcut = imp_info_dict.get('Rcut', None)
+                hcut = imp_info_dict.get('hcut', -1.)
+                cylinder_orient = imp_info_dict.get('cylinder_orient', [0., 0., 1.])
+                ilayer_center = imp_info_dict.get('ilayer_center', 0)
+                for i in range(len(cylinder_orient)):
+                    try:
+                        len(cylinder_orient[i])
+                        vec_shape = False
+                    except TypeError:
+                        vec_shape = True
+
+                # some consistency checks
+                if ilayer_center > len(structure.sites) - 1:
+                    raise IndexError('Index of the reference site is out of range! Possible values: 0 to {}.'.format(len(structure.sites) - 1))
+                elif Rcut < 0:
+                    raise ValueError('Cutoff radius has to be positive!')
+                elif vec_shape == False or len(cylinder_orient) != 3:
+                    raise TypeError('Input orientation vector ({}) has the wrong shape! It needs to be a 3D-vector!'.format(cylinder_orient))
+                
+                # now write scoef file
                 print('Input parameters for make_scoef read in correctly!')
                 with tempfolder.open(self._SCOEF, 'w') as scoef_file:
                     if use_alat_input:
@@ -283,7 +295,15 @@ class KkrCalculation(CalcJob):
                         self.logger.info('alat_input is None')
                         alat_input = None
                     make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center, alat_input)
+            else:
+                # this means the full imp cluster is given in the input
+                #TODO add some consistency checks with structure etc.
+                print('Write scoef from imp_cls input!', len(imp_info.get_dict().get('imp_cls')))
+                with tempfolder.open(self._SCOEF, 'w') as scoef_file:
+                    write_scoef_full_imp_cls(imp_info, scoef_file)
+
         elif write_scoef:
+            # if we end up here there is a problem with the input
             self.logger.info('Need to write scoef file but no impurity_info given!')
             raise ValidationError('Found RUNOPT KKRFLEX but no impurity_info in inputs')
 
