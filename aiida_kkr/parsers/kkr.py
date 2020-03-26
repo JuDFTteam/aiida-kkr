@@ -16,7 +16,7 @@ from masci_tools.io.common_functions import search_string
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.4"
+__version__ = "0.6.5"
 __contributors__ = ("Jens Broeder", u"Philipp Rüßmann")
 
 
@@ -40,7 +40,7 @@ class KkrParser(Parser):
 
 
     # pylint: disable=protected-access
-    def parse(self, **kwargs):
+    def parse(self, debug=False, **kwargs):
         """
         Parse output data folder, store results in database.
 
@@ -149,7 +149,7 @@ class KkrParser(Parser):
                                                            outfile_0init, outfile_000,
                                                            timing_file, potfile_out,
                                                            nonco_out_file, outfile_2,
-                                                           skip_readin=skip_mode)
+                                                           skip_readin=skip_mode, debug=debug)
 
         # try to parse with other combinations of files to minimize parser errors
         if self.icrit != 0:

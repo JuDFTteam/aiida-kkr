@@ -12,7 +12,7 @@ import os
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3"
+__version__ = "0.3.1"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -36,7 +36,7 @@ class VoronoiParser(Parser):
         super(VoronoiParser, self).__init__(calc)
 
     # pylint: disable=protected-access
-    def parse(self, **kwargs):
+    def parse(self, debug=False, **kwargs):
         """
         Parse output data folder, store results in database.
 
@@ -103,7 +103,7 @@ class VoronoiParser(Parser):
         #TODO add job description, compound name, calculation title
         success, msg_list, out_dict = parse_voronoi_output(out_dict, outfile,
                                                            potfile, atominfo,
-                                                           radii, inputfile)
+                                                           radii, inputfile, debug=debug)
         # add file open errors to parser output of error messages
         for f_err in file_errors:
             msg_list.append(f_err)

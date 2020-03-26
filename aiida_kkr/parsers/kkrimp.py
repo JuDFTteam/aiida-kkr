@@ -16,12 +16,13 @@ from masci_tools.io.parsers.kkrparser_functions import check_error_category
 from masci_tools.io.common_functions import open_general
 from masci_tools.io.parsers.kkrimp_parser_functions import KkrimpParserFunctions
 from six.moves import range
+from pprint import pprint
 
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -42,7 +43,7 @@ class KkrimpParser(Parser):
 
 
     # pylint: disable=protected-access
-    def parse(self, **kwargs):
+    def parse(self, debug=False, **kwargs):
         """
         Parse output data folder, store results in database.
 
@@ -147,12 +148,14 @@ class KkrimpParser(Parser):
             file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
             files['out_orbmoms'] = None
 
+        if debug:
+            pprint(files)
 
         # now parse file output
         out_dict = {'parser_version': self._ParserVersion,
                     'calculation_plugin_version': KkrimpCalculation._CALCULATION_PLUGIN_VERSION}
 
-        success, msg_list, out_dict = KkrimpParserFunctions().parse_kkrimp_outputfile(out_dict, files)
+        success, msg_list, out_dict = KkrimpParserFunctions().parse_kkrimp_outputfile(out_dict, files, debug=debug)
 
         out_dict['parser_errors'] = msg_list
          # add file open errors to parser output of error messages
