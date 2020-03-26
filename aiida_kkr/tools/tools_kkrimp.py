@@ -114,7 +114,7 @@ class modify_potential(object):
         with open_general(shapefun_new,'w') as f:
             f.writelines(datanew)
 
-    def neworder_potential(self, potfile_in, potfile_out, neworder, potfile_2=None, replace_from_pot2=None):
+    def neworder_potential(self, potfile_in, potfile_out, neworder, potfile_2=None, replace_from_pot2=None, debug=False):
         """
         Read potential file and new potential using a list describing the order of the new potential.
         If a second potential is given as input together with an index list, then the corresponding of
@@ -140,14 +140,17 @@ class modify_potential(object):
         """
 
         index1, index2, data = self._read_input(potfile_in)
+        if debug: print(index1, index2)
 
         if potfile_2 is not None:
             index12, index22, data2 = self._read_input(potfile_2)
+            if debug: print(index12, index22)
             # check if also replace_from_pot2 is given correctly
             if replace_from_pot2 is None:
                 raise ValueError('replace_from_pot2 not given')
             else:
                 replace_from_pot2 = np.array(replace_from_pot2)
+                if debug: print(replace_from_pot2)
                 if np.shape(replace_from_pot2)[1]!=2:
                     raise ValueError('replace_from_pot2 needs to be a 2D array!')
         else:
@@ -157,17 +160,20 @@ class modify_potential(object):
         # set order in which potential file is written
         # ensure that numbers are integers:
         order = [int(i) for i in neworder]
+        if debug: print(order)
 
         datanew=[]
         for i in range(len(order)):
             # check if new position is replaced with position from old pot
             if replace_from_pot2 is not None and i in replace_from_pot2[:,0]:
-                    replace_index = replace_from_pot2[replace_from_pot2[:,0]==i][0][1]
-                    for ii in range(index12[replace_index], index22[replace_index]+1 ):
-                        datanew.append(data2[ii])
+                replace_index = replace_from_pot2[replace_from_pot2[:,0]==i][0][1]
+                if debug: print(i, replace_index)
+                for ii in range(index12[replace_index], index22[replace_index]+1 ):
+                    datanew.append(data2[ii])
             else: # otherwise take new potntial according to input list
-                    for ii in range(index1[order[i]], index2[order[i]]+1 ):
-                        datanew.append(data[ii])
+                if debug: print(i)
+                for ii in range(index1[order[i]], index2[order[i]]+1 ):
+                    datanew.append(data[ii])
 
         # write out new potential
         with open_general(potfile_out,'w') as f:
