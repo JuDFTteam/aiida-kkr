@@ -1007,7 +1007,7 @@ def kick_out_corestates_wf(potential_sfd, emin):
                 num_deleted = kick_out_corestates(potfile_in, potfile_out, emin)
         # store new potential as single file data object
         if num_deleted>0:
-            with tmpdir.open('potential_deleted_core_states') as potfile_out:
+            with tmpdir.open('potential_deleted_core_states', 'rb') as potfile_out:
                 potential_nocore_sfd = SinglefileData(file=potfile_out)
 
     # return potential

@@ -143,7 +143,25 @@ class Test_common_workfunctions(object):
 
     def test_kick_out_corestates_wf(self):
         from aiida_kkr.tools.common_workfunctions import kick_out_corestates_wf
-        pass
+        from aiida.orm import load_node, Float
+        from aiida.tools.importexport import import_data
+        from masci_tools.io.parsers.kkrparser_functions import get_corestates_from_potential
+        import numpy as np
+
+        import_data('files/kick_out_corestates_input.tar.gz', silent=False)
+        sfd_potential_node = load_node('933ddebb-e72f-43b0-aca5-cd0a109da75f')
+        emin_node = Float(-1.2)
+        pot_removed_core = kick_out_corestates_wf(sfd_potential_node, emin_node)
+
+        # compare list of core states before and after kick_out calcfunction
+        with sfd_potential_node.open(sfd_potential_node.filename) as potfile: 
+            ncore0, ecore0, lcore0 = get_corestates_from_potential(potfile)
+        with pot_removed_core.open(pot_removed_core.filename) as potfile: 
+            ncore1, ecore1, lcore1 = get_corestates_from_potential(potfile)
+
+        # compare number of core state
+        print(np.array(ncore0)-np.array(ncore1))
+        assert np.sum(np.array(ncore0)-np.array(ncore1))==2 # check if exactly two cores states have been removed
 
     """
     def test_prepare_VCA_structure_wf(self):
