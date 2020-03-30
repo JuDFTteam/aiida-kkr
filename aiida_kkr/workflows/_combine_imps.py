@@ -236,7 +236,7 @@ class combine_imps_wc(WorkChain):
 
     def check_gf_in_input(self):
         """
-        check if GF was given in input and can be reused
+        check if GF was given in input and can be reused (then return Falser which means no gf needs to be calculated)
         """
         if 'gf' in self.inputs:
             return False
@@ -261,7 +261,7 @@ class combine_imps_wc(WorkChain):
         imp1_sub = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node
         gf_writeout_calc = imp1_sub.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node
         builder.remote_data = gf_writeout_calc.inputs.parent_folder
-
+        
         # set label and description of the calc
         sub_label = 'GF writeout combined imps'
         sub_description = 'GF writeout sub workflow for combine_imps_wc '

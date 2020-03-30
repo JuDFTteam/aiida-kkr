@@ -5,7 +5,7 @@ Input plug-in for a KKR calculation.
 from __future__ import print_function, absolute_import
 from __future__ import unicode_literals
 import os
-from numpy import pi, array, ndarray
+import numpy as np
 from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData
 from .voro import VoronoiCalculation
@@ -202,8 +202,8 @@ class KkrCalculation(CalcJob):
                         if type(value)==float:
                             if abs(value-oldvalue)<self._eps:
                                 values_eqivalent = True
-                        elif type(value)==list or type(value)==ndarray:
-                            tmp_value, tmp_oldvalue = array(value).reshape(-1), array(oldvalue).reshape(-1)
+                        elif type(value)==list or type(value)==np.ndarray:
+                            tmp_value, tmp_oldvalue = np.array(value).reshape(-1), np.array(oldvalue).reshape(-1)
                             values_eqivalent_tmp = []
                             for ival in range(len(tmp_value)):
                                 if abs(tmp_value[ival]-tmp_oldvalue[ival])<self._eps:
@@ -261,6 +261,14 @@ class KkrCalculation(CalcJob):
         
             imp_info_dict = imp_info.get_dict()
 
+            # find alat input if needed
+            if use_alat_input:
+                alat_input = parameters.get_dict().get('ALATBASIS', None) / get_Ang2aBohr()
+                self.logger.info('alat_input is '+str(alat_input))
+            else:
+                self.logger.info('alat_input is None')
+                alat_input = None
+
             # create scoef file
             if 'imp_cls' not in imp_info_dict:
                 # this means cluster is found from parameters in imp_info
@@ -288,12 +296,6 @@ class KkrCalculation(CalcJob):
                 # now write scoef file
                 print('Input parameters for make_scoef read in correctly!')
                 with tempfolder.open(self._SCOEF, 'w') as scoef_file:
-                    if use_alat_input:
-                        alat_input = parameters.get_dict().get('ALATBASIS', None) / get_Ang2aBohr()
-                        self.logger.info('alat_input is '+str(alat_input))
-                    else:
-                        self.logger.info('alat_input is None')
-                        alat_input = None
                     make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center, alat_input)
 
             else:
@@ -302,7 +304,13 @@ class KkrCalculation(CalcJob):
                 #TODO add some consistency checks with structure etc.
                 print('Write scoef from imp_cls input!', len(imp_info.get_dict().get('imp_cls')))
                 with tempfolder.open(self._SCOEF, 'w') as scoef_file:
-                    write_scoef_full_imp_cls(imp_info, scoef_file)
+                    if alat_input is not None:
+                        alat = get_alat_from_bravais(np.array(structure.cell), structure.pbc[2])
+                        rescale_alat = alat_input/alat
+                        self.report("INFO: rescaling imp cls due to alat_input: {}".format(rescale_alat))
+                    else:
+                        rescale_alat = None
+                    write_scoef_full_imp_cls(imp_info, scoef_file, rescale_alat)
 
         elif write_scoef:
             # if we end up here there is a problem with the input
@@ -361,7 +369,7 @@ class KkrCalculation(CalcJob):
             # write qvec.dat file
             kpath_array = kpath.get_kpoints(cartesian=True)
             # convert automatically to internal units
-            alat = get_alat_from_bravais(array(structure.cell), is3D=structure.pbc[2]) * get_Ang2aBohr()
+            alat = get_alat_from_bravais(np.array(structure.cell), is3D=structure.pbc[2]) * get_Ang2aBohr()
             if use_alat_input:
                 alat_input = parameters.get_dict().get('ALATBASIS')
             else:

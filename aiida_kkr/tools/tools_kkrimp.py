@@ -549,7 +549,7 @@ def make_scoef(structure, radius, path, h=-1., vector=[0., 0., 1.], i=0, alat_in
     return c
 
 
-def write_scoef_full_imp_cls(imp_info_node, path):
+def write_scoef_full_imp_cls(imp_info_node, path, rescale_alat=None):
     """
     write scoef file from imp_cls info in imp_info_node
     """
@@ -561,6 +561,11 @@ def write_scoef_full_imp_cls(imp_info_node, path):
         raise InputValidationError("imp_info node does not contain 'imp_cls'")
         
     imp_cls = imp_info.get('imp_cls')
+
+    # rescale if alat_input is used
+    if rescale_alat is not None:
+        imp_cls[:,:3] *= rescale_alat
+        imp_cls[:,-1] *= rescale_alat
     
     # write scoef file
     write_scoef(imp_cls, path)
