@@ -13,12 +13,11 @@ from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from masci_tools.io.kkr_params import kkrparams
 from .voro import VoronoiCalculation
 from .kkr import KkrCalculation
-from aiida_kkr.tools.tools_kkrimp import modify_potential
-from aiida_kkr.tools.tools_kkrimp import make_scoef
+from aiida_kkr.tools.tools_kkrimp import modify_potential, make_scoef, write_scoef_full_imp_cls
 from masci_tools.io.common_functions import search_string
 import os
 import tarfile
-from numpy import array, sqrt, sum, where
+from numpy import array, sqrt, sum, where, loadtxt
 import six
 from six.moves import range
 
@@ -482,11 +481,7 @@ class KkrimpCalculation(CalcJob):
         # read scoef for comparison with Rimp_rel
         scoef = []
         with tempfolder.open(KkrCalculation._SCOEF, u'r') as scoeffile:
-            Nscoef = int(scoeffile.readline().split()[0])
-            for iline in range(Nscoef):
-                tmpline = scoeffile.readline().split()
-                scoef.append([float(i) for i in tmpline[:3]])
-        scoef = array(scoef)
+            scoef = loadtxt(scoeffile, skiprows=1)[:,:3]
 
         # find replaceZimp list from Zimp and Rimp_rel
         imp_info_dict = imp_info.get_dict()
@@ -494,7 +489,8 @@ class KkrimpCalculation(CalcJob):
         if type(Zimp_list)!=list: Zimp_list = [Zimp_list] # fast fix for cases when Zimp is not a list but a single value
         Rimp_rel_list = imp_info_dict.get(u'Rimp_rel', [[0,0,0]])
         for iatom in range(len(Zimp_list)):
-            rtmp = Rimp_rel_list[iatom]
+            rtmp = array(Rimp_rel_list[iatom])[:3]
+            self.report("INFO: Rimp_rel {}, {}".format(iatom, rtmp))
             diff = sqrt(sum((rtmp-scoef)**2, axis=1))
             Zimp = Zimp_list[iatom]
             ipos_replace = where(diff==diff.min())[0][0]
@@ -522,20 +518,35 @@ class KkrimpCalculation(CalcJob):
         """
 
         imp_info_dict = imp_info.get_dict()
-        Rcut = imp_info_dict.get('Rcut', None)
-        hcut = imp_info_dict.get('hcut', -1.)
-        cylinder_orient = imp_info_dict.get('cylinder_orient', [0., 0., 1.])
-        ilayer_center = imp_info_dict.get('ilayer_center', 0)
-        # first create scoef file
-        with tempfolder.open(KkrCalculation._SCOEF, u'w') as scoef_file:
-            make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center)
+
+        # create scoef file
+        if 'imp_cls' not in imp_info_dict:
+            # this means cluster is found from parameters in imp_info
+
+            # extract cluster settings
+            Rcut = imp_info_dict.get('Rcut', None)
+            hcut = imp_info_dict.get('hcut', -1.)
+            cylinder_orient = imp_info_dict.get('cylinder_orient', [0., 0., 1.])
+            ilayer_center = imp_info_dict.get('ilayer_center', 0)
+
+            # now write scoef file
+            print('Input parameters for make_scoef read in correctly!')
+            with tempfolder.open(KkrCalculation._SCOEF, 'w') as scoef_file:
+                make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center)
+
+        else:
+            # this means the full imp cluster is given in the input
+
+            print('Write scoef from imp_cls input!', len(imp_info_dict.get('imp_cls')))
+            with tempfolder.open(KkrCalculation._SCOEF, 'w') as scoef_file:
+                write_scoef_full_imp_cls(imp_info, scoef_file)
+
+        # now create impurity shapefun (reads scoef file)
         with tempfolder.open(KkrCalculation._SCOEF, u'r') as scoef_file:
-            # now create impurity shapefun
             with tempfolder.open(KkrimpCalculation._SHAPEFUN, u'w') as shapefun_new:
                 with shapefun.open(KkrimpCalculation._SHAPEFUN, u'r') as shapefun_file:
                     shapelen = len(shapefun_file.readlines())
-                    print(shapelen)
-                    if shapelen>1:
+                    if shapelen > 1:
                         modify_potential().shapefun_from_scoef(scoef_file, shapefun_file, shapes, shapefun_new)
 
         # get path of tempfolder
@@ -578,6 +589,7 @@ class KkrimpCalculation(CalcJob):
         with potfile_folder.open(potfile_name, u'r') as oldfile:
             with tempfolder.open(self._POTENTIAL, u'w') as newfile:
                 newfile.writelines(oldfile.readlines())
+
         # remove old potential file if still present (saves unnecessary copying)
         if self._OUT_POTENTIAL in os.listdir(tempfolder_path):
             os.remove(os.path.join(tempfolder_path, self._OUT_POTENTIAL))

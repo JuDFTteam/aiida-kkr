@@ -263,7 +263,7 @@ class KkrCalculation(CalcJob):
 
             # create scoef file
             if 'imp_cls' not in imp_info_dict:
-                # this means cluster is found from paraeters in imp_info
+                # this means cluster is found from parameters in imp_info
 
                 # extract cluster settings
                 Rcut = imp_info_dict.get('Rcut', None)
@@ -282,7 +282,7 @@ class KkrCalculation(CalcJob):
                     raise IndexError('Index of the reference site is out of range! Possible values: 0 to {}.'.format(len(structure.sites) - 1))
                 elif Rcut < 0:
                     raise ValueError('Cutoff radius has to be positive!')
-                elif vec_shape == False or len(cylinder_orient) != 3:
+                elif not vec_shape or len(cylinder_orient) != 3:
                     raise TypeError('Input orientation vector ({}) has the wrong shape! It needs to be a 3D-vector!'.format(cylinder_orient))
                 
                 # now write scoef file
@@ -295,7 +295,9 @@ class KkrCalculation(CalcJob):
                         self.logger.info('alat_input is None')
                         alat_input = None
                     make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center, alat_input)
+
             else:
+
                 # this means the full imp cluster is given in the input
                 #TODO add some consistency checks with structure etc.
                 print('Write scoef from imp_cls input!', len(imp_info.get_dict().get('imp_cls')))

@@ -22,7 +22,7 @@ __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.7.3"
-__contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
+__contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
 #TODO: maybe work on a clearer outputnode structure
@@ -361,7 +361,7 @@ class kkr_imp_wc(WorkChain):
             builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
         future = self.submit(builder)
 
-        self.report('INFO: running GF writeout (pid: {})'.format(future.pk))
+        self.report('INFO: running GF writeout (pk: {})'.format(future.pk))
 
         return ToContext(gf_writeout=future, last_calc_gf=future)
 

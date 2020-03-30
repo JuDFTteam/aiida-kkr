@@ -314,14 +314,14 @@ class kkr_imp_sub_wc(WorkChain):
         if not 'kkrimp_remote' in inputs:
             if not ('host_imp_startpot' in inputs and 'remote_data' in inputs):
                 inputs_ok = False
-                self.ctx.exit_code = self.exit_codes.ERROR_HOST_IMP_POT_GF
+                self.ctx.exit_code = self.exit_codes.ERROR_HOST_IMP_POT_GF # pylint: disable=maybe-no-member
 
         if 'kkr' in inputs:
             try:
                 test_and_get_codenode(inputs.kkr, 'kkr.kkrimp', use_exceptions=True)
             except ValueError:
                 inputs_ok = False
-                self.ctx.exit_code = self.exit_codes.ERROR_INVALID_INPUT_KKRIMP
+                self.ctx.exit_code = self.exit_codes.ERROR_INVALID_INPUT_KKRIMP # pylint: disable=maybe-no-member
 
         if 'kkrimp_remote' in inputs:
             self.ctx.start_from_imp_remote = True
@@ -330,10 +330,10 @@ class kkr_imp_sub_wc(WorkChain):
         # check if input remote_data node is fine
         if 'remote_data' in inputs:
             if len(inputs.remote_data.get_incoming(link_label_filter='remote_folder').all())<1:
-                self.ctx.exit_code = self.exit_codes.ERROR_NO_CALC_FOUND_FOR_REMOTE_DATA
+                self.ctx.exit_code = self.exit_codes.ERROR_NO_CALC_FOUND_FOR_REMOTE_DATA # pylint: disable=maybe-no-member
             else:
                 if not inputs.remote_data.get_incoming(link_label_filter='remote_folder').first().node.is_finished_ok:
-                    self.ctx.exit_code = self.exit_codes.ERROR_REMOTE_DATA_CALC_UNSUCCESFUL
+                    self.ctx.exit_code = self.exit_codes.ERROR_REMOTE_DATA_CALC_UNSUCCESFUL # pylint: disable=maybe-no-member
 
 
         # set starting potential
@@ -345,10 +345,13 @@ class kkr_imp_sub_wc(WorkChain):
             self.ctx.last_params = inputs.wf_parameters
         else:
             inputs_ok = False
-            self.ctx.exit_code = self.exit_codes.ERROR_NO_CALC_PARAMS
+            self.ctx.exit_code = self.exit_codes.ERROR_NO_CALC_PARAMS # pylint: disable=maybe-no-member
 
         message = 'INFO: validated input successfully: {}'.format(inputs_ok)
         self.report(message)
+        if not inputs_ok:
+            message = 'Exit code: {}'.format(self.exit_codes.ERROR_NO_CALC_PARAMS) # pylint: disable=maybe-no-member
+            self.report(message)
 
         return inputs_ok
 
