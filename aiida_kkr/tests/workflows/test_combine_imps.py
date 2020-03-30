@@ -43,16 +43,6 @@ def test_combine_imps(clear_database_before_test, kkrhost_local_code, kkrimp_loc
     # check outcome
     #assert  ...
 
-def test_create_combined_imo_info():
-    from aiida.orm import load_node
-    host_structure1, impinfo1 = load_node('e51ee6a1-bd27-4901-9612-7bac256bf117'), load_node('1a5c2ebc-05db-4b76-bb0c-ebe2cbf3f67d')
-    from aiida_kkr.tools.combine_imps import create_combined_imp_info_cf
-    o = create_combined_imp_info_cf(host_structure1, impinfo1, impinfo1, Dict(dict={'index': 1}))
-    o['imp_info_combined'].get_dict()
-    o['imp_info_combined']['imp_cls']
-    imp_cls_out = o['imp_info_combined']['imp_cls']
-    return imp_cls_out
-
 
 # run manual:
 if __name__=='__main__':
@@ -61,9 +51,10 @@ if __name__=='__main__':
     from aiida.orm import Code
     
     #define codes
-    kkrhost_local_code = Code.get_from_string('kkrhost_intel19@localhost')
-    kkrimp_local_code = Code.get_from_string('kkrimp_intel19@localhost')
+    #kkrhost_local_code = Code.get_from_string('kkrhost_intel19@localhost')
+    #kkrimp_local_code = Code.get_from_string('kkrimp_intel19@localhost')
+    kkrhost_local_code = Code.get_from_string('kkrhost@localhost')
+    kkrimp_local_code = Code.get_from_string('kkrimp@localhost')
 
     # run test
     test_combine_imps('dummy', kkrhost_local_code, kkrimp_local_code)
-    test_create_combined_imo_info()

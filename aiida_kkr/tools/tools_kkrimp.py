@@ -140,11 +140,29 @@ class modify_potential(object):
         """
 
         index1, index2, data = self._read_input(potfile_in)
-        if debug: print(index1, index2)
+        if debug:
+            print(index1, index2)
+            # add label to potname
+            ii = 0
+            for i in range(len(data)):
+                line = data[i]
+                if 'exc:' in line:
+                    line = line.replace('     exc:', '%.4i exc:'%ii)
+                    data[i] = line
+                    ii+=1
 
         if potfile_2 is not None:
             index12, index22, data2 = self._read_input(potfile_2)
-            if debug: print(index12, index22)
+            if debug:
+                print(index12, index22)
+                # add label to potname
+                ii = 0
+                for i in range(len(data2)):
+                    line = data2[i]
+                    if 'exc:' in line:
+                        line = line.replace('     exc:', '%.4i exc:'%ii)
+                        data2[i] = line
+                        ii+=1
             # check if also replace_from_pot2 is given correctly
             if replace_from_pot2 is None:
                 raise ValueError('replace_from_pot2 not given')

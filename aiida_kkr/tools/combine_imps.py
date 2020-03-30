@@ -21,6 +21,9 @@ __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.1.0"
 __contributors__ = (u"Philipp Rüßmann")
 
+# activate debug writeout
+debug = True
+
 
 def get_host_structure(impurity_workflow):
     """
@@ -152,11 +155,9 @@ def combine_clusters(clust1, clust2_offset):
 
     # check if imp position of cluster 2 is inside and remove that position
     # this ensures that imp2 is not kicked out 
-    pos_doubled, index = pos_exists_already(clust1[:,:3], clust2_offset[0,:3])
-    if pos_doubled:
-        i_removed_from_1 = index
-    else:
-        i_removed_from_1 = None
+    _, i_removed_from_1 = pos_exists_already(clust1[:,:3], clust2_offset[0,:3])
+    if debug: print('i_removed_from_1:', i_removed_from_1)
+
     # remove doubled position from impcls1 if there is any
     if i_removed_from_1 is not None:
         #removed = cluster_combined.pop(i_removed_from_1)
@@ -181,7 +182,8 @@ def combine_clusters(clust1, clust2_offset):
 
     return cluster_combined, rimp_rel_combined, kickout_list, i_removed_from_1
 
-#@calcfunction
+
+@calcfunction
 def create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2):
     """
     create impurity clusters from impinfo nodes and combine these putting the second
@@ -205,16 +207,25 @@ def create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2)
     # set zimp in scoef file (not used by the code but makes it easier to read the files / debug)
     clust1[0][4] = zimp1[0]
     clust2[0][4] = zimp2[0]
+    if debug:
+        print('cls1:', clust1)
+        print('cls2:', clust2)
 
     # find offset
     #TODO allow also out-of-plane neighbors
     r_offset = get_inplane_neighbor(host_structure, i_neighbor_inplane)
+    if debug: print('r_offset:', r_offset)
 
     # add offset to cluster 2
     clust2_offset = clust2.copy()
     clust2_offset[:, :3] += r_offset
 
     cluster_combined, rimp_rel_combined, kickout_list, i_removed_from_1 = combine_clusters(clust1, clust2_offset)
+    if debug:
+        print('cls_combined:', cluster_combined)
+        print('rimp_rel_combined:', rimp_rel_combined)
+        print('kickout_list:', kickout_list)
+        print('i_removed_from_1:', i_removed_from_1)
 
     # create new imp_info node with imp_cls, Rimp_rel and Zimp definig the cluster and impurity location
     imp_info_combined = Dict(dict={'imp_cls': cluster_combined, 'Zimp': zimp_combined, 'Rimp_rel': rimp_rel_combined})
@@ -241,12 +252,17 @@ def combine_potentials_cf(kickout_info, pot_imp1, pot_imp2, nspin_node):
     Ncls2 = kickout_info['Ncls2']
     Ncls_combined = kickout_info['Ncls_combined']
     nspin = nspin_node.value
+    if debug:
+        print('kickout_list:', kickout_list)
+        print('i_removed:', i_removed_from_1)
+        print('params;', nspin, Ncls1, Ncls2, Ncls_combined)
 
     # create neworder_pot list
     neworder_pot = list(range(Ncls1))
     if i_removed_from_1 is not None:
-        removed = neworder_pot.pop(i_removed_from_1)
-        print(('removed: ', removed))
+        neworder_pot = [neworder_pot[i] for i in range(len(neworder_pot)) if i not in i_removed_from_1]
+    if debug:
+        print('neworder_pot:', neworder_pot)
 
     # add dummy lines which are replace with pot 2
     N0 = len(neworder_pot)
@@ -256,6 +272,10 @@ def combine_potentials_cf(kickout_info, pot_imp1, pot_imp2, nspin_node):
 
     # prepare index of pot2 without kciked out positions
     index_pot2 = [i for i in list(range(Ncls2)) if i not in kickout_list]
+
+    if debug:
+        print('replacepos:', replacepos)
+        print('index_pot2:', index_pot2)
 
     # create replacelist (mapping which positions of neworder_pos are taken from pot2 instead)
     replacelist_pot2 = [(replacepos[i]-1, index_pot2[i]) for i in range(len(replacepos))]
@@ -273,7 +293,7 @@ def combine_potentials_cf(kickout_info, pot_imp1, pot_imp2, nspin_node):
                 with pot_imp2.open(pot_imp2.filename) as pot2_filehande:
                     # use neworder_potential function
                     modify_potential().neworder_potential(pot1_filehande, out_pot_fhandle, neworder_pot, potfile_2=pot2_filehande,
-                                                        replace_from_pot2=replacelist_pot2)
+                                                          replace_from_pot2=replacelist_pot2, debug=debug)
 
             # store output potential to SinglefileData
             output_potential_sfd_node = SinglefileData(file=tempfolder.open('potential_combined', u'rb'))
