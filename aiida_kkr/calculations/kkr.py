@@ -306,7 +306,7 @@ class KkrCalculation(CalcJob):
                 with tempfolder.open(self._SCOEF, 'w') as scoef_file:
                     if alat_input is not None:
                         alat = get_alat_from_bravais(np.array(structure.cell), structure.pbc[2])
-                        rescale_alat = alat_input/alat
+                        rescale_alat = alat/alat_input
                         self.report("INFO: rescaling imp cls due to alat_input: {}".format(rescale_alat))
                     else:
                         rescale_alat = None

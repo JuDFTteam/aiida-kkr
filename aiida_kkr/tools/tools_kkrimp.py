@@ -560,7 +560,7 @@ def write_scoef_full_imp_cls(imp_info_node, path, rescale_alat=None):
     if 'imp_cls' not in list(imp_info.keys()):
         raise InputValidationError("imp_info node does not contain 'imp_cls'")
         
-    imp_cls = imp_info.get('imp_cls')
+    imp_cls = np.array(imp_info.get('imp_cls'))
 
     # rescale if alat_input is used
     if rescale_alat is not None:
