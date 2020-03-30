@@ -51,10 +51,14 @@ if __name__=='__main__':
     from aiida.orm import Code
     
     #define codes
-    #kkrhost_local_code = Code.get_from_string('kkrhost_intel19@localhost')
-    #kkrimp_local_code = Code.get_from_string('kkrimp_intel19@localhost')
-    kkrhost_local_code = Code.get_from_string('kkrhost@localhost')
-    kkrimp_local_code = Code.get_from_string('kkrimp@localhost')
+    try:
+        # on mac
+        kkrhost_local_code = Code.get_from_string('kkrhost_intel19@localhost')
+        kkrimp_local_code = Code.get_from_string('kkrimp_intel19@localhost')
+    except:
+        # on iff desktop
+        kkrhost_local_code = Code.get_from_string('kkrhost@localhost')
+        kkrimp_local_code = Code.get_from_string('kkrimp@localhost')
 
     # run test
     test_combine_imps('dummy', kkrhost_local_code, kkrimp_local_code)

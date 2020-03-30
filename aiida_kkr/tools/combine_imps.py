@@ -134,9 +134,10 @@ def pos_exists_already(pos_list_old, pos_new):
     """
     sort_ref = np.array(pos_list_old)
     dists = np.sqrt(np.sum((sort_ref-np.array(pos_new))**2, axis=1))
-    
+    mask = (dists < 10**-5) 
+
     if dists.min() < 10**-5:
-        return True, dists.argsort()[dists < 10**-5]
+        return True, [i for i in range(len(mask)) if mask[i]]
     else:
         return False, None
 
