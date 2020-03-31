@@ -112,6 +112,10 @@ class combine_imps_wc(WorkChain):
             message="The impurity calculations have different NSPIN values")
         spec.exit_code(700, 'ERROR_HOST_GF_CALC_FAILED',
             message="The writeout of the host GF failed")
+        spec.exit_code(750, 'ERROR_IMPS_NOT_IN_SAME_LAYER',
+            message="So far the workflow can only create impurities in the same layer")
+        #TODO to fix this create_combined_imp_info_cf need to take the different layers into account
+        # when the difference vector and the neighbors are created
 
         # define the outputs of the workflow
         spec.output('workflow_info')
@@ -203,7 +207,12 @@ class combine_imps_wc(WorkChain):
         self.report("imp info 1: {}".format(impinfo1))
         self.report("imp info 2: {}".format(impinfo2))
 
-        if self.inputs.offset_imp2['index']<0:
+        #TODO remove this once the functionality is implemented (see also next TODO)
+        if impinfo1['ilayer_center'] != impinfo2['ilayer_center']:
+            self.report("ERROR: imps must be in the same layer")
+            return self.exit_codes.ERROR_IMPS_NOT_IN_SAME_LAYER # pylint: disable=maybe-no-member
+
+        if self.inputs.offset_imp2['index']<1: #TODO change this to a minium of 0 if different layers are considered
             return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
 
         # get zimp of imp1
@@ -366,7 +375,7 @@ class combine_imps_wc(WorkChain):
 
         # collect outputs of host_gf sub_workflow
         gf_writeout = self.ctx.gf_writeout
-        gf_sub_remote = gf_writeout.outputs.remote_folder
+        gf_sub_remote = gf_writeout.outputs.GF_host_remote
 
         # collect results of kkrimp_scf sub-workflow
         kkrimp_scf_sub = self.ctx.kkrimp_scf_sub

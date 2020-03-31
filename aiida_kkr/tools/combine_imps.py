@@ -22,7 +22,7 @@ __version__ = "0.1.0"
 __contributors__ = (u"Philipp Rüßmann")
 
 # activate debug writeout
-debug = True
+debug = False
 
 
 def get_host_structure(impurity_workflow):
