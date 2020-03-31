@@ -7,7 +7,7 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 from aiida.orm import Float, Code, CalcJobNode, RemoteData, StructureData, Dict, SinglefileData, FolderData
-from aiida.engine import WorkChain, ToContext, while_, if_
+from aiida.engine import WorkChain, ToContext, while_, if_, calcfunction
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
@@ -20,7 +20,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.8.5"
+__version__ = "0.8.6"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -770,28 +770,8 @@ class kkr_imp_sub_wc(WorkChain):
         # get potential from last calculation
         try:
             retrieved_folder = self.ctx.kkr.outputs.retrieved
-            if KkrimpCalculation._FILENAME_TAR in retrieved_folder.list_object_names():
-                print('take potfile from tar file of retrieved')
-                # take potfile after extracting tar file
-                # get full filename
-                with retrieved_folder.open(KkrimpCalculation._FILENAME_TAR) as tar_file:
-                    tarfilename = tar_file.name
-                print('tarfile name:', tarfilename)
-                # open tarfile and extract potfile
-                with tarfile.open(tarfilename) as tar_file:
-                    print('extract potfile:', KkrimpCalculation._OUT_POTENTIAL)
-                    tar_file.extract(KkrimpCalculation._OUT_POTENTIAL, os.path.dirname(tarfilename))
-                    with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
-                        print('get potfile sfd:', pot_file)
-                        self.ctx.last_pot = SinglefileData(file=pot_file)
-                    
-                # delete extracted potfile again
-                print('delete potfile from outfile:', KkrimpCalculation._OUT_POTENTIAL)
-                retrieved_folder.delete_object(KkrimpCalculation._OUT_POTENTIAL, force=True)
-            else:
-                # take potfile directly from output
-                with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
-                    self.ctx.last_pot = SinglefileData(file=pot_file)
+            imp_pot_sfd = extract_imp_pot_sfd(retrieved_folder)
+            self.ctx.last_pot = imp_pot_sfd
             self.ctx.sfd_pot_to_clean.append(self.ctx.last_pot)
             print('use potfile sfd:', self.ctx.last_pot)
         except:
@@ -1207,6 +1187,10 @@ def clean_raw_input(successful, pks_calcs, dry_run=False):
 
 
 def clean_sfd(sfd_to_clean, nkeep=30):
+    """
+    Clean up potential file (keep only header) to save space in the repository
+    WARNING: this breaks cachability!
+    """
     with sfd_to_clean.open(sfd_to_clean.filename) as f:
         txt = f.readlines()
     # remove all lines after nkeep lines
@@ -1216,3 +1200,36 @@ def clean_sfd(sfd_to_clean, nkeep=30):
     # overwrite file
     with sfd_to_clean.open(sfd_to_clean.filename, 'w') as fnew:
         fnew.writelines(txt2)
+
+
+@calcfunction
+def extract_imp_pot_sfd(retrieved_folder):
+    """
+    Extract potential file from retrieved folder and save as SingleFileData
+    """
+    # take output potential file either from tarfile or directy from output folder
+
+    if KkrimpCalculation._FILENAME_TAR in retrieved_folder.list_object_names():
+        print('take potfile from tar file of retrieved')
+        # take potfile after extracting tar file
+        # get full filename
+        with retrieved_folder.open(KkrimpCalculation._FILENAME_TAR) as tar_file:
+            tarfilename = tar_file.name
+        print('tarfile name:', tarfilename)
+        # open tarfile and extract potfile
+        with tarfile.open(tarfilename) as tar_file:
+            print('extract potfile:', KkrimpCalculation._OUT_POTENTIAL)
+            tar_file.extract(KkrimpCalculation._OUT_POTENTIAL, os.path.dirname(tarfilename))
+            with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
+                print('get potfile sfd:', pot_file)
+                imp_pot_sfd = SinglefileData(file=pot_file)
+
+        # delete extracted potfile again
+        print('delete potfile from outfile:', KkrimpCalculation._OUT_POTENTIAL)
+        retrieved_folder.delete_object(KkrimpCalculation._OUT_POTENTIAL, force=True)
+    else:
+        # take potfile directly from output
+        with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
+            imp_pot_sfd = SinglefileData(file=pot_file)
+
+    return imp_pot_sfd

@@ -6,11 +6,12 @@ This module contains the workflow which combines pre-converged single-impurity c
 from __future__ import absolute_import
 from __future__ import print_function
 from aiida.engine import WorkChain, if_, ToContext
-from aiida.orm import load_node, CalcJobNode, Dict, Code, RemoteData, WorkChainNode, Int
+from aiida.orm import load_node, Dict, WorkChainNode, Int
 from aiida_kkr.calculations import KkrCalculation
 from aiida_kkr.workflows import kkr_imp_sub_wc, kkr_flex_wc, kkr_imp_wc
 from aiida_kkr.tools.combine_imps import (create_combined_imp_info_cf, combine_potentials_cf,
                                           get_zimp, get_host_structure, get_nspin)
+from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
@@ -35,8 +36,8 @@ class combine_imps_wc(WorkChain):
     :return workflow_info: (Dict), Information of workflow results
     :return last_calc_output_parameters: (Dict), output parameters of
                                          the last called calculation (should be the converged one)
-    :return last_calc_remote: (RemoteData) link to last called calculation (should be the converged one)
-    :return last_calc: (KkrimpCalculation) link to last called KKRimp calculation (should be the converged one)
+    :return last_potential: (SingleFileData) link to last output potential (should be the converged one)
+    :return last_calc_remote: (RemoteData) link to last called KKRimp calculation (should be the converged one)
     :return remote_data_gf: (RemoteData) link to last KKRhost calculation that generated the host GF files (only present of host GF was generated here)
     """
 
@@ -92,6 +93,7 @@ class combine_imps_wc(WorkChain):
             cls.create_big_cluster,         # combine imp clusters of the two imps
             if_(cls.check_gf_in_input)(     # check if GF was given in input and can be reused
                 cls.run_gf_writeout),       # write out the host GF
+            cls.check_host_gf,
             cls.create_big_potential,       # combine preconverged potentials to big one
             cls.run_kkrimp_scf,             # run the kkrimp_sub workflow to converge the host-imp startpot
             cls.return_results)             # check if the calculation was successful and return the result nodes
@@ -112,8 +114,8 @@ class combine_imps_wc(WorkChain):
         # define the outputs of the workflow
         spec.output('workflow_info')
         spec.output('last_calc_output_parameters')
+        spec.output('last_potential')
         spec.output('last_calc_remote')
-        spec.output('last_calc')
         spec.output('remote_data_gf')
 
 
@@ -240,8 +242,8 @@ class combine_imps_wc(WorkChain):
         """
         if 'gf' in self.inputs:
             return False
-        else:
-            return True
+
+        return True
 
 
     def run_gf_writeout(self):
@@ -261,7 +263,7 @@ class combine_imps_wc(WorkChain):
         imp1_sub = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node
         gf_writeout_calc = imp1_sub.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node
         builder.remote_data = gf_writeout_calc.inputs.parent_folder
-        
+
         # set label and description of the calc
         sub_label = 'GF writeout combined imps'
         sub_description = 'GF writeout sub workflow for combine_imps_wc '
@@ -274,6 +276,18 @@ class combine_imps_wc(WorkChain):
         self.report('INFO: running GF writeout (pk: {})'.format(future.pk))
 
         return ToContext(gf_writeout=future)
+
+
+    def check_host_gf(self):
+        """
+        Check if host gf is there
+        """
+        self.ctx.host_gf_ok = True
+
+        #gf_writeout = self.ctx.gf_writeout
+        #TODO take care of case when gf is provided in input
+
+        return self.ctx.host_gf_ok
 
 
     def create_big_potential(self): # pylint: disable=inconsistent-return-statements
@@ -315,8 +329,8 @@ class combine_imps_wc(WorkChain):
 
         # construct process builder for kkrimp scf workflow
         builder = kkr_imp_sub_wc.get_builder()
-        builder.metadata.label = 'kkrimp scf combined imps'
-        builder.metadata.description = 'scf workflow for combined impurities: {}, {}'.format(self.ctx.imp1.label, self.ctx.imp2.label)
+        builder.metadata.label = 'kkrimp scf combined imps' # pylint: disable=no-member
+        builder.metadata.description = 'scf workflow for combined impurities: {}, {}'.format(self.ctx.imp1.label, self.ctx.imp2.label) # pylint: disable=no-member
 
         # add combined impurity-info and startpot
         builder.impurity_info = self.ctx.imp_info_combined
@@ -346,10 +360,39 @@ class combine_imps_wc(WorkChain):
         """
         check if the calculation was successful and return the result nodes
         """
-        #TODO collect outputs
-        """
-        spec.output('workflow_info', valid_type=Dict, help="Results of the workflow")
-        spec.output('last_calc_output_parameters', valid_type=Dict)
-        spec.output('last_calc_remote', valid_type=RemoteData)
-        spec.output('last_calc', valid_type=CalcJobNode)
-        """
+
+        # collect outputs of host_gf sub_workflow
+        gf_writeout = self.ctx.gf_writeout
+        gf_sub_remote = gf_writeout.outputs.remote_folder
+
+        # collect results of kkrimp_scf sub-workflow
+        kkrimp_scf_sub = self.ctx.kkrimp_scf_sub
+        results_kkrimp_sub = kkrimp_scf_sub.outputs.workflow_info
+        last_calc = load_node(results_kkrimp_sub['last_calc_nodeinfo']['uuid'])
+        last_remote = last_calc.outputs.remote_folder
+        last_output_params = last_calc.outputs.output_parameters
+        last_pot = kkrimp_scf_sub.outputs.host_imp_pot
+
+        out_dict = {}
+        out_dict['workflow_name'] = self.__class__.__name__
+        out_dict['workflow_version'] = self._workflowversion
+        # collect info of sub workflows
+        out_dict['sub_workflows'] = {'host_gf': {'pk': gf_writeout.pk, 'uuid': gf_writeout.uuid},
+                                     'kkrimp_scf': {'pk': kkrimp_scf_sub.pk, 'uuid':kkrimp_scf_sub.uuid}
+                                    }
+        # collect some results from scf sub-workflow
+        for key in ['successful', 'convergence_value', 'convergence_reached', 'convergence_values_all_steps']:
+            out_dict[key] = results_kkrimp_sub[key]
+
+        # create results node with input links
+        link_nodes = {'GF_host_remote': gf_sub_remote, 'kkrimp_scf_results': results_kkrimp_sub}
+        outputnode = create_out_dict_node(Dict(dict=out_dict), **link_nodes)
+        outputnode.label = 'combine_imps_wc_results'
+
+        # save output nodes
+        self.out('workflow_info', outputnode)
+        self.out('remote_data_gf', gf_sub_remote)
+        self.out('last_potential', last_pot)
+        self.out('last_calc_remote', last_remote)
+        self.out('last_calc_output_parameters', last_output_params)
+
