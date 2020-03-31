@@ -92,10 +92,10 @@ class kkr_imp_dos_wc(WorkChain):
         spec.input("kkrimp", valid_type=Code, required=True,
                    help="KKRimp code, always needed.")
         spec.input("options", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._options_default),
+                   default=lambda: Dict(dict=cls._options_default),
                    help="Computer options (resources, quene name, etc.).")
         spec.input("wf_parameters", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._wf_default),
+                   default=lambda: Dict(dict=cls._wf_default),
                    help="DOS workflow parameters (energy range, etc.).")
         spec.input("host_remote", valid_type=RemoteData, required=False,
                    help="RemoteData node of the (converged) host calculation.")

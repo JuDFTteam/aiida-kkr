@@ -136,9 +136,9 @@ class kkr_scf_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_scf_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._wf_default))
+                   default=lambda: Dict(dict=cls._wf_default))
         spec.input("options", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._wf_default))
+                   default=lambda: Dict(dict=cls._wf_default))
         spec.input("structure", valid_type=StructureData, required=False)
         spec.input("calc_parameters", valid_type=Dict, required=False)
         spec.input("remote_data", valid_type=RemoteData, required=False)

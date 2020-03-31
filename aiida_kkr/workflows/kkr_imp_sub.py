@@ -115,9 +115,9 @@ class kkr_imp_sub_wc(WorkChain):
         spec.input("kkrimp_remote", valid_type=RemoteData, required=False)
         spec.input("impurity_info", valid_type=Dict, required=False)
         spec.input("options", valid_type=Dict, required=False,
-                       default=Dict(dict=cls._options_default))
+                       default=lambda: Dict(dict=cls._options_default))
         spec.input("wf_parameters", valid_type=Dict, required=False,
-                       default=Dict(dict=cls._wf_default))
+                       default=lambda: Dict(dict=cls._wf_default))
 
         # Here the structure of the workflow is defined
         spec.outline(

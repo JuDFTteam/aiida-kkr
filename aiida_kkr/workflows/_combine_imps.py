@@ -310,7 +310,7 @@ class combine_imps_wc(WorkChain):
         # extract and check consistency of nspin for the two calculations
         nspin1 = get_nspin(imp1_sub)
         nspin2 = get_nspin(imp2_sub)
-        if nspin1!=nspin2:
+        if nspin1 != nspin2:
             return self.exit_codes.ERROR_INCONSISTENT_NSPIN_VALUES # pylint: disable=maybe-no-member
 
         # extract potentials
