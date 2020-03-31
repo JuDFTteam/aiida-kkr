@@ -29,8 +29,6 @@ def test_kkrimp_full_wc(clear_database_before_test, voronoi_local_code, kkrhost_
     options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'withmpi' : False, 'custom_scheduler_commands' : ''}
     options = Dict(dict=options)
     voro_aux_settings['check_dos'] = False
-    voro_aux_settings['dos_params']['kmesh'] = [10,10,10]
-    voro_aux_settings['dos_params']['nepts'] = 10
     voro_aux_settings['natom_in_cls_min'] = 50
     voro_aux_settings['rclustz'] = 1.5
 

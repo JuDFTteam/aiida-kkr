@@ -110,6 +110,8 @@ class combine_imps_wc(WorkChain):
             message="i_neighbor_inplane needs to be bigger than 0")
         spec.exit_code(950, 'ERROR_INCONSISTENT_NSPIN_VALUES',
             message="The impurity calculations have different NSPIN values")
+        spec.exit_code(700, 'ERROR_HOST_GF_CALC_FAILED',
+            message="The writeout of the host GF failed")
 
         # define the outputs of the workflow
         spec.output('workflow_info')
@@ -287,7 +289,8 @@ class combine_imps_wc(WorkChain):
         #gf_writeout = self.ctx.gf_writeout
         #TODO take care of case when gf is provided in input
 
-        return self.ctx.host_gf_ok
+        if not self.ctx.host_gf_ok:
+            return self.exit_codes.ERROR_HOST_GF_CALC_FAILED
 
 
     def create_big_potential(self): # pylint: disable=inconsistent-return-statements
