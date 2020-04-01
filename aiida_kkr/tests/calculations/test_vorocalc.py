@@ -118,7 +118,7 @@ def test_voronoi_after_kkr(aiida_profile, voronoi_local_code, run_with_cache):
 
     # load necessary files from db_dump files
     from aiida.tools.importexport import import_data
-    import_data('files/db_dump_kkrcalc.tar.gz')
+    import_data('files/db_dump_kkrcalc.tar.gz', silent=True)
 
     # first load parent voronoi calculation
     kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')

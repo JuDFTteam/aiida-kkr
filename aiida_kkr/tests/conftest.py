@@ -121,7 +121,7 @@ def reuse_local_code(aiida_local_code_factory_prepend):
         full_import_path = str(data_dir)+'/'+executable+'.tar.gz'
         # check if exported code exists and load it, otherwise create new code (will have different has due to different working directory)
         if use_export_file and pathlib.Path(full_import_path).exists():
-            import_data(full_import_path)
+            import_data(full_import_path, silent=True)
             codes = Code.objects.find(filters={'label': executable})  # pylint: disable=no-member
             code = codes[0]
             code.computer.configure()
