@@ -16,7 +16,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __contributors__ = (u"Philipp Rüßmann")
 
 
@@ -26,7 +26,8 @@ class combine_imps_wc(WorkChain):
     reusing the preconverged potentials. This is useful, for example, to study co-doping.
 
     :param wf_parameters: (Dict), optional, specifications for workflow behavior
-    :param remote_data_gf: (RemoteData), optional, remote folder of a previous kkrflex writeout calculations containing the flexfiles
+    :param remote_data_gf: (RemoteData), optional, remote folder of a previous kkrflex writeout
+        calculations containing the flexfiles
     :param scf.kkrimp: (Code), mandatory, KKRimp code needed to run the calculations
     :param scf.wf_parameters: (Dict), optional, KKRimp code needed to run the calculations
     :param scf.options: (Dict), optional, computer options for KKRimp runs
@@ -35,16 +36,14 @@ class combine_imps_wc(WorkChain):
 
     :return workflow_info: (Dict), Information of workflow results
     :return last_calc_output_parameters: (Dict), output parameters of
-                                         the last called calculation (should be the converged one)
+        the last called calculation (should be the converged one)
     :return last_potential: (SingleFileData) link to last output potential (should be the converged one)
     :return last_calc_remote: (RemoteData) link to last called KKRimp calculation (should be the converged one)
-    :return remote_data_gf: (RemoteData) link to last KKRhost calculation that generated the host GF files (only present of host GF was generated here)
+    :return remote_data_gf: (RemoteData) link to last KKRhost calculation that generated the host GF files
+        (only present of host GF was generated here)
     """
 
     _workflowversion = __version__
-    _wf_label = 'combine_imps_wc'
-    _wf_description = 'Workflow for a KKRimp calculation combining two preconverged single impurities'
-
 
     @classmethod
     def get_wf_defaults(cls, silent=False):
@@ -114,7 +113,7 @@ class combine_imps_wc(WorkChain):
         spec.exit_code(800, 'ERROR_INPUT_NOT_SINGLE_IMP_CALC',
             message="Impurity input is not a single impurity calculation.")
         spec.exit_code(850, 'ERROR_INPLANE_NEIGHBOR_TOO_SMALL',
-            message="i_neighbor_inplane needs to be bigger than 0")
+            message="i_neighbor_inplane needs to be positive and bigger than 0 for in-plane neighbors")
         spec.exit_code(950, 'ERROR_INCONSISTENT_NSPIN_VALUES',
             message="The impurity calculations have different NSPIN values")
         spec.exit_code(700, 'ERROR_HOST_GF_CALC_FAILED',
@@ -219,7 +218,9 @@ class combine_imps_wc(WorkChain):
             self.report("ERROR: imps must be in the same layer")
             return self.exit_codes.ERROR_IMPS_NOT_IN_SAME_LAYER # pylint: disable=maybe-no-member
 
-        if self.inputs.offset_imp2['index']<1: #TODO change this to a minium of 0 if different layers are considered
+        if self.inputs.offset_imp2['index']<0:
+            return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
+        if impinfo1['ilayer_center'] != impinfo2['ilayer_center'] and iself.inputs.offset_imp2['index']<1:
             return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
 
         # get zimp of imp1

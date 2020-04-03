@@ -18,7 +18,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __contributors__ = (u"Philipp Rüßmann")
 
 # activate debug writeout
@@ -90,7 +90,7 @@ def get_scoef_single_imp(host_structure, impinfo_node):
     
     return clust
 
-def get_inplane_neighbor(host_structure, i_neighbor):
+def get_inplane_neighbor(host_structure, i_neighbor, r_out_of_plane):
     """
     create in-plane neighbor
     """
@@ -101,15 +101,15 @@ def get_inplane_neighbor(host_structure, i_neighbor):
     dist =[]
     icount = 0
     N_neighbor_search = 5 # define box in which neighbors are searched
-    for j in list(range(N_neighbor_search+1))+list(range(-N_neighbor_search,0)[::-1]): # use this to have better ordering (nicer numbers)
-        for i in list(range(N_neighbor_search+1))+list(range(-N_neighbor_search,0)[::-1]):
+    for j in list(range(N_neighbor_search+1))+list(range(-N_neighbor_search, 0)[::-1]): # use this to have better ordering (nicer numbers)
+        for i in list(range(N_neighbor_search+1))+list(range(-N_neighbor_search, 0)[::-1]):
             # create position
-            r = cell[0]*i + cell[1]*j
+            r = cell[0]*i + cell[1]*j + r_out_of_plane
             d = np.sqrt(np.sum(r**2))
             # check if already in list
             add_pair = False
-            if icount>1:
-                if abs(np.array(dist)[:,-1]-d).min()>10**-5:
+            if icount > 1:
+                if abs(np.array(dist)[:, -1]-d).min() > 10**-5:
                     add_pair = True
             else:
                 add_pair = True
@@ -120,11 +120,11 @@ def get_inplane_neighbor(host_structure, i_neighbor):
 
     alat = get_alat_from_bravais(cell, host_structure.pbc[2])
     dist = np.array(dist)
-    dist[:,2:] = dist[:,2:] / alat
-    dist_sort_list = dist[:,-1].argsort()
+    dist[:, 2:] = dist[:, 2:] / alat
+    dist_sort_list = dist[:, -1].argsort()
 
     # find in-plane neighbor
-    r_offset =dist[dist_sort_list[i_neighbor]][2:5] # element 0 is no offset
+    r_offset = dist[dist_sort_list[i_neighbor]][2:5] # element 0 is no offset
 
     return r_offset
 
@@ -212,9 +212,15 @@ def create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2)
         print('cls1:', clust1)
         print('cls2:', clust2)
 
-    # find offset
-    #TODO allow also out-of-plane neighbors
-    r_offset = get_inplane_neighbor(host_structure, i_neighbor_inplane)
+    # find offset taking into account the possible out-of-plane vector if the imps are in different layers
+    r_out_of_plane = np.array([0,0,0])
+    layer1 = impinfo1['ilayer_center']
+    layer2 = impinfo2['ilayer_center']
+    if layer1 != layer2:
+        pos1 = np.array(host_structure.sites[layer1].position)
+        pos2 = np.array(host_structure.sites[layer2].position)
+        r_out_of_plane = pos2-pos1
+    r_offset = get_inplane_neighbor(host_structure, i_neighbor_inplane, r_out_of_plane)
     if debug: print('r_offset:', r_offset)
 
     # add offset to cluster 2
