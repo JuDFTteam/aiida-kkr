@@ -6,7 +6,7 @@ This module contains the workflow which combines pre-converged single-impurity c
 from __future__ import absolute_import
 from __future__ import print_function
 from aiida.engine import WorkChain, if_, ToContext
-from aiida.orm import load_node, Dict, WorkChainNode, Int
+from aiida.orm import load_node, Dict, WorkChainNode, Int, RemoteData
 from aiida_kkr.calculations import KkrCalculation
 from aiida_kkr.workflows import kkr_imp_sub_wc, kkr_flex_wc, kkr_imp_wc
 from aiida_kkr.tools.combine_imps import (create_combined_imp_info_cf, combine_potentials_cf,
@@ -16,7 +16,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __contributors__ = (u"Philipp Rüßmann")
 
 
@@ -69,8 +69,12 @@ class combine_imps_wc(WorkChain):
         super(combine_imps_wc, cls).define(spec)
 
         # expose these inputs from sub-workflows
-        spec.expose_inputs(kkr_imp_sub_wc, namespace='scf', include=('kkrimp', 'options', 'wf_parameters'))
-        spec.expose_inputs(kkr_flex_wc, namespace='host_gf', include=('kkr', 'options'))
+        spec.expose_inputs(kkr_imp_sub_wc, namespace='scf', include=('kkrimp', 'options', 'wf_parameters',))
+        spec.expose_inputs(kkr_flex_wc,
+                           namespace='host_gf',
+                           include=('kkr', 'options', 'params_kkr_overwrite',), # expose only those port which are not set automatically
+                           namespace_options={'required': False, 'populate_defaults': False}, # this makes sure the kkr code input is not needed if gf_host_remote is provided and the entire namespace is omitted
+                          )
 
         # define the inputs of the workflow
 
@@ -85,13 +89,16 @@ class combine_imps_wc(WorkChain):
                         "the 'vector' option allows to give the offset vector in cartesian units and "
                         "the 'index' option allows to five the offset vector in units of the lattice "
                         "vectors of the host system's structure.")
+        spec.input("gf_host_remote", valid_type=RemoteData, required=False, #TODO add validator that makes sure this is not given together with the host_gf sub-workflow namespace
+                   help="RemoteData node of pre-calculated host Green function (i.e. with kkr_flex_wc). "
+                        "If given then the writeout step of the host GF is omitted.")
 
 
         # structure of the workflow
         spec.outline(
             cls.start,                      # initialize workflow (set things in context and some consistency checks)
             cls.create_big_cluster,         # combine imp clusters of the two imps
-            if_(cls.check_gf_in_input)(     # check if GF was given in input and can be reused
+            if_(cls.need_gf_run)(           # check if GF was given in input and can be reused
                 cls.run_gf_writeout),       # write out the host GF
             cls.check_host_gf,
             cls.create_big_potential,       # combine preconverged potentials to big one
@@ -247,11 +254,11 @@ class combine_imps_wc(WorkChain):
         return zimp, is_single_imp
 
 
-    def check_gf_in_input(self):
+    def need_gf_run(self):
         """
         check if GF was given in input and can be reused (then return Falser which means no gf needs to be calculated)
         """
-        if 'gf' in self.inputs:
+        if 'gf_host_remote' in self.inputs:
             return False
 
         return True
@@ -269,6 +276,9 @@ class combine_imps_wc(WorkChain):
 
         if 'options' in self.inputs.host_gf:
             builder.options = self.inputs.host_gf.options
+
+        if 'params_kkr_overwrite' in self.inputs.host_gf:
+            builder.params_kkr_overwrite = self.inputs.host_gf.params_kkr_overwrite
 
         # find converged_host_remote input (converged potential of host system)
         imp1_sub = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node
@@ -295,8 +305,8 @@ class combine_imps_wc(WorkChain):
         """
         self.ctx.host_gf_ok = True
 
-        #gf_writeout = self.ctx.gf_writeout
-        #TODO take care of case when gf is provided in input
+        #TODO check if host gf calculation finished successfully
+        #TODO check if input host gf remote is consistent
 
         if not self.ctx.host_gf_ok:
             return self.exit_codes.ERROR_HOST_GF_CALC_FAILED
@@ -349,9 +359,11 @@ class combine_imps_wc(WorkChain):
         builder.host_imp_startpot = self.ctx.combined_potentials
 
         # add host GF (either calculated or form input)
-        gf_remote = self.ctx.gf_writeout.outputs.GF_host_remote
-        # TODO add option for input gf_remote
-        builder.remote_data= gf_remote
+        if 'gf_host_remote' not in self.inputs:
+            gf_remote = self.ctx.gf_writeout.outputs.GF_host_remote
+        else:
+            gf_remote = self.inputs.gf_host_remote
+        builder.remote_data = gf_remote
 
         # settings from scf namespace
         builder.kkrimp = self.inputs.scf.kkrimp
@@ -373,10 +385,6 @@ class combine_imps_wc(WorkChain):
         check if the calculation was successful and return the result nodes
         """
 
-        # collect outputs of host_gf sub_workflow
-        gf_writeout = self.ctx.gf_writeout
-        gf_sub_remote = gf_writeout.outputs.GF_host_remote
-
         # collect results of kkrimp_scf sub-workflow
         kkrimp_scf_sub = self.ctx.kkrimp_scf_sub
         results_kkrimp_sub = kkrimp_scf_sub.outputs.workflow_info
@@ -388,25 +396,39 @@ class combine_imps_wc(WorkChain):
         out_dict = {}
         out_dict['workflow_name'] = self.__class__.__name__
         out_dict['workflow_version'] = self._workflowversion
-        # collect info of sub workflows
-        out_dict['sub_workflows'] = {'host_gf': {'pk': gf_writeout.pk, 'uuid': gf_writeout.uuid},
-                                     'kkrimp_scf': {'pk': kkrimp_scf_sub.pk, 'uuid':kkrimp_scf_sub.uuid}
-                                    }
+
+        # collect info of sub workflow
+        out_dict['sub_workflows'] = {'kkrimp_scf': {'pk': kkrimp_scf_sub.pk, 'uuid':kkrimp_scf_sub.uuid}}
+
         # collect some results from scf sub-workflow
         for key in ['successful', 'convergence_value', 'convergence_reached', 'convergence_values_all_steps']:
             out_dict[key] = results_kkrimp_sub[key]
+
+        # collect outputs of host_gf sub_workflow if it was done
+        if 'gf_host_remote' not in self.inputs:
+            gf_writeout = self.ctx.gf_writeout
+            gf_sub_remote = gf_writeout.outputs.GF_host_remote
+
+            # add as output node
+            self.out('remote_data_gf', gf_sub_remote)
+
+            # add info about sub-workflow to dict output
+            out_dict['sub_workflows']['host_gf'] = {'pk': gf_writeout.pk, 'uuid': gf_writeout.uuid}
+        
+
         # add information on combined cluster and potential
         out_dict['imp_info_combined'] = self.ctx.imp_info_combined.get_dict()
         out_dict['potential_kickout_info'] = self.ctx.kickout_info.get_dict()
 
         # create results node with input links
-        link_nodes = {'GF_host_remote': gf_sub_remote, 'kkrimp_scf_results': results_kkrimp_sub}
+        link_nodes = {'kkrimp_scf_results': results_kkrimp_sub}
+        if 'gf_host_remote' not in self.inputs:
+            link_nodes['GF_host_remote'] = gf_sub_remote
         outputnode = create_out_dict_node(Dict(dict=out_dict), **link_nodes)
         outputnode.label = 'combine_imps_wc_results'
 
-        # save output nodes
+        # add output nodes
         self.out('workflow_info', outputnode)
-        self.out('remote_data_gf', gf_sub_remote)
         self.out('last_potential', last_pot)
         self.out('last_calc_remote', last_remote)
         self.out('last_calc_output_parameters', last_output_params)
