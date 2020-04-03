@@ -118,8 +118,6 @@ class combine_imps_wc(WorkChain):
             message="The impurity calculations have different NSPIN values")
         spec.exit_code(700, 'ERROR_HOST_GF_CALC_FAILED',
             message="The writeout of the host GF failed")
-        spec.exit_code(750, 'ERROR_IMPS_NOT_IN_SAME_LAYER',
-            message="So far the workflow can only create impurities in the same layer")
         #TODO to fix this create_combined_imp_info_cf need to take the different layers into account
         # when the difference vector and the neighbors are created
 
@@ -215,7 +213,7 @@ class combine_imps_wc(WorkChain):
 
         if self.inputs.offset_imp2['index']<0:
             return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
-        if impinfo1['ilayer_center'] != impinfo2['ilayer_center'] and iself.inputs.offset_imp2['index']<1:
+        if impinfo1['ilayer_center'] != impinfo2['ilayer_center'] and self.inputs.offset_imp2['index']<1:
             return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
 
         # get zimp of imp1
