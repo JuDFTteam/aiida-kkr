@@ -6,7 +6,7 @@ import pytest
 from aiida_kkr.tests.dbsetup import *
 if __name__!='__main__':
     from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
-    from ..conftest import voronoi_local_code, kkrhost_local_code
+    from ..conftest import voronoi_local_code, kkrhost_local_code, test_dir, data_dir
     from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
     from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 
@@ -61,7 +61,7 @@ def test_kkrimp_full_wc(clear_database_before_test, voronoi_local_code, kkrhost_
     builder.remote_data_host = kkr_calc_remote
 
     # now run calculation
-    out, node = run_with_cache(builder)
+    out, node = run_with_cache(builder, data_dir=data_dir)
     print(out)
 
     # check outcome
@@ -106,8 +106,13 @@ def test_kkrimp_full_Ag_Cu_onsite(clear_database_before_test, voronoi_local_code
 
     # import parent calculation (converged host system)
     from aiida.tools.importexport import import_data
-    import_data('data_dir/kkr_scf_wc-nodes-b88a73969a1d642ca4f0eae64ddb6f4c.tar.gz', silent=True)
-    kkrhost_calc_remote = load_node('9c0b1a92').outputs.remote_folder
+    imported_nodes = import_data('data_dir/kkr_scf_wc-nodes-b88a73969a1d642ca4f0eae64ddb6f4c.tar.gz', silent=True)['Node']
+    for _, pk in imported_nodes['new']+imported_nodes['existing']:
+        node = load_node(pk)
+        if node.label=='KKR-scf for Cu bulk':
+            kkr_scf_wc = node
+    kkr_converged = load_node(kkr_scf_wc.outputs.output_kkr_scf_wc_ParameterResults['last_calc_nodeinfo']['uuid'])
+    kkrhost_calc_remote = kkr_converged.outputs.remote_folder
 
     # give workflow label and description
     label = 'kkrimp_scf full Cu host_in_host'
@@ -127,7 +132,7 @@ def test_kkrimp_full_Ag_Cu_onsite(clear_database_before_test, voronoi_local_code
     builder.remote_data_host = kkrhost_calc_remote
 
     # now run calculation
-    out, node = run_with_cache(builder)
+    out, node = run_with_cache(builder, data_dir=data_dir)
     print(out)
 
     # check outcome

@@ -45,7 +45,7 @@ def test_kkrflex_writeout_wc(clear_database_before_test, kkrhost_local_code, run
     builder.impurity_info = imp_info
 
     # now run calculation
-    out, node = run_with_cache(builder)
+    out, node = run_with_cache(builder, data_dir=data_dir)
     print(out)
 
     n = out['workflow_info']

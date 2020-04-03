@@ -66,7 +66,7 @@ def test_dos_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cach
     builder.remote_data = kkr_calc_remote
 
     # now run calculation
-    out, node = run_with_cache(builder)
+    out, node = run_with_cache(builder, data_dir=data_dir)
 
     # check outcome
     n = out['results_wf']

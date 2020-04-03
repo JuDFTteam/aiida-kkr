@@ -3,14 +3,23 @@ Here we define the fixtures for the tests
 """
 
 from __future__ import absolute_import
+from __future__ import print_function
 import pytest
-from aiida.common.hashing import make_hash
-
-
 import tempfile
 import shutil
-
+import pathlib
+from aiida.common.hashing import make_hash
 from aiida.manage.tests.pytest_fixtures import aiida_profile, temp_dir
+import aiida_kkr
+
+
+# test settings:
+
+test_dir = pathlib.Path(aiida_kkr.tests.__file__).parent
+data_dir = (test_dir / 'data_dir')  # TODO: get from config?
+
+# fixtures
+
 
 @pytest.fixture(scope='function', autouse=True)
 def clear_database_auto(clear_database):
@@ -112,12 +121,10 @@ def aiida_local_code_factory_prepend(aiida_localhost_serial): # pylint: disable=
 def reuse_local_code(aiida_local_code_factory_prepend):
 
     def _get_code(executable, exec_relpath, entrypoint, prepend_text=None, use_export_file=True):
-        import os, pathlib
+        import os
         from aiida.tools.importexport import import_data, export
         from aiida.orm import ProcessNode, QueryBuilder, Code, load_node
 
-        cwd = pathlib.Path(os.getcwd())                  # Might be not the best idea.
-        data_dir = (cwd / 'data_dir')                    # TODO: get from config?
         full_import_path = str(data_dir)+'/'+executable+'.tar.gz'
         # check if exported code exists and load it, otherwise create new code (will have different has due to different working directory)
         if use_export_file and pathlib.Path(full_import_path).exists():
@@ -128,8 +135,9 @@ def reuse_local_code(aiida_local_code_factory_prepend):
 
         else:
             # make sure code is found in PATH
-            _exe_path = os.path.abspath(exec_relpath)
-            os.environ['PATH']+=':'+_exe_path
+            _exe_path = (test_dir / pathlib.Path(exec_relpath)).absolute()
+            print(_exe_path)
+            os.environ['PATH']+=':'+str(_exe_path)
             # get code using aiida_local_code_factory fixture
             code = aiida_local_code_factory_prepend(entrypoint, executable, prepend_text=prepend_text)
             

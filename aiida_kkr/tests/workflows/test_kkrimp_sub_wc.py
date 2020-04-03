@@ -62,7 +62,7 @@ def test_kkrimp_sub_wc(clear_database_before_test, kkrimp_local_code, run_with_c
     print('builder', builder)
 
     # now run calculation
-    out, node = run_with_cache(builder)
+    out, node = run_with_cache(builder, data_dir=data_dir)
     print('out', out)
     print('node', node)
     print(node.process_status)

@@ -88,7 +88,7 @@ class Test_kkr_calculation(object):
         print(kkrhost_local_code)
         print(voro_calc)
         print(builder)
-        out, node = run_with_cache(builder)
+        out, node = run_with_cache(builder, data_dir=data_dir)
         print((node, out))
         print((node.get_cache_source()))
         assert node.get_cache_source() is not None
@@ -232,7 +232,7 @@ class Test_kkr_calculation(object):
         builder.parent_folder = voro_with_kkr_input.outputs.remote_folder
 
         # now run or load from cached data
-        out, node = run_with_cache(builder)
+        out, node = run_with_cache(builder, data_dir=data_dir)
         print('cache_source:', node.get_hash())
         print('cache_source:', node.get_cache_source())
         print('code objects to hash:', node._get_objects_to_hash())

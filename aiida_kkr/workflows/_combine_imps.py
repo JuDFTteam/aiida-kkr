@@ -395,6 +395,9 @@ class combine_imps_wc(WorkChain):
         # collect some results from scf sub-workflow
         for key in ['successful', 'convergence_value', 'convergence_reached', 'convergence_values_all_steps']:
             out_dict[key] = results_kkrimp_sub[key]
+        # add information on combined cluster and potential
+        out_dict['imp_info_combined'] = self.ctx.imp_info_combined.get_dict()
+        out_dict['potential_kickout_info'] = self.ctx.kickout_info.get_dict()
 
         # create results node with input links
         link_nodes = {'GF_host_remote': gf_sub_remote, 'kkrimp_scf_results': results_kkrimp_sub}

@@ -64,7 +64,7 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     builder.host_remote = GF_host_calc.outputs.remote_folder
 
     # now run calculation
-    out, node = run_with_cache(builder)
+    out, node = run_with_cache(builder, data_dir=data_dir)
     print(node)
     print(out)
 

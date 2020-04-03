@@ -54,7 +54,7 @@ def test_kkr_startpot_wc_Cu(clear_database_before_test, voronoi_local_code, kkrh
     builder.kkr = kkrhost_local_code
 
 
-    out, node = run_with_cache(builder)
+    out, node = run_with_cache(builder, data_dir=data_dir)
     print('outputs:', node, out)
 
     # check output
@@ -141,7 +141,7 @@ def test_kkr_startpot_parent_KKR(clear_database_before_test, voronoi_local_code,
     builder.parent_KKR = parent_calc_remote
 
 
-    out, node = run_with_cache(builder)
+    out, node = run_with_cache(builder, data_dir=data_dir)
     print('outputs:', node, out)
 
     # check output
