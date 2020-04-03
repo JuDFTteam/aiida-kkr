@@ -213,11 +213,6 @@ class combine_imps_wc(WorkChain):
         self.report("imp info 1: {}".format(impinfo1))
         self.report("imp info 2: {}".format(impinfo2))
 
-        #TODO remove this once the functionality is implemented (see also next TODO)
-        if impinfo1['ilayer_center'] != impinfo2['ilayer_center']:
-            self.report("ERROR: imps must be in the same layer")
-            return self.exit_codes.ERROR_IMPS_NOT_IN_SAME_LAYER # pylint: disable=maybe-no-member
-
         if self.inputs.offset_imp2['index']<0:
             return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
         if impinfo1['ilayer_center'] != impinfo2['ilayer_center'] and iself.inputs.offset_imp2['index']<1:
