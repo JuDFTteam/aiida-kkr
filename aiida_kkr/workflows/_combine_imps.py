@@ -300,8 +300,9 @@ class combine_imps_wc(WorkChain):
         """
         self.ctx.host_gf_ok = True
 
-        if not self.ctx.gf_writeout.is_finished_ok:
-            self.ctx.host_gf_ok = False
+        if self.need_gf_run(): # check only if the calculation was run
+            if not self.ctx.gf_writeout.is_finished_ok:
+                self.ctx.host_gf_ok = False
 
         #TODO check if input host gf remote is consistent
 

@@ -19,7 +19,7 @@ from builtins import str
 _ignored_keys = ['ef_set', 'use_input_alat']
 
 @calcfunction
-def update_params_wf(parameternode, updatenode):
+def update_params_wf(parameternode, updatenode, **link_inputs):
     """
     Work function to update a KKR input parameter node.
     Stores new node in database and creates a link from old parameter node to new node
