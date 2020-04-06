@@ -213,7 +213,7 @@ class combine_imps_wc(WorkChain):
 
         if self.inputs.offset_imp2['index']<0:
             return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
-        if impinfo1['ilayer_center'] != impinfo2['ilayer_center'] and self.inputs.offset_imp2['index']<1:
+        if impinfo1['ilayer_center'] == impinfo2['ilayer_center'] and self.inputs.offset_imp2['index']<1:
             return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
 
         # get zimp of imp1
@@ -272,6 +272,7 @@ class combine_imps_wc(WorkChain):
             builder.options = self.inputs.host_gf.options
 
         if 'params_kkr_overwrite' in self.inputs.host_gf:
+            self.report("INFO: using params_kkr_overwrite in host_gf step: {}".format(self.inputs.host_gf.params_kkr_overwrite.get_dict()))
             builder.params_kkr_overwrite = self.inputs.host_gf.params_kkr_overwrite
 
         # find converged_host_remote input (converged potential of host system)
@@ -299,7 +300,9 @@ class combine_imps_wc(WorkChain):
         """
         self.ctx.host_gf_ok = True
 
-        #TODO check if host gf calculation finished successfully
+        if not self.ctx.gf_writeout.is_finished_ok:
+            self.ctx.host_gf_ok = False
+
         #TODO check if input host gf remote is consistent
 
         if not self.ctx.host_gf_ok:
