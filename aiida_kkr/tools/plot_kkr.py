@@ -636,6 +636,10 @@ class plot_kkr(object):
                         ne = len(set(loadtxt(f)[:,0]))
                         if ne>1 or 'as_e_dimension' in list(kwargs.keys()):
                             try:
+                                # extract Fermi level from parent calculation
+                                parent_calc = node.inputs.parent_folder.get_incoming().first().node
+                                ef = parent_calc.outputs.output_parameters.get_dict()['fermi_energy']
+                            except:
                                 outfile_name = f.name.replace('qdos.01.1.dat', 'output.0.txt')
                                 with open_general(outfile_name) as file_handle:
                                     txt = file_handle.readlines()
@@ -647,10 +651,6 @@ class plot_kkr(object):
                                         ef = None
                                 if ef is None:
                                     raise ValueError('error loading Fermi energy from outfile, retry extracting from parent')
-                            except:
-                                # extract Fermi level from parent calculation
-                                parent_calc = node.inputs.parent_folder.get_incoming().first().node
-                                ef = parent_calc.outputs.output_parameters.get_dict()['fermi_energy']
                             dispersionplot(f, newfig=(not nofig), ptitle=ptitle, logscale=logscale, ef=ef, **kwargs)
                             # add plot labels
                             try:

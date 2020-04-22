@@ -26,7 +26,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.4"
+__version__ = "0.11.5"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -374,7 +374,7 @@ class KkrCalculation(CalcJob):
                 alat_input = parameters.get_dict().get('ALATBASIS')
             else:
                 alat_input = alat
-            kpath_array = kpath_array * (alat_input/alat) / get_Ang2aBohr() / (2*pi/alat)
+            kpath_array = kpath_array * (alat_input/alat) / get_Ang2aBohr() / (2*np.pi/alat)
             # now write file
             qvec = ['%i\n'%len(kpath_array)]
             qvec+=['%e %e %e\n'%(kpt[0], kpt[1], kpt[2]) for kpt in kpath_array]
@@ -569,7 +569,14 @@ class KkrCalculation(CalcJob):
         print("found 'ef_set' in parameters: change EF of potential to this value")
 
         # first read old potential
-        if self._POTENTIAL not in tempfolder.list_object_names():
+        
+        try:
+            tempfolder.open(self._POTENTIAL)
+            has_potfile = True
+        except OSError:
+            has_potfile = False
+            
+        if not has_potfile:
             # this is the case when we take the potential from an existing folder
             potcopy_info = [i for i in local_copy_list if i[2]==self._POTENTIAL][0]
             with load_node(potcopy_info[0]).open(potcopy_info[1]) as potfile:
@@ -583,7 +590,7 @@ class KkrCalculation(CalcJob):
                 # read potential
                 txt = potfile.readlines()
 
-        # change value of Fermi level in potential text
+        # now change value of Fermi level in potential text
         potstart = []
         for iline in range(len(txt)):
             line = txt[iline]

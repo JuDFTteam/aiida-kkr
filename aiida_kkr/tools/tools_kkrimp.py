@@ -22,7 +22,7 @@ from aiida.common.constants import elements as PeriodicTableElements
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH,"
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.3"
+__version__ = "0.6.4"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -390,15 +390,15 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
     #========================================================
     #spherical approach (same distance in all three directions)
     if clust_shape == 'spherical':
-        box_1 = int(radius/structure.cell_lengths[0] + 1)
-        box_2 = int(radius/structure.cell_lengths[1] + 1)
-        box_3 = int(radius/sl3 + 1)
+        box_1 = int(radius/structure.cell_lengths[0] + 3)
+        box_2 = int(radius/structure.cell_lengths[1] + 3)
+        box_3 = int(radius/sl3 + 3)
     #cylindrical shape (different distances for the different directions)
     elif clust_shape == 'cylindrical':
         maxval = max(h/2., radius)
-        box_1 = int(maxval/structure.cell_lengths[0] + 1)
-        box_2 = int(maxval/structure.cell_lengths[1] + 1)
-        box_3 = int(maxval/sl3 + 1)
+        box_1 = int(maxval/structure.cell_lengths[0] + 3)
+        box_2 = int(maxval/structure.cell_lengths[1] + 3)
+        box_3 = int(maxval/sl3 + 3)
     #================================================================================================================
 
     #create array of all the atoms in an expanded system
