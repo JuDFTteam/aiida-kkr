@@ -20,7 +20,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.8.6"
+__version__ = "0.9.0"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -118,6 +118,8 @@ class kkr_imp_sub_wc(WorkChain):
                        default=lambda: Dict(dict=cls._options_default))
         spec.input("wf_parameters", valid_type=Dict, required=False,
                        default=lambda: Dict(dict=cls._wf_default))
+        spec.input("settings_LDAU", valid_type=Dict, required=False,
+                      help="LDA+U settings. See KKRimpCalculation for details.")
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -202,6 +204,8 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.rms_all_steps = []
         self.ctx.last_neutr_all = []
         self.ctx.neutr_all_steps = []
+        # LDA+U settings, either from input port or extracted from kkrimp_remote
+        self.ctx.settings_LDAU = None
 
         # input para
         wf_dict = self.inputs.wf_parameters.get_dict()
@@ -325,7 +329,18 @@ class kkr_imp_sub_wc(WorkChain):
 
         if 'kkrimp_remote' in inputs:
             self.ctx.start_from_imp_remote = True
-            self.ctx.last_remote = inputs.kkrimp_remote
+            kkrimp_remote = inputs.kkrimp_remote
+            self.ctx.last_remote = kkrimp_remote
+            # check if LDA+U settings should be set from input port or kkrimp parent calculation
+            if 'settings_LDAU' in inputs:
+                self.ctx.settings_LDAU = inputs.settings_LDAU
+            else:
+                # check if kkrimp parent calculation has LDA+U input
+                parent_kkrimp_calc = kkrimp_remote.get_incoming(node_class=CalcJobNode).first().node
+                if 'settings_LDAU' in parent_kkrimp_calc.inputs:
+                    self.ctx.settings_LDAU = parent_kkrimp_calc.inputs.settings_LDAU
+                
+                
 
         # check if input remote_data node is fine
         if 'remote_data' in inputs:
@@ -736,6 +751,9 @@ class kkr_imp_sub_wc(WorkChain):
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
                                            not self.ctx.withmpi, host_GF=host_GF, kkrimp_remote=last_remote, host_GF_Efshift=host_GF_Efshift)
+            # add LDA+U input node if it was set in parent calculation of last kkrimp_remote or from input port
+            if self.ctx.settings_LDAU is not None:
+                inputs['settings_LDAU'] = self.ctx.settings_LDAU
 
         # run the KKR calculation
         message = 'INFO: doing calculation'

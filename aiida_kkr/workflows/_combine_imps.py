@@ -16,7 +16,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1.2"
+__version__ = "0.2.0"
 __contributors__ = (u"Philipp Rüßmann")
 
 
@@ -182,16 +182,22 @@ class combine_imps_wc(WorkChain):
 
         #impurity_workflow should be kkr_imp_wc workflow
         if not isinstance(impurity_workflow, WorkChainNode):
-            self.report("impurity_workflow not a WorkChainNode", impurity_workflow)
+            self.report("impurity_workflow not a WorkChainNode: {}".format(impurity_workflow))
             return False
-        if not impurity_workflow.process_class==kkr_imp_wc:
-            self.report("impurity_workflow class is wrong", impurity_workflow)
+        
+        if not (impurity_workflow.process_class==kkr_imp_wc or impurity_workflow.process_class==kkr_imp_sub_wc):
+            self.report("impurity_workflow class is wrong: {}".format(impurity_workflow))
             return False
 
         # calculation should be converged
-        if not impurity_workflow.outputs.workflow_info.get_dict().get('converged'):
-            self.report("impurity_workflow not converged")
-            return False
+        if impurity_workflow.process_class==kkr_imp_wc:
+            if not impurity_workflow.outputs.workflow_info.get_dict().get('converged'):
+                self.report("impurity_workflow not converged")
+                return False
+        elif impurity_workflow.process_class==kkr_imp_sub_wc:
+            if not impurity_workflow.outputs.workflow_info.get_dict().get('convergence_reached'):
+                self.report("impurity_workflow not converged")
+                return False
 
         # all checks passed
         return True
@@ -276,7 +282,10 @@ class combine_imps_wc(WorkChain):
             builder.params_kkr_overwrite = self.inputs.host_gf.params_kkr_overwrite
 
         # find converged_host_remote input (converged potential of host system)
-        imp1_sub = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node
+        if self.ctx.imp1.process_class == kkr_imp_sub_wc:
+            imp1_sub = self.ctx.imp1
+        else:
+            imp1_sub = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node
         gf_writeout_calc = imp1_sub.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node
         builder.remote_data = gf_writeout_calc.inputs.parent_folder
 
@@ -321,8 +330,14 @@ class combine_imps_wc(WorkChain):
         kickout_info = self.ctx.kickout_info
 
         # find KKRimp scf sub workflows
-        imp1_sub = imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node
-        imp2_sub = imp2.get_outgoing(node_class=kkr_imp_sub_wc).first().node
+        if imp1.process_class == kkr_imp_sub_wc:
+            imp1_sub = imp1
+        else:
+            imp1_sub = imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node
+        if imp2.process_class == kkr_imp_sub_wc:
+            imp2_sub = imp2
+        else:
+            imp2_sub = imp2.get_outgoing(node_class=kkr_imp_sub_wc).first().node
 
         # extract and check consistency of nspin for the two calculations
         nspin1 = get_nspin(imp1_sub)

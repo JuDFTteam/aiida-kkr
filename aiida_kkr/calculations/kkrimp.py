@@ -3,7 +3,6 @@
 Input plug-in for a KKRimp calculation.
 """
 
-from __future__ import print_function
 from __future__ import absolute_import
 from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode, Dict, RemoteData, SinglefileData
@@ -14,7 +13,7 @@ from masci_tools.io.kkr_params import kkrparams
 from .voro import VoronoiCalculation
 from .kkr import KkrCalculation
 from aiida_kkr.tools.tools_kkrimp import modify_potential, make_scoef, write_scoef_full_imp_cls
-from masci_tools.io.common_functions import search_string
+from masci_tools.io.common_functions import search_string, get_ef_from_potfile
 import os
 import tarfile
 from numpy import array, sqrt, sum, where, loadtxt
@@ -25,7 +24,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.1"
+__version__ = "0.6.1"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -66,7 +65,7 @@ class KkrimpCalculation(CalcJob):
     _OUT_ENERGYTOT = u'out_energytotal_eV'
     _OUT_ENERGYTOT_PER_ATOM = u'out_energytotal_per_atom_eV'
 
-    # Lift of output files that are retrieved if special conditions are fulfilled
+    # List of output files that are retrieved if special conditions are fulfilled
     _OUT_JIJDIJ = u'out_JijDij'
     _OUT_JIJDIJ_LOCAL = u'out_JijDij_local'
     _OUT_JIJMAT = u'out_Jijmatrix'
@@ -77,6 +76,7 @@ class KkrimpCalculation(CalcJob):
     _OUT_LMDOS_INTERPOL_BASE = u'out_lmdos.interpol.atom=%2i_spin%i.dat'
     _OUT_MAGNETICMOMENTS = u'out_magneticmoments'
     _OUT_ORBITALMOMENTS = u'out_orbitalmoments'
+    _LDAUPOT = 'ldaupot'
 
     # template.product entry point defined in setup.json
     _default_parser = u'kkr.kkrimpparser'
@@ -110,6 +110,18 @@ class KkrimpCalculation(CalcJob):
         spec.input('impurity_potential', valid_type=SinglefileData, required=False, help='Use a node that contains the input potential.')
         spec.input('parent_calc_folder', valid_type=RemoteData, required=False, help='Use a node that specifies a parent KKRimp calculation.')
         spec.input('impurity_info', valid_type=Dict, required=False, help='Use a parameter node that specifies properties for a immpurity calculation.')
+        spec.input('settings_LDAU', valid_type=Dict, required=False,
+                   help="""
+Settings for running a LDA+U calculation. The Dict node should be of the form
+    settings_LDAU = Dict(dict={'iatom=0':{
+        'L': 3,         # l-block which gets U correction (1: p, 2: d, 3: f-electrons)
+        'U': 7.,        # U value in eV
+        'J': 0.75,      # J value in eV
+        'Eref_EF': 0.,  # reference energy in eV relative to the Fermi energy. This is the energy where the projector wavefunctions are calculated (should be close in energy where the states that are shifted lie (e.g. for Eu use the Fermi energy))
+    }})
+    Note: you can add multiple entries like the one for iatom==0 in this example. The atom index refers to the corresponding atom in the impurity cluster.
+""")
+        
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the KKRimp calculation')
         spec.default_output_node = 'output_parameters'
@@ -164,6 +176,10 @@ class KkrimpCalculation(CalcJob):
 
         # change retrieve list for Chebychev solver
         retrieve_list = self.adapt_retrieve_tmatnew(tempfolder, allopts, retrieve_list)
+        
+        # write ldaupot file and change retrieved list for LDA+U calculation
+        # this is triggered with having the settings_LDAU dict node in input.
+        retrieve_list = self.init_ldau(tempfolder, retrieve_list, parent_calc_folder)
 
         # change local and remote copy list if GF is found on remote machine
         remote_symlink_list, local_copy_list = self.get_remote_symlink(local_copy_list)
@@ -254,18 +270,18 @@ class KkrimpCalculation(CalcJob):
                         and imp_info_inputnode.get_dict().get('cylinder_orient') == imp_info.get_dict().get('cylinder_orient')
                         and imp_info_inputnode.get_dict().get('Rimp_rel') == imp_info.get_dict().get('Rimp_rel')
                         and imp_info_inputnode.get_dict().get('imp_cls') == imp_info.get_dict().get('imp_cls')):
-                        print('impurity_info node from input and from previous GF calculation are compatible')
+                        self.report('impurity_info node from input and from previous GF calculation are compatible')
                         check_consistency_imp_info = True
                     else:
-                        print('impurity_info node from input and from previous GF calculation are NOT compatible!. '
+                        self.report('impurity_info node from input and from previous GF calculation are NOT compatible!. '
                               'Please check your impurity_info nodes for consistency.')
                         check_consistency_imp_info = False
                 except AttributeError:
-                    print("Non default values of the impurity_info node from input and from previous "
+                    self.report("Non default values of the impurity_info node from input and from previous "
                           "GF calculation are compatible. Default values haven't been checked")
                     check_consistency_imp_info = True
             else:
-                print('impurity_info node from input and from previous GF calculation are NOT compatible!. '
+                self.report('impurity_info node from input and from previous GF calculation are NOT compatible!. '
                       'Please check your impurity_info nodes for consistency.')
                 check_consistency_imp_info = False
             if check_consistency_imp_info:
@@ -530,14 +546,14 @@ class KkrimpCalculation(CalcJob):
             ilayer_center = imp_info_dict.get('ilayer_center', 0)
 
             # now write scoef file
-            print('Input parameters for make_scoef read in correctly!')
+            self.report('Input parameters for make_scoef read in correctly!')
             with tempfolder.open(KkrCalculation._SCOEF, 'w') as scoef_file:
                 make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center)
 
         else:
             # this means the full imp cluster is given in the input
 
-            print('Write scoef from imp_cls input!', len(imp_info_dict.get('imp_cls')))
+            self.report('Write scoef from imp_cls input! {}'.format(len(imp_info_dict.get('imp_cls'))))
             with tempfolder.open(KkrCalculation._SCOEF, 'w') as scoef_file:
                 write_scoef_full_imp_cls(imp_info, scoef_file)
 
@@ -557,9 +573,9 @@ class KkrimpCalculation(CalcJob):
         if impurity_potential is not None:
             potfile_name, potfile_folder = impurity_potential.filename, impurity_potential
         elif parent_calc_folder is not None:
-            self.logger.info('parent_calc_folder {} {}'.format(parent_calc_folder, parent_calc_folder.get_incoming().all_link_labels()))
+            self.report('parent_calc_folder {} {}'.format(parent_calc_folder, parent_calc_folder.get_incoming().all_link_labels()))
             retrieved = parent_calc_folder.get_incoming(node_class=CalcJobNode).first().node.get_outgoing().get_node_by_label('retrieved')
-            self.logger.info('potfile {} {}'.format(retrieved, self._OUT_POTENTIAL))
+            self.report('potfile {} {}'.format(retrieved, self._OUT_POTENTIAL))
 
             # extract file from host's tarball (extract to tempfolder and use from there, this way the unnessesary files are deleted once submission is done)
             tar_filenames = []
@@ -570,6 +586,7 @@ class KkrimpCalculation(CalcJob):
                 # extract file from tarfile of retrieved to tempfolder
                 with tarfile.open(tfpath) as tf:
                     tar_filenames = [ifile.name for ifile in tf.getmembers()]
+                    self.report(tar_filenames)
                     filename = self._OUT_POTENTIAL
                     if filename in tar_filenames:
                         tf.extract(filename, tempfolder_path) # extract to tempfolder
@@ -680,7 +697,144 @@ class KkrimpCalculation(CalcJob):
                 retrieve_list.append(self._OUT_ORBITALMOMENTS)
 
         return retrieve_list
+    
+    
+    def init_ldau(self, tempfolder, retrieve_list, parent_calc_folder):
+        """
+        Check if settings_LDAU is in input and set up LDA+U calculation. Reuse old ldaupot of parent_folder contains a file ldaupot.
+        """
+        
+        # first check if settings_LDAU is in inputs
+        if 'settings_LDAU' not in self.inputs:
+            # do nothing
+            return retrieve_list
+        else:
+            # this means we need to set up LDA+U
+            
+            #TODO: check consistency of settings_LDAU
+            
+            # add ldaupot to retrieve and local copy lists
+            retrieve_list.append(self._LDAUPOT)
+            
+            # add runopt LDA+U
+            with tempfolder.open(self._CONFIG) as file:
+                config = file.readlines()
+            itmp = search_string('RUNFLAG', config)
+            if itmp>=0:
+                config[itmp] = config[itmp].replace('\n', ' LDA+U \n')
+                # overwrite config.cfg
+                with tempfolder.open(self._CONFIG, 'w') as file:
+                    file.writelines(config)
+            else:
+                raise ValueError("Could not find RUNFLAG in config.cfg to add LDA+U option")
+                
+            # now create ldaupot file
+            self.create_or_update_ldaupot(parent_calc_folder, tempfolder)
+            
+        return retrieve_list
+    
+    
+    def create_or_update_ldaupot(self, parent_calc_folder, tempfolder):
+        """
+        Writes ldaupot to tempfolder.
+        
+        If parent_calc_folder is found and it contains an onld ldaupot, we reuse the values for wldau, uldau and phi from there.
+        """
+        
+        # extract Fermi energy from potential file
+        with tempfolder.open(self._POTENTIAL) as potfile:
+            ef_Ry = get_ef_from_potfile(potfile)
 
+        # extract NATOM from atominfo file
+        with tempfolder.open(self._KKRFLEX_ATOMINFO) as file:
+            atominfo = file.readlines()
+        itmp = search_string('NATOM', atominfo)
+        if itmp>=0:
+            natom = int(atominfo[itmp+1].split()[0])
+        else:
+            raise ValueError("Could not extract NATOM value from kkrflex_atominfo")
+        
+        # get old ldaupot file
+        reuse_old_ldaupot = self.get_old_ldaupot(parent_calc_folder, tempfolder)
+
+        # settings dict (defines U, J etc.)
+        ldau_settings = self.inputs.settings_LDAU
+
+        if reuse_old_ldaupot:
+            # reuse wldau, ildau and phi from old ldaupot file
+            # Attention the first number needs to be non-zero
+            txt = get_ldaupot_text(ldau_settings, ef_Ry, natom, initialize=False)
+            # now we read the old file
+            with tempfolder.open(self._LDAUPOT+'_old', 'r') as ldaupot_file:
+                txt0 = ldaupot_file.readlines()
+                # find start of wldau etc.
+                ii = 0
+                for line in txt0:
+                    if 'wldau' in line:
+                        break
+                    ii += 1
+                txt0 = txt0[ii:]
+
+            #remove last line (is replace from txt0)
+            txt.pop(-1)
+            # put new header and old bottom together
+            newtxt = txt + ['\n'] + txt0
+        else:
+            # initialize ldaupot file
+            # Attention: here the first number needs to be 0 which triggers generating initial values in KKRimp
+            newtxt = get_ldaupot_text(ldau_settings, ef_Ry, natom, initialize=True)
+            
+        # now write to file
+        with tempfolder.open(self._LDAUPOT, 'w') as out_filehandle:
+            out_filehandle.writelines(newtxt)
+
+
+    def get_old_ldaupot(self, parent_calc_folder, tempfolder):
+        """
+        Copy old ldaupot from retrieved of parent or extract from tarball.
+        If no parent_calc_folder is present this step is skipped.
+        """
+        
+        has_ldaupot = False
+        
+        if parent_calc_folder is not None:
+            retrieved = parent_calc_folder.get_incoming(node_class=CalcJobNode).first().node.get_outgoing().get_node_by_label('retrieved')
+            # extract file from host's tarball (extract to tempfolder and use from there, this way the unnessesary files are deleted once submission is done)
+            tar_filenames = []
+            if self._FILENAME_TAR in retrieved.list_object_names():
+                # get path of tempfolder
+                with tempfolder.open('.dummy','w') as tmpfile:
+                    tempfolder_path = os.path.dirname(tmpfile.name)
+                    
+                # get path of tarfile
+                with retrieved.open(self._FILENAME_TAR) as tf:
+                    tfpath = tf.name
+                    
+                # extract file from tarfile of retrieved to tempfolder
+                with tarfile.open(tfpath) as tf:
+                    tar_filenames = [ifile.name for ifile in tf.getmembers()]
+                    if self._LDAUPOT in tar_filenames:
+                        has_ldaupot = True
+                        tf.extract(self._LDAUPOT, tempfolder_path) # extract to tempfolder
+                # copy to new filename
+                if has_ldaupot:
+                    with tempfolder.open(self._LDAUPOT+'_old', u'w') as newfile:
+                        with tempfolder.open(self._LDAUPOT, u'r') as oldfile:
+                            newfile.writelines(oldfile.readlines())
+                        
+                # remove dummy file
+                if '.dummy' in os.listdir(tempfolder_path):
+                    os.remove(os.path.join(tempfolder_path, '.dummy'))
+                    
+            else: # otherwise copy from retrieved to tempfolder (rest of calculation needs files to be in tempfolder)
+                if self._LDAUPOT in retrieved.list_object_names():
+                    has_ldaupot = True
+                    with tempfolder.open(self._LDAUPOT+'_old', u'w') as newfile:
+                        with retrieved.open(self._LDAUPOT, u'r') as oldfile:
+                            newfile.writelines(oldfile.readlines())
+                            
+            return has_ldaupot
+    
 
     def get_remote_symlink(self, local_copy_list):
         """Check if host GF is found on remote machine and reuse from there"""
@@ -719,8 +873,60 @@ class KkrimpCalculation(CalcJob):
                 remote_symlink_list.append((comp.uuid, TM_remote_path, filename))
 
         # print symlink and local copy list (for debugging purposes)
-        print('local_copy_list: {}'.format(local_copy_list))
-        print('symlink_list: {}'.format(remote_symlink_list))
+        self.report('local_copy_list: {}'.format(local_copy_list))
+        self.report('symlink_list: {}'.format(remote_symlink_list))
 
         # now return updated remote_symlink and local_copy lists
         return remote_symlink_list, local_copy_list
+
+
+def get_ldaupot_text(ldau_settings, ef_Ry, natom, initialize=True):
+    """
+    create the text for the ldaupot file
+    """
+    from masci_tools.io.common_functions import get_Ry2eV
+
+    eV2Ry = 1./get_Ry2eV()
+    
+    # these lists are extracted from ldau_settings node and then written to the ldaupot file
+    iatoms_ldau = []
+    lopt = []
+    ueff = []
+    jeff = []
+    eref = []
+    
+    # extract values from ldau_settings
+    for key, val in ldau_settings.get_dict().items():
+        iatoms_ldau.append(int(key.split('=')[1]))
+        lopt.append( val['L'] )
+        # add values in Ry units
+        jeff.append( val['J'] * eV2Ry )
+        ueff.append( val['U'] * eV2Ry )
+        eref.append( val['Eref_EF'] * eV2Ry + ef_Ry )
+    
+    if initialize:
+        # this means we initialize this file
+        ldaurun = 0
+    else:
+        # this means wldau etc are reused (need to be added to the file)
+        ldaurun = 1
+    
+    # collect text which is written to ldaupot
+    txt = [f'{ldaurun} ']
+    txt_lopt, txt_jeff, txt_ueff, txt_eref = [], [], [], []
+    for iatom in range(natom):
+        if iatom not in iatoms_ldau:
+            txt_lopt += [f'{-1} ']
+            txt_jeff += [f'{0.0} ']
+            txt_ueff += [f'{0.0} ']
+            txt_eref += [f'{0.0} ']
+        else:
+            ii = range(natom).index(iatom)
+            txt_lopt += [f'{lopt[ii]} ']
+            txt_jeff += [f'{jeff[ii]} ']
+            txt_ueff += [f'{ueff[ii]} ']
+            txt_eref += [f'{eref[ii]} ']
+    txt += ['\n'] + txt_lopt + ['\n'] + txt_ueff + ['\n'] + txt_jeff + ['\n'] + txt_eref
+    txt += ['\nwldau\nuldau\nphi\n']
+    
+    return txt

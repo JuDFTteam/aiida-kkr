@@ -18,7 +18,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 __contributors__ = (u"Philipp Rüßmann")
 
 # activate debug writeout
@@ -31,7 +31,10 @@ def get_host_structure(impurity_workflow):
     """
     #TODO extract host parent no from input but take into account calculation of host GF from inside kkrimp full workflow
 
-    if 'remote_data_gf' in impurity_workflow.inputs:
+    if 'remote_data' in impurity_workflow.inputs:
+        # this is the case if impurity workflow is kkr_imp_sub
+        host_parent = impurity_workflow.inputs.remote_data
+    elif 'remote_data_gf' in impurity_workflow.inputs:
         host_parent = impurity_workflow.inputs.remote_data_gf
     else:
         host_parent = impurity_workflow.inputs.remote_data_host 

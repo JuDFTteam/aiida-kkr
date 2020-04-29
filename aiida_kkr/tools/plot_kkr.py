@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -694,7 +694,7 @@ class plot_kkr(object):
         # TODO maybe plot some output of voronoi
 
 
-    def plot_kkrimp_calc(self, node, return_rms=False, return_stot=False, **kwargs):
+    def plot_kkrimp_calc(self, node, return_rms=False, return_stot=False, plot_rms=True, **kwargs):
         """plot things from a kkrimp Calculation node"""
         from numpy import array, ndarray
         from numpy import sqrt, sum
@@ -712,6 +712,17 @@ class plot_kkr(object):
             s = array(out_para_dict['convergence_group']['spin_moment_per_atom_all_iterations'], dtype=float)
             ss = sqrt(sum(s**2, axis=1)).reshape(-1,nat)
             stot = sum(ss, axis=1)
+        else:
+            stot = None
+            
+        # make rms plot
+        if plot_rms:
+            if 'ptitle' in list(kwargs.keys()):
+                ptitle = kwargs.pop('ptitle')
+            else:
+                ptitle = 'pk= {}'.format(node.pk)
+
+            self.make_kkrimp_rmsplot([rms], [stot], [0], rms_goal, ptitle, **kwargs)
 
         # now return values
         return_any, return_list = False, []
@@ -737,8 +748,6 @@ class plot_kkr(object):
     def plot_kkrimp_sub_wc(self, node, **kwargs):
         """plot things from a kkrimp_sub_wc workflow"""
         from aiida_kkr.calculations import KkrimpCalculation
-        from numpy import array
-        from matplotlib.pyplot import figure, subplot, axhline, axvline, gca, ylim
 
         # extract rms from calculations
         impcalcs = [i.node for i in node.get_outgoing(node_class=KkrimpCalculation).all()]
@@ -746,7 +755,7 @@ class plot_kkr(object):
         rms_goal = None
         for impcalc in impcalcs:
             pks_all.append(impcalc.pk)
-            rms_tmp, rms_goal_tmp, stot_tmp = self.plot_kkrimp_calc(impcalc, return_rms=True, return_stot=True)
+            rms_tmp, rms_goal_tmp, stot_tmp = self.plot_kkrimp_calc(impcalc, return_rms=True, return_stot=True, plot_rms=False)
             rms_all.append(rms_tmp)
             if rms_goal_tmp is not None:
                 if rms_goal is not None:
@@ -755,6 +764,22 @@ class plot_kkr(object):
                     rms_goal = rms_goal_tmp
             stot_all.append(stot_tmp)
 
+        if 'ptitle' in list(kwargs.keys()):
+            ptitle = kwargs.pop('ptitle')
+        else:
+            ptitle = 'pk= {}'.format(node.pk)
+            
+        self.make_kkrimp_rmsplot(rms_all, stot_all, pks_all, rms_goal, ptitle, **kwargs)
+        
+        
+    def make_kkrimp_rmsplot(self, rms_all, stot_all, pks_all, rms_goal, ptitle, **kwargs):
+        """
+        plot rms and total spin moment of kkrimp calculation or series of kkrimp calculations
+        """
+        
+        from numpy import array
+        from matplotlib.pyplot import figure, subplot, axhline, axvline, gca, ylim
+        
         # extract options from kwargs
         nofig = False
         if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
@@ -768,10 +793,6 @@ class plot_kkr(object):
             label = kwargs.pop('label')
         else:
             label = None
-        if 'ptitle' in list(kwargs.keys()):
-            ptitle = kwargs.pop('ptitle')
-        else:
-            ptitle = 'pk= {}'.format(node.pk)
         if 'only' in list(kwargs.keys()):
             only = kwargs.pop('only')
         else:
@@ -786,7 +807,8 @@ class plot_kkr(object):
                 rms += list(i)
                 niter_calcs.append(len(i)-0.5)
             for i in array(stot_all)[reorder_rms]:
-                stot += list(i)
+                if i is not None:
+                    stot += list(i)
             # now plot
             if len(rms)>0:
                 if not nofig:

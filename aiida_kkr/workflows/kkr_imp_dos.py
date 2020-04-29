@@ -22,7 +22,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.3"
+__version__ = "0.6.5"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
 
 #TODO: improve workflow output node structure
@@ -250,7 +250,7 @@ label: {}
                 message = 'INFO: get converged host RemoteData node and impurity_info node from database'
                 print(message)
                 self.report(message)
-                self.ctx.kkr_imp_wf = inputs.imp_pot_sfd.get_incoming().first().node
+                self.ctx.kkr_imp_wf = inputs.imp_pot_sfd.get_incoming(node_class=kkr_imp_sub_wc).first().node
                 message = 'INFO: found underlying kkr impurity workflow (pk: {})'.format(self.ctx.kkr_imp_wf.pk)
                 print(message)
                 self.report(message)
