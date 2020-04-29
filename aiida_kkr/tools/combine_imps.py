@@ -5,39 +5,46 @@ This module contains helper functions and tools for the combine_imps_wc workchai
 from __future__ import absolute_import
 from __future__ import print_function
 import numpy as np
+import tarfile
 from aiida.engine import calcfunction
 from aiida.orm import Dict, SinglefileData, load_node
 from aiida.common import InputValidationError
 from aiida.common.folders import SandboxFolder
 from aiida_kkr.tools.tools_kkrimp import modify_potential, create_scoef_array
-from aiida_kkr.calculations import VoronoiCalculation
+from aiida_kkr.calculations import VoronoiCalculation, KkrimpCalculation
+from aiida_kkr.workflows import kkr_imp_sub_wc
 from masci_tools.io.common_functions import get_alat_from_bravais
 from six.moves import range
+
+
+
 
 
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __contributors__ = (u"Philipp Rüßmann")
 
 # activate debug writeout
 debug = False
 
 
-def get_host_structure(impurity_workflow):
+def get_host_structure(impurity_workflow_or_calc):
     """
     extract host structure from impurity
     """
     #TODO extract host parent no from input but take into account calculation of host GF from inside kkrimp full workflow
 
-    if 'remote_data' in impurity_workflow.inputs:
-        # this is the case if impurity workflow is kkr_imp_sub
-        host_parent = impurity_workflow.inputs.remote_data
-    elif 'remote_data_gf' in impurity_workflow.inputs:
-        host_parent = impurity_workflow.inputs.remote_data_gf
+    if impurity_workflow_or_calc.process_class == KkrimpCalculation:
+        host_parent = impurity_workflow_or_calc.inputs.host_Greenfunction_folder
+    elif 'remote_data' in impurity_workflow_or_calc.inputs:
+        # this is the case if impurity_workflow_or_calc workflow is kkr_imp_sub
+        host_parent = impurity_workflow_or_calc.inputs.remote_data
+    elif 'remote_data_gf' in impurity_workflow_or_calc.inputs:
+        host_parent = impurity_workflow_or_calc.inputs.remote_data_gf
     else:
-        host_parent = impurity_workflow.inputs.remote_data_host 
+        host_parent = impurity_workflow_or_calc.inputs.remote_data_host 
     host_structure, _ = VoronoiCalculation.find_parent_structure(host_parent)
 
     return host_structure
@@ -52,6 +59,87 @@ def get_nspin(imp_scf_workflow):
     nspin = load_node(uuid_last_params).get_dict()['NSPIN']
 
     return nspin
+
+
+@calcfunction
+def make_potfile_sfd(**kwargs):
+    """
+    Make single file data from output potential in retrieved folder.
+    Extract output potential from tarball first if necessary. 
+    
+    kwargs should be a dict with a single entry:
+      kwargs = {'linklabel': retrieved}
+    """
+    
+    if len(kwargs.keys()) != 1:
+        raise IOError('kwargs input should only have a single key value pair!')
+        
+    for key in kwargs.keys():
+        retrieved = kwargs[key]
+    
+    with SandboxFolder() as tempfolder:
+        # find path of tempfolder
+        with tempfolder.open('.dummy', 'w') as dummyfile:
+            tempfolder_path = dummyfile.name
+            tempfolder_path = tempfolder_path.replace('.dummy', '')
+
+        # extract output potential here
+        tar_filenames = []
+        if KkrimpCalculation._FILENAME_TAR in retrieved.list_object_names():
+            # get path of tarfile
+            with retrieved.open(KkrimpCalculation._FILENAME_TAR) as tf:
+                tfpath = tf.name
+            # extract file from tarfile of retrieved to tempfolder
+            with tarfile.open(tfpath) as tf:
+                tar_filenames = [ifile.name for ifile in tf.getmembers()]
+                filename = KkrimpCalculation._OUT_POTENTIAL
+                if filename in tar_filenames:
+                    tf.extract(filename, tempfolder_path) # extract to tempfolder
+
+        # store as SingleFileData
+        with tempfolder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as potfile:
+            potfile_sfd = SinglefileData(file=potfile)
+
+        return potfile_sfd
+    
+    
+def extract_potfile_from_retrieved(retrieved):
+    """
+    get output potential single file data from retrieved files or reuse existing
+    """
+    
+    # check if retrieved has already a single file data child with given link label
+    children = [res.node for res in retrieved.get_outgoing(link_label_filter='create_potfile_sfd').all()]
+    if len(children) > 0:
+        potfile_sfd = children[0].outputs.result
+        print('take existing node')
+    else:
+        # create a new single file data node from output using calcfunction for data provenance
+        potfile_sfd = make_potfile_sfd(create_potfile_sfd=retrieved)
+        print('create node')
+    return potfile_sfd
+
+
+def get_nspin_and_pot(imp):
+    """
+    extract nspin value and impurty potential single file data
+    """
+    if imp.process_class == KkrimpCalculation:
+        nspin = imp.outputs.output_parameters['nspin']
+        pot_imp = extract_potfile_from_retrieved(imp.outputs.retrieved)
+    else:
+        # find KKRimp scf sub workflows
+        if imp.process_class == kkr_imp_sub_wc:
+            imp_sub = imp
+        else:
+            imp_sub = imp.get_outgoing(node_class=kkr_imp_sub_wc).first().node
+
+        nspin = get_nspin(imp_sub)
+
+        # extract potential
+        pot_imp = imp_sub.outputs.host_imp_pot
+
+    return nspin, pot_imp
 
 
 # combine clusters calcfunction
@@ -313,3 +401,47 @@ def combine_potentials_cf(kickout_info, pot_imp1, pot_imp2, nspin_node):
 
     # return the combined potential
     return output_potential_sfd_node
+
+
+@calcfunction
+def combine_settings_ldau(**kwargs):
+    """
+    combine LDA+U settings using information from kickout_info to correct the atom index of the second impurity
+    """
+    
+    imp1_has_ldau = False
+    imp2_has_ldau = False
+        
+    if 'settings_LDAU1' in kwargs:
+        imp1_has_ldau = True
+        settings_LDAU1 = kwargs['settings_LDAU1'].get_dict()
+        
+    if 'settings_LDAU2' in kwargs:
+        imp2_has_ldau = True
+        settings_LDAU2 = kwargs['settings_LDAU2'].get_dict()
+    
+    if 'kickout_info' in kwargs:
+        kickout_info = kwargs['kickout_info'].get_dict()
+    else:
+        raise KeyError("Need to have kickout_info key value pair in input.")
+        
+    # now combine LDAU settings
+    settings_LDAU_combined = {}
+
+    if imp1_has_ldau:
+        for k, v in settings_LDAU1.items():
+            iatom = int(k.split('=')[1])
+            # implement something for the case when LDAU is not only on the impurity site at iatom==0
+            settings_LDAU_combined[f'iatom={iatom}'] = v
+            
+
+    if imp2_has_ldau:
+        for k,v in settings_LDAU2.items():
+            iatom = int(k.split('=')[1])
+            if kickout_info['i_removed_from_1'] is not None:
+                noffset = kickout_info['Ncls1']-len(kickout_info['i_removed_from_1'])
+            else:
+                noffset = kickout_info['Ncls1']
+            settings_LDAU_combined[f'iatom={iatom+noffset}'] = v
+
+    return Dict(dict=settings_LDAU_combined)

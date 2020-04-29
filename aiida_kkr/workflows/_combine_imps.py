@@ -7,16 +7,16 @@ from __future__ import absolute_import
 from __future__ import print_function
 from aiida.engine import WorkChain, if_, ToContext
 from aiida.orm import load_node, Dict, WorkChainNode, Int, RemoteData
-from aiida_kkr.calculations import KkrCalculation
+from aiida_kkr.calculations import KkrCalculation, KkrimpCalculation
 from aiida_kkr.workflows import kkr_imp_sub_wc, kkr_flex_wc, kkr_imp_wc
 from aiida_kkr.tools.combine_imps import (create_combined_imp_info_cf, combine_potentials_cf,
-                                          get_zimp, get_host_structure, get_nspin)
+                                          get_zimp, get_host_structure, get_nspin_and_pot, combine_settings_ldau)
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __contributors__ = (u"Philipp Rüßmann")
 
 
@@ -79,18 +79,29 @@ class combine_imps_wc(WorkChain):
 
         # mandatory inputs
         spec.input("impurity1_output_node", required=True, valid_type=Dict, #TODO make validator for input node to make sure it is the output of kkr_imp_wc
-                   help=".")                   #TODO add help string
+                   help="""
+Output node of a single impurity calculation. This can be the output of either the `kkr_imp_wc`, `kkr_imp_sub_wc`
+workflows or of an `KkrimpCalculation`.
+
+Use these output Dict nodes:
+  * for `kkr_imp_wc`: single_imp_worlfow.outputs.workflow_info
+  * for `kkr_imp_sub_wc`: single_imp_worlfow.outputs.workflow_info
+  * for `KkrimpCalculation`: single_imp_worlfow.outputs.output_parameters
+""")
+        
         spec.input("impurity2_output_node", required=True, valid_type=Dict,
-                   help=".")                   #TODO add help string
+                   help="Output node of second single impurity calculation. See help string of `impurity1_output_node` for more details.")
+        
         spec.input("offset_imp2", valid_type=Dict, required=True,
-                   help="Offset of the secon impurity with respect to the first impurity. "
-                        "Can be given either via the 'vector' or the 'index' keys in the dictionary. "
-                        "the 'vector' option allows to give the offset vector in cartesian units and "
-                        "the 'index' option allows to five the offset vector in units of the lattice "
-                        "vectors of the host system's structure.")
+                   help="""Offset of the secon impurity with respect to the first impurity.
+Can be given either via the 'vector' or the 'index' keys in the dictionary.
+The 'vector' option allows to give the offset vector in cartesian units and 
+the 'index' option allows to five the offset vector in units of the lattice 
+vectors of the host system's structure.""")
+        
         spec.input("gf_host_remote", valid_type=RemoteData, required=False, #TODO add validator that makes sure this is not given together with the host_gf sub-workflow namespace
-                   help="RemoteData node of pre-calculated host Green function (i.e. with kkr_flex_wc). "
-                        "If given then the writeout step of the host GF is omitted.")
+                   help="""RemoteData node of pre-calculated host Green function (i.e. with kkr_flex_wc).
+If given then the writeout step of the host GF is omitted.""")
 
 
         # structure of the workflow
@@ -136,34 +147,12 @@ class combine_imps_wc(WorkChain):
         message = 'INFO: started combine_imps_wc workflow version {}'.format(self._workflowversion)
         self.report(message)
 
-        imp1_out = self.inputs.impurity1_output_node
-        inc = imp1_out.get_incoming(link_label_filter='workflow_info').all()
-        if len(inc)!=1:
-            self.report("input node for imp1 inconsistent")
-            return self.exit_codes.ERROR_INPUT_NODE_INCONSISTENT # pylint: disable=maybe-no-member
-        imp1 = inc[0].node
-        self.ctx.imp1 = imp1
-
-        imp2_out = self.inputs.impurity2_output_node
-        inc = imp2_out.get_incoming(link_label_filter='workflow_info').all()
-        if len(inc)!=1:
-            self.report("input node for imp2 inconsistent")
-            return self.exit_codes.ERROR_INPUT_NODE_INCONSISTENT # pylint: disable=maybe-no-member
-        imp2 = inc[0].node
-        self.ctx.imp2 = imp2
-
-        # consistency checks of input nodes
-        if not self._check_input_imp(imp1):
-            self.report("something wrong with imp1")
-            return self.exit_codes.ERROR_SOMETHING_WENT_WRONG # pylint: disable=maybe-no-member
-
-        if not self._check_input_imp(imp2):
-            self.report("something wrong with imp2")
-            return self.exit_codes.ERROR_SOMETHING_WENT_WRONG # pylint: disable=maybe-no-member
+        self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
+        self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
 
         # find and compare host structures for the two imps to make sure the impurities are consistent
-        host_structure1 = get_host_structure(imp1)
-        host_structure2 = get_host_structure(imp2)
+        host_structure1 = get_host_structure(self.ctx.imp1)
+        host_structure2 = get_host_structure(self.ctx.imp2)
         #TODO this can be relaxed to make sure the same structure is used even if it is not the same node
         if host_structure1.uuid != host_structure2.uuid:
             self.report("host structures inconsistent")
@@ -174,30 +163,64 @@ class combine_imps_wc(WorkChain):
 
         # settings for offset between imps
         self.ctx.i_neighbor_inplane = self.inputs.offset_imp2['index']
+     
+    
+    def get_imp_node_from_input(self, iimp=1):
+        """
+        extract impurty calculation from impurity output node of inputs
+        """
+        if iimp==1:
+            imp_out = self.inputs.impurity1_output_node
+        else:
+            imp_out = self.inputs.impurity2_output_node
+        
+        kkrimpcalc_parents = imp_out.get_incoming(node_class=KkrimpCalculation).all()
+        if len(kkrimpcalc_parents) > 0:
+            imp = kkrimpcalc_parents[0].node
+        else:
+            inc = imp_out.get_incoming(link_label_filter='workflow_info').all()
+            if len(inc)!=1:
+                self.report(f"input node of imp {iimp} inconsistent")
+                return self.exit_codes.ERROR_INPUT_NODE_INCONSISTENT # pylint: disable=maybe-no-member
+            imp = inc[0].node
+        
+        # consistency checks of input nodes
+        # check if input calc was converged etc.
+        if not self._check_input_imp(imp):
+            self.report(f"something wrong with imp {iimp}: {imp}")
+            return self.exit_codes.ERROR_SOMETHING_WENT_WRONG # pylint: disable=maybe-no-member
+        
+        return imp
+    
 
-    def _check_input_imp(self, impurity_workflow):
+    def _check_input_imp(self, imp_calc_or_wf):
         """
         check if input calculation is a kkr_imp_wc workflow which did converge
         """
 
-        #impurity_workflow should be kkr_imp_wc workflow
-        if not isinstance(impurity_workflow, WorkChainNode):
-            self.report("impurity_workflow not a WorkChainNode: {}".format(impurity_workflow))
-            return False
-        
-        if not (impurity_workflow.process_class==kkr_imp_wc or impurity_workflow.process_class==kkr_imp_sub_wc):
-            self.report("impurity_workflow class is wrong: {}".format(impurity_workflow))
-            return False
+        if imp_calc_or_wf.process_class == KkrimpCalculation:
+            # imp_calc_or_wf can be KkrimpClaculation
+            if not imp_calc_or_wf.outputs.output_parameters['convergence_group']['calculation_converged']:
+                return False
+        else:
+            # imp_calc_or_wf should be kkr_imp_wc or kkr_imp_sub_wc workflow
+            if not isinstance(imp_calc_or_wf, WorkChainNode):
+                self.report("impurity_workflow not a WorkChainNode: {}".format(imp_calc_or_wf))
+                return False
 
-        # calculation should be converged
-        if impurity_workflow.process_class==kkr_imp_wc:
-            if not impurity_workflow.outputs.workflow_info.get_dict().get('converged'):
-                self.report("impurity_workflow not converged")
+            if not (imp_calc_or_wf.process_class==kkr_imp_wc or imp_calc_or_wf.process_class==kkr_imp_sub_wc):
+                self.report("impurity_workflow class is wrong: {}".format(imp_calc_or_wf))
                 return False
-        elif impurity_workflow.process_class==kkr_imp_sub_wc:
-            if not impurity_workflow.outputs.workflow_info.get_dict().get('convergence_reached'):
-                self.report("impurity_workflow not converged")
-                return False
+
+            # calculation should be converged
+            if imp_calc_or_wf.process_class==kkr_imp_wc:
+                if not imp_calc_or_wf.outputs.workflow_info.get_dict().get('converged'):
+                    self.report("impurity_workflow not converged")
+                    return False
+            elif imp_calc_or_wf.process_class==kkr_imp_sub_wc:
+                if not imp_calc_or_wf.outputs.workflow_info.get_dict().get('convergence_reached'):
+                    self.report("impurity_workflow not converged")
+                    return False
 
         # all checks passed
         return True
@@ -282,11 +305,16 @@ class combine_imps_wc(WorkChain):
             builder.params_kkr_overwrite = self.inputs.host_gf.params_kkr_overwrite
 
         # find converged_host_remote input (converged potential of host system)
+        gf_writeout_calc = None
+        if self.ctx.imp1.process_class == KkrimpCalculation:
+            #take gf_writeout directly from input to KkrimpCalculation
+            gf_writeout_calc = self.ctx.imp1.inputs.host_Greenfunction_folder.get_incoming(node_class=KkrCalculation).first().node
         if self.ctx.imp1.process_class == kkr_imp_sub_wc:
             imp1_sub = self.ctx.imp1
         else:
             imp1_sub = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node
-        gf_writeout_calc = imp1_sub.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node
+        if gf_writeout_calc is None:
+            gf_writeout_calc = imp1_sub.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node
         builder.remote_data = gf_writeout_calc.inputs.parent_folder
 
         # set label and description of the calc
@@ -328,26 +356,13 @@ class combine_imps_wc(WorkChain):
         imp1 = self.ctx.imp1
         imp2 = self.ctx.imp2
         kickout_info = self.ctx.kickout_info
-
-        # find KKRimp scf sub workflows
-        if imp1.process_class == kkr_imp_sub_wc:
-            imp1_sub = imp1
-        else:
-            imp1_sub = imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node
-        if imp2.process_class == kkr_imp_sub_wc:
-            imp2_sub = imp2
-        else:
-            imp2_sub = imp2.get_outgoing(node_class=kkr_imp_sub_wc).first().node
-
-        # extract and check consistency of nspin for the two calculations
-        nspin1 = get_nspin(imp1_sub)
-        nspin2 = get_nspin(imp2_sub)
+        
+        nspin1, pot_imp1 = get_nspin_and_pot(imp1)
+        nspin2, pot_imp2 = get_nspin_and_pot(imp2)
+        
+        # check consistency of nspin for the two calculations
         if nspin1 != nspin2:
             return self.exit_codes.ERROR_INCONSISTENT_NSPIN_VALUES # pylint: disable=maybe-no-member
-
-        # extract potentials
-        pot_imp1 = imp1_sub.outputs.host_imp_pot
-        pot_imp2 = imp2_sub.outputs.host_imp_pot
 
         # now combine potentials
         output_potential_sfd_node = combine_potentials_cf(kickout_info, pot_imp1, pot_imp2, Int(nspin1))
@@ -384,6 +399,13 @@ class combine_imps_wc(WorkChain):
             builder.options = self.inputs.scf.options
         if 'wf_parameters' in self.inputs.scf:
             builder.wf_parameters = self.inputs.scf.wf_parameters
+            
+        # take care of LDA+U settings
+        add_ldausettings, settings_LDAU_combined = self.get_ldau_combined()
+        self.report(f'add LDA+U settings? {add_ldausettings}')
+        if add_ldausettings:
+            self.report(f'settings_combined: {settings_LDAU_combined.get_dict()}')
+            builder.settings_LDAU = settings_LDAU_combined
 
         # now submit workflow
         future = self.submit(builder)
@@ -391,6 +413,44 @@ class combine_imps_wc(WorkChain):
         self.report("INFO: running kkrimp scf workflow for combined impts (uuid= {})".format(future.uuid))
 
         return ToContext(kkrimp_scf_sub=future)
+        
+        
+    def get_ldau_combined(self):
+        """
+        check if impurity input calculations have LDA+U settings in input and add this here if needed
+        """
+        
+        imp1_has_ldau = 'settings_LDAU' in self.ctx.imp1.inputs
+        if imp1_has_ldau:
+            settings_LDAU1 =  self.ctx.imp1.inputs.settings_LDAU
+            self.report('found LDA+U settings for imp1')
+            
+        imp2_has_ldau = 'settings_LDAU' in self.ctx.imp2.inputs
+        if imp2_has_ldau:
+            settings_LDAU2 =  self.ctx.imp2.inputs.settings_LDAU
+            self.report('found LDA+U settings for imp1')
+        
+        if imp1_has_ldau and imp2_has_ldau:
+            # combine LDA+U settings of the two imps
+            settings_LDAU_combined = combine_settings_ldau(settings_LDAU1=settings_LDAU1, 
+                                                           settings_LDAU2=settings_LDAU2,
+                                                           kickout_info=self.ctx.kickout_info)
+        elif imp1_has_ldau:
+            # use only LDA+U settings of imp 1
+            settings_LDAU_combined = combine_settings_ldau(settings_LDAU1=settings_LDAU1, 
+                                                           kickout_info=self.ctx.kickout_info)
+        elif imp2_has_ldau:
+            # add offset to atom index for combined LDA+U settings
+            settings_LDAU_combined = combine_settings_ldau(settings_LDAU2=settings_LDAU2,
+                                                           kickout_info=self.ctx.kickout_info)
+        else:
+            # return builder unchanged if none of the impurt calculations has LDA+U settings
+            return False, {}
+        
+        # now add settings_LDAU input to builder
+        self.report('add combined LDAU settings (uuid={}): {}'.format(settings_LDAU_combined.uuid, settings_LDAU_combined.get_dict()))
+        
+        return True, settings_LDAU_combined
 
 
     def return_results(self):

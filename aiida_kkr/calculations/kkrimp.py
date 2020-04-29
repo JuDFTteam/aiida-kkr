@@ -24,7 +24,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -914,6 +914,7 @@ def get_ldaupot_text(ldau_settings, ef_Ry, natom, initialize=True):
     # collect text which is written to ldaupot
     txt = [f'{ldaurun} ']
     txt_lopt, txt_jeff, txt_ueff, txt_eref = [], [], [], []
+    ii = 0
     for iatom in range(natom):
         if iatom not in iatoms_ldau:
             txt_lopt += [f'{-1} ']
@@ -921,11 +922,11 @@ def get_ldaupot_text(ldau_settings, ef_Ry, natom, initialize=True):
             txt_ueff += [f'{0.0} ']
             txt_eref += [f'{0.0} ']
         else:
-            ii = range(natom).index(iatom)
             txt_lopt += [f'{lopt[ii]} ']
             txt_jeff += [f'{jeff[ii]} ']
             txt_ueff += [f'{ueff[ii]} ']
             txt_eref += [f'{eref[ii]} ']
+            ii += 1
     txt += ['\n'] + txt_lopt + ['\n'] + txt_ueff + ['\n'] + txt_jeff + ['\n'] + txt_eref
     txt += ['\nwldau\nuldau\nphi\n']
     
