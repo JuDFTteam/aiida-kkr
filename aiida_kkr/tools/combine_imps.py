@@ -23,7 +23,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __contributors__ = (u"Philipp Rüßmann")
 
 # activate debug writeout
@@ -403,22 +403,62 @@ def combine_potentials_cf(kickout_info, pot_imp1, pot_imp2, nspin_node):
     return output_potential_sfd_node
 
 
+def get_ldaumatrices(retrieved):
+    """
+    Take retrieved folder of KkrimpCalculation and extract ldaupot file
+    If it exists we extract the LDAU matrices 'wldau', 'uldau' and 'phi'
+    """
+    has_ldaupot_file = False
+    txt_dict_ldaumats = {}
+    
+    # create Sandbox to extract ldaupot file there
+    with SandboxFolder() as tempfolder:
+        # extract ldaupot file to tempfolder if it exists
+        has_ldaupot_file = KkrimpCalculation.get_ldaupot_from_retrieved(retrieved, tempfolder)
+        # now read ldau matrices and store in txt_dict_ldaumats
+        if has_ldaupot_file:
+            with tempfolder.open(KkrimpCalculation._LDAUPOT+'_old') as ldaupot_file:
+                # read file and look for keywords to identify where matrices are stored in the file
+                txt = ldaupot_file.readlines()
+                ii = 0
+                for line in txt:
+                    if 'wldau' in line:
+                        iwldau = ii
+                    if 'uldau' in line:
+                        iuldau = ii
+                    if 'phi' in line:
+                        iphi = ii
+                    ii += 1
+                # save matrices to output dict
+                txt_dict_ldaumats['wldau'] = txt[iwldau+2:iuldau]
+                txt_dict_ldaumats['uldau'] = txt[iuldau+2:iphi]
+                txt_dict_ldaumats['phi'] = txt[iphi+2:]
+    
+    return has_ldaupot_file, txt_dict_ldaumats
+
+
 @calcfunction
 def combine_settings_ldau(**kwargs):
     """
     combine LDA+U settings using information from kickout_info to correct the atom index of the second impurity
     """
     
-    imp1_has_ldau = False
-    imp2_has_ldau = False
+    imp1_has_ldau, has_old_ldaupot1 = False, False
+    imp2_has_ldau, has_old_ldaupot2 = False, False
         
     if 'settings_LDAU1' in kwargs:
         imp1_has_ldau = True
         settings_LDAU1 = kwargs['settings_LDAU1'].get_dict()
+        # get initial matrices from retrieved if given in input
+        if 'retrieved1' in kwargs:
+            has_old_ldaupot1, txts_ldaumat1 = get_ldaumatrices(kwargs['retrieved1'])
         
     if 'settings_LDAU2' in kwargs:
         imp2_has_ldau = True
         settings_LDAU2 = kwargs['settings_LDAU2'].get_dict()
+        # get initial matrices from retrieved if given in input
+        if 'retrieved2' in kwargs:
+            has_old_ldaupot2, txts_ldaumat2 = get_ldaumatrices(kwargs['retrieved2'])
     
     if 'kickout_info' in kwargs:
         kickout_info = kwargs['kickout_info'].get_dict()
@@ -427,14 +467,18 @@ def combine_settings_ldau(**kwargs):
         
     # now combine LDAU settings
     settings_LDAU_combined = {}
+    
+    if has_old_ldaupot1 or has_old_ldaupot2:
+        settings_LDAU_combined['initial_matrices'] = {}
 
     if imp1_has_ldau:
         for k, v in settings_LDAU1.items():
             iatom = int(k.split('=')[1])
-            # implement something for the case when LDAU is not only on the impurity site at iatom==0
+            # TODO: implement something for the case when LDAU is not only on the impurity site at iatom==0
             settings_LDAU_combined[f'iatom={iatom}'] = v
+            if has_old_ldaupot1:
+                settings_LDAU_combined['initial_matrices'][f'iatom={iatom}'] = txts_ldaumat1
             
-
     if imp2_has_ldau:
         for k,v in settings_LDAU2.items():
             iatom = int(k.split('=')[1])
@@ -443,5 +487,7 @@ def combine_settings_ldau(**kwargs):
             else:
                 noffset = kickout_info['Ncls1']
             settings_LDAU_combined[f'iatom={iatom+noffset}'] = v
+            if has_old_ldaupot2:
+                settings_LDAU_combined['initial_matrices'][f'iatom={iatom+noffset}'] = txts_ldaumat2
 
     return Dict(dict=settings_LDAU_combined)

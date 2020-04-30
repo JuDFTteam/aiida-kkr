@@ -20,7 +20,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.1"
+__version__ = "0.9.3"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -72,6 +72,7 @@ class kkr_imp_sub_wc(WorkChain):
                    'aggressive_mix': 5,                           # type of aggressive mixing (3: broyden's 1st, 4: broyden's 2nd, 5: generalized anderson)
                    'aggrmix': 0.05,                               # mixing factor of aggressive mixing
                    'broyden-number': 20,                          # number of potentials to 'remember' for Broyden's mixing
+                   'nsimplemixfirst': 0,                          # number of simple mixing step at the beginning of Broyden mixing
                    'mag_init' : False,                            # initialize and converge magnetic calculation
                    'hfield' : [0.02, 5], # Ry                     # external magnetic field used in initialization step
                    'init_pos' : None,                             # position in unit cell where magnetic field is applied [default (None) means apply to all]
@@ -246,6 +247,7 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.aggrmix = wf_dict.get('aggrmix', self._wf_default['aggrmix'])
         self.ctx.nsteps = wf_dict.get('nsteps', self._wf_default['nsteps'])
         self.ctx.broyden_num = wf_dict.get('broyden-number', self._wf_default['broyden-number'])
+        self.ctx.nsimplemixfirst = wf_dict.get('nsimplemixfirst', self._wf_default['nsimplemixfirst'])
 
         # initial magnetization
         self.ctx.mag_init = wf_dict.get('mag_init', self._wf_default['mag_init'])
@@ -608,6 +610,7 @@ class kkr_imp_sub_wc(WorkChain):
                 new_params['ITDBRY'] = self.ctx.broyden_num
                 new_params['IMIX'] = last_mixing_scheme
                 new_params['MIXFAC'] = aggrmixfac
+                new_params['NSIMPLEMIXFIRST'] = self.ctx.nsimplemixfirst
             elif last_mixing_scheme == 0:
                 new_params['IMIX'] = last_mixing_scheme
                 new_params['MIXFAC'] = strmixfac

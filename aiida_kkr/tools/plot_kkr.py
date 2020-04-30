@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -200,6 +200,10 @@ class plot_kkr(object):
         elif node.process_type == u'aiida.calculations:kkr.kkrimp':
             if return_name_only: return 'kkrimp'
             self.plot_kkrimp_calc(node, **kwargs)
+        elif node.process_type == 'aiida_kkr.workflows._combine_imps.combine_imps_wc':
+            if return_name_only: return 'combine_imps'
+            # extract kkr_imp_sub and plot it
+            self.plot_kkrimp_wc(node, **kwargs)
         else:
             raise TypeError("input node neither a `Calculation` nor a `WorkChainNode` (i.e. workflow): {} {}".format(type(node), node))
 
@@ -742,7 +746,7 @@ class plot_kkr(object):
         # call imp_sub plotting from here
         from aiida_kkr.workflows import kkr_imp_sub_wc
         sub_wf = [i.node for i in node.get_outgoing(node_class=kkr_imp_sub_wc).all()][0]
-        self.plot_kkrimp_sub_wc(sub_wf)
+        self.plot_kkrimp_sub_wc(sub_wf, **kwargs)
 
 
     def plot_kkrimp_sub_wc(self, node, **kwargs):

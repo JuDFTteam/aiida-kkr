@@ -16,7 +16,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __contributors__ = (u"Philipp Rüßmann")
 
 
@@ -432,16 +432,20 @@ If given then the writeout step of the host GF is omitted.""")
         
         if imp1_has_ldau and imp2_has_ldau:
             # combine LDA+U settings of the two imps
-            settings_LDAU_combined = combine_settings_ldau(settings_LDAU1=settings_LDAU1, 
+            settings_LDAU_combined = combine_settings_ldau(settings_LDAU1=settings_LDAU1,
+                                                           retrieved1=self.ctx.imp1.outputs.retrieved,
                                                            settings_LDAU2=settings_LDAU2,
+                                                           retrieved2=self.ctx.imp2.outputs.retrieved,
                                                            kickout_info=self.ctx.kickout_info)
         elif imp1_has_ldau:
             # use only LDA+U settings of imp 1
-            settings_LDAU_combined = combine_settings_ldau(settings_LDAU1=settings_LDAU1, 
+            settings_LDAU_combined = combine_settings_ldau(settings_LDAU1=settings_LDAU1,
+                                                           retrieved1=self.ctx.imp1.outputs.retrieved, 
                                                            kickout_info=self.ctx.kickout_info)
         elif imp2_has_ldau:
             # add offset to atom index for combined LDA+U settings
             settings_LDAU_combined = combine_settings_ldau(settings_LDAU2=settings_LDAU2,
+                                                           retrieved2=self.ctx.imp2.outputs.retrieved,
                                                            kickout_info=self.ctx.kickout_info)
         else:
             # return builder unchanged if none of the impurt calculations has LDA+U settings

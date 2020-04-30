@@ -24,7 +24,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -758,7 +758,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         reuse_old_ldaupot = self.get_old_ldaupot(parent_calc_folder, tempfolder)
 
         # settings dict (defines U, J etc.)
-        ldau_settings = self.inputs.settings_LDAU
+        ldau_settings = self.inputs.settings_LDAU.get_dict()
 
         if reuse_old_ldaupot:
             # reuse wldau, ildau and phi from old ldaupot file
@@ -800,38 +800,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         if parent_calc_folder is not None:
             retrieved = parent_calc_folder.get_incoming(node_class=CalcJobNode).first().node.get_outgoing().get_node_by_label('retrieved')
             # extract file from host's tarball (extract to tempfolder and use from there, this way the unnessesary files are deleted once submission is done)
-            tar_filenames = []
-            if self._FILENAME_TAR in retrieved.list_object_names():
-                # get path of tempfolder
-                with tempfolder.open('.dummy','w') as tmpfile:
-                    tempfolder_path = os.path.dirname(tmpfile.name)
-                    
-                # get path of tarfile
-                with retrieved.open(self._FILENAME_TAR) as tf:
-                    tfpath = tf.name
-                    
-                # extract file from tarfile of retrieved to tempfolder
-                with tarfile.open(tfpath) as tf:
-                    tar_filenames = [ifile.name for ifile in tf.getmembers()]
-                    if self._LDAUPOT in tar_filenames:
-                        has_ldaupot = True
-                        tf.extract(self._LDAUPOT, tempfolder_path) # extract to tempfolder
-                # copy to new filename
-                if has_ldaupot:
-                    with tempfolder.open(self._LDAUPOT+'_old', u'w') as newfile:
-                        with tempfolder.open(self._LDAUPOT, u'r') as oldfile:
-                            newfile.writelines(oldfile.readlines())
-                        
-                # remove dummy file
-                if '.dummy' in os.listdir(tempfolder_path):
-                    os.remove(os.path.join(tempfolder_path, '.dummy'))
-                    
-            else: # otherwise copy from retrieved to tempfolder (rest of calculation needs files to be in tempfolder)
-                if self._LDAUPOT in retrieved.list_object_names():
-                    has_ldaupot = True
-                    with tempfolder.open(self._LDAUPOT+'_old', u'w') as newfile:
-                        with retrieved.open(self._LDAUPOT, u'r') as oldfile:
-                            newfile.writelines(oldfile.readlines())
+            has_ldaupot = self.get_ldaupot_from_retrieved(retrieved, tempfolder)
                             
             return has_ldaupot
     
@@ -878,6 +847,50 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
 
         # now return updated remote_symlink and local_copy lists
         return remote_symlink_list, local_copy_list
+    
+    
+    @classmethod
+    def get_ldaupot_from_retrieved(self, retrieved, tempfolder):
+        """
+        Extract ldaupot from output of KKRimp retreived to tempfolder.
+        The extracted file in tempfolder will be named ldaupot_old.
+
+        returns True of ldaupot was found, otherwise returns False
+        """
+        tar_filenames = []
+        if self._FILENAME_TAR in retrieved.list_object_names():
+            # get path of tempfolder
+            with tempfolder.open('.dummy','w') as tmpfile:
+                tempfolder_path = os.path.dirname(tmpfile.name)
+
+            # get path of tarfile
+            with retrieved.open(self._FILENAME_TAR) as tf:
+                tfpath = tf.name
+
+            # extract file from tarfile of retrieved to tempfolder
+            with tarfile.open(tfpath) as tf:
+                tar_filenames = [ifile.name for ifile in tf.getmembers()]
+                if self._LDAUPOT in tar_filenames:
+                    has_ldaupot = True
+                    tf.extract(self._LDAUPOT, tempfolder_path) # extract to tempfolder
+            # copy to new filename
+            if has_ldaupot:
+                with tempfolder.open(self._LDAUPOT+'_old', u'w') as newfile:
+                    with tempfolder.open(self._LDAUPOT, u'r') as oldfile:
+                        newfile.writelines(oldfile.readlines())
+
+            # remove dummy file
+            if '.dummy' in os.listdir(tempfolder_path):
+                os.remove(os.path.join(tempfolder_path, '.dummy'))
+
+        else: # otherwise copy from retrieved to tempfolder (rest of calculation needs files to be in tempfolder)
+            if self._LDAUPOT in retrieved.list_object_names():
+                has_ldaupot = True
+                with tempfolder.open(self._LDAUPOT+'_old', u'w') as newfile:
+                    with retrieved.open(self._LDAUPOT, u'r') as oldfile:
+                        newfile.writelines(oldfile.readlines())
+
+        return has_ldaupot
 
 
 def get_ldaupot_text(ldau_settings, ef_Ry, natom, initialize=True):
@@ -887,30 +900,31 @@ def get_ldaupot_text(ldau_settings, ef_Ry, natom, initialize=True):
     from masci_tools.io.common_functions import get_Ry2eV
 
     eV2Ry = 1./get_Ry2eV()
-    
+
     # these lists are extracted from ldau_settings node and then written to the ldaupot file
     iatoms_ldau = []
     lopt = []
     ueff = []
     jeff = []
     eref = []
-    
+
     # extract values from ldau_settings
-    for key, val in ldau_settings.get_dict().items():
-        iatoms_ldau.append(int(key.split('=')[1]))
-        lopt.append( val['L'] )
-        # add values in Ry units
-        jeff.append( val['J'] * eV2Ry )
-        ueff.append( val['U'] * eV2Ry )
-        eref.append( val['Eref_EF'] * eV2Ry + ef_Ry )
-    
+    for key, val in ldau_settings.items():
+        if 'iatom' in key:
+            iatoms_ldau.append(int(key.split('=')[1]))
+            lopt.append( val['L'] )
+            # add values in Ry units
+            jeff.append( val['J'] * eV2Ry )
+            ueff.append( val['U'] * eV2Ry )
+            eref.append( val['Eref_EF'] * eV2Ry + ef_Ry )
+
     if initialize:
         # this means we initialize this file
         ldaurun = 0
     else:
         # this means wldau etc are reused (need to be added to the file)
         ldaurun = 1
-    
+
     # collect text which is written to ldaupot
     txt = [f'{ldaurun} ']
     txt_lopt, txt_jeff, txt_ueff, txt_eref = [], [], [], []
@@ -929,5 +943,34 @@ def get_ldaupot_text(ldau_settings, ef_Ry, natom, initialize=True):
             ii += 1
     txt += ['\n'] + txt_lopt + ['\n'] + txt_ueff + ['\n'] + txt_jeff + ['\n'] + txt_eref
     txt += ['\nwldau\nuldau\nphi\n']
-    
+
+    # add initial matrices  
+    if initialize and 'initial_matrices' in ldau_settings.keys():
+        # save for consistency check
+        nldauatoms = ii
+
+        # change first number from 0 to 1 to signal reading-in instead of calculating initial matrices
+        txt[0] = '1 '
+
+        # remove last dummy line, will be replaced with starting values now
+        txt[-1] = '\n'
+        txt_wldau = ['wldau\n']
+        txt_uldau = ['uldau\n']
+        txt_phi = ['phi\n']
+        ii = 0
+        for iatom in range(natom):
+            if iatom in iatoms_ldau:
+                txt_wldau += [f'atom {iatom+1}\n'] + ldau_settings['initial_matrices'][f'iatom={iatom}']['wldau']
+                txt_uldau += [f'atom {iatom+1}\n'] + ldau_settings['initial_matrices'][f'iatom={iatom}']['uldau']
+                txt_phi += [f'atom {iatom+1}\n'] + ldau_settings['initial_matrices'][f'iatom={iatom}']['phi']
+                ii+=1 # count number of atoms
+
+        # consistency check
+        if nldauatoms != ii:
+            raise ValueError('initial_matrices input inconsistent')
+
+        # add additional lines to txt
+        txt = txt + txt_wldau + txt_uldau + txt_phi
+
     return txt
+        
