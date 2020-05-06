@@ -23,7 +23,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 __contributors__ = (u"Philipp Rüßmann")
 
 # activate debug writeout
@@ -473,21 +473,23 @@ def combine_settings_ldau(**kwargs):
 
     if imp1_has_ldau:
         for k, v in settings_LDAU1.items():
-            iatom = int(k.split('=')[1])
-            # TODO: implement something for the case when LDAU is not only on the impurity site at iatom==0
-            settings_LDAU_combined[f'iatom={iatom}'] = v
-            if has_old_ldaupot1:
-                settings_LDAU_combined['initial_matrices'][f'iatom={iatom}'] = txts_ldaumat1
+            if'iatom' in k:
+                iatom = int(k.split('=')[1])
+                # TODO: implement something for the case when LDAU is not only on the impurity site at iatom==0
+                settings_LDAU_combined[f'iatom={iatom}'] = v
+                if has_old_ldaupot1:
+                    settings_LDAU_combined['initial_matrices'][f'iatom={iatom}'] = txts_ldaumat1
             
     if imp2_has_ldau:
         for k,v in settings_LDAU2.items():
-            iatom = int(k.split('=')[1])
-            if kickout_info['i_removed_from_1'] is not None:
-                noffset = kickout_info['Ncls1']-len(kickout_info['i_removed_from_1'])
-            else:
-                noffset = kickout_info['Ncls1']
-            settings_LDAU_combined[f'iatom={iatom+noffset}'] = v
-            if has_old_ldaupot2:
-                settings_LDAU_combined['initial_matrices'][f'iatom={iatom+noffset}'] = txts_ldaumat2
+            if'iatom' in k:
+                iatom = int(k.split('=')[1])
+                if kickout_info['i_removed_from_1'] is not None:
+                    noffset = kickout_info['Ncls1']-len(kickout_info['i_removed_from_1'])
+                else:
+                    noffset = kickout_info['Ncls1']
+                settings_LDAU_combined[f'iatom={iatom+noffset}'] = v
+                if has_old_ldaupot2:
+                    settings_LDAU_combined['initial_matrices'][f'iatom={iatom+noffset}'] = txts_ldaumat2
 
     return Dict(dict=settings_LDAU_combined)

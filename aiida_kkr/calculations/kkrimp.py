@@ -24,7 +24,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.3"
+__version__ = "0.6.4"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -66,10 +66,8 @@ class KkrimpCalculation(CalcJob):
     _OUT_ENERGYTOT_PER_ATOM = u'out_energytotal_per_atom_eV'
 
     # List of output files that are retrieved if special conditions are fulfilled
-    _OUT_JIJDIJ = u'out_JijDij'
-    _OUT_JIJDIJ_LOCAL = u'out_JijDij_local'
     _OUT_JIJMAT = u'out_Jijmatrix'
-    _OUT_JIJMAT_LOCAL = u'out_Jijmatrix_local'
+    _OUT_JIJ_OF_E_BASE = 'test_Jijmatrix_Eres_IE%0.3i.dat'
     _OUT_LDOS_BASE = u'out_ldos.atom=%2i_spin%i.dat'
     _OUT_LDOS_INTERPOL_BASE = u'out_ldos.interpol.atom=%2i_spin%i.dat'
     _OUT_LMDOS_BASE = u'out_lmdos.atom=%2i_spin%i.dat'
@@ -180,6 +178,9 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         # write ldaupot file and change retrieved list for LDA+U calculation
         # this is triggered with having the settings_LDAU dict node in input.
         retrieve_list = self.init_ldau(tempfolder, retrieve_list, parent_calc_folder)
+        
+        # add Jij files to retrieve list if calculation if in Jij mode
+        retrieve_list = self.add_jij_files(tempfolder, retrieve_list)
 
         # change local and remote copy list if GF is found on remote machine
         remote_symlink_list, local_copy_list = self.get_remote_symlink(local_copy_list)
@@ -477,6 +478,45 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             for (key, val) in parameters.get_set_values():
                 self._check_key_setting_consistency(params_kkrimp, key, val)
                 params_kkrimp.set_value(key, val)
+                
+        # special run mode: calculation of Jijs
+        if parameters.get_value('CALCJIJMAT') is not None and  parameters.get_value('CALCJIJMAT') == 1:
+            self.report('Found CALCJIJMAT=1: trigger JIJ mode which overwrites IMIX, MIXFAC, SCFSTEPS and RUNFLAGs')
+
+            # settings in config file
+            runflag.append('force_angles')
+            # take care of LDA+U
+            if 'settings_LDAU' not in self.inputs:
+                # this prevents mixing LDAU potential in between iterations
+                runflag.append('freezeldau')
+                
+            # now add runflags
+            params_kkrimp.set_multiple_values(IMIX=0, MIXFAC=0., SCFSTEPS=3, RUNFLAG=runflag)
+            
+            # for DOS mode add flag to writeout Jij info energy resolved (this will be retrieved if )
+            testflag = params_kkrimp.get_value('TESTFLAG')
+            testflag.append('Jij(E)')
+            params_kkrimp.set_value('TESTFLAG', testflag)
+
+            # extract NATOM from atominfo file
+            with GFhost_folder.open(self._KKRFLEX_ATOMINFO) as file:
+                atominfo = file.readlines()
+            itmp = search_string('NATOM', atominfo)
+            if itmp>=0:
+                natom = int(atominfo[itmp+1].split()[0])
+            else:
+                raise ValueError("Could not extract NATOM value from kkrflex_atominfo")
+
+            # now write kkrflex_angle file
+            with tempfolder.open(self._KKRFLEX_ANGLE, 'w') as kkrflex_angle_file:
+                for istep in range(3):
+                    for iatom in range(natom):
+                        if istep==0:
+                            kkrflex_angle_file.write(f'   0.0    0.0    1\n')
+                        elif istep==1:
+                            kkrflex_angle_file.write(f'  90.0    0.0    1\n')
+                        else:
+                            kkrflex_angle_file.write(f'  90.0   90.0    1\n')
 
         # write config.cfg
         with tempfolder.open(self._CONFIG, u'w') as config_file:
@@ -650,6 +690,12 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
                 nspin = int(config[itmp].split()[-1])
             else:
                 raise ValueError("Could not extract NSPIN value from config.cfg")
+            # check if mode is Jij
+            itmp = search_string('CALCJIJMAT', config)
+            if itmp>=0:
+                calcjijmat = int(config[itmp].split()[-1])
+            else:
+                raise ValueError("Could not extract CALCJIJMAT value from config.cfg")
 
             # extract NATOM from atominfo file
             with tempfolder.open(self._KKRFLEX_ATOMINFO) as file:
@@ -667,6 +713,10 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
                     retrieve_list.append((self._OUT_LDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
                     retrieve_list.append((self._OUT_LMDOS_BASE%(iatom, ispin)).replace(' ', '0'))
                     retrieve_list.append((self._OUT_LMDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
+                # add Jij of E file if Jij mode
+                if calcjijmat > 0:
+                    retrieve_list.append(self._OUT_JIJ_OF_E_BASE%iatom) # energy resolved values
+                    retrieve_list.append((self._OUT_JIJ_OF_E_BASE.replace('IE', 'IE_int'))%iatom) # integrated values
 
         return retrieve_list
 
@@ -891,6 +941,26 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
                         newfile.writelines(oldfile.readlines())
 
         return has_ldaupot
+        
+        
+    def add_jij_files(self, tempfolder, retrieve_list):
+        """
+        check if KkrimpCalculation is in Jij mode and add OUT_JIJMAT to retrieve list if needed
+        """
+        
+        # check if Jij mode is set in config file and add OUT_JIJMAT to retrieved list if needed
+        with tempfolder.open(self._CONFIG) as file:
+            config = file.readlines()
+            itmp = search_string('CALCJIJMAT', config)
+            if itmp>=0:
+                calcjijmat = int(config[itmp].split()[-1])
+                if calcjijmat > 0:
+                    retrieve_list.append(self._OUT_JIJMAT)
+            else:
+                raise ValueError("Could not extract CALCJIJMAT value from config.cfg")
+                
+        return retrieve_list
+    
 
 
 def get_ldaupot_text(ldau_settings, ef_Ry, natom, initialize=True):

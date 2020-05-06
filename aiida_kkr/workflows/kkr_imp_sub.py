@@ -20,7 +20,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.9.3"
+__version__ = "0.9.4"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -77,6 +77,7 @@ class kkr_imp_sub_wc(WorkChain):
                    'hfield' : [0.02, 5], # Ry                     # external magnetic field used in initialization step
                    'init_pos' : None,                             # position in unit cell where magnetic field is applied [default (None) means apply to all]
                    'dos_run': False,                              # specify if DOS should be calculated (!KKRFLEXFILES with energy contour necessary as GF_remote_data!)
+                   'jij_run': False,                              # specify if Jijs should be calculated (!changes behavior of the code!!!)
                    'do_final_cleanup': True,                      # decide whether or not to clean up intermediate files (THIS BREAKS CACHABILITY!)
 #                   # Some parameter for direct solver (if None, use the same as in host code, otherwise overwrite)
                    'accuracy_params': {'RADIUS_LOGPANELS': None,  # where to set change of logarithmic to linear radial mesh
@@ -260,6 +261,8 @@ class kkr_imp_sub_wc(WorkChain):
 
         # DOS
         self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
+        # Jij
+        self.ctx.jij_run = wf_dict.get('jij_run', self._wf_default['jij_run'])
 
 
         self.report('INFO: use the following parameter:\n'
@@ -586,6 +589,11 @@ class kkr_imp_sub_wc(WorkChain):
                 runflags = new_params.get('RUNFLAG', []) + ['ldos']
                 new_params['RUNFLAG'] = runflags
                 new_params['SCFSTEPS'] = 1
+                
+            # turn on Jij calculation if jij_run == True
+            if self.ctx.jij_run:
+                new_params['CALCJIJMAT'] = 1
+            
 
             # add newsosol
             if self.ctx.spinorbit:
