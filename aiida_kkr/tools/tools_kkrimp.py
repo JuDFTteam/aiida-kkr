@@ -168,7 +168,7 @@ class modify_potential(object):
                 raise ValueError('replace_from_pot2 not given')
             else:
                 replace_from_pot2 = np.array(replace_from_pot2)
-                if debug: print(replace_from_pot2)
+                if debug: print('replace list:', replace_from_pot2)
                 if np.shape(replace_from_pot2)[1]!=2:
                     raise ValueError('replace_from_pot2 needs to be a 2D array!')
         else:
@@ -178,7 +178,7 @@ class modify_potential(object):
         # set order in which potential file is written
         # ensure that numbers are integers:
         order = [int(i) for i in neworder]
-        if debug: print(order)
+        if debug: print('neworder:', order)
 
         datanew=[]
         for i in range(len(order)):

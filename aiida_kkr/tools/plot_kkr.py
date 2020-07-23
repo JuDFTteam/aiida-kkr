@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.3"
+__version__ = "0.5.4"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -402,7 +402,7 @@ class plot_kkr(object):
                         yladd = y_all[il][0].replace('dos ', '')
                         if all_atoms:
                             yladd+=', atom='+str(iatom+1)
-                        elif ispin>0:
+                        if ispin>0:
                             yladd=''
                         if labels_all is not None and ispin==0:
                             yladd = labels_all[iatom]
@@ -642,7 +642,12 @@ class plot_kkr(object):
                             try:
                                 # extract Fermi level from parent calculation
                                 parent_calc = node.inputs.parent_folder.get_incoming().first().node
-                                ef = parent_calc.outputs.output_parameters.get_dict()['fermi_energy']
+                                try:
+                                    # parent is KkrCalc
+                                    ef = parent_calc.outputs.output_parameters.get_dict()['fermi_energy']
+                                except:
+                                    # parent is scf workflow
+                                    ef = parent_calc.outputs.last_calc_out['fermi_energy']
                             except:
                                 outfile_name = f.name.replace('qdos.01.1.dat', 'output.0.txt')
                                 with open_general(outfile_name) as file_handle:
@@ -711,11 +716,19 @@ class plot_kkr(object):
             out_para_dict['convergence_group']['rms_all_iterations']
             rms = out_para_dict['convergence_group']['rms_all_iterations']
             rms_goal = out_para_dict['convergence_group']['qbound']
+            
             # extract total magnetic moment
-            nat = out_para_dict['number_of_atoms_in_unit_cell']
-            s = array(out_para_dict['convergence_group']['spin_moment_per_atom_all_iterations'], dtype=float)
-            ss = sqrt(sum(s**2, axis=1)).reshape(-1,nat)
-            stot = sum(ss, axis=1)
+            nspin = out_para_dict['nspin']
+            if nspin>1:
+                try:
+                    nat = out_para_dict['number_of_atoms_in_unit_cell']
+                    s = array(out_para_dict['convergence_group']['spin_moment_per_atom_all_iterations'], dtype=float)
+                    ss = sqrt(sum(s**2, axis=1)).reshape(-1,nat)
+                    stot = sum(ss, axis=1)
+                except:
+                    stot = None
+            else:
+                stot = None
         else:
             stot = None
             

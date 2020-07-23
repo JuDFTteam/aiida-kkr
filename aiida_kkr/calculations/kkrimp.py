@@ -24,7 +24,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.4"
+__version__ = "0.6.8"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -67,7 +67,7 @@ class KkrimpCalculation(CalcJob):
 
     # List of output files that are retrieved if special conditions are fulfilled
     _OUT_JIJMAT = u'out_Jijmatrix'
-    _OUT_JIJ_OF_E_BASE = 'test_Jijmatrix_Eres_IE%0.3i.dat'
+    _OUT_JIJ_OF_E_BASE = 'out_Jijmatrix_Eres_IE%0.3i.dat'
     _OUT_LDOS_BASE = u'out_ldos.atom=%2i_spin%i.dat'
     _OUT_LDOS_INTERPOL_BASE = u'out_ldos.interpol.atom=%2i_spin%i.dat'
     _OUT_LMDOS_BASE = u'out_lmdos.atom=%2i_spin%i.dat'
@@ -118,6 +118,17 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         'Eref_EF': 0.,  # reference energy in eV relative to the Fermi energy. This is the energy where the projector wavefunctions are calculated (should be close in energy where the states that are shifted lie (e.g. for Eu use the Fermi energy))
     }})
     Note: you can add multiple entries like the one for iatom==0 in this example. The atom index refers to the corresponding atom in the impurity cluster.
+""")
+        spec.input('initial_noco_angles', valid_type=Dict, required=False,
+                   help="""
+Initial non-collinear angles for the magnetic moments of the impurities. These values will be written into the `kkrflex_angle` input file of KKRimp.
+The Dict node should be of the form
+    initial_noco_angles = Dict(dict={
+        'theta': [theta_at1, theta_at2, ..., theta_atN], # list theta values in degrees (0..180)
+        'phi': [phi_at1, phi_at2, ..., phi_atN],         # list phi values in degrees (0..360)
+        'fix_dir': [True, False, ..., True/False],       # list of booleans indicating of the direction of the magentic moment should be fixed or is allowed to be updated (True means keep the direction of the magnetic moment fixed)
+    })
+    Note: The length of the theta, phi and fix_dir lists have to be equal to the number of atoms in the impurity cluster.
 """)
         
         # define outputs
@@ -170,7 +181,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         allopts = self.get_run_test_opts(parameters)
 
         # retrieve l(m)dos files
-        retrieve_list = self.add_lmdos_files_to_retrieve(tempfolder, allopts, retrieve_list)
+        retrieve_list = self.add_lmdos_files_to_retrieve(tempfolder, allopts, retrieve_list, kkrflex_file_paths)
 
         # change retrieve list for Chebychev solver
         retrieve_list = self.adapt_retrieve_tmatnew(tempfolder, allopts, retrieve_list)
@@ -437,12 +448,19 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             params_kkrimp.set_multiple_values(NCOLL=1, SPINORBIT=1, CALCORBITALMOMENT=1, TESTFLAG=['tmatnew'])
         else:
             params_kkrimp.set_multiple_values(NCOLL=0, SPINORBIT=0, CALCORBITALMOMENT=0, TESTFLAG=[])
+            
+        # extract input RUNFLAGS
+        runflag = None
+        if parameters is not None:
+            for (key, val) in parameters.get_set_values():
+                if key=='RUNFLAG':
+                    runflag = list(val)
+        if runflag is None: runflag = []
+            
         # special settings
         runopts = params_host.get_value('RUNOPT')
         if 'SIMULASA' in runopts or (params_kkrimp.get_value('NCOLL')>0 and params_kkrimp.get_value('INS')==0):
-            runflag = ['SIMULASA']
-        else:
-            runflag = []
+            runflag.append('SIMULASA')
         # take care of LLYsimple (i.e. Lloyd in host system)
         if 'LLOYD' in runopts:
             # add runflag for imp code
@@ -480,13 +498,13 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
                 params_kkrimp.set_value(key, val)
                 
         # special run mode: calculation of Jijs
-        if parameters.get_value('CALCJIJMAT') is not None and  parameters.get_value('CALCJIJMAT') == 1:
+        if parameters.get_value('CALCJIJMAT') is not None and parameters.get_value('CALCJIJMAT') == 1:
             self.report('Found CALCJIJMAT=1: trigger JIJ mode which overwrites IMIX, MIXFAC, SCFSTEPS and RUNFLAGs')
 
             # settings in config file
             runflag.append('force_angles')
             # take care of LDA+U
-            if 'settings_LDAU' not in self.inputs:
+            if 'settings_LDAU' in self.inputs:
                 # this prevents mixing LDAU potential in between iterations
                 runflag.append('freezeldau')
                 
@@ -517,7 +535,40 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
                             kkrflex_angle_file.write(f'  90.0    0.0    1\n')
                         else:
                             kkrflex_angle_file.write(f'  90.0   90.0    1\n')
+        
+        # write kkrflex_angle file
+        # DOES NOT WORK TOGETHER WITH JIJ mode!!!
+        if 'initial_noco_angles' in self.inputs:
+            self.report('Found `initial_noco_angles` input node, writing kkrflex_angle file')
 
+            # check if calculation is no Jij run
+            if parameters.get_value('CALCJIJMAT') is not None and parameters.get_value('CALCJIJMAT') == 1:
+                raise InputValidationError('ERROR: ')
+                
+            # extract values from input node
+            thetas = self.inputs.initial_noco_angles['theta']
+            if len(thetas) != natom:
+                raise InputValidationError("Error: `theta` list in `initial_noco_angles` input node needs to have the same length as number of atoms in the impurity cluster!")
+            phis = self.inputs.initial_noco_angles['phi']
+            if len(phis) != natom:
+                raise InputValidationError("Error: `phi` list in `initial_noco_angles` input node needs to have the same length as number of atoms in the impurity cluster!")
+            fix_dirs = self.inputs.initial_noco_angles['fix_dir']
+            if len(fix_dirs) != natom:
+                raise InputValidationError("Error: `fix_dir` list in `initial_noco_angles` input node needs to have the same length as number of atoms in the impurity cluster!")
+            
+            # now write kkrflex_angle file
+            with tempfolder.open(self._KKRFLEX_ANGLE, 'w') as kkrflex_angle_file:
+                for iatom in range(natom):
+                    theta, phi, fix_dir = thetas[iatom], phis[iatom], fix_dirs[iatom]
+                    # check consistency
+                    if theta < 0 or theta > 180:
+                        raise  InputValidationError(f"Error: theta value out of range (0..180): iatom={iatom}, theta={theta}")
+                    if phi < 0 or phi > 360:
+                        raise  InputValidationError(f"Error: phi value out of range (0..360): iatom={iatom}, phi={phi}")
+                    # write line
+                    kkrflex_angle_file.write(f'   {theta}    {phi}    {fix_dir}\n')
+                    
+            
         # write config.cfg
         with tempfolder.open(self._CONFIG, u'w') as config_file:
             params_kkrimp.fill_keywords_to_inputfile(output=config_file)
@@ -678,7 +729,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         return allopts
 
 
-    def add_lmdos_files_to_retrieve(self, tempfolder, allopts, retrieve_list):
+    def add_lmdos_files_to_retrieve(self, tempfolder, allopts, retrieve_list, kkrflex_file_paths):
         """Add DOS files to retrieve list"""
 
         if 'lmdos' in allopts or 'ldos' in allopts:
@@ -713,10 +764,16 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
                     retrieve_list.append((self._OUT_LDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
                     retrieve_list.append((self._OUT_LMDOS_BASE%(iatom, ispin)).replace(' ', '0'))
                     retrieve_list.append((self._OUT_LMDOS_INTERPOL_BASE%(iatom, ispin)).replace(' ', '0'))
-                # add Jij of E file if Jij mode
-                if calcjijmat > 0:
-                    retrieve_list.append(self._OUT_JIJ_OF_E_BASE%iatom) # energy resolved values
-                    retrieve_list.append((self._OUT_JIJ_OF_E_BASE.replace('IE', 'IE_int'))%iatom) # integrated values
+            # add Jij of E file if Jij mode
+            if calcjijmat > 0:
+                with kkrflex_file_paths[self._KKRFLEX_TMAT].open(self._KKRFLEX_TMAT, 'r') as f:
+                    txt = []
+                    for iline in range(3):
+                        txt.append(f.readline())
+                    nepts = int(txt[1].split()[3])
+                for ie in range(1,nepts+1):
+                    retrieve_list.append(self._OUT_JIJ_OF_E_BASE%ie) # energy resolved values
+                    retrieve_list.append((self._OUT_JIJ_OF_E_BASE.replace('IE', 'IE_int'))%ie) # integrated values
 
         return retrieve_list
 

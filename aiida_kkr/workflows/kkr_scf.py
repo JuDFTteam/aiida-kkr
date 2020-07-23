@@ -24,7 +24,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.2"
+__version__ = "0.10.3"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -1087,11 +1087,15 @@ class kkr_scf_wc(WorkChain):
 
         # capture links to last parameter, calcualtion and output
         try:
-            last_calc_out = self.ctx.kkr.out['output_parameters']
+            last_calc_out = self.ctx.kkr.outputs.output_parameters
             last_calc_out_dict = last_calc_out.get_dict()
+            self.report("Found last_calc_out")
             last_RemoteData = self.ctx.last_remote
+            self.report("Found last_remote")
             last_InputParameters = self.ctx.last_params
+            self.report("Found last_params")
         except:
+            self.report("Error in finding last_calc_out etc.")
             last_InputParameters = None
             last_RemoteData = None
             last_calc_out = None

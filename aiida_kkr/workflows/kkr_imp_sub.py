@@ -77,6 +77,9 @@ class kkr_imp_sub_wc(WorkChain):
                    'hfield' : [0.02, 5], # Ry                     # external magnetic field used in initialization step
                    'init_pos' : None,                             # position in unit cell where magnetic field is applied [default (None) means apply to all]
                    'dos_run': False,                              # specify if DOS should be calculated (!KKRFLEXFILES with energy contour necessary as GF_remote_data!)
+
+                   'lmdos': True,                                 # specify if DOS calculation should calculate l-resolved or l and m resolved output
+
                    'jij_run': False,                              # specify if Jijs should be calculated (!changes behavior of the code!!!)
                    'do_final_cleanup': True,                      # decide whether or not to clean up intermediate files (THIS BREAKS CACHABILITY!)
 #                   # Some parameter for direct solver (if None, use the same as in host code, otherwise overwrite)
@@ -261,6 +264,7 @@ class kkr_imp_sub_wc(WorkChain):
 
         # DOS
         self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
+        self.ctx.lmdos = wf_dict.get('lmdos', self._wf_default['lmdos'])
         # Jij
         self.ctx.jij_run = wf_dict.get('jij_run', self._wf_default['jij_run'])
 
@@ -586,7 +590,10 @@ class kkr_imp_sub_wc(WorkChain):
 
             # add ldos runoption if dos_run = True
             if self.ctx.dos_run:
-                runflags = new_params.get('RUNFLAG', []) + ['ldos']
+                if self.ctx.lmdos:
+                    runflags = new_params.get('RUNFLAG', []) + ['lmdos']
+                else:
+                    runflags = new_params.get('RUNFLAG', []) + ['ldos']
                 new_params['RUNFLAG'] = runflags
                 new_params['SCFSTEPS'] = 1
                 
@@ -918,6 +925,9 @@ class kkr_imp_sub_wc(WorkChain):
 
         if self.ctx.kkrimp_step_success and not calc_reached_qbound:
             first_rms = self.ctx.last_rms_all[0]
+            # skip first if this is the initial LDA+U iteration because there we see the original non-LDAU convergence value
+            if "settings_LDAU" in self.inputs and self.ctx.loop_count<2 and len( self.ctx.last_rms_all)>1:
+                first_rms = self.ctx.last_rms_all[1]
             last_rms = self.ctx.last_rms_all[-1]
             # use this trick to avoid division by zero
             if last_rms == 0:

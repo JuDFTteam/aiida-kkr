@@ -22,7 +22,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.6"
+__version__ = "0.6.7"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
 
 #TODO: improve workflow output node structure
@@ -60,6 +60,7 @@ class kkr_imp_dos_wc(WorkChain):
     _wf_default = {'ef_shift': 0. ,                               # set custom absolute E_F (in eV)
                    'clean_impcalc_retrieved': True,               # remove output of KKRimp calculation after successful parsing of DOS files
                    'jij_run': False,                              # calculate Jij's energy resolved
+                   'lmdos': False,
                   }
 
     # add defaults of dos_params since they are passed onto that workflow
@@ -184,7 +185,14 @@ class kkr_imp_dos_wc(WorkChain):
 
         # set workflow parameters for the KKR imputrity calculations
         self.ctx.ef_shift = wf_dict.get('ef_shift', self._wf_default['ef_shift'])
+        self.ctx.lmdos = wf_dict.get('lmdos', self._wf_default['lmdos'])
+        
         self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
+        # fill missing key, value pairs with defaults
+        for k,v in self._wf_default['dos_params'].items():
+            if k not in self.ctx.dos_params_dict.keys():
+                self.ctx.dos_params_dict[k] = v
+                
         self.ctx.cleanup_impcalc_output = wf_dict.get('clean_impcalc_retrieved', self._wf_default['clean_impcalc_retrieved'])
 
         # set workflow parameters for the KKR impurity calculation
@@ -225,6 +233,7 @@ label: {}
 
         inputs = self.inputs
         inputs_ok = True
+        gf_writeout_calc =  None
 
         if 'imp_pot_sfd' in inputs:
             # check if input potential has incoming return link
@@ -280,7 +289,9 @@ label: {}
                 self.report("[ERROR] `kkr` input node needed if `gf_dos_remote` is not given")
                 inputs_ok = False
                 self.ctx.errors.append(3) # raises ERROR_KKR_CODE_MISSING
-            if 'host_remote' not in self.inputs:
+            if gf_writeout_calc is not None:
+                self.report("Use extraced host remote")
+            elif 'host_remote' not in self.inputs:
                 self.report("[ERROR] `host_remote` input node needed if `gf_dos_remote` is not given")
                 inputs_ok = False
                 self.ctx.errors.append(4) # raises ERROR_HOST_REMOTE_MISSING
@@ -382,6 +393,7 @@ label: {}
                                                  'nsteps': 1,
                                                  'kkr_runmax': 1,
                                                  'dos_run': True,
+                                                 'lmdos': self.ctx.lmdos, 
                                                  'jij_run': self.ctx.jij_run,
                                                  'do_final_cleanup': self.ctx.cleanup_impcalc_output
                                                  })
