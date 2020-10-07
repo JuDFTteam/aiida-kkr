@@ -19,7 +19,7 @@ from builtins import str
 _ignored_keys = ['ef_set', 'use_input_alat']
 
 @calcfunction
-def update_params_wf(parameternode, updatenode):
+def update_params_wf(parameternode, updatenode, **link_inputs):
     """
     Work function to update a KKR input parameter node.
     Stores new node in database and creates a link from old parameter node to new node
@@ -776,12 +776,13 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
     the input computer node before the output potential is stored as SinglefileData
     in the Database.
 
-    :param settings_node: settings for the neworder_potentail function (Dict)
+    :param settings_node: settings for the neworder_potential function (Dict)
     :param parent_calc_folder: parent calculation remote folder node where the input
         potential is retreived from (RemoteData)
     :param parent_calc_folder2: *optional*, parent calculation remote folder node where
         the second input potential is retreived from in case 'pot2' and 'replace_newpos'
         are also set in settings_node (RemoteData)
+    :param debug: *optional*, contol wether or not debug information is written out (aiida.orm.Bool)
 
     :returns: output_potential node (SinglefileData)
 
@@ -795,6 +796,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
 
             'pot2': '<filename_second_input_file>'
             'replace_newpos': [[position in neworder list which is replace with potential from pot2, position in pot2 that is chosen for replacement]]
+            'switch_spins': [indices of atom for which spins are exchanged] (indices refer to position in neworder input list)
             'label': 'label_for_output_node'
             'description': 'longer_description_for_output_node'
     """
@@ -804,6 +806,11 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
     from aiida.common.exceptions import UniquenessError
     from aiida.orm import CalcJobNode, Dict, RemoteData, SinglefileData
 
+    if 'debug' in list(kwargs.keys()):
+        debug = kwargs.get('debug').value
+    else:
+        debug = False
+        
     if 'parent_calc_folder2' in list(kwargs.keys()):
         parent_calc_folder2=kwargs.get('parent_calc_folder2', None)
     else:
@@ -829,6 +836,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
         raise InputValidationError('settings_node_dict needs to have key "neworder" containing the list of new positions')
     pot2 = settings_dict.get('pot2', None)
     replace_newpos = settings_dict.get('replace_newpos', None)
+    switch_spins = settings_dict.get('switch_spins', [])
 
     # Create Sandbox folder for generation of output potential file
     # and construct output potential
@@ -848,11 +856,18 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
         # extract nspin from parent calc's input parameter node
         nspin = parent_calc.inputs.parameters.get_dict().get('NSPIN')
         neworder_spin = []
+        ii = 0
         for iatom in neworder:
-            for ispin in range(nspin):
+            spins = range(nspin)
+            # change spin order if needed
+            if ii in switch_spins:
+                spins = spins[::-1]
+            for ispin in spins:
                 neworder_spin.append(iatom*nspin+ispin)
+            ii += 1
         neworder = neworder_spin
-
+        
+        
         # Copy optional files?
         if pot2 is not None and parent_calc_folder2 is not None:
             parent_calcs = parent_calc_folder2.get_incoming(node_class=CalcJobNode).all()
@@ -878,7 +893,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
 
         # run neworder_potential function
         modify_potential().neworder_potential(pot1_fhandle, out_pot_fhandle, neworder, potfile_2=pot2_fhandle,
-                                              replace_from_pot2=replace_newpos)
+                                              replace_from_pot2=replace_newpos, debug=debug)
 
         # store output potential to SinglefileData
         output_potential_sfd_node = SinglefileData(file=tempfolder.open(out_pot, u'rb'))

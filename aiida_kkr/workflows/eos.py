@@ -82,9 +82,9 @@ class kkr_eos_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_eos_wc, cls).define(spec)
         spec.input("options", valid_type=Dict, required=False,         # computer options
-                   default=Dict(dict=cls._options_default))
+                   default=lambda: Dict(dict=cls._options_default))
         spec.input("wf_parameters", valid_type=Dict, required=False,   # workfunction settings
-                   default=Dict(dict=cls._wf_default))
+                   default=lambda: Dict(dict=cls._wf_default))
         spec.input("kkr", valid_type=Code, required=True)                       # KKRhost code
         spec.input("voronoi", valid_type=Code, required=True)                   # voronoi code
         spec.input("structure", valid_type=StructureData, required=True)        # starting structure node

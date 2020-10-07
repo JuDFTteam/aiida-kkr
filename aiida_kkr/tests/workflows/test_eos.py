@@ -70,7 +70,7 @@ def test_eos_wc_Cu_simple(clear_database_before_test, voronoi_local_code, kkrhos
     builder.metadata.description = descr
 
     # now run calculation
-    out, node = run_with_cache(builder)
+    out, node = run_with_cache(builder, data_dir=data_dir)
 
     # load node of workflow
     print(out)

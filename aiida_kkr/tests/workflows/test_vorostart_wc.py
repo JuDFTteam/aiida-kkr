@@ -54,7 +54,7 @@ def test_kkr_startpot_wc_Cu(clear_database_before_test, voronoi_local_code, kkrh
     builder.kkr = kkrhost_local_code
 
 
-    out, node = run_with_cache(builder)
+    out, node = run_with_cache(builder, data_dir=data_dir)
     print('outputs:', node, out)
 
     # check output
@@ -117,7 +117,7 @@ def test_kkr_startpot_parent_KKR(clear_database_before_test, voronoi_local_code,
 
     # load necessary files from db_dump files
     from aiida.tools.importexport import import_data
-    import_data('files/db_dump_kkrcalc.tar.gz')
+    import_data('files/db_dump_kkrcalc.tar.gz', silent=True)
 
     # first load parent voronoi calculation
     kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
@@ -141,7 +141,7 @@ def test_kkr_startpot_parent_KKR(clear_database_before_test, voronoi_local_code,
     builder.parent_KKR = parent_calc_remote
 
 
-    out, node = run_with_cache(builder)
+    out, node = run_with_cache(builder, data_dir=data_dir)
     print('outputs:', node, out)
 
     # check output

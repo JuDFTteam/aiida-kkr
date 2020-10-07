@@ -7,7 +7,7 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 from aiida.orm import Float, Code, CalcJobNode, RemoteData, StructureData, Dict, SinglefileData, FolderData
-from aiida.engine import WorkChain, ToContext, while_, if_
+from aiida.engine import WorkChain, ToContext, while_, if_, calcfunction
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
@@ -20,7 +20,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.8.5"
+__version__ = "0.9.4"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
 
 #TODO: work on return results function
@@ -72,10 +72,15 @@ class kkr_imp_sub_wc(WorkChain):
                    'aggressive_mix': 5,                           # type of aggressive mixing (3: broyden's 1st, 4: broyden's 2nd, 5: generalized anderson)
                    'aggrmix': 0.05,                               # mixing factor of aggressive mixing
                    'broyden-number': 20,                          # number of potentials to 'remember' for Broyden's mixing
+                   'nsimplemixfirst': 0,                          # number of simple mixing step at the beginning of Broyden mixing
                    'mag_init' : False,                            # initialize and converge magnetic calculation
                    'hfield' : [0.02, 5], # Ry                     # external magnetic field used in initialization step
                    'init_pos' : None,                             # position in unit cell where magnetic field is applied [default (None) means apply to all]
                    'dos_run': False,                              # specify if DOS should be calculated (!KKRFLEXFILES with energy contour necessary as GF_remote_data!)
+
+                   'lmdos': True,                                 # specify if DOS calculation should calculate l-resolved or l and m resolved output
+
+                   'jij_run': False,                              # specify if Jijs should be calculated (!changes behavior of the code!!!)
                    'do_final_cleanup': True,                      # decide whether or not to clean up intermediate files (THIS BREAKS CACHABILITY!)
 #                   # Some parameter for direct solver (if None, use the same as in host code, otherwise overwrite)
                    'accuracy_params': {'RADIUS_LOGPANELS': None,  # where to set change of logarithmic to linear radial mesh
@@ -115,9 +120,11 @@ class kkr_imp_sub_wc(WorkChain):
         spec.input("kkrimp_remote", valid_type=RemoteData, required=False)
         spec.input("impurity_info", valid_type=Dict, required=False)
         spec.input("options", valid_type=Dict, required=False,
-                       default=Dict(dict=cls._options_default))
+                       default=lambda: Dict(dict=cls._options_default))
         spec.input("wf_parameters", valid_type=Dict, required=False,
-                       default=Dict(dict=cls._wf_default))
+                       default=lambda: Dict(dict=cls._wf_default))
+        spec.input("settings_LDAU", valid_type=Dict, required=False,
+                      help="LDA+U settings. See KKRimpCalculation for details.")
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -202,6 +209,8 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.rms_all_steps = []
         self.ctx.last_neutr_all = []
         self.ctx.neutr_all_steps = []
+        # LDA+U settings, either from input port or extracted from kkrimp_remote
+        self.ctx.settings_LDAU = None
 
         # input para
         wf_dict = self.inputs.wf_parameters.get_dict()
@@ -242,6 +251,7 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.aggrmix = wf_dict.get('aggrmix', self._wf_default['aggrmix'])
         self.ctx.nsteps = wf_dict.get('nsteps', self._wf_default['nsteps'])
         self.ctx.broyden_num = wf_dict.get('broyden-number', self._wf_default['broyden-number'])
+        self.ctx.nsimplemixfirst = wf_dict.get('nsimplemixfirst', self._wf_default['nsimplemixfirst'])
 
         # initial magnetization
         self.ctx.mag_init = wf_dict.get('mag_init', self._wf_default['mag_init'])
@@ -254,6 +264,9 @@ class kkr_imp_sub_wc(WorkChain):
 
         # DOS
         self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
+        self.ctx.lmdos = wf_dict.get('lmdos', self._wf_default['lmdos'])
+        # Jij
+        self.ctx.jij_run = wf_dict.get('jij_run', self._wf_default['jij_run'])
 
 
         self.report('INFO: use the following parameter:\n'
@@ -314,26 +327,37 @@ class kkr_imp_sub_wc(WorkChain):
         if not 'kkrimp_remote' in inputs:
             if not ('host_imp_startpot' in inputs and 'remote_data' in inputs):
                 inputs_ok = False
-                self.ctx.exit_code = self.exit_codes.ERROR_HOST_IMP_POT_GF
+                self.ctx.exit_code = self.exit_codes.ERROR_HOST_IMP_POT_GF # pylint: disable=maybe-no-member
 
         if 'kkr' in inputs:
             try:
                 test_and_get_codenode(inputs.kkr, 'kkr.kkrimp', use_exceptions=True)
             except ValueError:
                 inputs_ok = False
-                self.ctx.exit_code = self.exit_codes.ERROR_INVALID_INPUT_KKRIMP
-
+                self.ctx.exit_code = self.exit_codes.ERROR_INVALID_INPUT_KKRIMP # pylint: disable=maybe-no-member
+    
+        # check if LDA+U settings should be set from input port
+        if 'settings_LDAU' in inputs:
+            self.ctx.settings_LDAU = inputs.settings_LDAU
+            
         if 'kkrimp_remote' in inputs:
             self.ctx.start_from_imp_remote = True
-            self.ctx.last_remote = inputs.kkrimp_remote
-
+            kkrimp_remote = inputs.kkrimp_remote
+            self.ctx.last_remote = kkrimp_remote
+            # check if LDA+U settings should be set kkrimp parent calculation
+            if 'settings_LDAU' not in inputs:
+                # check if kkrimp parent calculation has LDA+U input
+                parent_kkrimp_calc = kkrimp_remote.get_incoming(node_class=CalcJobNode).first().node
+                if 'settings_LDAU' in parent_kkrimp_calc.inputs:
+                    self.ctx.settings_LDAU = parent_kkrimp_calc.inputs.settings_LDAU
+                
         # check if input remote_data node is fine
         if 'remote_data' in inputs:
             if len(inputs.remote_data.get_incoming(link_label_filter='remote_folder').all())<1:
-                self.ctx.exit_code = self.exit_codes.ERROR_NO_CALC_FOUND_FOR_REMOTE_DATA
+                self.ctx.exit_code = self.exit_codes.ERROR_NO_CALC_FOUND_FOR_REMOTE_DATA # pylint: disable=maybe-no-member
             else:
                 if not inputs.remote_data.get_incoming(link_label_filter='remote_folder').first().node.is_finished_ok:
-                    self.ctx.exit_code = self.exit_codes.ERROR_REMOTE_DATA_CALC_UNSUCCESFUL
+                    self.ctx.exit_code = self.exit_codes.ERROR_REMOTE_DATA_CALC_UNSUCCESFUL # pylint: disable=maybe-no-member
 
 
         # set starting potential
@@ -345,10 +369,13 @@ class kkr_imp_sub_wc(WorkChain):
             self.ctx.last_params = inputs.wf_parameters
         else:
             inputs_ok = False
-            self.ctx.exit_code = self.exit_codes.ERROR_NO_CALC_PARAMS
+            self.ctx.exit_code = self.exit_codes.ERROR_NO_CALC_PARAMS # pylint: disable=maybe-no-member
 
         message = 'INFO: validated input successfully: {}'.format(inputs_ok)
         self.report(message)
+        if not inputs_ok:
+            message = 'Exit code: {}'.format(self.exit_codes.ERROR_NO_CALC_PARAMS) # pylint: disable=maybe-no-member
+            self.report(message)
 
         return inputs_ok
 
@@ -563,9 +590,17 @@ class kkr_imp_sub_wc(WorkChain):
 
             # add ldos runoption if dos_run = True
             if self.ctx.dos_run:
-                runflags = new_params.get('RUNFLAG', []) + ['ldos']
+                if self.ctx.lmdos:
+                    runflags = new_params.get('RUNFLAG', []) + ['lmdos']
+                else:
+                    runflags = new_params.get('RUNFLAG', []) + ['ldos']
                 new_params['RUNFLAG'] = runflags
                 new_params['SCFSTEPS'] = 1
+                
+            # turn on Jij calculation if jij_run == True
+            if self.ctx.jij_run:
+                new_params['CALCJIJMAT'] = 1
+            
 
             # add newsosol
             if self.ctx.spinorbit:
@@ -590,6 +625,7 @@ class kkr_imp_sub_wc(WorkChain):
                 new_params['ITDBRY'] = self.ctx.broyden_num
                 new_params['IMIX'] = last_mixing_scheme
                 new_params['MIXFAC'] = aggrmixfac
+                new_params['NSIMPLEMIXFIRST'] = self.ctx.nsimplemixfirst
             elif last_mixing_scheme == 0:
                 new_params['IMIX'] = last_mixing_scheme
                 new_params['MIXFAC'] = strmixfac
@@ -733,6 +769,10 @@ class kkr_imp_sub_wc(WorkChain):
                 description = 'KKRimp calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
                 inputs = get_inputs_kkrimp(code, options, label, description, params,
                                            not self.ctx.withmpi, host_GF=host_GF, kkrimp_remote=last_remote, host_GF_Efshift=host_GF_Efshift)
+                
+        # add LDA+U input node if it was set in parent calculation of last kkrimp_remote or from input port
+        if self.ctx.settings_LDAU is not None:
+            inputs['settings_LDAU'] = self.ctx.settings_LDAU
 
         # run the KKR calculation
         message = 'INFO: doing calculation'
@@ -767,28 +807,8 @@ class kkr_imp_sub_wc(WorkChain):
         # get potential from last calculation
         try:
             retrieved_folder = self.ctx.kkr.outputs.retrieved
-            if KkrimpCalculation._FILENAME_TAR in retrieved_folder.list_object_names():
-                print('take potfile from tar file of retrieved')
-                # take potfile after extracting tar file
-                # get full filename
-                with retrieved_folder.open(KkrimpCalculation._FILENAME_TAR) as tar_file:
-                    tarfilename = tar_file.name
-                print('tarfile name:', tarfilename)
-                # open tarfile and extract potfile
-                with tarfile.open(tarfilename) as tar_file:
-                    print('extract potfile:', KkrimpCalculation._OUT_POTENTIAL)
-                    tar_file.extract(KkrimpCalculation._OUT_POTENTIAL, os.path.dirname(tarfilename))
-                    with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
-                        print('get potfile sfd:', pot_file)
-                        self.ctx.last_pot = SinglefileData(file=pot_file)
-                    
-                # delete extracted potfile again
-                print('delete potfile from outfile:', KkrimpCalculation._OUT_POTENTIAL)
-                retrieved_folder.delete_object(KkrimpCalculation._OUT_POTENTIAL, force=True)
-            else:
-                # take potfile directly from output
-                with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
-                    self.ctx.last_pot = SinglefileData(file=pot_file)
+            imp_pot_sfd = extract_imp_pot_sfd(retrieved_folder)
+            self.ctx.last_pot = imp_pot_sfd
             self.ctx.sfd_pot_to_clean.append(self.ctx.last_pot)
             print('use potfile sfd:', self.ctx.last_pot)
         except:
@@ -905,6 +925,9 @@ class kkr_imp_sub_wc(WorkChain):
 
         if self.ctx.kkrimp_step_success and not calc_reached_qbound:
             first_rms = self.ctx.last_rms_all[0]
+            # skip first if this is the initial LDA+U iteration because there we see the original non-LDAU convergence value
+            if "settings_LDAU" in self.inputs and self.ctx.loop_count<2 and len( self.ctx.last_rms_all)>1:
+                first_rms = self.ctx.last_rms_all[1]
             last_rms = self.ctx.last_rms_all[-1]
             # use this trick to avoid division by zero
             if last_rms == 0:
@@ -1204,6 +1227,10 @@ def clean_raw_input(successful, pks_calcs, dry_run=False):
 
 
 def clean_sfd(sfd_to_clean, nkeep=30):
+    """
+    Clean up potential file (keep only header) to save space in the repository
+    WARNING: this breaks cachability!
+    """
     with sfd_to_clean.open(sfd_to_clean.filename) as f:
         txt = f.readlines()
     # remove all lines after nkeep lines
@@ -1213,3 +1240,36 @@ def clean_sfd(sfd_to_clean, nkeep=30):
     # overwrite file
     with sfd_to_clean.open(sfd_to_clean.filename, 'w') as fnew:
         fnew.writelines(txt2)
+
+
+@calcfunction
+def extract_imp_pot_sfd(retrieved_folder):
+    """
+    Extract potential file from retrieved folder and save as SingleFileData
+    """
+    # take output potential file either from tarfile or directy from output folder
+
+    if KkrimpCalculation._FILENAME_TAR in retrieved_folder.list_object_names():
+        print('take potfile from tar file of retrieved')
+        # take potfile after extracting tar file
+        # get full filename
+        with retrieved_folder.open(KkrimpCalculation._FILENAME_TAR) as tar_file:
+            tarfilename = tar_file.name
+        print('tarfile name:', tarfilename)
+        # open tarfile and extract potfile
+        with tarfile.open(tarfilename) as tar_file:
+            print('extract potfile:', KkrimpCalculation._OUT_POTENTIAL)
+            tar_file.extract(KkrimpCalculation._OUT_POTENTIAL, os.path.dirname(tarfilename))
+            with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
+                print('get potfile sfd:', pot_file)
+                imp_pot_sfd = SinglefileData(file=pot_file)
+
+        # delete extracted potfile again
+        print('delete potfile from outfile:', KkrimpCalculation._OUT_POTENTIAL)
+        retrieved_folder.delete_object(KkrimpCalculation._OUT_POTENTIAL, force=True)
+    else:
+        # take potfile directly from output
+        with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
+            imp_pot_sfd = SinglefileData(file=pot_file)
+
+    return imp_pot_sfd

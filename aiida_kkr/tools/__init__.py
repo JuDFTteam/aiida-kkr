@@ -11,6 +11,6 @@ from .common_workfunctions import (update_params_wf, prepare_VCA_structure_wf, p
                                    kick_out_corestates_wf, find_cluster_radius)
 from .plot_kkr import plot_kkr
 from .tools_kkrimp import modify_potential, rotate_onto_z, find_neighbors, make_scoef
-
-# TODO maybe import relevant tools from masci_tools here also
+# make the most important things from masci-tools importable here
+from masci_tools.io.kkr_params import kkrparams
 

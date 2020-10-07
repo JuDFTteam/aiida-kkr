@@ -22,7 +22,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.3"
+__version__ = "0.6.7"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
 
 #TODO: improve workflow output node structure
@@ -59,6 +59,8 @@ class kkr_imp_dos_wc(WorkChain):
 
     _wf_default = {'ef_shift': 0. ,                               # set custom absolute E_F (in eV)
                    'clean_impcalc_retrieved': True,               # remove output of KKRimp calculation after successful parsing of DOS files
+                   'jij_run': False,                              # calculate Jij's energy resolved
+                   'lmdos': False,
                   }
 
     # add defaults of dos_params since they are passed onto that workflow
@@ -92,10 +94,10 @@ class kkr_imp_dos_wc(WorkChain):
         spec.input("kkrimp", valid_type=Code, required=True,
                    help="KKRimp code, always needed.")
         spec.input("options", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._options_default),
+                   default=lambda: Dict(dict=cls._options_default),
                    help="Computer options (resources, quene name, etc.).")
         spec.input("wf_parameters", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._wf_default),
+                   default=lambda: Dict(dict=cls._wf_default),
                    help="DOS workflow parameters (energy range, etc.).")
         spec.input("host_remote", valid_type=RemoteData, required=False,
                    help="RemoteData node of the (converged) host calculation.")
@@ -109,6 +111,8 @@ class kkr_imp_dos_wc(WorkChain):
                    help="impurity info node that specifies the relation between imp_pot_sfd to the host system. Mandatory if imp_pot_sfd is given.")
         spec.input("params_kkr_overwrite", valid_type=Dict, required=False,
                    help="Set some input parameters of the KKR calculation.")
+        spec.input("settings_LDAU", valid_type=Dict, required=False,
+                   help="Settings for LDA+U run (see KkrimpCalculation for details).")
 
         # specify the outputs
         spec.output('workflow_info', valid_type=Dict)
@@ -181,12 +185,18 @@ class kkr_imp_dos_wc(WorkChain):
 
         # set workflow parameters for the KKR imputrity calculations
         self.ctx.ef_shift = wf_dict.get('ef_shift', self._wf_default['ef_shift'])
+        self.ctx.lmdos = wf_dict.get('lmdos', self._wf_default['lmdos'])
+        
         self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
+        # fill missing key, value pairs with defaults
+        for k,v in self._wf_default['dos_params'].items():
+            if k not in self.ctx.dos_params_dict.keys():
+                self.ctx.dos_params_dict[k] = v
+                
         self.ctx.cleanup_impcalc_output = wf_dict.get('clean_impcalc_retrieved', self._wf_default['clean_impcalc_retrieved'])
 
         # set workflow parameters for the KKR impurity calculation
-        self.ctx.nsteps = 1 # always only one step for DOS calculation
-        self.ctx.kkr_runmax = 1 # no restarts for DOS calculation
+        self.ctx.jij_run = wf_dict.get('jij_run', self._wf_default['jij_run'])
 
         # set workflow label and description
         self.ctx.description_wf = self.inputs.get('description', self._wf_description)
@@ -223,6 +233,7 @@ label: {}
 
         inputs = self.inputs
         inputs_ok = True
+        gf_writeout_calc =  None
 
         if 'imp_pot_sfd' in inputs:
             # check if input potential has incoming return link
@@ -250,7 +261,7 @@ label: {}
                 message = 'INFO: get converged host RemoteData node and impurity_info node from database'
                 print(message)
                 self.report(message)
-                self.ctx.kkr_imp_wf = inputs.imp_pot_sfd.get_incoming().first().node
+                self.ctx.kkr_imp_wf = inputs.imp_pot_sfd.get_incoming(node_class=kkr_imp_sub_wc).first().node
                 message = 'INFO: found underlying kkr impurity workflow (pk: {})'.format(self.ctx.kkr_imp_wf.pk)
                 print(message)
                 self.report(message)
@@ -278,7 +289,9 @@ label: {}
                 self.report("[ERROR] `kkr` input node needed if `gf_dos_remote` is not given")
                 inputs_ok = False
                 self.ctx.errors.append(3) # raises ERROR_KKR_CODE_MISSING
-            if 'host_remote' not in self.inputs:
+            if gf_writeout_calc is not None:
+                self.report("Use extraced host remote")
+            elif 'host_remote' not in self.inputs:
                 self.report("[ERROR] `host_remote` input node needed if `gf_dos_remote` is not given")
                 inputs_ok = False
                 self.ctx.errors.append(4) # raises ERROR_HOST_REMOTE_MISSING
@@ -377,9 +390,11 @@ label: {}
         self.ctx.nspin = nspin
         self.report('nspin: {}'.format(nspin))
         self.ctx.kkrimp_params_dict = Dict(dict={'nspin': nspin,
-                                                 'nsteps': self.ctx.nsteps,
-                                                 'kkr_runmax': self.ctx.kkr_runmax,
+                                                 'nsteps': 1,
+                                                 'kkr_runmax': 1,
                                                  'dos_run': True,
+                                                 'lmdos': self.ctx.lmdos, 
+                                                 'jij_run': self.ctx.jij_run,
                                                  'do_final_cleanup': self.ctx.cleanup_impcalc_output
                                                  })
         kkrimp_params = self.ctx.kkrimp_params_dict
@@ -397,10 +412,16 @@ label: {}
         builder.wf_parameters = kkrimp_params
         builder.remote_data = gf_writeout_remote
         if 'imp_pot_sfd' in self.inputs:
+            self.report("Using impurity potential SingelfilData as input")
             builder.host_imp_startpot = impurity_pot_or_remote
         else:
+            self.report("Using KKRimp remote folder as input")
             builder.kkrimp_remote = impurity_pot_or_remote
         builder.impurity_info=imps
+        # LDA+U settings
+        if "settings_LDAU" in self.inputs:
+            self.report("Add settings_LDAU input node")
+            builder.settings_LDAU = self.inputs.settings_LDAU
 
         future = self.submit(builder)
 

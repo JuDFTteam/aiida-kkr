@@ -22,7 +22,7 @@ class Test_kkrimp_calculation(object):
 
         # first load parent voronoi calculation
         from aiida.tools.importexport import import_data
-        import_data('files/db_dump_kkrflex_create.tar.gz')
+        import_data('files/db_dump_kkrflex_create.tar.gz', silent=True)
         GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
 
         # now create a SingleFileData node containing the impurity starting potential

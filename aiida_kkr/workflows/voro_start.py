@@ -92,9 +92,9 @@ class kkr_startpot_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_startpot_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._wf_default), help="Parameters that control the behavior of the workflow")
+                   default=lambda: Dict(dict=cls._wf_default), help="Parameters that control the behavior of the workflow")
         spec.input("options", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._options_default), help="Computer options passed onto the calculations")
+                   default=lambda: Dict(dict=cls._options_default), help="Computer options passed onto the calculations")
         spec.input("structure", valid_type=StructureData, required=False, help="Structure for which the starting potential"
             " should be constructed, not needed if parent_KKR is given (typically used to increase the lmax but use the "
             "output potential of the parent_KKR as starting potential).")

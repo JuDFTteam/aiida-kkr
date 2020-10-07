@@ -34,7 +34,7 @@ class Test_plot_kkr(object):
     @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='qdos.png', remove_text=True)
     def test_plot_qdos(self):
         from aiida.tools.importexport import import_data
-        import_data('files/db_dump_kkrcalc_qdos.tar.gz')
+        import_data('files/db_dump_kkrcalc_qdos.tar.gz', silent=True)
         basic_test('a0d0d29f-7b22-4ca4-ba55-6b97569d94af', strucplot=False, noshow=True)
         return gcf()
 

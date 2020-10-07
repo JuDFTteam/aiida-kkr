@@ -10,7 +10,7 @@ from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_l
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 
 
-@pytest.mark.timeout(600, method='thread')
+@pytest.mark.timeout(1200, method='thread')
 def test_kkrimp_sub_wc(clear_database_before_test, kkrimp_local_code, run_with_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
@@ -33,7 +33,7 @@ def test_kkrimp_sub_wc(clear_database_before_test, kkrimp_local_code, run_with_c
 
     # import previous GF writeout
     from aiida.tools.importexport import import_data
-    import_data('files/db_dump_kkrflex_create.tar.gz')
+    import_data('files/db_dump_kkrflex_create.tar.gz', silent=True)
     GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
 
     # now create a SingleFileData node containing the impurity starting potential
@@ -62,7 +62,7 @@ def test_kkrimp_sub_wc(clear_database_before_test, kkrimp_local_code, run_with_c
     print('builder', builder)
 
     # now run calculation
-    out, node = run_with_cache(builder)
+    out, node = run_with_cache(builder, data_dir=data_dir)
     print('out', out)
     print('node', node)
     print(node.process_status)

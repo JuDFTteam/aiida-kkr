@@ -22,7 +22,7 @@ from aiida.common.constants import elements as PeriodicTableElements
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH,"
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.3"
+__version__ = "0.6.4"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -93,7 +93,8 @@ class modify_potential(object):
         order=list(range(len(index1)))
 
         natomtemp = int(open_general(scoefpath).readlines()[0])
-        filedata=open_general(scoefpath).readlines()[1:natomtemp+1]
+        with open_general(scoefpath) as f:
+            filedata= f.readlines()[1:natomtemp+1]
         listnew=[]
         for line in filedata:
             if (len(line.split())>1):
@@ -140,17 +141,35 @@ class modify_potential(object):
         """
 
         index1, index2, data = self._read_input(potfile_in)
-        if debug: print(index1, index2)
+        if debug:
+            print(index1, index2)
+            # add label to potname
+            ii = 0
+            for i in range(len(data)):
+                line = data[i]
+                if 'exc:' in line:
+                    line = line.replace('     exc:', '%.4i exc:'%ii)
+                    data[i] = line
+                    ii+=1
 
         if potfile_2 is not None:
             index12, index22, data2 = self._read_input(potfile_2)
-            if debug: print(index12, index22)
+            if debug:
+                print(index12, index22)
+                # add label to potname
+                ii = 0
+                for i in range(len(data2)):
+                    line = data2[i]
+                    if 'exc:' in line:
+                        line = line.replace('     exc:', '%.4i exc:'%ii)
+                        data2[i] = line
+                        ii+=1
             # check if also replace_from_pot2 is given correctly
             if replace_from_pot2 is None:
                 raise ValueError('replace_from_pot2 not given')
             else:
                 replace_from_pot2 = np.array(replace_from_pot2)
-                if debug: print(replace_from_pot2)
+                if debug: print('replace list:', replace_from_pot2)
                 if np.shape(replace_from_pot2)[1]!=2:
                     raise ValueError('replace_from_pot2 needs to be a 2D array!')
         else:
@@ -160,7 +179,7 @@ class modify_potential(object):
         # set order in which potential file is written
         # ensure that numbers are integers:
         order = [int(i) for i in neworder]
-        if debug: print(order)
+        if debug: print('neworder:', order)
 
         datanew=[]
         for i in range(len(order)):
@@ -372,15 +391,15 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
     #========================================================
     #spherical approach (same distance in all three directions)
     if clust_shape == 'spherical':
-        box_1 = int(radius/structure.cell_lengths[0] + 1)
-        box_2 = int(radius/structure.cell_lengths[1] + 1)
-        box_3 = int(radius/sl3 + 1)
+        box_1 = int(radius/structure.cell_lengths[0] + 3)
+        box_2 = int(radius/structure.cell_lengths[1] + 3)
+        box_3 = int(radius/sl3 + 3)
     #cylindrical shape (different distances for the different directions)
     elif clust_shape == 'cylindrical':
         maxval = max(h/2., radius)
-        box_1 = int(maxval/structure.cell_lengths[0] + 1)
-        box_2 = int(maxval/structure.cell_lengths[1] + 1)
-        box_3 = int(maxval/sl3 + 1)
+        box_1 = int(maxval/structure.cell_lengths[0] + 3)
+        box_2 = int(maxval/structure.cell_lengths[1] + 3)
+        box_3 = int(maxval/sl3 + 3)
     #================================================================================================================
 
     #create array of all the atoms in an expanded system
@@ -531,7 +550,7 @@ def make_scoef(structure, radius, path, h=-1., vector=[0., 0., 1.], i=0, alat_in
     return c
 
 
-def write_scoef_full_imp_cls(imp_info_node, path):
+def write_scoef_full_imp_cls(imp_info_node, path, rescale_alat=None):
     """
     write scoef file from imp_cls info in imp_info_node
     """
@@ -542,7 +561,12 @@ def write_scoef_full_imp_cls(imp_info_node, path):
     if 'imp_cls' not in list(imp_info.keys()):
         raise InputValidationError("imp_info node does not contain 'imp_cls'")
         
-    imp_cls = imp_info.get('imp_cls')
+    imp_cls = np.array(imp_info.get('imp_cls'))
+
+    # rescale if alat_input is used
+    if rescale_alat is not None:
+        imp_cls[:,:3] *= rescale_alat
+        imp_cls[:,-1] *= rescale_alat
     
     # write scoef file
     write_scoef(imp_cls, path)

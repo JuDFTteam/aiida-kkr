@@ -7,9 +7,9 @@ some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, SinglefileData
+from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, SinglefileData, Float
 from aiida.engine import WorkChain, while_, if_, ToContext, CalcJob
-from aiida.engine import workfunction as wf
+from aiida.engine import workfunction, calcfunction
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from masci_tools.io.kkr_params import kkrparams
@@ -18,13 +18,13 @@ from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, get_inp
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.dos import kkr_dos_wc
 from masci_tools.io.common_functions import get_Ry2eV, get_ef_from_potfile
-from numpy import array, where, ones
+from numpy import array, where, ones, loadtxt, sqrt
 from six.moves import range
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.10.2"
+__version__ = "0.10.4"
 __contributors__ = (u"Jens Broeder", u"Philipp Rüßmann")
 
 #TODO: magnetism (init and converge magnetic state)
@@ -103,6 +103,7 @@ class kkr_scf_wc(WorkChain):
                    'mag_init' : False,                        # initialize and converge magnetic calculation
                    'hfield' : 0.02, # Ry                      # external magnetic field used in initialization step
                    'init_pos' : None,                         # position in unit cell where magnetic field is applied [default (None) means apply to all]
+                   'fix_dir_threshold': 1.0,                  # fix direction of magnetic moment if the direction changes less than this value in degrees (calculated as sqrt((delta theta)**2 + (delta phi)**2))
                    'retreive_dos_data_scf_run' : False,       # add DOS to testopts and retrieve dos.atom files in each scf run
                    }
     _options_default = {'queue_name' : '',                         # Queue name to submit jobs too
@@ -136,15 +137,37 @@ class kkr_scf_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_scf_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._wf_default))
+                   default=lambda: Dict(dict=cls._wf_default),
+                   help="Settings for the workflow. Use `KkrCalculation.get_wf_defaults()` to get the default values and default options."
+                  )
         spec.input("options", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._wf_default))
-        spec.input("structure", valid_type=StructureData, required=False)
-        spec.input("calc_parameters", valid_type=Dict, required=False)
-        spec.input("remote_data", valid_type=RemoteData, required=False)
-        spec.input("voronoi", valid_type=Code, required=False)
-        spec.input("kkr", valid_type=Code, required=True)
-        spec.input("startpot_overwrite", valid_type=SinglefileData, required=False)
+                   default=lambda: Dict(dict=cls._wf_default),
+                   help="Computer settings used by the calculations in the workflow (see also helo string of wf_parameters)."
+                  )
+        spec.input("structure", valid_type=StructureData, required=False,
+                   help="""Input structure for which a calculation is started with a VoronoiCalculation.
+Can be skipped if a previous KkrCalculation is given with the `remote_data` input node."""
+                  )
+        spec.input("calc_parameters", valid_type=Dict, required=False,
+                   help="KKR-specific calculation parameters (LMAX etc.), usually set up with the help of the `kkrparams` class."
+                  )
+        spec.input("remote_data", valid_type=RemoteData, required=False,
+                   help="RemodeFolder node of a preconverged calculation. Can be used as a starting point to skip the Voronoi step."
+                  )
+        spec.input("voronoi", valid_type=Code, required=False,
+                   help="Voronoi code node, needed only if `strucure` input node is given."
+                  )
+        spec.input("kkr", valid_type=Code, required=True,
+                   help="KKRhost code node which will run the KkrCalculations"
+                  )
+        spec.input("startpot_overwrite", valid_type=SinglefileData, required=False,
+                   help="""Potential SinglefileData, can be used to overwrite the starting potential from Voronoi
+ (the shapefun will be used though and thus needs to be compatible).
+ This can be used to construct a better starting potential from a preconverged calculation (e.g. in a smaller unit cell)."""
+                  )
+        spec.input('initial_noco_angles', valid_type=Dict, required=False,
+                   help="Initial non-collinear angles for the magnetic moments of the impurities. See KkrCalculation for details."
+                  )
 
         # define output nodes
         spec.output("output_kkr_scf_wc_ParameterResults", valid_type=Dict, required=True)
@@ -154,6 +177,7 @@ class kkr_scf_wc(WorkChain):
         spec.output("results_vorostart", valid_type=Dict, required=False)
         spec.output("starting_dosdata_interpol", valid_type=XyData, required=False)
         spec.output("final_dosdata_interpol", valid_type=XyData, required=False)
+        spec.output("last_noco_angles", valid_type=Dict, required=False)
 
 
         # Here the structure of the workflow is defined
@@ -303,6 +327,11 @@ class kkr_scf_wc(WorkChain):
         # threshold for dos comparison (comparison of dos at emin)
         self.ctx.threshold_dos_zero = wf_dict.get('threshold_dos_zero', self._wf_default['threshold_dos_zero'])
         self.ctx.efermi = None
+        
+        # set starting noco angles, gets updated in between the KKR runs if fix_dir == False for all atoms
+        if 'initial_noco_angles' in self.inputs:
+            self.ctx.initial_noco_angles = self.inputs.initial_noco_angles
+            self.ctx.fix_dir_threshold = wf_dict.get('fix_dir_threshold', self._wf_default['fix_dir_threshold'])
 
         # retreive dos data in each scf run
         self.ctx.scf_dosdata = wf_dict.get('retreive_dos_data_scf_run', self._wf_default['retreive_dos_data_scf_run'])
@@ -847,7 +876,6 @@ class kkr_scf_wc(WorkChain):
         """
         self.report("INFO: setting up kkr calculation step {}".format(self.ctx.loop_count))
 
-
         label = 'KKR calculation step {} (IMIX={})'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
         description = 'KKR calculation of step {}, using mixing scheme {}'.format(self.ctx.loop_count, self.ctx.last_mixing_scheme)
         code = self.inputs.kkr
@@ -858,7 +886,12 @@ class kkr_scf_wc(WorkChain):
                    "queue_name" : self.ctx.queue}
         if self.ctx.custom_scheduler_commands:
             options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
+
         inputs = get_inputs_kkr(code, remote, options, label, description, parameters=params, serial=(not self.ctx.withmpi))
+
+        # pass nonco angles setting to KkrCalculation
+        if 'initial_noco_angles' in self.inputs:
+            inputs['initial_noco_angles'] = self.ctx.initial_noco_angles
 
         # run the KKR calculation
         self.report('INFO: doing calculation')
@@ -994,6 +1027,13 @@ class kkr_scf_wc(WorkChain):
             tmplist.append(val)
             self.ctx.KKR_steps_stats[key] = tmplist
 
+        # update noco angles
+        if 'initial_noco_angles' in self.inputs:
+            # do this only if previous calculation was successful
+            if self.ctx.kkr_step_success and found_last_calc_output:
+                self._get_new_noco_angles()
+
+
         self.report("INFO: done inspecting kkr results step")
 
 
@@ -1003,6 +1043,8 @@ class kkr_scf_wc(WorkChain):
         """
         on_track = True
         threshold = 5. # used to check condition if at least one of charnge_neutrality, rms-error goes down fast enough
+        eps_neutr = 1e-4
+        eps_rms = 1e-6
 
         # first check if previous calculation was stopped due to reaching the QBOUND limit
         try:
@@ -1021,6 +1063,13 @@ class kkr_scf_wc(WorkChain):
             if first_rms == 0:
                 first_rms = 10**-16
             r, n = last_rms/first_rms, last_neutr/first_neutr
+            
+            # deal with small differences
+            if abs(first_neutr-last_neutr)<eps_neutr:
+                n = 0
+            if abs(first_rms-last_rms)>eps_rms:
+                r = 0
+                
             self.report("INFO convergence check: first/last rms {}, {}; first/last neutrality {}, {}".format(first_rms, last_rms, first_neutr, last_neutr))
             if r < 1 and n < 1:
                 self.report("INFO convergence check: both rms and neutrality go down")
@@ -1038,6 +1087,7 @@ class kkr_scf_wc(WorkChain):
             else:
                 self.report("INFO convergence check: rms or neutrality do not shrink fast enough, convergence is not expected")
                 on_track = False
+                
         elif calc_reached_qbound:
             self.report("INFO convergence check: calculation reached QBOUND")
             on_track = True
@@ -1087,11 +1137,15 @@ class kkr_scf_wc(WorkChain):
 
         # capture links to last parameter, calcualtion and output
         try:
-            last_calc_out = self.ctx.kkr.out['output_parameters']
+            last_calc_out = self.ctx.kkr.outputs.output_parameters
             last_calc_out_dict = last_calc_out.get_dict()
+            self.report("Found last_calc_out")
             last_RemoteData = self.ctx.last_remote
+            self.report("Found last_remote")
             last_InputParameters = self.ctx.last_params
+            self.report("Found last_params")
         except:
+            self.report("Error in finding last_calc_out etc.")
             last_InputParameters = None
             last_RemoteData = None
             last_calc_out = None
@@ -1171,42 +1225,25 @@ class kkr_scf_wc(WorkChain):
 
 
         # collect nodes in outputs dictionary
+        out_nodes = {'outpara': outputnode_t}
+        if last_calc_out is not None:
+                out_nodes['last_calc_out'] = last_calc_out
+        if last_RemoteData is not None:
+                out_nodes['last_RemoteData'] = last_RemoteData
+        if last_InputParameters is not None:
+                out_nodes['last_InputParameters'] = last_InputParameters
+        if final_dosdata_interpol is not None:
+                out_nodes['final_dosdata_interpol'] = final_dosdata_interpol
+        if starting_dosdata_interpol is not None:
+                out_nodes['starting_dosdata_interpol'] = starting_dosdata_interpol
+        if results_vorostart is not None:
+                out_nodes['results_vorostart'] = results_vorostart
+        if 'initial_noco_angles' in self.inputs:
+            if not all(self.ctx.initial_noco_angles['fix_dir']):
+                out_nodes['last_noco_angles'] = self.ctx.initial_noco_angles # was updated in inspect_kkr to last noco angles output
+                
         # call helper function to create output nodes in correct AiiDA graph structure
-        if last_calc_out is not None and last_RemoteData is not None and last_InputParameters is not None:
-            if results_vorostart is not None and starting_dosdata_interpol is not None and final_dosdata_interpol is not None:
-                outdict = create_scf_result_node(outpara=outputnode_t,
-                                                 last_calc_out=last_calc_out,
-                                                 last_RemoteData=last_RemoteData,
-                                                 last_InputParameters=last_InputParameters,
-                                                 final_dosdata_interpol=final_dosdata_interpol,
-                                                 starting_dosdata_interpol=starting_dosdata_interpol,
-                                                 results_vorostart=results_vorostart)
-            elif results_vorostart is not None and starting_dosdata_interpol is not None:
-                outdict = create_scf_result_node(outpara=outputnode_t,
-                                                 last_calc_out=last_calc_out,
-                                                 last_RemoteData=last_RemoteData,
-                                                 last_InputParameters=last_InputParameters,
-                                                 starting_dosdata_interpol=starting_dosdata_interpol,
-                                                 results_vorostart=results_vorostart)
-            elif results_vorostart is not None:
-                outdict = create_scf_result_node(outpara=outputnode_t,
-                                                 last_calc_out=last_calc_out,
-                                                 last_RemoteData=last_RemoteData,
-                                                 last_InputParameters=last_InputParameters,
-                                                 results_vorostart=results_vorostart)
-            elif final_dosdata_interpol is not None:
-                outdict = create_scf_result_node(outpara=outputnode_t,
-                                                 last_calc_out=last_calc_out,
-                                                 last_RemoteData=last_RemoteData,
-                                                 last_InputParameters=last_InputParameters,
-                                                 final_dosdata_interpol=final_dosdata_interpol)
-            else:
-                outdict = create_scf_result_node(outpara=outputnode_t,
-                                                 last_calc_out=last_calc_out,
-                                                 last_RemoteData=last_RemoteData,
-                                                 last_InputParameters=last_InputParameters)
-        else:
-            outdict = create_scf_result_node(outpara=outputnode_t)
+        outdict = create_scf_result_node(**out_nodes)
 
         for link_name, node in outdict.items():
             #self.report("INFO: storing node {} {} with linkname {}".format(type(node), node, link_name))
@@ -1402,8 +1439,51 @@ class kkr_scf_wc(WorkChain):
             self.ctx.dos_ok = False
 
 
+    def _get_new_noco_angles(self):
+        """
+        extract nonco angles from output of calculation, if fix_dir is True we skip this and leave the initial angles unchanged
+        Here we update self.ctx.initial_noco_angles with the new values
+        """
+        # first check if we need to update the angles
+        if all(self.ctx.initial_noco_angles['fix_dir']):
+            return
+        
+        # extract output angles from last calculation and update initial_noco_angles in context
+        self.ctx.initial_noco_angles = extract_noco_angles(fix_dir_threshold=Float(self.ctx.fix_dir_threshold),
+                                                           old_noco_angles=self.ctx.initial_noco_angles,
+                                                           last_retrieved=self.ctx.last_calc.outputs.retrieved
+                                                          )
+            
 
-@wf
+
+@calcfunction
+def extract_noco_angles(**kwargs):
+    """
+    Extract noco angles from retrieved nonco_angles_out.dat files and save as Dict node which can be used as initial values for the next KkrCalculation.
+    New angles are compared to old angles and if they are closer thanfix_dir_threshold they are not allowed to change anymore
+    """
+    # for comparison read previous theta and phi values and the threshold after which the moments are kept fixed
+    noco_angles_old = kwargs['old_noco_angles'].get_dict()
+    natom = len(noco_angles_old['phi'])
+    noco_angles_old = [[noco_angles_old['theta'][i], noco_angles_old['phi'][i], noco_angles_old['fix_dir'][i]] for i in range(natom)]
+    fix_dir_threshold = kwargs['fix_dir_threshold'].value
+    
+    last_retrieved = kwargs['last_retrieved']
+    noco_out_name = KkrCalculation._NONCO_ANGLES_OUT
+    if noco_out_name in last_retrieved.list_object_names():
+        with last_retrieved.open(noco_out_name) as noco_file:
+            noco_angles_new = loadtxt(noco_file, usecols=[0,1])
+            # check if theta and phi change less than fix_dir_threshold
+            fix_dir = [sqrt((noco_angles_new[i][0]-noco_angles_old[i][0])**2+(noco_angles_new[i][1]-noco_angles_old[i][1])**2)<fix_dir_threshold for i in range(natom)]
+            new_initial_noco_angles = Dict(dict={
+                'theta': list(noco_angles_new[:,0]),
+                'phi': list(noco_angles_new[:,1]),
+                'fix_dir': [bool(i) for i in fix_dir] # convert from numpy.bool_ to standard python bool, otherwise this is not json serializable and cannot be stored
+            })
+        return new_initial_noco_angles
+
+
+@workfunction
 def create_scf_result_node(**kwargs):
     """
     This is a pseudo wf, to create the right graph structure of AiiDA.

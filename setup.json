@@ -23,7 +23,7 @@
     "version": "1.1.11-dev3",
     "reentry_register": true,
     "install_requires": [
-        "aiida-core >= 1.0.0b6,<2.0.0",
+        "aiida-core >= 1.0.0b6,<1.4.0",
         "masci-tools >= 0.3.12.dev4",
         "seekpath >= 1.9.2",
         "pgtest >= 1.3.0",
@@ -67,8 +67,9 @@
             "kkr.check_mag = aiida_kkr.workflows.check_magnetic_state:kkr_check_mag_wc",
             "kkr.convergence_check = aiida_kkr.workflows.check_para_convergence:kkr_check_para_wc",
             "kkr.gf_writeout = aiida_kkr.workflows.gf_writeout:kkr_flex_wc",
+            "kkr.imp = aiida_kkr.workflows.kkr_imp:kkr_imp_wc",
             "kkr.imp_sub = aiida_kkr.workflows.kkr_imp_sub:kkr_imp_sub_wc",
-	        "kkr.imp = aiida_kkr.workflows.kkr_imp:kkr_imp_wc"
+            "kkr.imp_dos = aiida_kkr.workflows.kkr_imp_dos:kkr_imp_dos_wc"
 	    ],
         "console_scripts": [
             "kkrstructure = aiida_kkr.cmdline.data_cli:cli"

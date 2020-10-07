@@ -22,7 +22,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
 
 # ToDo: add more default values to wf_parameters
@@ -85,7 +85,7 @@ class kkr_flex_wc(WorkChain):
 
         spec.input("kkr", valid_type=Code, required=True)
         spec.input("options", valid_type=Dict, required=False,
-                       default=Dict(dict=cls._options_default))
+                       default=lambda: Dict(dict=cls._options_default))
         spec.input("wf_parameters", valid_type=Dict, required=False)
         spec.input("remote_data", valid_type=RemoteData, required=True)
         spec.input("impurity_info", valid_type=Dict, required=True)
@@ -249,6 +249,7 @@ class kkr_flex_wc(WorkChain):
 
         self.report('INFO: setting parameters ...')
 
+        input_links = {}
         params = self.ctx.input_params_KKR
         input_dict = params.get_dict()
         para_check = kkrparams()
@@ -285,7 +286,7 @@ class kkr_flex_wc(WorkChain):
         updatedict = {}
 
         runopt = para_check.get_dict().get('RUNOPT', None)
-        if runopt == None:
+        if runopt is None:
             runopt = []
 
         # overwrite some parameters of the KKR calculation by hand before setting mandatory keys
@@ -296,6 +297,7 @@ class kkr_flex_wc(WorkChain):
                 else:
                     runopt = val
                 self.report('INFO: overwriting KKR parameter: {} with {} from params_kkr_overwrite input node'.format(key, val))
+            input_links['params_kkr_overwrite'] = self.inputs.params_kkr_overwrite
 
         runopt = [i.strip() for i in runopt]
         if 'KKRFLEX' not in runopt:
@@ -328,7 +330,7 @@ class kkr_flex_wc(WorkChain):
         updatenode = Dict(dict=updatedict)
         updatenode.label = label+'KKRparam_flex'
         updatenode.description = descr+'KKR parameter node extracted from parent parameters and wf_parameter and options input node.'
-        paranode_flex = update_params_wf(self.ctx.input_params_KKR, updatenode)
+        paranode_flex = update_params_wf(self.ctx.input_params_KKR, updatenode, **input_links)
         self.ctx.flex_kkrparams = paranode_flex
         self.ctx.flex_runopt = runopt
 

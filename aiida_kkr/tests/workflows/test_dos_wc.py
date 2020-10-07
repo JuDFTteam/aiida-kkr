@@ -53,7 +53,7 @@ def test_dos_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cach
     descr = 'DOS workflow for Cu bulk'
 
     from aiida.tools.importexport import import_data
-    import_data('files/db_dump_kkrcalc.tar.gz')
+    import_data('files/db_dump_kkrcalc.tar.gz', silent=True)
     kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').outputs.remote_folder
 
     # create process builder to set parameters
@@ -66,7 +66,7 @@ def test_dos_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cach
     builder.remote_data = kkr_calc_remote
 
     # now run calculation
-    out, node = run_with_cache(builder)
+    out, node = run_with_cache(builder, data_dir=data_dir)
 
     # check outcome
     n = out['results_wf']

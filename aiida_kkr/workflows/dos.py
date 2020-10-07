@@ -75,9 +75,9 @@ class kkr_dos_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_dos_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._wf_default))
+                   default=lambda: Dict(dict=cls._wf_default))
         spec.input("options", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._wf_default))
+                   default=lambda: Dict(dict=cls._wf_default))
         spec.input("remote_data", valid_type=RemoteData, required=True)
         spec.input("kkr", valid_type=Code, required=True)
 

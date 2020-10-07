@@ -32,7 +32,7 @@ def test_kkrflex_writeout_wc(clear_database_before_test, kkrhost_local_code, run
     descr = 'GF_writeout workflow for Cu bulk'
 
     from aiida.tools.importexport import import_data
-    import_data('files/db_dump_kkrcalc.tar.gz')
+    import_data('files/db_dump_kkrcalc.tar.gz', silent=True)
     kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').outputs.remote_folder
 
     # create process builder to set parameters
@@ -45,7 +45,7 @@ def test_kkrflex_writeout_wc(clear_database_before_test, kkrhost_local_code, run
     builder.impurity_info = imp_info
 
     # now run calculation
-    out, node = run_with_cache(builder)
+    out, node = run_with_cache(builder, data_dir=data_dir)
     print(out)
 
     n = out['workflow_info']

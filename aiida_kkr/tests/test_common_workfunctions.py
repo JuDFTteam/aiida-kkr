@@ -148,7 +148,7 @@ class Test_common_workfunctions(object):
         from masci_tools.io.parsers.kkrparser_functions import get_corestates_from_potential
         import numpy as np
 
-        import_data('files/kick_out_corestates_input.tar.gz', silent=False)
+        import_data('files/kick_out_corestates_input.tar.gz', silent=True)
         sfd_potential_node = load_node('933ddebb-e72f-43b0-aca5-cd0a109da75f')
         emin_node = Float(-1.2)
         pot_removed_core = kick_out_corestates_wf(sfd_potential_node, emin_node)

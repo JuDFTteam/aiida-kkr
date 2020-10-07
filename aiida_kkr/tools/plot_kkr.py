@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.1"
+__version__ = "0.5.4"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -57,6 +57,8 @@ class plot_kkr(object):
         # load database if not done already
         from aiida import load_profile
         load_profile()
+        
+        self.sview = None
 
         if type(nodes)==list:
             from matplotlib.pyplot import show
@@ -77,6 +79,11 @@ class plot_kkr(object):
             show()
         elif nodes is not None:
             self.plot_kkr_single_node(nodes, **kwargs)
+
+            print('view?', self.classify_and_plot_node(nodes, return_name_only=True)=='struc')
+            if self.classify_and_plot_node(nodes, return_name_only=True)=='struc':
+                from IPython.display import display
+                display(self.sview)
 
     ### main wrapper functions ###
     def group_nodes(self, nodes):
@@ -200,6 +207,10 @@ class plot_kkr(object):
         elif node.process_type == u'aiida.calculations:kkr.kkrimp':
             if return_name_only: return 'kkrimp'
             self.plot_kkrimp_calc(node, **kwargs)
+        elif node.process_type == 'aiida_kkr.workflows._combine_imps.combine_imps_wc':
+            if return_name_only: return 'combine_imps'
+            # extract kkr_imp_sub and plot it
+            self.plot_kkrimp_wc(node, **kwargs)
         else:
             raise TypeError("input node neither a `Calculation` nor a `WorkChainNode` (i.e. workflow): {} {}".format(type(node), node))
 
@@ -293,7 +304,7 @@ class plot_kkr(object):
         if 'silent' in kwargs:
             silent = kwargs.pop('silent')
         print("plotting structure using ase's `view` with kwargs={}".format(kwargs))
-        view(ase_atoms, **kwargs)
+        self.sview = view(ase_atoms, **kwargs)
 
     def dosplot(self, d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, **kwargs):
         """plot dos from xydata node"""
@@ -330,6 +341,10 @@ class plot_kkr(object):
             yscale = kwargs.pop('yscale')
         else:
             yscale = 1.
+        if 'xshift' in kwargs:
+            xshift = kwargs.pop('xshift')
+        else:
+            xshift = 0.
 
         nspin = len(y_all[0][1]) // natoms
         nspin2 = len(y_all[0][1]) // natoms # copy of nspin becaus nspin is reset to 1 if sum_spins is set to True
@@ -372,7 +387,7 @@ class plot_kkr(object):
             # take data
             y2 = y2[1].copy()
             y2 = y2.reshape(natoms, nspin2, -1)
-            x = x_all[1].copy()
+            x = x_all[1].copy() + xshift
 
             for ispin in range(nspin):
                 if not all_atoms:
@@ -398,7 +413,7 @@ class plot_kkr(object):
                         yladd = y_all[il][0].replace('dos ', '')
                         if all_atoms:
                             yladd+=', atom='+str(iatom+1)
-                        elif ispin>0:
+                        if ispin>0:
                             yladd=''
                         if labels_all is not None and ispin==0:
                             yladd = labels_all[iatom]
@@ -560,7 +575,7 @@ class plot_kkr(object):
         # extract options from kwargs
         nofig = False
         if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
-        strucplot = True
+        strucplot = False
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
         logscale = True
         if 'logscale' in list(kwargs.keys()): logscale = kwargs.pop('logscale')
@@ -630,13 +645,25 @@ class plot_kkr(object):
 
             # qdos
             if has_qvec:
-                has_qdos = 'qdos.01.1.dat' in retlist
+                has_qdos = 'qvec.dat' in retlist
                 if has_qdos:
-                    with node.outputs.retrieved.open('qdos.01.1.dat', mode='r') as f:
+                    # read number of energy points
+                    qdos_filenames = [i for i in node.outputs.retrieved.list_object_names() if 'qdos.' in i]
+                    with node.outputs.retrieved.open(qdos_filenames[0]) as f:
                         ne = len(set(loadtxt(f)[:,0]))
+                    with node.outputs.retrieved.open('qvec.dat', mode='r') as f:
                         if ne>1 or 'as_e_dimension' in list(kwargs.keys()):
                             try:
-                                outfile_name = f.name.replace('qdos.01.1.dat', 'output.0.txt')
+                                # extract Fermi level from parent calculation
+                                parent_calc = node.inputs.parent_folder.get_incoming().first().node
+                                try:
+                                    # parent is KkrCalc
+                                    ef = parent_calc.outputs.output_parameters.get_dict()['fermi_energy']
+                                except:
+                                    # parent is scf workflow
+                                    ef = parent_calc.outputs.last_calc_out['fermi_energy']
+                            except:
+                                outfile_name = f.name.replace('qvec.dat', 'output.0.txt')
                                 with open_general(outfile_name) as file_handle:
                                     txt = file_handle.readlines()
                                     iline = search_string('Fermi energy', txt)
@@ -647,11 +674,7 @@ class plot_kkr(object):
                                         ef = None
                                 if ef is None:
                                     raise ValueError('error loading Fermi energy from outfile, retry extracting from parent')
-                            except:
-                                # extract Fermi level from parent calculation
-                                parent_calc = node.inputs.parent_folder.get_incoming().first().node
-                                ef = parent_calc.outputs.output_parameters.get_dict()['fermi_energy']
-                            dispersionplot(f, newfig=(not nofig), ptitle=ptitle, logscale=logscale, ef=ef, **kwargs)
+                            dispersionplot(f.name.replace('qvec.dat',''), newfig=(not nofig), ptitle=ptitle, logscale=logscale, ef=ef, **kwargs)
                             # add plot labels
                             try:
                                 ilbl = node.inputs.kpoints.get_attr('label_numbers')
@@ -668,7 +691,7 @@ class plot_kkr(object):
                             except:
                                 xlabel('id_kpt')
                         else:
-                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qdos.01.1.dat', 'output.0.txt')), shell=True)
+                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qvec.dat', 'output.0.txt')), shell=True)
                             ef = float(ef.split('=')[2].split()[0])
                             FSqdos2D(f, logscale=logscale, ef=ef, **kwargs)
 
@@ -683,7 +706,7 @@ class plot_kkr(object):
     def plot_voro_calc(self, node, **kwargs):
         """plot things for a voro Calculation node"""
 
-        strucplot = True
+        strucplot = False
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
 
         # plot structure
@@ -694,7 +717,7 @@ class plot_kkr(object):
         # TODO maybe plot some output of voronoi
 
 
-    def plot_kkrimp_calc(self, node, return_rms=False, return_stot=False, **kwargs):
+    def plot_kkrimp_calc(self, node, return_rms=False, return_stot=False, plot_rms=True, **kwargs):
         """plot things from a kkrimp Calculation node"""
         from numpy import array, ndarray
         from numpy import sqrt, sum
@@ -707,11 +730,30 @@ class plot_kkr(object):
             out_para_dict['convergence_group']['rms_all_iterations']
             rms = out_para_dict['convergence_group']['rms_all_iterations']
             rms_goal = out_para_dict['convergence_group']['qbound']
+            
             # extract total magnetic moment
-            nat = out_para_dict['number_of_atoms_in_unit_cell']
-            s = array(out_para_dict['convergence_group']['spin_moment_per_atom_all_iterations'], dtype=float)
-            ss = sqrt(sum(s**2, axis=1)).reshape(-1,nat)
-            stot = sum(ss, axis=1)
+            nspin = out_para_dict['nspin']
+            if nspin>1:
+                try:
+                    nat = out_para_dict['number_of_atoms_in_unit_cell']
+                    s = array(out_para_dict['convergence_group']['spin_moment_per_atom_all_iterations'], dtype=float)
+                    ss = sqrt(sum(s**2, axis=1)).reshape(-1,nat)
+                    stot = sum(ss, axis=1)
+                except:
+                    stot = None
+            else:
+                stot = None
+        else:
+            stot = None
+            
+        # make rms plot
+        if plot_rms:
+            if 'ptitle' in list(kwargs.keys()):
+                ptitle = kwargs.pop('ptitle')
+            else:
+                ptitle = 'pk= {}'.format(node.pk)
+
+            self.make_kkrimp_rmsplot([rms], [stot], [0], rms_goal, ptitle, **kwargs)
 
         # now return values
         return_any, return_list = False, []
@@ -731,14 +773,12 @@ class plot_kkr(object):
         # call imp_sub plotting from here
         from aiida_kkr.workflows import kkr_imp_sub_wc
         sub_wf = [i.node for i in node.get_outgoing(node_class=kkr_imp_sub_wc).all()][0]
-        self.plot_kkrimp_sub_wc(sub_wf)
+        self.plot_kkrimp_sub_wc(sub_wf, **kwargs)
 
 
     def plot_kkrimp_sub_wc(self, node, **kwargs):
         """plot things from a kkrimp_sub_wc workflow"""
         from aiida_kkr.calculations import KkrimpCalculation
-        from numpy import array
-        from matplotlib.pyplot import figure, subplot, axhline, axvline, gca, ylim
 
         # extract rms from calculations
         impcalcs = [i.node for i in node.get_outgoing(node_class=KkrimpCalculation).all()]
@@ -746,7 +786,7 @@ class plot_kkr(object):
         rms_goal = None
         for impcalc in impcalcs:
             pks_all.append(impcalc.pk)
-            rms_tmp, rms_goal_tmp, stot_tmp = self.plot_kkrimp_calc(impcalc, return_rms=True, return_stot=True)
+            rms_tmp, rms_goal_tmp, stot_tmp = self.plot_kkrimp_calc(impcalc, return_rms=True, return_stot=True, plot_rms=False)
             rms_all.append(rms_tmp)
             if rms_goal_tmp is not None:
                 if rms_goal is not None:
@@ -755,6 +795,22 @@ class plot_kkr(object):
                     rms_goal = rms_goal_tmp
             stot_all.append(stot_tmp)
 
+        if 'ptitle' in list(kwargs.keys()):
+            ptitle = kwargs.pop('ptitle')
+        else:
+            ptitle = 'pk= {}'.format(node.pk)
+            
+        self.make_kkrimp_rmsplot(rms_all, stot_all, pks_all, rms_goal, ptitle, **kwargs)
+        
+        
+    def make_kkrimp_rmsplot(self, rms_all, stot_all, pks_all, rms_goal, ptitle, **kwargs):
+        """
+        plot rms and total spin moment of kkrimp calculation or series of kkrimp calculations
+        """
+        
+        from numpy import array
+        from matplotlib.pyplot import figure, subplot, axhline, axvline, gca, ylim
+        
         # extract options from kwargs
         nofig = False
         if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
@@ -768,10 +824,6 @@ class plot_kkr(object):
             label = kwargs.pop('label')
         else:
             label = None
-        if 'ptitle' in list(kwargs.keys()):
-            ptitle = kwargs.pop('ptitle')
-        else:
-            ptitle = 'pk= {}'.format(node.pk)
         if 'only' in list(kwargs.keys()):
             only = kwargs.pop('only')
         else:
@@ -786,7 +838,8 @@ class plot_kkr(object):
                 rms += list(i)
                 niter_calcs.append(len(i)-0.5)
             for i in array(stot_all)[reorder_rms]:
-                stot += list(i)
+                if i is not None:
+                    stot += list(i)
             # now plot
             if len(rms)>0:
                 if not nofig:
@@ -887,7 +940,7 @@ class plot_kkr(object):
         from matplotlib.pyplot import axvline, legend, title
         from masci_tools.io.common_functions import get_Ry2eV
 
-        strucplot = True
+        strucplot = False
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
 
         silent = False
@@ -986,7 +1039,7 @@ class plot_kkr(object):
         # structure plot only if structure is in inputs
         try:
             struc = node.inputs.structure
-            strucplot = True
+            strucplot = False
             ptitle = struc.get_formula()
         except:
             strucplot = False
@@ -1099,7 +1152,7 @@ class plot_kkr(object):
         from aiida_kkr.workflows.voro_start import kkr_startpot_wc
         from ase.eos import EquationOfState
 
-        strucplot = True
+        strucplot = False
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
 
         # plot structure

@@ -21,8 +21,8 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.3"
-__contributors__ = (u"Fabian Bertoldo", u"Philipp Ruessmann")
+__version__ = "0.7.4"
+__contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
 #TODO: maybe work on a clearer outputnode structure
@@ -152,6 +152,7 @@ class kkr_imp_wc(WorkChain):
         spec.output('workflow_info', valid_type=Dict)
         spec.output('last_calc_output_parameters', valid_type=Dict)
         spec.output('last_calc_info', valid_type=Dict)
+        spec.output('converged_potential', valid_type=SinglefileData, required=False)
 
 
 
@@ -361,7 +362,7 @@ class kkr_imp_wc(WorkChain):
             builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
         future = self.submit(builder)
 
-        self.report('INFO: running GF writeout (pid: {})'.format(future.pk))
+        self.report('INFO: running GF writeout (pk: {})'.format(future.pk))
 
         return ToContext(gf_writeout=future, last_calc_gf=future)
 
@@ -539,7 +540,7 @@ class kkr_imp_wc(WorkChain):
         imp_info = self.inputs.impurity_info
         nspin = GF_host_calc.outputs.output_parameters.get_dict().get('nspin')
 
-        ilayer_cent = imp_info.get_dict().get('ilayer_center')
+        ilayer_cent = imp_info.get_dict().get('ilayer_center', 0) # defaults to layer 0
 
         # prepare settings dict
         potname_converged = 'out_potential'
@@ -663,6 +664,7 @@ class kkr_imp_wc(WorkChain):
             self.out('workflow_info', outputnode_t)
             self.out('last_calc_output_parameters', last_calc_output_params)
             self.out('last_calc_info', last_calc_info)
+            self.out('converged_potential', self.ctx.kkrimp_scf_sub.outputs.host_imp_pot)
 
             # cleanup things that are not needed anymore
             self.final_cleanup()
