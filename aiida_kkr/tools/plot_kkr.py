@@ -57,6 +57,8 @@ class plot_kkr(object):
         # load database if not done already
         from aiida import load_profile
         load_profile()
+        
+        self.sview = None
 
         if type(nodes)==list:
             from matplotlib.pyplot import show
@@ -77,6 +79,11 @@ class plot_kkr(object):
             show()
         elif nodes is not None:
             self.plot_kkr_single_node(nodes, **kwargs)
+
+            print('view?', self.classify_and_plot_node(nodes, return_name_only=True)=='struc')
+            if self.classify_and_plot_node(nodes, return_name_only=True)=='struc':
+                from IPython.display import display
+                display(self.sview)
 
     ### main wrapper functions ###
     def group_nodes(self, nodes):
@@ -297,7 +304,7 @@ class plot_kkr(object):
         if 'silent' in kwargs:
             silent = kwargs.pop('silent')
         print("plotting structure using ase's `view` with kwargs={}".format(kwargs))
-        view(ase_atoms, **kwargs)
+        self.sview = view(ase_atoms, **kwargs)
 
     def dosplot(self, d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, **kwargs):
         """plot dos from xydata node"""
@@ -334,6 +341,10 @@ class plot_kkr(object):
             yscale = kwargs.pop('yscale')
         else:
             yscale = 1.
+        if 'xshift' in kwargs:
+            xshift = kwargs.pop('xshift')
+        else:
+            xshift = 0.
 
         nspin = len(y_all[0][1]) // natoms
         nspin2 = len(y_all[0][1]) // natoms # copy of nspin becaus nspin is reset to 1 if sum_spins is set to True
@@ -376,7 +387,7 @@ class plot_kkr(object):
             # take data
             y2 = y2[1].copy()
             y2 = y2.reshape(natoms, nspin2, -1)
-            x = x_all[1].copy()
+            x = x_all[1].copy() + xshift
 
             for ispin in range(nspin):
                 if not all_atoms:
@@ -564,7 +575,7 @@ class plot_kkr(object):
         # extract options from kwargs
         nofig = False
         if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
-        strucplot = True
+        strucplot = False
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
         logscale = True
         if 'logscale' in list(kwargs.keys()): logscale = kwargs.pop('logscale')
@@ -634,10 +645,13 @@ class plot_kkr(object):
 
             # qdos
             if has_qvec:
-                has_qdos = 'qdos.01.1.dat' in retlist
+                has_qdos = 'qvec.dat' in retlist
                 if has_qdos:
-                    with node.outputs.retrieved.open('qdos.01.1.dat', mode='r') as f:
+                    # read number of energy points
+                    qdos_filenames = [i for i in node.outputs.retrieved.list_object_names() if 'qdos.' in i]
+                    with node.outputs.retrieved.open(qdos_filenames[0]) as f:
                         ne = len(set(loadtxt(f)[:,0]))
+                    with node.outputs.retrieved.open('qvec.dat', mode='r') as f:
                         if ne>1 or 'as_e_dimension' in list(kwargs.keys()):
                             try:
                                 # extract Fermi level from parent calculation
@@ -649,7 +663,7 @@ class plot_kkr(object):
                                     # parent is scf workflow
                                     ef = parent_calc.outputs.last_calc_out['fermi_energy']
                             except:
-                                outfile_name = f.name.replace('qdos.01.1.dat', 'output.0.txt')
+                                outfile_name = f.name.replace('qvec.dat', 'output.0.txt')
                                 with open_general(outfile_name) as file_handle:
                                     txt = file_handle.readlines()
                                     iline = search_string('Fermi energy', txt)
@@ -660,7 +674,7 @@ class plot_kkr(object):
                                         ef = None
                                 if ef is None:
                                     raise ValueError('error loading Fermi energy from outfile, retry extracting from parent')
-                            dispersionplot(f, newfig=(not nofig), ptitle=ptitle, logscale=logscale, ef=ef, **kwargs)
+                            dispersionplot(f.name.replace('qvec.dat',''), newfig=(not nofig), ptitle=ptitle, logscale=logscale, ef=ef, **kwargs)
                             # add plot labels
                             try:
                                 ilbl = node.inputs.kpoints.get_attr('label_numbers')
@@ -677,7 +691,7 @@ class plot_kkr(object):
                             except:
                                 xlabel('id_kpt')
                         else:
-                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qdos.01.1.dat', 'output.0.txt')), shell=True)
+                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qvec.dat', 'output.0.txt')), shell=True)
                             ef = float(ef.split('=')[2].split()[0])
                             FSqdos2D(f, logscale=logscale, ef=ef, **kwargs)
 
@@ -692,7 +706,7 @@ class plot_kkr(object):
     def plot_voro_calc(self, node, **kwargs):
         """plot things for a voro Calculation node"""
 
-        strucplot = True
+        strucplot = False
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
 
         # plot structure
@@ -926,7 +940,7 @@ class plot_kkr(object):
         from matplotlib.pyplot import axvline, legend, title
         from masci_tools.io.common_functions import get_Ry2eV
 
-        strucplot = True
+        strucplot = False
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
 
         silent = False
@@ -1025,7 +1039,7 @@ class plot_kkr(object):
         # structure plot only if structure is in inputs
         try:
             struc = node.inputs.structure
-            strucplot = True
+            strucplot = False
             ptitle = struc.get_formula()
         except:
             strucplot = False
@@ -1138,7 +1152,7 @@ class plot_kkr(object):
         from aiida_kkr.workflows.voro_start import kkr_startpot_wc
         from ase.eos import EquationOfState
 
-        strucplot = True
+        strucplot = False
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
 
         # plot structure

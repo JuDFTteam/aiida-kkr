@@ -26,7 +26,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.5"
+__version__ = "0.11.6"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -53,8 +53,8 @@ class KkrCalculation(CalcJob):
     # List of optional input files (may be mandatory for some settings in inputcard)
     _SHAPEFUN = 'shapefun' # mandatory if nonspherical calculation
     _SCOEF = 'scoef' # mandatory for KKRFLEX calculation and some functionalities
-    _NONCO_ANGLES = 'nonco_angles.dat' # mandatory if noncollinear directions are used that are not (theta, phi)= (0,0) for all atoms
-    _NONCO_ANGLES_IMP = 'nonco_angles_imp.dat' # mandatory for GREENIMP option (scattering code)
+    _NONCO_ANGLES = 'nonco_angle.dat' # mandatory if noncollinear directions are used that are not (theta, phi)= (0,0) for all atoms
+    _NONCO_ANGLES_IMP = 'nonco_angle_imp.dat' # mandatory for GREENIMP option (scattering code)
     _SHAPEFUN_IMP = 'shapefun_imp' # mandatory for GREENIMP option (scattering code)
     _POTENTIAL_IMP = 'potential_imp' # mandatory for GREENIMP option (scattering code)
 
@@ -64,7 +64,7 @@ class KkrCalculation(CalcJob):
     _OUTPUT_000 = 'output.000.txt'
     _OUTPUT_2 = 'output.2.txt'
     _OUT_TIMING_000 = 'out_timing.000.txt'
-    _NONCO_ANGLES_OUT = 'nonco_angles_out.dat'
+    _NONCO_ANGLES_OUT = 'nonco_angle_out.dat'
 
     # special files (some runs)
     # DOS files
@@ -73,7 +73,7 @@ class KkrCalculation(CalcJob):
     _LMDOS = 'lmdos.%2i.%i.dat'
     # qdos files
     _QVEC = 'qvec.dat'
-    _QDOS_ATOM = 'qdos.%2i.%i.dat'
+    _QDOS_ATOM = 'qdos.%3i.%i.dat'
     _QDOS_SX = 'qdos_sx.%2i.dat'
     _QDOS_SY = 'qdos_sy.%2i.dat'
     _QDOS_SZ = 'qdos_sz.%2i.dat'
@@ -109,18 +109,33 @@ class KkrCalculation(CalcJob):
         """
         # reuse base class function
         super(KkrCalculation, cls).define(spec)
+
         # now define input files and parser
         spec.input('metadata.options.parser_name', valid_type=six.string_types, default=cls._default_parser, non_db=True)
         spec.input('metadata.options.input_filename', valid_type=six.string_types, default=cls._DEFAULT_INPUT_FILE, non_db=True)
         spec.input('metadata.options.output_filename', valid_type=six.string_types, default=cls._DEFAULT_OUTPUT_FILE, non_db=True)
+
         # define input nodes (optional ones have required=False)
         spec.input('parameters', valid_type=Dict, required=True, help='Use a node that specifies the input parameters')
         spec.input('parent_folder', valid_type=RemoteData, required=True, help='Use a remote or local repository folder as parent folder (also for restarts and similar). It should contain all the  needed files for a KKR calc, only edited files should be uploaded from the repository.')
         spec.input('impurity_info', valid_type=Dict, required=False, help='Use a Parameter node that specifies properties for a follwoing impurity calculation (e.g. setting of impurity cluster in scoef file that is automatically created).')
         spec.input('kpoints', valid_type=KpointsData, required=False, help="Use a KpointsData node that specifies the kpoints for which a bandstructure (i.e. 'qdos') calculation should be performed.")
+        spec.input('initial_noco_angles', valid_type=Dict, required=False,
+                   help="""
+Initial non-collinear angles for the magnetic moments of the impurities. These values will be written into the `kkrflex_angle` input file of KKRimp.
+The Dict node should be of the form
+    initial_noco_angles = Dict(dict={
+        'theta': [theta_at1, theta_at2, ..., theta_atN],   # list theta values in degrees (0..180)
+        'phi': [phi_at1, phi_at2, ..., phi_atN],           # list phi values in degrees (0..360)
+        'fix_dir': [True/False at_1, ..., True/False at_N] # list of booleans indicating if the direction of the magentic moment should be fixed or is allowed relax (True means keep the direction of the magnetic moment fixed)
+    })
+    Note: The length of the theta, phi and fix_dir lists have to be equal to the number of atoms.
+""")
+
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the KKR calculation')
         spec.default_output_node = 'output_parameters'
+
         # define exit codes, also used in parser
         spec.exit_code(301, 'ERROR_NO_OUTPUT_FILE', message='KKR output file not found')
         spec.exit_code(302, 'ERROR_KKR_PARSING_FAILED', message='KKR parser retuned an error')
@@ -331,55 +346,16 @@ class KkrCalculation(CalcJob):
             shapes = voro_parent.inputs.parameters.get_dict().get('<SHAPE>')
         self.logger.info('Extracted shapes: {}'.format(shapes))
 
+
         # qdos option, ensure low T, E-contour, qdos run option and write qvec.dat file
         if found_kpath:
-            # check qdos settings
-            change_values = []
-            runopt = parameters.get_dict().get('RUNOPT')
-            if runopt is None: runopt = []
-            runopt = [i.strip() for i in runopt]
-            if 'qdos' not in runopt:
-                runopt.append('qdos')
-                change_values.append(['RUNOPT', runopt])
-            tempr = parameters.get_dict().get('TEMPR')
-            if tempr is None or tempr>100.:
-                change_values.append(['TEMPR', 50.])
-            N1 = parameters.get_dict().get('NPT1')
-            if N1 is None or N1>0:
-                change_values.append(['NPT1', 0])
-            N2 = parameters.get_dict().get('NPT2')
-            if N2 is None:
-                change_values.append(['NPT2', 100])
-            N3 = parameters.get_dict().get('NPT3')
-            if N3 is None or N3>0.:
-                change_values.append(['NPT3', 0])
-            NPOL = parameters.get_dict().get('NPOL')
-            if NPOL is None or NPOL>0.:
-                change_values.append(['NPOL', 0])
-            if change_values != []:
-                new_params = {}
-                #{'nodename': 'changed_params_qdos', 'nodedesc': 'Changed parameters to mathc qdos mode. Changed values: {}'.format(change_values)}
-                for key, val in parameters.get_dict().items():
-                    new_params[key] = val
-                for key, val in change_values:
-                    new_params[key] = val
-                new_params_node = Dict(dict=new_params)
-                #parameters = update_params_wf(parameters, new_params_node)
-                parameters = new_params_node
-            # write qvec.dat file
-            kpath_array = kpath.get_kpoints(cartesian=True)
-            # convert automatically to internal units
-            alat = get_alat_from_bravais(np.array(structure.cell), is3D=structure.pbc[2]) * get_Ang2aBohr()
-            if use_alat_input:
-                alat_input = parameters.get_dict().get('ALATBASIS')
-            else:
-                alat_input = alat
-            kpath_array = kpath_array * (alat_input/alat) / get_Ang2aBohr() / (2*np.pi/alat)
-            # now write file
-            qvec = ['%i\n'%len(kpath_array)]
-            qvec+=['%e %e %e\n'%(kpt[0], kpt[1], kpt[2]) for kpt in kpath_array]
-            with tempfolder.open(self._QVEC, 'w') as qvecfile:
-                qvecfile.writelines(qvec)
+            parameters = self._prepare_qdos_calc(parameters, kpath, structure, tempfolder, use_alat_input)
+
+
+        # write nonco_angle.dat file and adapt RUNOPTS if needed (i.e. add FIXMOM if directions are not relaxed)
+        if 'initial_noco_angles' in self.inputs:
+            parameters = self._use_initial_noco_angles(parameters, structure, tempfolder)
+
 
         # Prepare inputcard from Structure and input parameter data
         with tempfolder.open(self._INPUT_FILE_NAME, u'w') as input_file:
@@ -637,3 +613,116 @@ class KkrCalculation(CalcJob):
 
         # return updated local_copy_list
         return local_copy_list
+
+
+    def _prepare_qdos_calc(self, parameters, kpath, structure, tempfolder, use_alat_input):
+        """
+        prepare a qdos (i.e. bandstructure) calculation, can only be done if k-points are given in input
+        Note: this changes some settings in the parameters to ensure a DOS contour and low smearing temperature
+        Also the qvec.dat file is written here.
+        """
+        # check qdos settings
+        change_values = []
+        runopt = parameters.get_dict().get('RUNOPT')
+        if runopt is None: runopt = []
+        runopt = [i.strip() for i in runopt]
+        if 'qdos' not in runopt:
+            runopt.append('qdos')
+            change_values.append(['RUNOPT', runopt])
+        tempr = parameters.get_dict().get('TEMPR')
+        if tempr is None or tempr>100.:
+            change_values.append(['TEMPR', 50.])
+        N1 = parameters.get_dict().get('NPT1')
+        if N1 is None or N1>0:
+            change_values.append(['NPT1', 0])
+        N2 = parameters.get_dict().get('NPT2')
+        if N2 is None:
+            change_values.append(['NPT2', 100])
+        N3 = parameters.get_dict().get('NPT3')
+        if N3 is None or N3>0.:
+            change_values.append(['NPT3', 0])
+        NPOL = parameters.get_dict().get('NPOL')
+        if NPOL is None or NPOL>0.:
+            change_values.append(['NPOL', 0])
+        parameters = _update_params(parameters, change_values)
+        # write qvec.dat file
+        kpath_array = kpath.get_kpoints(cartesian=True)
+        # convert automatically to internal units
+        alat = get_alat_from_bravais(np.array(structure.cell), is3D=structure.pbc[2]) * get_Ang2aBohr()
+        if use_alat_input:
+            alat_input = parameters.get_dict().get('ALATBASIS')
+        else:
+            alat_input = alat
+        kpath_array = kpath_array * (alat_input/alat) / get_Ang2aBohr() / (2*np.pi/alat)
+        # now write file
+        qvec = ['%i\n'%len(kpath_array)]
+        qvec+=['%e %e %e\n'%(kpt[0], kpt[1], kpt[2]) for kpt in kpath_array]
+        with tempfolder.open(self._QVEC, 'w') as qvecfile:
+            qvecfile.writelines(qvec)
+
+        return parameters
+
+
+    def _use_initial_noco_angles(self, parameters, structure, tempfolder):
+        """
+        Set starting values for non-collinear calculation (writes nonco_angle.dat to tempfolder).
+        Adapt FIXMOM runopt according to fix_dir input in initial_noco_angle input node
+        """
+        self.report('Found `initial_noco_angles` input node, writing nonco_angle.dat file')
+
+        # extract fix_dir flag and set FIXMOM RUNOPT in parameters accordingly
+        fix_dir = self.inputs.initial_noco_angles['fix_dir']
+        natom = len(structure.sites)
+        if len(fix_dir) != natom:
+            raise InputValidationError("Error: `fix_dir` list in `initial_noco_angles` input node needs to have the same length as number of atoms!")
+            
+        change_values = []
+        runopt = parameters.get_dict().get('RUNOPT')
+        if runopt is None: runopt = []
+        runopt = [i.strip() for i in runopt]
+        if all(fix_dir) and 'FIXMOM' not in runopt:
+            runopt.append('FIXMOM')
+            change_values.append(['RUNOPT', runopt])
+        elif not all(fix_dir) and 'FIXMOM' in runopt:
+            runopt.pop('FIXMOM')
+            change_values.append(['RUNOPT', runopt])
+        parameters = _update_params(parameters, change_values)
+
+        # extract theta and phi values from input node
+        thetas = self.inputs.initial_noco_angles['theta']
+        if len(thetas) != natom:
+            raise InputValidationError("Error: `theta` list in `initial_noco_angles` input node needs to have the same length as number of atoms!")
+        phis = self.inputs.initial_noco_angles['phi']
+        if len(phis) != natom:
+            raise InputValidationError("Error: `phi` list in `initial_noco_angles` input node needs to have the same length as number of atoms!")
+
+        # now write kkrflex_angle file
+        with tempfolder.open(self._NONCO_ANGLES, 'w') as noco_angle_file:
+            for iatom in range(natom):
+                theta, phi = thetas[iatom], phis[iatom]
+                # check consistency
+                if theta < 0. or theta > 180.:
+                    raise  InputValidationError(f"Error: theta value out of range (0..180): iatom={iatom}, theta={theta}")
+                # write line
+                noco_angle_file.write(f'   {theta}    {phi}    {fix_dir[iatom]}\n')
+
+        return parameters
+
+
+
+def _update_params(parameters, change_values):
+    """
+    change parameters node from change_values list of key value pairs
+    Retrun input parameter node if change_values list is empty
+    """
+    if change_values != []:
+        new_params = {}
+        #{'nodename': 'changed_params_qdos', 'nodedesc': 'Changed parameters to mathc qdos mode. Changed values: {}'.format(change_values)}
+        for key, val in parameters.get_dict().items():
+            new_params[key] = val
+        for key, val in change_values:
+            new_params[key] = val
+        new_params_node = Dict(dict=new_params)
+        #parameters = update_params_wf(parameters, new_params_node)
+        parameters = new_params_node
+    return parameters
