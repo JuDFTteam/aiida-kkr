@@ -27,7 +27,7 @@ def write_graph(node, label=''):
 
 def get_single_imp_inputs():
     # import single imp calculations
-    imported_nodes = import_data(test_dir/'data_dir/kkr_imp_wc-nodes-2ae76fce3a2cdcded6341f368ef0f00b.tar.gz', silent=True)['Node']
+    imported_nodes = import_data(test_dir/'data_dir/kkr_imp_wc-nodes-1e7804d6388fea2ca1e492d2f1a148c8.tar.gz', silent=True)['Node']
     for _, pk in imported_nodes['new']+imported_nodes['existing']:
         node = load_node(pk)
         if node.label=='kkrimp_scf full Cu host_in_host':

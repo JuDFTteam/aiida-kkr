@@ -12,7 +12,7 @@ import os
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -67,33 +67,39 @@ class VoronoiParser(Parser):
         # get path to files and catch errors if files are not present
         file_errors = []
         if VoronoiCalculation._OUT_POTENTIAL_voronoi in out_folder.list_object_names():
-            potfile = out_folder.open(VoronoiCalculation._OUT_POTENTIAL_voronoi)
+            with out_folder.open(VoronoiCalculation._OUT_POTENTIAL_voronoi) as fhandle:
+                potfile = fhandle.name
         else:
             # cover case where potfile is overwritten from input to voronoi calculation
             if VoronoiCalculation._POTENTIAL_IN_OVERWRITE in out_folder.list_object_names():
-                potfile = out_folder.open(VoronoiCalculation._POTENTIAL_IN_OVERWRITE)
+                with out_folder.open(VoronoiCalculation._POTENTIAL_IN_OVERWRITE) as fhandle:
+                    potfile = fhandle.name
             else:
                 file_errors.append("Critical error! Neither potfile {}  not {} "
                                    "was found".format(VoronoiCalculation._OUT_POTENTIAL_voronoi,
                                                       VoronoiCalculation._POTENTIAL_IN_OVERWRITE))
                 potfile = 'file_not_found'
         if VoronoiCalculation._OUTPUT_FILE_NAME in out_folder.list_object_names():
-            outfile = out_folder.open(VoronoiCalculation._OUTPUT_FILE_NAME)
+            with out_folder.open(VoronoiCalculation._OUTPUT_FILE_NAME) as fhandle:
+                outfile = fhandle.name
         else:
             file_errors.append("Critical error! outfile not found {}".format(VoronoiCalculation._OUTPUT_FILE_NAME))
             outfile = 'file_not_found'
         if VoronoiCalculation._ATOMINFO in out_folder.list_object_names():
-            atominfo = out_folder.open(VoronoiCalculation._ATOMINFO)
+            with out_folder.open(VoronoiCalculation._ATOMINFO) as fhandle:
+                atominfo = fhandle.name
         else:
             file_errors.append("Critical error! atominfo not found {}".format(VoronoiCalculation._ATOMINFO))
             atominfo = 'file_not_found'
         if VoronoiCalculation._RADII in out_folder.list_object_names():
-            radii = out_folder.open(VoronoiCalculation._RADII)
+            with out_folder.open(VoronoiCalculation._RADII) as fhandle:
+                radii = fhandle.name
         else:
             file_errors.append("Critical error! radii not found {}".format(VoronoiCalculation._RADII))
             radii = 'file_not_found'
         if VoronoiCalculation._INPUT_FILE_NAME in out_folder.list_object_names():
-            inputfile = out_folder.open(VoronoiCalculation._INPUT_FILE_NAME)
+            with out_folder.open(VoronoiCalculation._INPUT_FILE_NAME) as fhandle:
+                inputfile = fhandle.name
         else:
             file_errors.append("Critical error! inputfile not found {}".format(VoronoiCalculation._INPUT_FILE_NAME))
             inputfile = 'file_not_found'

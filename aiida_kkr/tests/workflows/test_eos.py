@@ -5,7 +5,7 @@ from __future__ import print_function
 import pytest
 from aiida_kkr.tests.dbsetup import *
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
-from ..conftest import voronoi_local_code, kkrhost_local_code
+from ..conftest import voronoi_local_code, kkrhost_local_code, data_dir
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
@@ -91,7 +91,7 @@ def test_eos_wc_Cu_simple(clear_database_before_test, voronoi_local_code, kkrhos
     assert max(out['rms'])<10**-4
 
     print('gs_scale_factor', out['gs_scale_factor'])
-    assert abs(out['gs_scale_factor']-1.0707660727038) < 10**-7
+    assert abs(out['gs_scale_factor']-1.0707660727038) < 5*10**-7
 
     print('\ndone with checks\n')
 

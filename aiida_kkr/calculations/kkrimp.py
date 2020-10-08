@@ -24,7 +24,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.8"
+__version__ = "0.6.9"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -303,7 +303,8 @@ The Dict node should be of the form
 
          # check if host parent was KKRFLEX calculation
         hostfolder = parent_calc.outputs.retrieved
-        input_file = hostfolder.open(KkrCalculation._DEFAULT_INPUT_FILE)
+        with hostfolder.open(KkrCalculation._DEFAULT_INPUT_FILE) as fhandle:
+            input_file = fhandle.name
         params_host_calc = kkrparams(params_type='kkr') # initialize kkrparams instance to use read_keywords_from_inputcard
         params_host_calc.read_keywords_from_inputcard(inputcard=input_file)
 

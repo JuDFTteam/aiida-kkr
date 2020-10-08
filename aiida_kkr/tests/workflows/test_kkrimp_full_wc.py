@@ -106,7 +106,7 @@ def test_kkrimp_full_Ag_Cu_onsite(clear_database_before_test, voronoi_local_code
 
     # import parent calculation (converged host system)
     from aiida.tools.importexport import import_data
-    imported_nodes = import_data('data_dir/kkr_scf_wc-nodes-b88a73969a1d642ca4f0eae64ddb6f4c.tar.gz', silent=True)['Node']
+    imported_nodes = import_data('data_dir/kkr_scf_wc-nodes-54077494de2cea64907bd7e46c816247.tar.gz', silent=True)['Node']
     for _, pk in imported_nodes['new']+imported_nodes['existing']:
         node = load_node(pk)
         if node.label=='KKR-scf for Cu bulk':

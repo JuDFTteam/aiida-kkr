@@ -851,7 +851,8 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
                     "".format(n_parents, "" if n_parents == 0 else "s"))
         else:
             parent_calc = parent_calcs[0].node
-        pot1_fhandle = parent_calc.outputs.retrieved.open(pot1)
+        with parent_calc.outputs.retrieved.open(pot1) as pot1_fhandle:
+            pot1_fpath = pot1_fhandle.name
 
         # extract nspin from parent calc's input parameter node
         nspin = parent_calc.inputs.parameters.get_dict().get('NSPIN')
@@ -884,15 +885,17 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs) : #, pare
                                            pot2,
                                            parent_calc.outputs.retrieved.list_object_names()
                                           )
-            pot2_fhandle = parent_calc.outputs.retrieved.open(pot2)
+            with parent_calc.outputs.retrieved.open(pot2) as pot2_fhandle:
+                pot2_fpath = pot2_fhandle.name
         else:
-            pot2_fhandle = None
+            pot2_fpath = None
 
         # change file path to Sandbox folder accordingly
-        out_pot_fhandle = tempfolder.open(out_pot, u'w')
+        with tempfolder.open(out_pot, u'w') as out_pot_fhandle:
+            out_pot_fpath = out_pot_fhandle.name
 
         # run neworder_potential function
-        modify_potential().neworder_potential(pot1_fhandle, out_pot_fhandle, neworder, potfile_2=pot2_fhandle,
+        modify_potential().neworder_potential(pot1_fpath, out_pot_fpath, neworder, potfile_2=pot2_fpath,
                                               replace_from_pot2=replace_newpos, debug=debug)
 
         # store output potential to SinglefileData

@@ -82,6 +82,7 @@ def test_voronoi_cached(clear_database_before_test, voronoi_local_code, run_with
     builder.structure = Cu
     builder._hash_ignored_inputs = ['code']
     # now run calculation or use cached result
+    print('data_dir:', data_dir)
     out, node = run_with_cache(builder, data_dir=data_dir)
     # check output
     print('out, node:', out, node)

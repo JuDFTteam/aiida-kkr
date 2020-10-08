@@ -16,7 +16,7 @@ from masci_tools.io.common_functions import search_string
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.5"
+__version__ = "0.6.6"
 __contributors__ = ("Jens Broeder", u"Philipp Rüßmann")
 
 
@@ -90,7 +90,8 @@ class KkrParser(Parser):
 
         # Parse output files of KKR calculation
         if KkrCalculation._DEFAULT_OUTPUT_FILE in out_folder.list_object_names():
-            outfile = out_folder.open(KkrCalculation._DEFAULT_OUTPUT_FILE)
+            with out_folder.open(KkrCalculation._DEFAULT_OUTPUT_FILE) as fhandle:
+                outfile = fhandle.name
         else:
             file_errors.append((1+self.icrit, msg))
             outfile = None
@@ -102,19 +103,22 @@ class KkrParser(Parser):
         #    out_dict values (e.g. nspin, newsosol, ...)
         fname = KkrCalculation._OUTPUT_0_INIT
         if fname in out_folder.list_object_names():
-            outfile_0init = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                outfile_0init = fhandle.name
         else:
             file_errors.append((1+self.icrit, "Critical error! OUTPUT_0_INIT not found {}".format(fname)))
             outfile_0init = None
         fname = KkrCalculation._OUTPUT_000
         if fname in out_folder.list_object_names():
-            outfile_000 = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                outfile_000 = fhandle.name
         else:
             file_errors.append((1+self.icrit, "Critical error! OUTPUT_000 not found {}".format(fname)))
             outfile_000 = None
         fname = KkrCalculation._OUTPUT_2
         if fname in out_folder.list_object_names():
-            outfile_2 = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                outfile_2 = fhandle.name
         else:
             if not only_000_present:
                 file_errors.append((1+self.icrit, "Critical error! OUTPUT_2 not found {}".format(fname)))
@@ -123,19 +127,22 @@ class KkrParser(Parser):
                 outfile_2 = outfile_000
         fname = KkrCalculation._OUT_POTENTIAL
         if fname in out_folder.list_object_names():
-            potfile_out = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                potfile_out = fhandle.name
         else:
             file_errors.append((1+self.icrit, "Critical error! OUT_POTENTIAL not found {}".format(fname)))
             potfile_out = None
         fname = KkrCalculation._OUT_TIMING_000
         if fname in out_folder.list_object_names():
-            timing_file = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                timing_file = fhandle.name
         else:
             file_errors.append((1+self.icrit, "Critical error! OUT_TIMING_000  not found {}".format(fname)))
             timing_file = None
         fname = KkrCalculation._NONCO_ANGLES_OUT
         if fname in out_folder.list_object_names():
-            nonco_out_file = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                nonco_out_file = fhandle.name
         else:
             file_errors.append((2, "Error! NONCO_ANGLES_OUT not found {}".format(fname)))
             nonco_out_file = None

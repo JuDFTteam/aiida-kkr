@@ -22,7 +22,7 @@ from pprint import pprint
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.1"
+__version__ = "0.4.2"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -78,7 +78,8 @@ class KkrimpParser(Parser):
         
     
         if KkrimpCalculation._DEFAULT_OUTPUT_FILE in out_folder.list_object_names():
-            outfile = out_folder.open(KkrimpCalculation._DEFAULT_OUTPUT_FILE)
+            with out_folder.open(KkrimpCalculation._DEFAULT_OUTPUT_FILE) as fhandle:
+                outfile = fhandle.name
             files['outfile'] = outfile
         else:
             file_errors.append((1,msg))
@@ -86,63 +87,72 @@ class KkrimpParser(Parser):
             
         fname = KkrimpCalculation._OUTPUT_000
         if fname in out_folder.list_object_names():
-            filepath = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                filepath = fhandle.name
             files['out_log'] = filepath
         else:
             file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
             files['out_log'] = None
         fname = KkrimpCalculation._OUT_POTENTIAL
         if fname in out_folder.list_object_names():
-            filepath = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                filepath = fhandle.name
             files['out_pot'] = filepath
         else:
             file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
             files['out_pot'] = None
         fname = KkrimpCalculation._OUT_TIMING_000
         if fname in out_folder.list_object_names():
-            filepath = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                filepath = fhandle.name
             files['out_timing'] = filepath
         else:
             file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
             files['out_timing'] = None 
         fname = KkrimpCalculation._OUT_ENERGYSP_PER_ATOM
         if fname in out_folder.list_object_names():
-            filepath = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                filepath = fhandle.name
             files['out_enersp_at'] = filepath
         else:
             file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
             files['out_enersp_at'] = None
         fname = KkrimpCalculation._OUT_ENERGYTOT_PER_ATOM
         if fname in out_folder.list_object_names():
-            filepath = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                filepath = fhandle.name
             files['out_enertot_at'] = filepath
         else:
             file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
             files['out_enertot_at'] = None
         fname = KkrimpCalculation._KKRFLEX_LLYFAC
         if fname in out_folder.list_object_names():
-            filepath = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                filepath = fhandle.name
             files['kkrflex_llyfac'] = filepath
         else:
             file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
             files['kkrflex_llyfac'] = None
         fname = KkrimpCalculation._KKRFLEX_ANGLE
         if fname in out_folder.list_object_names():
-            filepath = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                filepath = fhandle.name
             files['kkrflex_angles'] = filepath
         else:
             file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
             files['kkrflex_angles'] = None
         fname = KkrimpCalculation._OUT_MAGNETICMOMENTS
         if fname in out_folder.list_object_names():
-            filepath = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                filepath = fhandle.name
             files['out_spinmoms'] = filepath
         else:
             file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
             files['out_spinmoms'] = None
         fname = KkrimpCalculation._OUT_ORBITALMOMENTS
         if fname in out_folder.list_object_names():
-            filepath = out_folder.open(fname)
+            with out_folder.open(fname) as fhandle:
+                filepath = fhandle.name
             files['out_orbmoms'] = filepath
         else:
             file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
