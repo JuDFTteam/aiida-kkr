@@ -26,7 +26,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.6"
+__version__ = "0.11.7"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -74,6 +74,7 @@ class KkrCalculation(CalcJob):
     # qdos files
     _QVEC = 'qvec.dat'
     _QDOS_ATOM = 'qdos.%3i.%i.dat'
+    _QDOS_ATOM_OLD = 'qdos.%2i.%i.dat'
     _QDOS_SX = 'qdos_sx.%2i.dat'
     _QDOS_SY = 'qdos_sy.%2i.dat'
     _QDOS_SZ = 'qdos_sz.%2i.dat'
@@ -87,6 +88,8 @@ class KkrCalculation(CalcJob):
     # Jij files
     _Jij_ATOM = 'Jij.atom%0.5i'
     _SHELLS_DAT = 'shells.dat'
+    # deci-out and decimation
+    _DECIFILE = 'decifile'
 
     # template.product entry point defined in setup.json
     _default_parser = 'kkr.kkrparser'
@@ -131,6 +134,8 @@ The Dict node should be of the form
     })
     Note: The length of the theta, phi and fix_dir lists have to be equal to the number of atoms.
 """)
+        spec.input('deciout_parent', valid_type=RemoteData, required=False,
+                   help="KkrCalculation RemoteData folder from deci-out calculation")
 
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the KKR calculation')
@@ -204,29 +209,32 @@ The Dict node should be of the form
         for key in list(parameters.get_dict().keys()):
             value = parameters.get_dict()[key]
             #self.logger.info("Checking {} {}".format(key, value))
-            if not value is None:
+            if value is not None:
                 if key in self._do_never_modify:
                     oldvalue = parent_inp_dict[key]
-                    if oldvalue is None and key in __kkr_default_params__:
-                        oldvalue = __kkr_default_params__.get(key)
-                    if value == oldvalue:
-                        values_eqivalent = True
-                    else:
-                        values_eqivalent = False
-                        # check if values match up to certain numerical accuracy
-                        if type(value)==float:
-                            if abs(value-oldvalue)<self._eps:
-                                values_eqivalent = True
-                        elif type(value)==list or type(value)==np.ndarray:
-                            tmp_value, tmp_oldvalue = np.array(value).reshape(-1), np.array(oldvalue).reshape(-1)
-                            values_eqivalent_tmp = []
-                            for ival in range(len(tmp_value)):
-                                if abs(tmp_value[ival]-tmp_oldvalue[ival])<self._eps:
-                                    values_eqivalent_tmp.append(True)
-                                else:
-                                    values_eqivalent_tmp.append(False)
-                            if all(values_eqivalent_tmp) and len(value)==len(oldvalue):
-                                values_eqivalent = True
+                    try:
+                        if oldvalue is None and key in __kkr_default_params__:
+                            oldvalue = __kkr_default_params__.get(key)
+                        if value == oldvalue:
+                            values_eqivalent = True
+                        else:
+                            values_eqivalent = False
+                            # check if values match up to certain numerical accuracy
+                            if type(value)==float:
+                                if abs(value-oldvalue)<self._eps:
+                                    values_eqivalent = True
+                            elif type(value)==list or type(value)==np.ndarray:
+                                tmp_value, tmp_oldvalue = np.array(value).reshape(-1), np.array(oldvalue).reshape(-1)
+                                values_eqivalent_tmp = []
+                                for ival in range(len(tmp_value)):
+                                    if abs(tmp_value[ival]-tmp_oldvalue[ival])<self._eps:
+                                        values_eqivalent_tmp.append(True)
+                                    else:
+                                        values_eqivalent_tmp.append(False)
+                                if all(values_eqivalent_tmp) and len(value)==len(oldvalue):
+                                    values_eqivalent = True
+                    except:
+                        raise InputValidationError("Error while trying to compare old and new values with key={} in do_never_modify list, oldval={}; newval={}".format(key, oldvalue, value))
                     if not values_eqivalent:
                         self.logger.error("You are trying to set keyword {} = {} but this is not allowed since the structure would be modified. Please use a suitable workfunction instead.".format(key, value))
                         raise InputValidationError("You are trying to modify a keyword that is not allowed to be changed! (key={}, oldvalue={}, newvalue={})".format(key, oldvalue, value))
@@ -355,7 +363,11 @@ The Dict node should be of the form
         # write nonco_angle.dat file and adapt RUNOPTS if needed (i.e. add FIXMOM if directions are not relaxed)
         if 'initial_noco_angles' in self.inputs:
             parameters = self._use_initial_noco_angles(parameters, structure, tempfolder)
-
+        
+        # activate decimation mode and copy decifile from deciout parent
+        if 'deciout_parent' in self.inputs:
+            parameters = self._use_decimation(parameters, tempfolder)
+        
 
         # Prepare inputcard from Structure and input parameter data
         with tempfolder.open(self._INPUT_FILE_NAME, u'w') as input_file:
@@ -495,6 +507,7 @@ The Dict node should be of the form
             for iatom in range(natom):
                 for ispin in range(nspin):
                     add_files.append((self._QDOS_ATOM%(iatom+1, ispin+1)).replace(' ','0'))
+                    add_files.append((self._QDOS_ATOM_OLD%(iatom+1, ispin+1)).replace(' ','0')) # try to retrieve both old and new version of the files
                 # retrieve also qdos_sx,y,z files if written out
                 add_files.append((self._QDOS_SX%(iatom+1)).replace(' ','0'))
                 add_files.append((self._QDOS_SY%(iatom+1)).replace(' ','0'))
@@ -513,7 +526,21 @@ The Dict node should be of the form
             add_files = [self._SHELLS_DAT] + [self._Jij_ATOM%iatom for iatom in range(1,natom+1)]
             print('adding files for Jij output', add_files)
             calcinfo.retrieve_list += add_files
+        
+        # 5. deci-out
+        retrieve_decifile = False
+        if 'RUNOPT' in  list(parameters.get_dict().keys()):
+            runopts = parameters.get_dict()['RUNOPT']
+            if runopts is not None :
+                stripped_run_opts = [i.strip() for i in runopts]
+                if 'deci-out' in stripped_run_opts:
+                    retrieve_decifile = True
+        if retrieve_decifile:
+            add_files = [self._DECIFILE]
+            print('adding files for deci-out', add_files)
+            calcinfo.retrieve_list += add_files
 
+        # now set calcinfo and return
         codeinfo = CodeInfo()
         codeinfo.cmdline_params = []
         codeinfo.code_uuid = code.uuid
@@ -706,6 +733,47 @@ The Dict node should be of the form
                 # write line
                 noco_angle_file.write(f'   {theta}    {phi}    {fix_dir[iatom]}\n')
 
+        return parameters
+    
+    def _use_decimation(self, parameters, tempfolder):
+        """
+        Activate decimation mode and copy decifile from output of deciout_parent calculation
+        """
+        self.report('Found `deciout_parent` input node, activae decimation mode')
+
+        # check if deciout parent calculation was proper deci-out calculation
+        deciout_parent = self.inputs.deciout_parent
+        parent_calcs = deciout_parent.get_incoming(node_class=CalcJobNode)
+        n_parents = len(parent_calcs.all_link_labels())
+        if n_parents != 1:
+            raise UniquenessError(
+                    "Input RemoteData is child of {} "
+                    "calculation{}, while it should have a single parent"
+                    "".format(n_parents, "" if n_parents == 0 else "s"))
+            # TODO change to exit code
+        parent_calc = parent_calcs.first().node
+        deciout_retrieved = parent_calc.outputs.retrieved
+        if self._DECIFILE not in deciout_retrieved.list_object_names():
+            raise InputValidationError("Error: deciout_parent does not contain decifile!")
+
+        # add 'DECIMATE' flag, decifile and NSTEPS=1
+        change_values = []
+        runopt = parameters.get_dict().get('RUNOPT')
+        if runopt is None: runopt = []
+        runopt = [i.strip() for i in runopt]
+        runopt.append('DECIMATE')
+        change_values.append(['RUNOPT', runopt])
+        change_values.append(['FILES', [self._POTENTIAL, self._SHAPEFUN]]) # needed to make DECIFILE work
+        change_values.append(['DECIFILES', ['vacuum', self._DECIFILE]]) # works only for right continuation for now!
+        change_values.append(['NSTEPS', 1]) # decimation works only in one-shot mode
+        parameters = _update_params(parameters, change_values)
+
+        # now write kkrflex_angle file
+        with deciout_retrieved.open(self._DECIFILE, 'r') as decifile_handle:
+            decifile_txt = decifile_handle.readlines()
+        with tempfolder.open(self._DECIFILE, 'w') as decifile_handle:
+            decifile_handle.writelines(decifile_txt)
+            
         return parameters
 
 
