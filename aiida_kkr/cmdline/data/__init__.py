@@ -1,17 +1,17 @@
-from __future__ import absolute_import
-from builtins import str
+# -*- coding: utf-8 -*-
+"""
+Module with CLI commands for various data types.
+"""
 import click
-import sys
 
 
-@click.group()
-def cli():
-    """Command line interface for template plugin"""
-    pass
+@click.group('data')
+def cmd_data():
+    """Commands to create and inspect data nodes."""
 
 
-@cli.command()
-def list():  # pylint: disable=redefined-builtin
+@cmd_data.command('list')
+def cmd_list_kkrstructures():
     """
     Display all KkrstructureData nodes
     """
@@ -20,7 +20,7 @@ def list():  # pylint: disable=redefined-builtin
 
     from aiida.orm.querybuilder import QueryBuilder
     from aiida.plugins import DataFactory
-    KKrStructure = DataFactory('kkr.kkrstructure')
+    KkrStructure = DataFactory('kkr.kkrstructure')
 
     qb = QueryBuilder()
     qb.append(KkrStructure)
@@ -30,4 +30,4 @@ def list():  # pylint: disable=redefined-builtin
     for result in results:
         obj = result[0]
         s += "{}, pk: {}\n".format(str(obj), obj.pk)
-    sys.stdout.write(s)
+    click.echo(s)
