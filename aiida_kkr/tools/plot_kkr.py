@@ -24,7 +24,7 @@ class plot_kkr(object):
 
     :param silent: print information about input node including inputs and outputs (default: False)
     :type silent: bool
-    :param strucplot: plot structure using ase’s view function (default: True)
+    :param strucplot: plot structure using ase’s view function (default: False)
     :type strucplot: bool
     :param interpol: use interpolated data for DOS plots (default: True)
     :type interpol: bool
@@ -80,7 +80,6 @@ class plot_kkr(object):
         elif nodes is not None:
             self.plot_kkr_single_node(nodes, **kwargs)
 
-            print('view?', self.classify_and_plot_node(nodes, return_name_only=True)=='struc')
             if self.classify_and_plot_node(nodes, return_name_only=True)=='struc':
                 from IPython.display import display
                 display(self.sview)
@@ -112,7 +111,7 @@ class plot_kkr(object):
         for node in nodeslist:
             print(groupname)
             # open new figure for each plot in these groups
-            if groupname in ['eos', 'dos', 'startpot', 'voro']: figure()
+            if groupname in ['eos', 'dos', 'startpot']: figure()
             if groupname in ['kkr', 'scf']:
                 subplot(2,1,1)
                 self.plot_kkr_single_node(node, only='rms', label='pk= {}'.format(node.pk), **kwargs)
@@ -303,6 +302,11 @@ class plot_kkr(object):
         ase_atoms = structure.get_ase()
         if 'silent' in kwargs:
             silent = kwargs.pop('silent')
+        # remove things that are not understood bt ase's view
+        print(kwargs)
+        for key in ['nofig', 'interpol', 'all_atoms', 'l_channels',
+                    'sum_spins', 'logscale', 'switch_xy', 'iatom', 'label']:
+            if key in kwargs: _ = kwargs.pop(key)
         print("plotting structure using ase's `view` with kwargs={}".format(kwargs))
         self.sview = view(ase_atoms, **kwargs)
 
@@ -691,9 +695,9 @@ class plot_kkr(object):
                             except:
                                 xlabel('id_kpt')
                         else:
-                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qvec.dat', 'output.0.txt')), shell=True)
+                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qvec.dat', 'output.0.txt')), shell=True, text=True)
                             ef = float(ef.split('=')[2].split()[0])
-                            FSqdos2D(f, logscale=logscale, ef=ef, **kwargs)
+                            FSqdos2D(f.name.replace('qvec.dat',''), logscale=logscale, ef=ef, **kwargs)
 
             # dos only if qdos was not plotted already
             if has_dos and not has_qdos:

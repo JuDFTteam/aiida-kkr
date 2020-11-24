@@ -12,7 +12,7 @@ from aiida.cmdline.params import arguments
 @click.option('--show/--no-show', default=False, show_default=True, help='')
 @click.option('--only/--no-only', default=False, show_default=True, help='')
 @click.option('--silent/--no-silent', default=False, show_default=True, help='print information about input node including inputs and outputs.')
-@click.option('--strucplot/--no-strucplot', default=True, show_default=True, help='plot structure using ase’s view function')
+@click.option('--strucplot/--no-strucplot', default=False, show_default=True, help='plot structure using ase’s view function')
 @click.option('--interpol/--no-interpol', default=True, show_default=True, help='use interpolated data for DOS plots')
 @click.option('--all_atoms/--no-all_atoms', default=False, show_default=True, help='plot all atoms in DOS plots (default: False, i.e. plot total DOS only)')
 @click.option('--l_channels/--no-l_channels', default=True, show_default=True, help='plot l-channels in addition to total DOS')
@@ -20,7 +20,7 @@ from aiida.cmdline.params import arguments
 @click.option('--logscale/--no-logscale', default=True, show_default=True, help='plot rms and charge neutrality curves on a log-scale')
 @click.option('--switch_xy/--no-switch_xy', default=False, show_default=True, help='')
 @click.option('--iatom', multiple=True, default=[], show_default=True, help='list of atom indices which are supposed to be plotted')
-def cmd_plot(nodes, filename, noshow, only, silent, strucplot, interpol, all_atoms, l_channels, sum_spins, logscale, switch_xy, iatom):
+def cmd_plot(nodes, filename, show, only, silent, strucplot, interpol, all_atoms, l_channels, sum_spins, logscale, switch_xy, iatom):
     """
     Invoke the plot_kkr command on given nodes and kwargs
 
@@ -50,4 +50,4 @@ def cmd_plot(nodes, filename, noshow, only, silent, strucplot, interpol, all_ato
               'switch_xy': switch_xy, 
               'iatom': iatom}
 
-    plot_kkr(nodes, noshow=noshow, only=only, **kwargs)
+    plot_kkr(nodes, noshow=not show, only=only, **kwargs)

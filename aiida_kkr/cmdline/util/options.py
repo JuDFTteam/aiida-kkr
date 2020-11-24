@@ -8,7 +8,7 @@ import click
 from aiida.cmdline.params import types
 from aiida.cmdline.params.options import OverridableOption
 from .types import StructureNodeOrFileParamType
-from .defaults import get_voro, get_kkr, get_kkrimp
+from .defaults import get_voro, get_kkr, get_kkrimp, get_kkrpara_defaults
 
 STRUCTURE_OR_FILE = OverridableOption(
     '-s',
@@ -46,6 +46,8 @@ PARAMETERS = OverridableOption(
     '-p',
     '--parameters',
     type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    default=get_kkrpara_defaults,
+    show_default=True,
     help='Dict with calculation parameters which will be given to the calculation or workchain.')
 
 KPOINTS = OverridableOption(
@@ -58,6 +60,7 @@ POTENTIAL_OVERWRITE = OverridableOption(
                                   '--potential-overwrite',
                                   type=types.DataParamType(sub_classes=('aiida.data:singlefile',)),
                                   help='Use a node that specifies the potential which is used instead of the voronoi output potential')
+
 IMPURITY_INFO = OverridableOption(
                                   '--impurity-info',
                                   type=types.DataParamType(sub_classes=('aiida.data:dict',)),

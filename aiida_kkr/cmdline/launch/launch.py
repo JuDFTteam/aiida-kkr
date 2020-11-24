@@ -22,7 +22,7 @@ from ..util import defaults
 
 
 @click.command('voro')
-@options.STRUCTURE_OR_FILE(default=defaults.get_si_bulk_structure, show_default=True)
+@options.STRUCTURE_OR_FILE(default=defaults.get_cu_bulk_structure, show_default=True)
 @options.VORO()
 @options.PARAMETERS()
 @options.PARENT_FOLDER()
@@ -34,10 +34,6 @@ def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite,
     """
     # TODO?: maybe allow for additional metadata to be given.
     process_class = CalculationFactory('kkr.voro')
-    
-    if parameters is None:
-        params = kkrparams(params_type='voronoi')
-        parameters = Dict(dict=params.get_dict())
 
     inputs = {
         'structure': structure, 
@@ -65,19 +61,19 @@ def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite,
 @options.KKR()
 @options.PARAMETERS()
 @options.PARENT_FOLDER(required=True)
-@options.IMPURTIY_INFO()
+@options.IMPURITY_INFO()
 @options.KPOINTS()
 @options.DAEMON()
-def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon):
+@options.WITH_MPI()
+@options.NUM_MPIPROCS_PER_MACHINE()
+@options.MAX_WALLCLOCK_SECONDS()
+@options.MAX_NUM_MACHINES()
+def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon, with_mpi, num_mpiprocs_per_machine, max_wallclock_seconds, max_num_machines):
     """
     Launch an kkr calcjob on given input
     """
     # TODO?: maybe allow for additional metadata to be given.
     process_class = CalculationFactory('kkr.kkr')
-    
-    if parameters is None:
-        params = kkrparams(params_type='voronoi')
-        parameters = Dict(dict=params.get_dict())
 
     inputs = {
         'code': kkr,
@@ -86,11 +82,11 @@ def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon):
         'impurity_info': impurity_info,
         'metadata': {
             'options': {
-                'withmpi': False,
-                'max_wallclock_seconds': 6000,
+                'withmpi': with_mpi,
+                'max_wallclock_seconds': max_wallclock_seconds,
                 'resources': {
-                    'num_machines': 1,
-                    'num_mpiprocs_per_machine': 1,
+                    'num_machines': max_num_machines,
+                    'num_mpiprocs_per_machine': num_mpiprocs_per_machine,
                 }
             }
         }
@@ -106,31 +102,30 @@ def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon):
 @options.PARAMETERS()
 @options.PARENT_FOLDER(required=True)
 @options.IMPURITY_INFO()
-@options.KPOINTS()
 @options.DAEMON()
-def launch_kkrimp(kkrimp, parameters, parent_folder, impurity_info, kpoints, daemon):
+@options.WITH_MPI()
+@options.NUM_MPIPROCS_PER_MACHINE()
+@options.MAX_WALLCLOCK_SECONDS()
+@options.MAX_NUM_MACHINES()
+def launch_kkrimp(kkrimp, parameters, parent_folder, impurity_info, daemon, with_mpi, num_mpiprocs_per_machine, max_wallclock_seconds, max_num_machines):
     """
-    Launch an kkr calcjob on given input
+    Launch an kkrimp calcjob on given input
     """
     # TODO?: maybe allow for additional metadata to be given.
-    process_class = CalculationFactory('kkr.kkr')
-    
-    if parameters is None:
-        params = kkrparams(params_type='voronoi')
-        parameters = Dict(dict=params.get_dict())
+    process_class = CalculationFactory('kkr.kkrimp')
 
     inputs = {
-        'code': kkr,
+        'code': kkrimp,
         'parameters': parameters, 
         'parent_folder': parent_folder, 
         'impurity_info': impurity_info,
         'metadata': {
             'options': {
-                'withmpi': False,
-                'max_wallclock_seconds': 6000,
+                'withmpi': with_mpi,
+                'max_wallclock_seconds': max_wallclock_seconds,
                 'resources': {
-                    'num_machines': 1,
-                    'num_mpiprocs_per_machine': 1,
+                    'num_machines': max_num_machines,
+                    'num_mpiprocs_per_machine': num_mpiprocs_per_machine,
                 }
             }
         }

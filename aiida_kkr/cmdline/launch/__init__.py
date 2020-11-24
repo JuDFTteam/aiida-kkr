@@ -5,7 +5,7 @@ Module with CLI commands for calcjob types of aiida-kkr.
 import click
 from .launch import launch_voro
 from .launch import launch_kkr
-from .launch import launch_kkr_imp
+from .launch import launch_kkrimp
 #from .launch import launch_dos
 #from .launch import launch_eos
 #from .launch import launch_gf_writeout
@@ -26,7 +26,7 @@ def cmd_launch():
 # and get the full bash completion working
 cmd_launch.add_command(launch_voro)
 cmd_launch.add_command(launch_kkr)
-cmd_launch.add_command(launch_kkr_imp)
+cmd_launch.add_command(launch_kkrimp)
 #cmd_launch.add_command(launch_dos)
 #cmd_launch.add_command(launch_eos)
 #cmd_launch.add_command(launch_gf_writeout)
