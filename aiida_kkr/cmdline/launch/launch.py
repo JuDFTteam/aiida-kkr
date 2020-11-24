@@ -17,7 +17,7 @@ from ..util import defaults
 
 # TODO: command for kkrimporter
 # not sure if this should be a launch command
-# TODO: commands for workchains: kkr_scf, vora_start, dos, eos, gf_writeout, kkr_imp, kkr_imp_dos, kkr_imp_sub
+# TODO: commands for workchains: voro_start, eos, gf_writeout, kkr_imp, kkr_imp_dos, kkr_imp_sub
 # Check_para_convergence, check_magnetic_state. base_restart_calc?
 
 
@@ -30,7 +30,7 @@ from ..util import defaults
 @options.DAEMON()
 def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite, daemon):
     """
-    Launch an voro calcjob on given input
+    Launch an Voronoi calcjob on given input
     """
     # TODO?: maybe allow for additional metadata to be given.
     process_class = CalculationFactory('kkr.voro')
@@ -70,7 +70,7 @@ def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite,
 @options.MAX_NUM_MACHINES()
 def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon, with_mpi, num_mpiprocs_per_machine, max_wallclock_seconds, max_num_machines):
     """
-    Launch an kkr calcjob on given input
+    Launch an KKRhost calcjob on given input
     """
     # TODO?: maybe allow for additional metadata to be given.
     process_class = CalculationFactory('kkr.kkr')
@@ -109,7 +109,7 @@ def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon, w
 @options.MAX_NUM_MACHINES()
 def launch_kkrimp(kkrimp, parameters, parent_folder, impurity_info, daemon, with_mpi, num_mpiprocs_per_machine, max_wallclock_seconds, max_num_machines):
     """
-    Launch an kkrimp calcjob on given input
+    Launch an KKRimp calcjob on given input
     """
     # TODO?: maybe allow for additional metadata to be given.
     process_class = CalculationFactory('kkr.kkrimp')
@@ -136,7 +136,32 @@ def launch_kkrimp(kkrimp, parameters, parent_folder, impurity_info, daemon, with
     launch_process(builder, daemon)
 
 
-@click.command('kkrscf')
+@click.command('dos')
+@options.KKR()
+@options.WF_PARAMETERS()
+@options.OPTION_NODE()
+@options.PARENT_FOLDER()
+@options.DAEMON()
+def launch_dos(kkr, wf_parameters, option_node, parent_folder, daemon):
+    """
+    Launch an KKRhost density of states workflow
+    """
+    # TODO?: maybe allow for additional metadata to be given.
+    process_class = WorkflowFactory('kkr.dos')
+
+    inputs = {
+        'kkr': kkr,
+        'remote_data': parent_folder, 
+        'options': option_node,
+        'wf_parameters': wf_parameters,
+    }
+    inputs = clean_nones(inputs)
+    builder = process_class.get_builder()
+    builder.update(inputs)
+    launch_process(builder, daemon)
+
+
+@click.command('scf')
 @options.KKR()
 @options.VORO()
 @options.STRUCTURE_OR_FILE(default=defaults.get_cu_bulk_structure, show_default=True)
@@ -147,9 +172,9 @@ def launch_kkrimp(kkrimp, parameters, parent_folder, impurity_info, daemon, with
 @options.WF_PARAMETERS()
 @options.POTENTIAL_OVERWRITE()
 @options.NOCO_ANGLES()
-def launch_kkr_scf(kkr, voro, structure, parameters, parent_folder, daemon, option_node, wf_parameters, potential_overwrite, noco_angles):
+def launch_scf(kkr, voro, structure, parameters, parent_folder, daemon, option_node, wf_parameters, potential_overwrite, noco_angles):
     """
-    Launch an kkr calcjob on given input
+    Launch an KKRhost self-consistency workflow
     """
     # TODO?: maybe allow for additional metadata to be given.
     process_class = WorkflowFactory('kkr.scf')
@@ -169,3 +194,43 @@ def launch_kkr_scf(kkr, voro, structure, parameters, parent_folder, daemon, opti
     builder = process_class.get_builder()
     builder.update(inputs)
     launch_process(builder, daemon)
+
+
+'''
+# NOT WORKING YET:
+@click.command('kkrimpscf')
+@options.KKR()
+@options.VORO()
+@options.KKRIMP()
+@options.IMPURITY_INFO()
+@options.PARENT_FOLDER()
+@options.PARENT_FOLDER()
+@options.OPTION_NODE()
+@options.DAEMON()
+@options.PARAMETERS()
+@options.WF_PARAMETERS()
+@options.NOCO_ANGLES()
+def launch_kkrimp_scf(kkr, voro, kkr_imp, parameters, parent_folder, daemon, option_node, wf_parameters, potential_overwrite, noco_angles):
+    """
+    Launch an kkr calcjob on given input
+    """
+    # TODO?: maybe allow for additional metadata to be given.
+    process_class = WorkflowFactory('kkr.imp')
+
+    inputs = {
+        'kkr': kkr,
+        'kkrimp': kkr_imp,
+        'voronoi': voro,
+        'structure': structure,
+        'calc_parameters': parameters, 
+        'remote_data': parent_folder, 
+        'options': option_node,
+        'wf_parameters': wf_parameters,
+        'startpot_overwrite': potential_overwrite,
+        'initial_noco_angles': noco_angles,
+    }
+    inputs = clean_nones(inputs)
+    builder = process_class.get_builder()
+    builder.update(inputs)
+    launch_process(builder, daemon)
+'''

@@ -6,29 +6,21 @@ import click
 from aiida.cmdline.utils import decorators
 from aiida.cmdline.params import arguments
 
-@click.command('plot')
-@arguments.NODES('nodes')
+
+
+@click.command(name='plot',
+)
 @click.option('-f', 'filename', type=click.File('r'), default=None)
-@click.option('--show/--no-show', default=False, show_default=True, help='')
-@click.option('--only/--no-only', default=False, show_default=True, help='')
-@click.option('--silent/--no-silent', default=False, show_default=True, help='print information about input node including inputs and outputs.')
-@click.option('--strucplot/--no-strucplot', default=False, show_default=True, help='plot structure using ase’s view function')
-@click.option('--interpol/--no-interpol', default=True, show_default=True, help='use interpolated data for DOS plots')
-@click.option('--all_atoms/--no-all_atoms', default=False, show_default=True, help='plot all atoms in DOS plots (default: False, i.e. plot total DOS only)')
-@click.option('--l_channels/--no-l_channels', default=True, show_default=True, help='plot l-channels in addition to total DOS')
-@click.option('--sum_spins/--no-sum_spins', default=False, show_default=True, help='sum up both spin channels or plot both?')
-@click.option('--logscale/--no-logscale', default=True, show_default=True, help='plot rms and charge neutrality curves on a log-scale')
-@click.option('--switch_xy/--no-switch_xy', default=False, show_default=True, help='')
-@click.option('--iatom', multiple=True, default=[], show_default=True, help='list of atom indices which are supposed to be plotted')
-def cmd_plot(nodes, filename, show, only, silent, strucplot, interpol, all_atoms, l_channels, sum_spins, logscale, switch_xy, iatom):
+@click.option('-o', '--option', type=str, default=None, multiple=True, help="Option in that is passed as key=value pair to plot_kkr function. Multiple options are allowed. Should be given like this: -o marker=x -o lw=2. If TEXT does not contain '=', the option is ignored.")
+@arguments.NODES('nodes')
+#@click.pass_context
+def cmd_plot(nodes, option, filename):
     """
-    Invoke the plot_kkr command on given nodes and kwargs
-
-    Parsing additional keyword arguments onto the plotting function is not supported, for example,
-    to change the markers used in a DOS plot to crosses via `marker='x'`
+    Invoke the plot_kkr command on given nodes
     """
 
-    # TODO: make iatom input different from multiple
+    # TODO add kwargs input or add some options
+    # TODO: make iatom etc selectors
     from aiida_kkr.tools.plot_kkr import plot_kkr
 
     nodes = list(nodes)
@@ -38,16 +30,68 @@ def cmd_plot(nodes, filename, show, only, silent, strucplot, interpol, all_atoms
         filename.close()
     nodes = nodes + nodesf
 
-    if iatom is None:
-        iatom = []
-    kwargs = {'silent': silent, 
-              'strucplot': strucplot, 
-              'interpol' : interpol,
-              'all_atoms': all_atoms,
-              'l_channels': l_channels,
-              'sum_spins': sum_spins, 
-              'logscale': logscale, 
-              'switch_xy': switch_xy, 
-              'iatom': iatom}
+    kwargs = {}
+    for item in option:
+        if '=' not in item:
+           # if we cannot split the string to extract the key, value pair this input is ignored
+           print(f"Warning: could not split option '{item}' because it does not contain a '='.")
+           pass
+        else:
+           key, val = item.split('=')
+           # check if we need to convert the datatype of some argument
+           if key in _mappings_dtype:
+               if _mappings_dtype[key]=='bool':
+                   val = _get_bool(val)
+               elif _mappings_dtype[key]=='float':
+                   val = float(val)
+               elif _mappings_dtype[key]=='list:int':
+                   val = [int(i) for i in val.split()]
+           kwargs[key]= val
+    print(kwargs)
+    plot_kkr(nodes, **kwargs)
 
-    plot_kkr(nodes, noshow=not show, only=only, **kwargs)
+# helper functions
+
+_mappings_dtype = {
+    'nolegend': 'bool',
+    'silent': 'bool',
+    'noshow': 'bool',
+    'show_empty_atoms': 'bool',
+    'filled': 'bool',
+    'nofig': 'bool',
+    'strucplot': 'bool',
+    'logscale': 'bool',
+    'newfig': 'bool',
+    'interpol': 'bool',
+    'all_atoms': 'bool',
+    'l_channels': 'bool',
+    'sum_spins': 'bool',
+    'switch_xy': 'bool',
+    'switch_sign_spin2': 'bool',
+    'dos_only': 'bool',
+
+    'xscale': 'float',
+    'yscale': 'float',
+    'xshift': 'float',
+
+    'label': 'str',
+    'only': 'str', 
+    'ptitle': 'str',
+
+    'iatom': 'list:int',
+    'subplot': 'list:int',
+}
+
+
+
+
+def _get_bool(value):
+    """
+    convert str to bool, i.e. we check if value is a string and then see if we can recognize True in there, otherwise we set it to False
+    """
+    # do nothing if the input is a string
+    if not type(value)==str:
+        return value
+    # make string lowercase and search for 't' in there (this way we allow 'True', '.true.', and 'T')
+    return 't' in value.lower()
+

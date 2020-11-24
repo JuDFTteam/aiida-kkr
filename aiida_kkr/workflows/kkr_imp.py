@@ -114,7 +114,7 @@ class kkr_imp_wc(WorkChain):
         spec.input("voro_params_overwrite", valid_type=Dict, required=False,
                    help="If given, overwrite the some parameters used as input for auxiliary voronoi calculation of starting potential.")
         spec.input("params_kkr_overwrite", valid_type=Dict, required=False,
-                   help="Set some input parameters of the KKR calculation.")
+                   help="Set some input parameters of the KKR calculation for the GF writeout step.")
         spec.input("startpot", valid_type=SinglefileData, required=False,
                    help="Set starting potential (e.g. from preconverged calculation")
 
