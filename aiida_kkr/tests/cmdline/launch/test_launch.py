@@ -43,6 +43,7 @@ def test_launch_kkr_base(run_cli_process_launch_command, fixture_code, generate_
     run_cli_process_launch_command(launch_kkr, options=options, raises=PreSubmitException)
 
 
+'''
 def test_launch_kkrimp_base(run_cli_process_launch_command, fixture_code, generate_remote_data):
     """Test invoking the kkrimp launch command with only required inputs."""
     from aiida_kkr.cmdline.launch import launch_kkrimp
@@ -60,20 +61,4 @@ def test_launch_kkrimp_base(run_cli_process_launch_command, fixture_code, genera
     options = ['--kkrimp', code.uuid, '--parameters', para_node.uuid, '-P', remote.uuid]
     # This will raise, because parent is only a folder.
     run_cli_process_launch_command(launch_kkr, options=options, raises=PreSubmitException)
-
-'''
-def test_launch_fleur_base(run_cli_process_launch_command, fixture_code, create_fleurinp):
-    """Test invoking the fleur launch command with only required inputs."""
-    from aiida_fleur.cmdline.launch import launch_fleur
-
-    code = fixture_code('fleur.fleur').store()
-    fleurinp = create_fleurinp(FEPT_INPXML_FILE).store()
-
-    #Calcjob
-    options = ['--fleur', code.uuid, '-inp', fleurinp.uuid, '--no-launch_base']
-    run_cli_process_launch_command(launch_fleur, options=options)
-
-    #Base_fleur
-    options = ['--fleur', code.uuid, '-inp', fleurinp.uuid]
-    run_cli_process_launch_command(launch_fleur, options=options)
 '''
