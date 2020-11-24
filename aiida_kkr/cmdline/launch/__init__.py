@@ -7,14 +7,11 @@ from .launch import launch_voro
 from .launch import launch_kkr
 from .launch import launch_kkrimp
 #from .launch import launch_dos
-#from .launch import launch_eos
+from .launch import launch_kkr_scf
 #from .launch import launch_gf_writeout
-#from .launch import launch_kkr_imp_dos
 #from .launch import launch_kkr_imp_wc
 #from .launch import launch_kkr_imp_dos
 #from .launch import launch_kkr_imp_sub
-#from .launch import launch_kkr_scf
-#from .launch import launch_vor_start
 
 
 @click.group('launch')
@@ -28,11 +25,8 @@ cmd_launch.add_command(launch_voro)
 cmd_launch.add_command(launch_kkr)
 cmd_launch.add_command(launch_kkrimp)
 #cmd_launch.add_command(launch_dos)
-#cmd_launch.add_command(launch_eos)
+cmd_launch.add_command(launch_kkr_scf)
 #cmd_launch.add_command(launch_gf_writeout)
-#cmd_launch.add_command(launch_kkr_imp_dos)
 #cmd_launch.add_command(launch_kkr_imp_wc)
 #cmd_launch.add_command(launch_kkr_imp_dos)
 #cmd_launch.add_command(launch_kkr_imp_sub)
-#cmd_launch.add_command(launch_kkr_scf)
-#cmd_launch.add_command(launch_vor_start)

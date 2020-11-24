@@ -65,6 +65,7 @@ class KkrCalculation(CalcJob):
     _OUTPUT_2 = 'output.2.txt'
     _OUT_TIMING_000 = 'out_timing.000.txt'
     _NONCO_ANGLES_OUT = 'nonco_angle_out.dat'
+    _NONCO_ANGLES_ALL_ITER = 'nonco_angle_out_all_iter.dat'
 
     # special files (some runs)
     # DOS files
@@ -451,6 +452,7 @@ The Dict node should be of the form
                                   self._INPUT_FILE_NAME,
                                   self._SCOEF,
                                   self._NONCO_ANGLES_OUT,
+                                  self._NONCO_ANGLES_ALL_ITER,
                                   self._OUT_POTENTIAL,
                                   self._OUTPUT_0_INIT,
                                   self._OUTPUT_000,
@@ -461,7 +463,6 @@ The Dict node should be of the form
 
         # 1. dos calculation, add *dos* files if NPOL==0
         retrieve_dos_files = False
-        print('NPOL in parameter input:', parameters.get_dict()['NPOL'])
         if 'NPOL' in  list(parameters.get_dict().keys()):
             if parameters.get_dict()['NPOL'] == 0:
                 retrieve_dos_files = True

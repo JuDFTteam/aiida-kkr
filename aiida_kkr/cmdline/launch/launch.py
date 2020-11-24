@@ -134,3 +134,38 @@ def launch_kkrimp(kkrimp, parameters, parent_folder, impurity_info, daemon, with
     builder = process_class.get_builder()
     builder.update(inputs)
     launch_process(builder, daemon)
+
+
+@click.command('kkrscf')
+@options.KKR()
+@options.VORO()
+@options.STRUCTURE_OR_FILE(default=defaults.get_cu_bulk_structure, show_default=True)
+@options.PARAMETERS()
+@options.PARENT_FOLDER()
+@options.DAEMON()
+@options.OPTION_NODE()
+@options.WF_PARAMETERS()
+@options.POTENTIAL_OVERWRITE()
+@options.NOCO_ANGLES()
+def launch_kkr_scf(kkr, voro, structure, parameters, parent_folder, daemon, option_node, wf_parameters, potential_overwrite, noco_angles):
+    """
+    Launch an kkr calcjob on given input
+    """
+    # TODO?: maybe allow for additional metadata to be given.
+    process_class = WorkflowFactory('kkr.scf')
+
+    inputs = {
+        'kkr': kkr,
+        'voronoi': voro,
+        'structure': structure,
+        'calc_parameters': parameters, 
+        'remote_data': parent_folder, 
+        'options': option_node,
+        'wf_parameters': wf_parameters,
+        'startpot_overwrite': potential_overwrite,
+        'initial_noco_angles': noco_angles,
+    }
+    inputs = clean_nones(inputs)
+    builder = process_class.get_builder()
+    builder.update(inputs)
+    launch_process(builder, daemon)

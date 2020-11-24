@@ -124,3 +124,8 @@ DAEMON = OverridableOption('-d',
                            show_default=True,
                            help='Submit the process to the daemon instead of running it locally.')
 
+NOCO_ANGLES = OverridableOption(
+                                  '--noco-angles',
+                                  type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+                                  help='Dict containing the non-collinear angles for the magnetic moments. See KkrCalculation for details.')
+
