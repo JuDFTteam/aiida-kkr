@@ -54,16 +54,11 @@ KPOINTS = OverridableOption(
     type=types.DataParamType(sub_classes=('aiida.data:array.kpoints',)),
     help='An aiida KpointsData node.')
 
-SETTINGS = OverridableOption('-set',
-                             '--settings',
-                             type=types.DataParamType(sub_classes=('aiida.data:dict',)),
-                             help='Settings node for the calcjob.')
-
 POTENTIAL_OVERWRITE = OverridableOption(
                                   '--potential-overwrite',
                                   type=types.DataParamType(sub_classes=('aiida.data:singlefile',)),
                                   help='Use a node that specifies the potential which is used instead of the voronoi output potential')
-IMPURTIY_INFO = OverridableOption(
+IMPURITY_INFO = OverridableOption(
                                   '--impurity-info',
                                   type=types.DataParamType(sub_classes=('aiida.data:dict',)),
                                   help='Dict containing parameters that specify properties for a following impurity calculation (e.g. setting of impurity cluster in scoef file that is automatically created')

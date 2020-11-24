@@ -9,7 +9,7 @@ import click
 def cmd_data():
     """Commands to create and inspect data nodes."""
 
-
+'''
 @cmd_data.command('list')
 def cmd_list_kkrstructures():
     """
@@ -31,3 +31,4 @@ def cmd_list_kkrstructures():
         obj = result[0]
         s += "{}, pk: {}\n".format(str(obj), obj.pk)
     click.echo(s)
+'''

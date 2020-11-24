@@ -105,7 +105,7 @@ def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon):
 @options.KKRIMP()
 @options.PARAMETERS()
 @options.PARENT_FOLDER(required=True)
-@options.IMPURTIY_INFO()
+@options.IMPURITY_INFO()
 @options.KPOINTS()
 @options.DAEMON()
 def launch_kkrimp(kkrimp, parameters, parent_folder, impurity_info, kpoints, daemon):
