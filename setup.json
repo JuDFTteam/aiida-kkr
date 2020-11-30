@@ -73,7 +73,7 @@
             "kk.decimation = aiida_kkr.workflows._decimation:kkr_decimation_wc"
 	    ],
         "console_scripts": [
-            "kkrstructure = aiida_kkr.cmdline.data_cli:cli"
+            "aiida-kkr = aiida_kkr.cmdline:cmd_root"
             ]
     }
 }

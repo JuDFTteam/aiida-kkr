@@ -24,7 +24,7 @@ class plot_kkr(object):
 
     :param silent: print information about input node including inputs and outputs (default: False)
     :type silent: bool
-    :param strucplot: plot structure using ase’s view function (default: True)
+    :param strucplot: plot structure using ase’s view function (default: False)
     :type strucplot: bool
     :param interpol: use interpolated data for DOS plots (default: True)
     :type interpol: bool
@@ -60,7 +60,14 @@ class plot_kkr(object):
         
         self.sview = None
 
+        groupmode = False
         if type(nodes)==list:
+            if len(nodes)>1:
+                groupmode = True
+            else:
+                nodes = nodes[0]
+
+        if groupmode:
             from matplotlib.pyplot import show
 
             node_groups = self.group_nodes(nodes)
@@ -68,19 +75,17 @@ class plot_kkr(object):
                 print('\n==================================================================')
                 print('Group of nodes: {}\n'.format(groupname))
                 # some settings for groups
-                if 'noshow' in list(kwargs.keys()): noshow = kwargs.pop('noshow') # this is now removed from kwargs
-                noshow = True # always overwrite noshow settings
-                if 'only' in list(kwargs.keys()): only = kwargs.pop('only') # this is now removed from kwargs
+                if 'noshow' in list(kwargs.keys()): _ = kwargs.pop('noshow') # this is now removed from kwargs
+                if 'only' in list(kwargs.keys()): _ = kwargs.pop('only') # this is now removed from kwargs
 
                 # now plot groups one after the other
-                self.plot_group(groupname, node_groups, noshow=noshow, nofig=True, **kwargs)
+                self.plot_group(groupname, node_groups, noshow=True, nofig=True, **kwargs)
 
             # finally show all plots
             show()
         elif nodes is not None:
             self.plot_kkr_single_node(nodes, **kwargs)
 
-            print('view?', self.classify_and_plot_node(nodes, return_name_only=True)=='struc')
             if self.classify_and_plot_node(nodes, return_name_only=True)=='struc':
                 from IPython.display import display
                 display(self.sview)
@@ -110,9 +115,10 @@ class plot_kkr(object):
         # open a single new figure for each plot here
         if groupname in ['kkr', 'scf']: figure()
         for node in nodeslist:
+            node = self.get_node(node)
             print(groupname)
             # open new figure for each plot in these groups
-            if groupname in ['eos', 'dos', 'startpot', 'voro']: figure()
+            if groupname in ['eos', 'dos', 'startpot']: figure()
             if groupname in ['kkr', 'scf']:
                 subplot(2,1,1)
                 self.plot_kkr_single_node(node, only='rms', label='pk= {}'.format(node.pk), **kwargs)
@@ -156,6 +162,8 @@ class plot_kkr(object):
         from pprint import pprint
         from aiida.plugins import DataFactory
         from aiida.orm import CalculationNode
+
+        node = self.get_node(node)
 
         # basic aiida nodes
         if isinstance(node, DataFactory('structure')):
@@ -303,6 +311,11 @@ class plot_kkr(object):
         ase_atoms = structure.get_ase()
         if 'silent' in kwargs:
             silent = kwargs.pop('silent')
+        # remove things that are not understood bt ase's view
+        print(kwargs)
+        for key in ['nofig', 'interpol', 'all_atoms', 'l_channels',
+                    'sum_spins', 'logscale', 'switch_xy', 'iatom', 'label']:
+            if key in kwargs: _ = kwargs.pop(key)
         print("plotting structure using ase's `view` with kwargs={}".format(kwargs))
         self.sview = view(ase_atoms, **kwargs)
 
@@ -691,9 +704,9 @@ class plot_kkr(object):
                             except:
                                 xlabel('id_kpt')
                         else:
-                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qvec.dat', 'output.0.txt')), shell=True)
+                            ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qvec.dat', 'output.0.txt')), shell=True, text=True)
                             ef = float(ef.split('=')[2].split()[0])
-                            FSqdos2D(f, logscale=logscale, ef=ef, **kwargs)
+                            FSqdos2D(f.name.replace('qvec.dat',''), logscale=logscale, ef=ef, **kwargs)
 
             # dos only if qdos was not plotted already
             if has_dos and not has_qdos:
@@ -907,6 +920,7 @@ class plot_kkr(object):
     def plot_kkr_dos(self, node, **kwargs):
         """plot outputs of a kkr_dos_wc workflow"""
         from aiida_kkr.calculations.voro import VoronoiCalculation
+        from matplotlib.pylab import title
 
         # extract all options that should not be passed on to plot function
         interpol, all_atoms, l_channels, sum_spins, switch_xy = True, False, True, False, False
@@ -930,7 +944,12 @@ class plot_kkr(object):
             struc, voro_parent = VoronoiCalculation.find_parent_structure(node.inputs.remote_data)
 
             # do dos plot after data was extracted
+            if 'ptitle' in list(kwargs.keys()):
+                ptitle = kwargs.pop('ptitle')
+            else:
+                ptitle = 'pk= {}'.format(node.pk)
             self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
+            title(ptitle)
 
 
     def plot_kkr_startpot(self, node, **kwargs):
@@ -1139,7 +1158,12 @@ class plot_kkr(object):
 
         if d is not None:
             # do dos plot after data was extracted
+            if 'ptitle' in list(kwargs.keys()):
+                ptitle = kwargs.pop('ptitle')
+            else:
+                ptitle = 'pk= {}'.format(node.pk)
             self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
+            title(ptitle)
 
         return did_plot
 
