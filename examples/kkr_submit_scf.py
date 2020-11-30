@@ -55,9 +55,9 @@ def main():
     Main function to run an SCF run using the kkrhost code
     """
     # Define the KKR code via the code string
-    kkr_code = orm.load_code("jukkr-host-intel@moggie")
+    kkr_code = orm.load_code("jukkr-host@dummy")
     # Define the Voronoi code via the code string
-    voronoi_code = orm.load_code("jukkr-voronoi-intel@moggie")
+    voronoi_code = orm.load_code("jukkr-voronoi@dummy")
 
     # Generate the fcc Cu structure that will be used for the calculation
     fcc_structure = create_fcc_cu(a_lat=orm.Float(3.6142))
@@ -82,11 +82,6 @@ def main():
         'max_wallclock_seconds': 18000,
         # Whether to run in parallel
         'withmpi': True,
-        # Name of the slot used (execute [2 cores], large [16 cores],
-        # hpc [16 cores], fat [16 cores high memory], hpcc [44 cores],
-        # hpcb [60 cores], hpcfat [16 cores high memory],
-        # gpu [6 cores + graphic card])
-        'custom_scheduler_commands': '#$ -l slot_type=hpc'
     }
 
     # Setting a label for the calculation
