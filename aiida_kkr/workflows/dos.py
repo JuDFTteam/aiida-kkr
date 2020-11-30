@@ -44,18 +44,23 @@ class kkr_dos_wc(WorkChain):
     _workflowversion = __version__
     _wf_label = 'kkr_dos_wc'
     _wf_description = 'Workflow for a KKR dos calculation starting either from a structure with automatic voronoi calculation or a valid RemoteData node of a previous calculation.'
-    _wf_default = {'dos_params' : {"nepts": 61,              # DOS params: number of points in contour
-                                   "tempr": 200, # K         # DOS params: temperature
-                                   "emin": -1, # Ry          # DOS params: start of energy contour
-                                   "emax": 1,  # Ry          # DOS params: end of energy contour
-                                   "kmesh": [30, 30, 30]}    # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
-                   }
-    _options_default = {'queue_name' : '',                        # Queue name to submit jobs too
-                        'resources': {"num_machines": 1},         # resources to allowcate for the job
-                        'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)
-                        'withmpi' : True,                         # execute KKR with mpi or without
-                        'custom_scheduler_commands' : '',         # some additional scheduler commands
-                        }
+    _wf_default = {
+        'dos_params': {
+            "nepts": 61,              # DOS params: number of points in contour
+            "tempr": 200,  # K        # DOS params: temperature
+            "emin": -1,    # Ry       # DOS params: start of energy contour
+            "emax": 1,     # Ry       # DOS params: end of energy contour
+            "kmesh": [30, 30, 30]}    # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
+    }
+    _options_default = {
+        'queue_name': '',                        # Queue name to submit jobs too
+        # resources to allowcate for the job
+        'resources': {"num_machines": 1},
+        # walltime after which the job gets killed (gets parsed to KKR)
+        'max_wallclock_seconds': 60*60,
+        'withmpi': True,                         # execute KKR with mpi or without
+        'custom_scheduler_commands': '',         # some additional scheduler commands
+    }
 
     # intended to guide user interactively in setting up a valid wf_params node
     @classmethod
@@ -64,7 +69,8 @@ class kkr_dos_wc(WorkChain):
         Print and return _wf_defaults dictionary. Can be used to easily create set of wf_parameters.
         returns _wf_defaults
         """
-        if not silent: print('Version of workflow: {}'.format(self._workflowversion))
+        if not silent:
+            print('Version of workflow: {}'.format(self._workflowversion))
         return self._wf_default
 
     @classmethod
@@ -103,13 +109,18 @@ class kkr_dos_wc(WorkChain):
         )
 
         # definition of exit code in case something goes wrong in this workflow
-        spec.exit_code(161, 'ERROR_NO_INPUT_REMOTE_DATA', 'No remote_data was provided as Input')
-        spec.exit_code(162, 'ERROR_KKRCODE_NOT_CORRECT', 'The code you provided for kkr does not use the plugin kkr.kkr')
-        spec.exit_code(163, 'ERROR_CALC_PARAMETERS_INVALID', 'calc_parameters given are not consistent! Hint: did you give an unknown keyword?')
-        spec.exit_code(164, 'ERROR_CALC_PARAMETERS_INCOMPLETE', 'calc_parameters not complete')
-        spec.exit_code(165, 'ERROR_DOS_PARAMS_INVALID', 'dos_params given in wf_params are not valid')
-        spec.exit_code(166, 'ERROR_DOS_CALC_FAILED', 'KKR dos calculation failed')
-
+        spec.exit_code(161, 'ERROR_NO_INPUT_REMOTE_DATA',
+                       'No remote_data was provided as Input')
+        spec.exit_code(162, 'ERROR_KKRCODE_NOT_CORRECT',
+                       'The code you provided for kkr does not use the plugin kkr.kkr')
+        spec.exit_code(163, 'ERROR_CALC_PARAMETERS_INVALID',
+                       'calc_parameters given are not consistent! Hint: did you give an unknown keyword?')
+        spec.exit_code(164, 'ERROR_CALC_PARAMETERS_INCOMPLETE',
+                       'calc_parameters not complete')
+        spec.exit_code(165, 'ERROR_DOS_PARAMS_INVALID',
+                       'dos_params given in wf_params are not valid')
+        spec.exit_code(166, 'ERROR_DOS_CALC_FAILED',
+                       'KKR dos calculation failed')
 
     def start(self):
         """
@@ -124,7 +135,7 @@ class kkr_dos_wc(WorkChain):
         wf_dict = self.inputs.wf_parameters.get_dict()
         options_dict = self.inputs.options.get_dict()
 
-        #TODO: check for completeness
+        # TODO: check for completeness
         if wf_dict == {}:
             wf_dict = self._wf_default
             self.report('INFO: using default wf parameter')
@@ -133,16 +144,23 @@ class kkr_dos_wc(WorkChain):
             self.report('INFO: using default options')
 
         # set values, or defaults
-        self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
-        self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
-        self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
-        self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
-        self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
+        self.ctx.withmpi = options_dict.get(
+            'withmpi', self._options_default['withmpi'])
+        self.ctx.resources = options_dict.get(
+            'resources', self._options_default['resources'])
+        self.ctx.max_wallclock_seconds = options_dict.get(
+            'max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
+        self.ctx.queue = options_dict.get(
+            'queue_name', self._options_default['queue_name'])
+        self.ctx.custom_scheduler_commands = options_dict.get(
+            'custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
 
-        self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
-        self.ctx.dos_kkrparams = None # is set in set_params_dos
+        self.ctx.dos_params_dict = wf_dict.get(
+            'dos_params', self._wf_default['dos_params'])
+        self.ctx.dos_kkrparams = None  # is set in set_params_dos
 
-        self.ctx.description_wf = self.inputs.get('description', self._wf_description)
+        self.ctx.description_wf = self.inputs.get(
+            'description', self._wf_description)
         self.ctx.label_wf = self.inputs.get('label', self._wf_label)
 
         self.report('INFO: use the following parameter:\n'
@@ -163,7 +181,6 @@ class kkr_dos_wc(WorkChain):
         self.ctx.errors = []
         self.ctx.formula = ''
 
-
     def validate_input(self):
         """
         # validate input and find out which path (1, or 2) to take
@@ -182,32 +199,36 @@ class kkr_dos_wc(WorkChain):
         # check if input_remote has single KkrCalculation parent
         parents = input_remote.get_incoming(node_class=CalcJobNode)
         nparents = len(parents.all_link_labels())
-        if nparents!=1:
+        if nparents != 1:
             # extract parent workflow and get uuid of last calc from output node
             parent_workflow = input_remote.inputs.last_RemoteData
             if not isinstance(parent_workflow, WorkChainNode):
-                raise InputValidationError("Input remote_data node neither output of a KKR/voronoi calculation nor of kkr_scf_wc workflow")
+                raise InputValidationError(
+                    "Input remote_data node neither output of a KKR/voronoi calculation nor of kkr_scf_wc workflow")
             parent_workflow_out = parent_workflow.outputs.output_kkr_scf_wc_ParameterResults
-            uuid_last_calc = parent_workflow_out.get_dict().get('last_calc_nodeinfo').get('uuid')
+            uuid_last_calc = parent_workflow_out.get_dict().get(
+                'last_calc_nodeinfo').get('uuid')
             last_calc = load_node(uuid_last_calc)
             if not isinstance(last_calc, KkrCalculation) and not isinstance(last_calc, VoronoiCalculation):
-                raise InputValidationError("Extracted last_calc node not of type KkrCalculation: check remote_data input node")
+                raise InputValidationError(
+                    "Extracted last_calc node not of type KkrCalculation: check remote_data input node")
             # overwrite remote_data node with extracted remote folder
             output_remote = last_calc.outputs.remote_folder
             self.inputs.remote_data = output_remote
 
         if 'kkr' in inputs:
             try:
-                test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
+                test_and_get_codenode(
+                    inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
                 input_ok = False
                 return self.exit_codes.ERROR_KKRCODE_NOT_CORRECT
 
         # set self.ctx.input_params_KKR
-        self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
+        self.ctx.input_params_KKR = get_parent_paranode(
+            self.inputs.remote_data)
 
         return input_ok
-
 
     def set_params_dos(self):
         """
@@ -234,16 +255,18 @@ class kkr_dos_wc(WorkChain):
             kkrdefaults_updated = []
             for key_default, val_default in list(kkrdefaults.items()):
                 if key_default in missing_list:
-                    para_check.set_value(key_default, kkrdefaults.get(key_default), silent=True)
+                    para_check.set_value(
+                        key_default, kkrdefaults.get(key_default), silent=True)
                     kkrdefaults_updated.append(key_default)
                     missing_list.remove(key_default)
-            if len(missing_list)>0:
-                self.report('ERROR: calc_parameters misses keys: {}'.format(missing_list))
+            if len(missing_list) > 0:
+                self.report(
+                    'ERROR: calc_parameters misses keys: {}'.format(missing_list))
                 return self.exit_codes.ERROR_CALC_PARAMETERS_INCOMPLETE
-            else:
-                self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
-                label = 'add_defaults_'
-                descr = 'added missing default keys, '
+            self.report('updated KKR parameter node with default values: {}'.format(
+                kkrdefaults_updated))
+            label = 'add_defaults_'
+            descr = 'added missing default keys, '
 
         # overwrite energy contour to DOS contour no matter what is in input parameter node.
         # Contour parameter given as input to workflow.
@@ -254,18 +277,18 @@ class kkr_dos_wc(WorkChain):
         econt_new['NPT3'] = 0
         try:
             for key, val in econt_new.items():
-                if key=='kmesh':
+                if key == 'kmesh':
                     key = 'BZDIVIDE'
-                elif key=='nepts':
+                elif key == 'nepts':
                     key = 'NPT2'
                     # add IEMXD which has to be big enough
                     print('setting IEMXD', val)
                     para_check.set_value('IEMXD', val, silent=True)
-                elif key=='emin':
+                elif key == 'emin':
                     key = 'EMIN'
-                elif key=='emax':
+                elif key == 'emax':
                     key = 'EMAX'
-                elif key=='tempr':
+                elif key == 'tempr':
                     key = 'TEMPR'
                 # set params
                 para_check.set_value(key, val, silent=True)
@@ -274,11 +297,11 @@ class kkr_dos_wc(WorkChain):
 
         updatenode = Dict(dict=para_check.get_dict())
         updatenode.label = label+'KKRparam_DOS'
-        updatenode.description = descr+'KKR parameter node extracted from parent parameters and wf_parameter input node.'
+        updatenode.description = descr + \
+            'KKR parameter node extracted from parent parameters and wf_parameter input node.'
 
         paranode_dos = update_params_wf(self.ctx.input_params_KKR, updatenode)
         self.ctx.dos_kkrparams = paranode_dos
-
 
     def get_dos(self):
         """
@@ -287,16 +310,18 @@ class kkr_dos_wc(WorkChain):
 
         label = 'KKR DOS calc.'
         dosdict = self.ctx.dos_params_dict
-        description = 'dos calc: emin= {}, emax= {}, nepts= {}, tempr={}, kmesh={}'.format(dosdict['emin'], dosdict['emax'], dosdict['nepts'], dosdict['tempr'], dosdict['kmesh'])
+        description = 'dos calc: emin= {}, emax= {}, nepts= {}, tempr={}, kmesh={}'.format(
+            dosdict['emin'], dosdict['emax'], dosdict['nepts'], dosdict['tempr'], dosdict['kmesh'])
         code = self.inputs.kkr
         remote = self.inputs.remote_data
         params = self.ctx.dos_kkrparams
         options = {"max_wallclock_seconds": self.ctx.max_wallclock_seconds,
                    "resources": self.ctx.resources,
-                   "queue_name" : self.ctx.queue}#,
+                   "queue_name": self.ctx.queue}  # ,
         if self.ctx.custom_scheduler_commands:
             options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
-        inputs = get_inputs_kkr(code, remote, options, label, description, parameters=params, serial=(not self.ctx.withmpi))
+        inputs = get_inputs_kkr(code, remote, options, label, description,
+                                parameters=params, serial=(not self.ctx.withmpi))
 
         # run the DOS calculation
         self.report('INFO: doing calculation')
@@ -307,14 +332,14 @@ class kkr_dos_wc(WorkChain):
 
         return ToContext(dosrun=dosrun)
 
-
     def return_results(self):
         """
         Collect results, parse DOS output and link output nodes to workflow node
         """
 
         # check wether or not calculation was taked from cached node
-        caching_info = "INFO: cache_source of dos calc node: {}".format(self.ctx.dosrun.get_cache_source())
+        caching_info = "INFO: cache_source of dos calc node: {}".format(
+            self.ctx.dosrun.get_cache_source())
         print(caching_info)
         self.report(caching_info)
 
@@ -322,7 +347,7 @@ class kkr_dos_wc(WorkChain):
         if not self.ctx.dosrun.is_finished_ok:
             self.ctx.successful = False
             error = ('ERROR: DOS calculation failed somehow it is '
-                    'in state {}'.format(self.ctx.dosrun.process_state))
+                     'in state {}'.format(self.ctx.dosrun.process_state))
             print(error)
             from pprint import pprint
             pprint(self.ctx.dosrun.attributes)
@@ -351,7 +376,7 @@ class kkr_dos_wc(WorkChain):
             self.ctx.errors.append(error)
         outputnode_dict['successful'] = self.ctx.successful
         outputnode_dict['list_of_errors'] = self.ctx.errors
-        
+
         # create output node with data-provenance
         outputnode = Dict(dict=outputnode_dict)
         outputnode.label = 'kkr_scf_wc_results'
@@ -359,7 +384,8 @@ class kkr_dos_wc(WorkChain):
 
         self.report("INFO: create dos results nodes")
         try:
-            self.report("INFO: create dos results nodes. dos calc retrieved node={}".format(self.ctx.dosrun.outputs.retrieved))
+            self.report("INFO: create dos results nodes. dos calc retrieved node={}".format(
+                self.ctx.dosrun.outputs.retrieved))
             has_dosrun = True
         except AttributeError as e:
             self.report("ERROR: no dos calc retrieved node found")
@@ -378,8 +404,9 @@ class kkr_dos_wc(WorkChain):
             outdict['dos_data'] = dosXyDatas['dos_data']
             outdict['dos_data_interpol'] = dosXyDatas['dos_data_interpol']
         # create data provenance of results node
-        link_nodes = outdict.copy() # link also dos output nodes
-        if has_dosrun: link_nodes['doscalc_remote'] =self.ctx.dosrun.outputs.remote_folder
+        link_nodes = outdict.copy()  # link also dos output nodes
+        if has_dosrun:
+            link_nodes['doscalc_remote'] = self.ctx.dosrun.outputs.remote_folder
         outdict['results_wf'] = create_out_dict_node(outputnode, **link_nodes)
 
         # create links to output nodes
@@ -387,6 +414,7 @@ class kkr_dos_wc(WorkChain):
             self.out(link_name, node)
 
         self.report("INFO: done with DOS workflow!\n")
+
 
 @calcfunction
 def parse_dosfiles(dos_retrieved):
@@ -396,26 +424,25 @@ def parse_dosfiles(dos_retrieved):
     from masci_tools.io.common_functions import interpolate_dos
     from masci_tools.io.common_functions import get_Ry2eV
 
-
     eVscale = get_Ry2eV()
 
     with dos_retrieved.open('complex.dos') as dosfolder:
         ef, dos, dos_int = interpolate_dos(dosfolder, return_original=True)
 
     # convert to eV units
-    dos[:,:,0] = (dos[:,:,0]-ef)*eVscale
-    dos[:,:,1:] = dos[:,:,1:]/eVscale
-    dos_int[:,:,0] = (dos_int[:,:,0]-ef)*eVscale
-    dos_int[:,:,1:] = dos_int[:,:,1:]/eVscale
+    dos[:, :, 0] = (dos[:, :, 0]-ef)*eVscale
+    dos[:, :, 1:] = dos[:, :, 1:]/eVscale
+    dos_int[:, :, 0] = (dos_int[:, :, 0]-ef)*eVscale
+    dos_int[:, :, 1:] = dos_int[:, :, 1:]/eVscale
 
     # create output nodes
     dosnode = XyData()
-    dosnode.set_x(dos[:,:,0], 'E-EF', 'eV')
+    dosnode.set_x(dos[:, :, 0], 'E-EF', 'eV')
     name = ['tot', 's', 'p', 'd', 'f', 'g']
-    name = name[:len(dos[0,0,1:])-1]+['ns']
-    ylists = [[],[],[]]
+    name = name[:len(dos[0, 0, 1:])-1]+['ns']
+    ylists = [[], [], []]
     for l in range(len(name)):
-        ylists[0].append(dos[:,:,1+l])
+        ylists[0].append(dos[:, :, 1+l])
         ylists[1].append('dos '+name[l])
         ylists[2].append('states/eV')
     dosnode.set_y(ylists[0], ylists[1], ylists[2])
@@ -424,14 +451,14 @@ def parse_dosfiles(dos_retrieved):
 
     # now create XyData node for interpolated data
     dosnode2 = XyData()
-    dosnode2.set_x(dos_int[:,:,0], 'E-EF', 'eV')
-    ylists = [[],[],[]]
+    dosnode2.set_x(dos_int[:, :, 0], 'E-EF', 'eV')
+    ylists = [[], [], []]
     for l in range(len(name)):
-        ylists[0].append(dos_int[:,:,1+l])
+        ylists[0].append(dos_int[:, :, 1+l])
         ylists[1].append('interpolated dos '+name[l])
         ylists[2].append('states/eV')
     dosnode2.set_y(ylists[0], ylists[1], ylists[2])
     dosnode2.label = 'dos_interpol_data'
     dosnode2.description = 'Array data containing interpolated DOS (i.e. dos at real axis). 3D array with (atoms, energy point, l-channel) dimensions.'
 
-    return {'dos_data': dosnode,'dos_data_interpol':  dosnode2}
+    return {'dos_data': dosnode, 'dos_data_interpol':  dosnode2}

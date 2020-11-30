@@ -1,4 +1,4 @@
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 from __future__ import absolute_import
 from aiida.parsers.parser import Parser
@@ -26,13 +26,15 @@ class VoronoiParser(Parser):
         Initialize the instance of Voronoi_Parser
         """
         # these files should be present after success of voronoi
-        self._default_files = {'outfile': VoronoiCalculation._OUTPUT_FILE_NAME,
-                               'atominfo': VoronoiCalculation._ATOMINFO,
-                               'radii': VoronoiCalculation._RADII}
+        self._default_files = {
+            'outfile': VoronoiCalculation._OUTPUT_FILE_NAME,
+            'atominfo': VoronoiCalculation._ATOMINFO,
+            'radii': VoronoiCalculation._RADII
+        }
 
         self._ParserVersion = __version__
 
-        #reuse init of base class
+        # reuse init of base class
         super(VoronoiParser, self).__init__(calc)
 
     # pylint: disable=protected-access
@@ -59,10 +61,13 @@ class VoronoiParser(Parser):
 
         # we need at least the output file name as defined in calcs.py
         if VoronoiCalculation._OUTPUT_FILE_NAME not in list_of_files:
-            self.logger.error("Output file '{}' not found".format(VoronoiCalculation._OUTPUT_FILE_NAME))
+            self.logger.error(
+                "Output file '{}' not found"
+                .format(VoronoiCalculation._OUTPUT_FILE_NAME)
+            )
             return self.exit_codes.ERROR_NO_OUTPUT_FILE
 
-        #Parse voronoi output, results that are stored in database are in out_dict
+        # Parse voronoi output, results that are stored in database are in out_dict
 
         # get path to files and catch errors if files are not present
         file_errors = []
@@ -75,47 +80,60 @@ class VoronoiParser(Parser):
                 with out_folder.open(VoronoiCalculation._POTENTIAL_IN_OVERWRITE) as fhandle:
                     potfile = fhandle.name
             else:
-                file_errors.append("Critical error! Neither potfile {}  not {} "
-                                   "was found".format(VoronoiCalculation._OUT_POTENTIAL_voronoi,
-                                                      VoronoiCalculation._POTENTIAL_IN_OVERWRITE))
+                file_errors.append(
+                    "Critical error! Neither potfile {}  not {} "
+                    "was found"
+                    .format(VoronoiCalculation._OUT_POTENTIAL_voronoi,
+                            VoronoiCalculation._POTENTIAL_IN_OVERWRITE)
+                )
                 potfile = 'file_not_found'
         if VoronoiCalculation._OUTPUT_FILE_NAME in out_folder.list_object_names():
             with out_folder.open(VoronoiCalculation._OUTPUT_FILE_NAME) as fhandle:
                 outfile = fhandle.name
         else:
-            file_errors.append("Critical error! outfile not found {}".format(VoronoiCalculation._OUTPUT_FILE_NAME))
+            file_errors.append(
+                "Critical error! outfile not found {}"
+                .format(VoronoiCalculation._OUTPUT_FILE_NAME)
+            )
             outfile = 'file_not_found'
         if VoronoiCalculation._ATOMINFO in out_folder.list_object_names():
             with out_folder.open(VoronoiCalculation._ATOMINFO) as fhandle:
                 atominfo = fhandle.name
         else:
-            file_errors.append("Critical error! atominfo not found {}".format(VoronoiCalculation._ATOMINFO))
+            file_errors.append(
+                "Critical error! atominfo not found {}"
+                .format(VoronoiCalculation._ATOMINFO)
+            )
             atominfo = 'file_not_found'
         if VoronoiCalculation._RADII in out_folder.list_object_names():
             with out_folder.open(VoronoiCalculation._RADII) as fhandle:
                 radii = fhandle.name
         else:
-            file_errors.append("Critical error! radii not found {}".format(VoronoiCalculation._RADII))
+            file_errors.append("Critical error! radii not found {}".format(
+                VoronoiCalculation._RADII))
             radii = 'file_not_found'
         if VoronoiCalculation._INPUT_FILE_NAME in out_folder.list_object_names():
             with out_folder.open(VoronoiCalculation._INPUT_FILE_NAME) as fhandle:
                 inputfile = fhandle.name
         else:
-            file_errors.append("Critical error! inputfile not found {}".format(VoronoiCalculation._INPUT_FILE_NAME))
+            file_errors.append(
+                "Critical error! inputfile not found {}"
+                .format(VoronoiCalculation._INPUT_FILE_NAME)
+            )
             inputfile = 'file_not_found'
         # initialize out_dict and parse output files
         out_dict = {'parser_version': self._ParserVersion}
         out_dict['calculation_plugin_version'] = VoronoiCalculation._CALCULATION_PLUGIN_VERSION
-        #TODO add job description, compound name, calculation title
-        success, msg_list, out_dict = parse_voronoi_output(out_dict, outfile,
-                                                           potfile, atominfo,
-                                                           radii, inputfile, debug=debug)
+        # TODO add job description, compound name, calculation title
+        success, msg_list, out_dict = parse_voronoi_output(
+            out_dict, outfile, potfile, atominfo, radii, inputfile, debug=debug
+        )
         # add file open errors to parser output of error messages
         for f_err in file_errors:
             msg_list.append(f_err)
         out_dict['parser_errors'] = msg_list
 
-        #create output node and link
+        # create output node and link
         self.out('output_parameters', Dict(dict=out_dict))
 
         if not success:
