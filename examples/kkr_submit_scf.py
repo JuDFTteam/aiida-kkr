@@ -70,19 +70,35 @@ def main():
         }
     )
 
-    # Setting parameters for the submission of the job
-    options = {
-        'resources': {
-            # Total number of mpi processes
-            'tot_num_mpiprocs': 16,
-            # Name of the parallel environment
-            'parallel_env': 'mpi',
-        },
-        # Maximum allowed execution time in seconds
-        'max_wallclock_seconds': 18000,
-        # Whether to run in parallel
-        'withmpi': True,
-    }
+    # For the SGE scheduler
+    if kkr_code.computer.scheduler_type in ["sge"]:
+        # Setting parameters for the submission of the job
+        options = {
+            'resources': {
+                # Total number of mpi processes
+                'tot_num_mpiprocs': 16,
+                # Name of the parallel environment
+                'parallel_env': 'mpi',
+            },
+            # Maximum allowed execution time in seconds
+            'max_wallclock_seconds': 18000,
+            # Whether to run in parallel
+            'withmpi': True,
+        }
+
+    # For slurm and pbs scheduler types
+    if kkr_code.computer.scheduler_type in ["slurm", "pbspro"]:
+        # Setting parameters for the submission of the job
+        options = {
+            'resources': {
+                # Total number of mpi processes
+                'num_machines': 1,
+            },
+            # Maximum allowed execution time in seconds
+            'max_wallclock_seconds': 18000,
+            # Whether to run in parallel
+            'withmpi': True,
+        }
 
     # Setting a label for the calculation
     label = "JM-KKR_host_fcc_Cu"

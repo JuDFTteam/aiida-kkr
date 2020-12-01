@@ -38,11 +38,11 @@ class KkrimpParser(Parser):
 
         self._ParserVersion = __version__
 
-        #reuse init of base class
+        # reuse init of base class
         super(KkrimpParser, self).__init__(calc)
 
-
     # pylint: disable=protected-access
+
     def parse(self, debug=False, **kwargs):
         """
         Parse output data folder, store results in database.
@@ -74,24 +74,25 @@ class KkrimpParser(Parser):
         #    out_dict values (e.g. nspin, newsosol, ...)
 
         if KkrimpCalculation._DEFAULT_OUTPUT_FILE not in list_of_files:
-            msg = "Output file '{}' not found in list of files: {}".format(KkrimpCalculation._DEFAULT_OUTPUT_FILE, list_of_files)
-        
-    
+            msg = "Output file '{}' not found in list of files: {}".format(
+                KkrimpCalculation._DEFAULT_OUTPUT_FILE, list_of_files)
+
         if KkrimpCalculation._DEFAULT_OUTPUT_FILE in out_folder.list_object_names():
             with out_folder.open(KkrimpCalculation._DEFAULT_OUTPUT_FILE) as fhandle:
                 outfile = fhandle.name
             files['outfile'] = outfile
         else:
-            file_errors.append((1,msg))
+            file_errors.append((1, msg))
             outfile = None
-            
+
         fname = KkrimpCalculation._OUTPUT_000
         if fname in out_folder.list_object_names():
             with out_folder.open(fname) as fhandle:
                 filepath = fhandle.name
             files['out_log'] = filepath
         else:
-            file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
+            file_errors.append(
+                (1, "Critical error! file '{}' not found ".format(fname)))
             files['out_log'] = None
         fname = KkrimpCalculation._OUT_POTENTIAL
         if fname in out_folder.list_object_names():
@@ -99,7 +100,8 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['out_pot'] = filepath
         else:
-            file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
+            file_errors.append(
+                (1, "Critical error! file '{}' not found ".format(fname)))
             files['out_pot'] = None
         fname = KkrimpCalculation._OUT_TIMING_000
         if fname in out_folder.list_object_names():
@@ -107,15 +109,17 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['out_timing'] = filepath
         else:
-            file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
-            files['out_timing'] = None 
+            file_errors.append(
+                (1, "Critical error! file '{}' not found ".format(fname)))
+            files['out_timing'] = None
         fname = KkrimpCalculation._OUT_ENERGYSP_PER_ATOM
         if fname in out_folder.list_object_names():
             with out_folder.open(fname) as fhandle:
                 filepath = fhandle.name
             files['out_enersp_at'] = filepath
         else:
-            file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
+            file_errors.append(
+                (1, "Critical error! file '{}' not found ".format(fname)))
             files['out_enersp_at'] = None
         fname = KkrimpCalculation._OUT_ENERGYTOT_PER_ATOM
         if fname in out_folder.list_object_names():
@@ -123,7 +127,8 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['out_enertot_at'] = filepath
         else:
-            file_errors.append((1, "Critical error! file '{}' not found ".format(fname)))
+            file_errors.append(
+                (1, "Critical error! file '{}' not found ".format(fname)))
             files['out_enertot_at'] = None
         fname = KkrimpCalculation._KKRFLEX_LLYFAC
         if fname in out_folder.list_object_names():
@@ -131,7 +136,8 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['kkrflex_llyfac'] = filepath
         else:
-            file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
+            file_errors.append(
+                (2, "Warning! file '{}' not found ".format(fname)))
             files['kkrflex_llyfac'] = None
         fname = KkrimpCalculation._KKRFLEX_ANGLE
         if fname in out_folder.list_object_names():
@@ -139,7 +145,8 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['kkrflex_angles'] = filepath
         else:
-            file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
+            file_errors.append(
+                (2, "Warning! file '{}' not found ".format(fname)))
             files['kkrflex_angles'] = None
         fname = KkrimpCalculation._OUT_MAGNETICMOMENTS
         if fname in out_folder.list_object_names():
@@ -147,7 +154,8 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['out_spinmoms'] = filepath
         else:
-            file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
+            file_errors.append(
+                (2, "Warning! file '{}' not found ".format(fname)))
             files['out_spinmoms'] = None
         fname = KkrimpCalculation._OUT_ORBITALMOMENTS
         if fname in out_folder.list_object_names():
@@ -155,7 +163,8 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['out_orbmoms'] = filepath
         else:
-            file_errors.append((2, "Warning! file '{}' not found ".format(fname)))
+            file_errors.append(
+                (2, "Warning! file '{}' not found ".format(fname)))
             files['out_orbmoms'] = None
 
         if debug:
@@ -165,10 +174,11 @@ class KkrimpParser(Parser):
         out_dict = {'parser_version': self._ParserVersion,
                     'calculation_plugin_version': KkrimpCalculation._CALCULATION_PLUGIN_VERSION}
 
-        success, msg_list, out_dict = KkrimpParserFunctions().parse_kkrimp_outputfile(out_dict, files, debug=debug)
+        success, msg_list, out_dict = KkrimpParserFunctions(
+        ).parse_kkrimp_outputfile(out_dict, files, debug=debug)
 
         out_dict['parser_errors'] = msg_list
-         # add file open errors to parser output of error messages
+        # add file open errors to parser output of error messages
         for (err_cat, f_err) in file_errors:
             if err_cat == 1:
                 msg_list.append(f_err)
@@ -177,16 +187,18 @@ class KkrimpParser(Parser):
             else:
                 if 'parser_warnings' not in list(out_dict.keys()):
                     out_dict['parser_warnings'] = []
-                out_dict['parser_warnings'].append(f_err.replace('Error', 'Warning'))
+                out_dict['parser_warnings'].append(
+                    f_err.replace('Error', 'Warning'))
         out_dict['parser_errors'] = msg_list
 
-        #create output node and link
+        # create output node and link
         self.out('output_parameters', Dict(dict=out_dict))
 
         # cleanup after parsing (only if parsing was successful)
         if success:
             # reduce size of timing file
-            self.cleanup_outfiles(files['out_timing'], ['Iteration number', 'time until scf starts'])
+            self.cleanup_outfiles(files['out_timing'], [
+                                  'Iteration number', 'time until scf starts'])
             # reduce size of out_log file
             self.cleanup_outfiles(files['out_log'], ['Iteration Number'])
             # delete completely parsed output files and create a tar ball to reduce size
@@ -195,22 +207,22 @@ class KkrimpParser(Parser):
         else:
             return self.exit_codes.ERROR_PARSING_KKRIMPCALC
 
-
     def cleanup_outfiles(self, fileidentifier, keyslist):
         """open file and remove unneeded output"""
         lineids = []
         with open_general(fileidentifier) as tfile:
             txt = tfile.readlines()
             for iline in range(len(txt)):
-                for key in keyslist: # go through all keys
-                    if key in txt[iline]: # add line id to list if key has been found
+                for key in keyslist:  # go through all keys
+                    if key in txt[iline]:  # add line id to list if key has been found
                         lineids.append(iline)
         # rewrite file deleting the middle part
-        if len(lineids)>1: # cut only if more than one iteration was found
-            txt = txt[:lineids[0]] + ['# ... [removed output except for last iteration] ...\n'] + txt[lineids[-1]:]
+        if len(lineids) > 1:  # cut only if more than one iteration was found
+            txt = txt[:lineids[0]] + \
+                ['# ... [removed output except for last iteration] ...\n'] + \
+                txt[lineids[-1]:]
             with open_general(fileidentifier, 'w') as tfilenew:
                 tfilenew.writelines(txt)
-
 
     def remove_unnecessary_files(self):
         """
@@ -226,7 +238,6 @@ class KkrimpParser(Parser):
             if fileid in self.retrieved.list_object_names():
                 self.retrieved.delete_object(fileid, force=True)
 
-
     def final_cleanup(self):
         """Create a tarball of the rest."""
 
@@ -241,7 +252,7 @@ class KkrimpParser(Parser):
             # first create dummy file which is used to extract the full path that is given to tarfile.open
             with ret.open(KkrimpCalculation._FILENAME_TAR, 'w') as f:
                 filepath_tar = f.name
-           
+
             # now create tarfile and loop over content of retrieved directory
             to_delete = []
             with tarfile.open(filepath_tar, 'w:gz') as tf:
@@ -249,13 +260,15 @@ class KkrimpParser(Parser):
                     with ret.open(f) as ftest:
                         filesize = os.stat(ftest.name).st_size
                         ffull = ftest.name
-                    if (f != KkrimpCalculation._FILENAME_TAR  # ignore tar file
-                        and filesize>0                        # ignore empty files
-                        and f[0]!='.'):                       # ignore files starting with '.' like '.nfs...'
+                    if (
+                        f != KkrimpCalculation._FILENAME_TAR    # ignore tar file
+                        and filesize > 0                        # ignore empty files
+                        # ignore files starting with '.' like '.nfs...'
+                        and f[0] != '.'
+                    ):
                         tf.add(ffull, arcname=os.path.basename(ffull))
                         to_delete.append(f)
 
             # finally delete files that have been added to tarfile
             for f in to_delete:
                 ret.delete_object(f, force=True)
- 
