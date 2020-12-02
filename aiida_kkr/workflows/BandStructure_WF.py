@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[18]:
-
 # from __future__ import print_function, division, absolute_import
 from six.moves import range
 from aiida.orm import Code,  Dict, RemoteData, StructureData, Float
