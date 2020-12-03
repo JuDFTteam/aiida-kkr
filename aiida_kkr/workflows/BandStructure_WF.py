@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
-
-
-####  #!/usr/bin/env python
-####  # -*- coding: utf-8 -*-
 
 from six.moves import range
 from aiida.orm import Code,  Dict, RemoteData, StructureData, Float
@@ -24,8 +19,6 @@ __license__ = "Here is the license"
 __version__ = "Here is the version"
 __contributors__ = "using technique from Philpp RÜssmann's DOS wf"
 
-
-# In[24]:
 
 
 class kkr_BS_wf(WorkChain):
