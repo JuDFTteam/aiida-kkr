@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
 
-
-####  #!/usr/bin/env python
-####  # -*- coding: utf-8 -*-
 
 from six.moves import range
 from aiida.orm import Code,  Dict, RemoteData, StructureData, Float
@@ -19,13 +15,12 @@ from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.exceptions import InputValidationError, ConfigurationError
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
+
 __copyright__ = u"This is the Copyright"
 __license__ = "Here is the license"
 __version__ = "Here is the version"
 __contributors__ = "using technique from Philpp RÜssmann's DOS wf"
 
-
-# In[24]:
 
 
 class kkr_BS_wf(WorkChain):
