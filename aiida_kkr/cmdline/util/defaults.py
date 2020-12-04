@@ -159,6 +159,6 @@ def get_last_code(entry_point_name):
     if not results:
         raise NotExistent(f'ERROR: Could not find any Code in the database with entry point: {entry_point_name}!')
     else:
-        inpgen = results[0]
+        code = results[0]
 
-    return inpgen.uuid
+    return code.uuid

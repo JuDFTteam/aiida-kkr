@@ -61,7 +61,7 @@ POTENTIAL_OVERWRITE = OverridableOption(
                                   type=types.DataParamType(sub_classes=('aiida.data:singlefile',)),
                                   help='Use a node that specifies the potential which is used instead of the voronoi output potential')
 
-IMPURITY_INFO = OverridableOption(
+IMPURITY_INFO = OverridableOption('-i',
                                   '--impurity-info',
                                   type=types.DataParamType(sub_classes=('aiida.data:dict',)),
                                   help='Dict containing parameters that specify properties for a following impurity calculation (e.g. setting of impurity cluster in scoef file that is automatically created')
@@ -79,7 +79,7 @@ VORO_PARAMETERS = OverridableOption('-vp',
 OPTION_NODE = OverridableOption('-opt',
                                 '--option-node',
                                 type=types.DataParamType(sub_classes=('aiida.data:dict',)),
-                                help='Dict, an option node for the workchain.')
+                                help='Dict, an option node for the workchain containing for instance: {"withmpi": False, "max_wallclock_seconds": 6000, "resources": {"num_machines": 1, "num_mpiprocs_per_machine": 1}}')
 
 MAX_NUM_MACHINES = OverridableOption('-N',
                                      '--max-num-machines',

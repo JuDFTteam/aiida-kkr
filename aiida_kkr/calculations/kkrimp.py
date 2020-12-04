@@ -546,6 +546,15 @@ The Dict node should be of the form
             if parameters.get_value('CALCJIJMAT') is not None and parameters.get_value('CALCJIJMAT') == 1:
                 raise InputValidationError('ERROR: ')
                 
+            # extract NATOM from atominfo file
+            with GFhost_folder.open(self._KKRFLEX_ATOMINFO) as file:
+                atominfo = file.readlines()
+            itmp = search_string('NATOM', atominfo)
+            if itmp>=0:
+                natom = int(atominfo[itmp+1].split()[0])
+            else:
+                raise ValueError("Could not extract NATOM value from kkrflex_atominfo")
+                
             # extract values from input node
             thetas = self.inputs.initial_noco_angles['theta']
             if len(thetas) != natom:

@@ -4,7 +4,8 @@ Module with CLI commands to launch for calcjob and workflows of aiida-kkr.
 '''
 import click
 
-from aiida.cmdline.params import options as options_core
+from aiida.cmdline.params import types
+from aiida.cmdline.params.options import OverridableOption
 from aiida.orm import Code, load_node, Dict
 from aiida.plugins import WorkflowFactory
 from aiida.plugins import CalculationFactory
@@ -196,21 +197,53 @@ def launch_scf(kkr, voro, structure, parameters, parent_folder, daemon, option_n
     launch_process(builder, daemon)
 
 
-'''
-# NOT WORKING YET:
+
+PARENT_FOR_IMP = OverridableOption(
+    '-P',
+    '--parent-folder',
+    'parent_folder',
+    type=types.DataParamType(sub_classes=('aiida.data:remote',)),
+    show_default=True,
+    required=True,
+    help='The remote folder of a parent calculation (either the converged calculation or a GF writeout calculation which prevents recalculating the host Greens function).')
+
+PARAMS_HOST_GF = OverridableOption(
+    '-p',
+    '--parameters-hostGF',
+    'parameters_hostgf',
+    type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    show_default=True,
+    help='Set of parameters that are overwritten in the host GF writeout step.')
+
+IMP_STARTPOT = OverridableOption(
+    '--impurity-startpot',
+    'impurity_startpot',
+    type=types.DataParamType(sub_classes=('aiida.data:singlefile',)),
+    help='Use this as the starting potential for the impurity calculation. Needs to match the settings in the impurity info node.')
+
+def _check_parent_calc_type(parent_folder):
+    """
+    check if parent folder was a host GF writeout calculation
+    """
+    from aiida_kkr.calculations import KkrCalculation
+    calc = parent_folder.get_incoming(node_class=KkrCalculation).first()
+    calc = calc.node
+    ret = calc.outputs.retrieved
+    return 'kkrflex_green' in ret.list_object_names()
+
+
 @click.command('kkrimpscf')
 @options.KKR()
 @options.VORO()
 @options.KKRIMP()
-@options.IMPURITY_INFO()
-@options.PARENT_FOLDER()
-@options.PARENT_FOLDER()
+@options.IMPURITY_INFO(required=True, show_default=True)
+@PARENT_FOR_IMP()
 @options.OPTION_NODE()
 @options.DAEMON()
-@options.PARAMETERS()
+@PARAMS_HOST_GF()
 @options.WF_PARAMETERS()
-@options.NOCO_ANGLES()
-def launch_kkrimp_scf(kkr, voro, kkr_imp, parameters, parent_folder, daemon, option_node, wf_parameters, potential_overwrite, noco_angles):
+@IMP_STARTPOT()
+def launch_kkrimp_scf(kkr, voro, kkr_imp, impurity_info, parent_folder, option_node, daemon, parameters_hostgf, wf_parameters, impurity_startpot):
     """
     Launch an kkr calcjob on given input
     """
@@ -221,16 +254,24 @@ def launch_kkrimp_scf(kkr, voro, kkr_imp, parameters, parent_folder, daemon, opt
         'kkr': kkr,
         'kkrimp': kkr_imp,
         'voronoi': voro,
-        'structure': structure,
-        'calc_parameters': parameters, 
-        'remote_data': parent_folder, 
         'options': option_node,
         'wf_parameters': wf_parameters,
-        'startpot_overwrite': potential_overwrite,
-        'initial_noco_angles': noco_angles,
+        'impurity_info': impurity_info,
+        'params_kkr_overwrite': parameters_hostgf,
+        'startpot': impurity_startpot,
     }
     inputs = clean_nones(inputs)
+
+    if _check_parent_calc_type(parent_folder):
+        # this means we can reuse the GF writeout from the parent calculation
+        inputs['remote_data_gf'] = parent_folder
+        click.echo('The parent_folder already has the written out GF of the host, we can therefore skip that step')
+    else:
+        # this means the calculation was not a GF writeout KKR calculation
+        inputs['remote_data_host'] = parent_folder
+        click.echo('The parent_folder does not contain the host GF, we calculate it.')
+
     builder = process_class.get_builder()
     builder.update(inputs)
     launch_process(builder, daemon)
-'''
+

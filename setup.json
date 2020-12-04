@@ -57,7 +57,6 @@
             "kkr.kkrimpparser = aiida_kkr.parsers.kkrimp:KkrimpParser"
             ],
         "aiida.data": [
-            "kkr.kkrstructure = aiida_kkr.data.kkrstructure:KkrstructureData"
             ],
         "aiida.workflows":[
             "kkr.scf = aiida_kkr.workflows.kkr_scf:kkr_scf_wc",
