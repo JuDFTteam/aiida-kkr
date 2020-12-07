@@ -1,12 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
-
-
-####  #!/usr/bin/env python
-####  # -*- coding: utf-8 -*-
-
 from six.moves import range
 import numpy as np
 from aiida.orm import Code,  Dict, RemoteData, StructureData, Float
@@ -20,14 +14,11 @@ from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.exceptions import InputValidationError, ConfigurationError
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
+
 __copyright__ = u"FZJ"
 __license__ = "MIT license"
 __version__ = "0.1.0"
 __contributors__ = u"Rubel Mozumder"
-
-
-# In[3]:
-
 
 class kkr_bs_wc(WorkChain):
     """
@@ -475,76 +466,6 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
     array.extras['k-labels'] = klbl_dict
 
     return {'BS_Data' : array}
-
-
-
-                                         
-
-
-# In[4]:
-
-
-##++ Starts submision of kkr_BS_wf
-from aiida import load_profile, get_profile
-load_profile()
-print(get_profile().name)
-from aiida.engine import run
-from aiida.orm import Code, load_node, load_code
-from aiida.plugins import DataFactory
-Str = DataFactory('str')
-
-Dict = DataFactory('dict')
-metadata_option_1 = {'max_wallclock_seconds': 36000,'resources':
-              {'tot_num_mpiprocs': 48, 'num_machines': 1},
-              'custom_scheduler_commands':
-              '#SBATCH --account=jara0191\n\nulimit -s unlimited; export OMP_STACKSIZE=2g',
-              'withmpi': True}
-Dict_metadata_option_1 = Dict(dict=metadata_option_1)
-
-calc_dos = load_node(203)
-calc_kkr_converged = load_node(180)
-remote_folder_kkr = calc_kkr_converged.outputs.remote_folder
-
-                        
-wf_parameters_dict = {'NPT2' : 200,'EMIN' : 20, "RCLUSTZ": 2.3, 'EMAX' :13 , 'TEMPR' : 50}
-wf_parameters = Dict(dict=wf_parameters_dict)#calc_kkr_converged.inputs.parameters#.get_dict()
-kkr = Code.get_from_string('kkrhost@claix18')
-inputs_name = { 'wf_parameters':wf_parameters, 'options':Dict_metadata_option_1, 'remote_data':remote_folder_kkr,
-           'kkr':kkr }
-submition_kkr_BS_wf = run(kkr_bs_wc, **inputs_name)
-## Ends submision of the kkr_BS_wf                                    
-
-
-# In[ ]:
-
-
-flt = Float(4.5)
-type(flt.value)
-type(flt)
-
-
-# In[28]:
-
-
-from masci_tools.io.common_functions import get_Ry2eV
-eVscale = get_Ry2eV()
-
-# type(eVscale(1))
-type(eVscale)
-eVscale
-
-
-# In[33]:
-
-
-def ev_To_Ry(value = 1 ):
-
-    return float(value/13.6056980659)
-ev_To_Ry(13.6056980659)
-
-
-# In[ ]:
-
 
 
 
