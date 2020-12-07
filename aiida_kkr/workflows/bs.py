@@ -467,5 +467,3 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
 
     return {'BS_Data' : array}
 
-
-
