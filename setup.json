@@ -1,31 +1,48 @@
 {
     "name": "aiida-kkr",
-    "author": "Philipp Ruessmann, Jens Broeder",
+    "author": "Philipp Ruessmann, Jens Broeder, Fabian Bertoldo",
     "author_email": "p.ruessmann@fz-juelich.de",
     "description": "AiiDA plugin for the KKR code",
-    "url": "https://github.com/broeder-j/aiida-kkr",
+    "url": "https://github.com/JuDFTteam/aiida-kkr",
+    "download_url": "https://github.com/JuDFTteam/aiida-kkr",
     "license": "MIT",
     "classifiers": [
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Development Status :: 4 - Beta",
         "Environment :: Plugins",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Physics",
-        "Natural Language :: English"      
+        "Natural Language :: English",
+        "Framework :: AiiDA"
     ],
-    "version": "1.0.0",
-    "setup_requires": ["reentry"],
+    "version": "1.1.11-dev4",
     "reentry_register": true,
     "install_requires": [
-        "aiida-core >= 1.0.0a4",
-        "masci-tools",
-        "seekpath",
-        "pgtest",
+        "aiida-core >= 1.0.0b6,<2.0.0",
+        "masci-tools >= 0.3.12.dev5",
+        "seekpath >= 1.9.2",
+        "pgtest >= 1.3.0",
         "pytest-cov >= 2.5.0",
-        "sphinx",
-        "sphinx_rtd_theme"
+        "pytest-mpl >= 0.10",
+        "pytest-timeout >= 1.3.3",
+        "Sphinx >= 1.8.2",
+        "sphinx_rtd_theme >= 0.4.2",
+        "ase",
+        "bump2version >= 0.5.10"
     ],
+    "extras_require": {
+        "pre-commit": [
+            "pre-commit==1.11.0",
+            "yapf==0.24.0",
+            "prospector==0.12.11",
+            "pylint==1.9.3"
+        ]
+    },
     "entry_points": {
         "aiida.calculations": [
             "kkr.kkr = aiida_kkr.calculations.kkr:KkrCalculation",
@@ -40,7 +57,6 @@
             "kkr.kkrimpparser = aiida_kkr.parsers.kkrimp:KkrimpParser"
             ],
         "aiida.data": [
-            "kkr.kkrstructure = aiida_kkr.data.kkrstructure:KkrstructureData"
             ],
         "aiida.workflows":[
             "kkr.scf = aiida_kkr.workflows.kkr_scf:kkr_scf_wc",
@@ -50,11 +66,13 @@
             "kkr.check_mag = aiida_kkr.workflows.check_magnetic_state:kkr_check_mag_wc",
             "kkr.convergence_check = aiida_kkr.workflows.check_para_convergence:kkr_check_para_wc",
             "kkr.gf_writeout = aiida_kkr.workflows.gf_writeout:kkr_flex_wc",
+            "kkr.imp = aiida_kkr.workflows.kkr_imp:kkr_imp_wc",
             "kkr.imp_sub = aiida_kkr.workflows.kkr_imp_sub:kkr_imp_sub_wc",
-	    "kkr.imp = aiida_kkr.workflows.kkr_imp:kkr_imp_wc"
+            "kkr.imp_dos = aiida_kkr.workflows.kkr_imp_dos:kkr_imp_dos_wc",
+            "kk.decimation = aiida_kkr.workflows._decimation:kkr_decimation_wc"
 	    ],
         "console_scripts": [
-            "kkrstructure = aiida_kkr.cmdline.data_cli:cli"
+            "aiida-kkr = aiida_kkr.cmdline:cmd_root"
             ]
     }
 }

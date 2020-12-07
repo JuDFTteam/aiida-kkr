@@ -8,20 +8,25 @@
     :width: 40%
 
 .. _AiiDA: http://www.aiida.net
-.. _Jülich KKRcode: http://www.judft.de/pm/index.php
+.. _Jülich KKRcode: http://jukkr.fz-juelich.de
+.. _juDFT: http://www.judft.de/pm/index.php
 
 
 
-Welcome to documentation of the AiiDA plugin for the Jülich KKRcode!
+Welcome to documentation of the AiiDA plugin for the `Jülich KKRcode`_!
 ===========================================================================
 
 The plugin is available at https://github.com/JuDFTteam/aiida-kkr
 
 If you use this plugin for your research, please cite the following work:
 
-.. highlights:: Author Name1, Author Name2, *Paper title*, Jornal Name XXX, YYYY (Year).
+.. highlights:: Philipp Rüßmann, Fabian Bertoldo, and Stefan Blügel, 
+  *The AiiDA-KKR plugin and its application to high-throughput impurity 
+  embedding into a topological insulator*, 
+  arXiv:2003.08315 [cond-mat.mtrl-sci] (2020); https://arxiv.org/abs/2003.08315
 
-iAlso please cite the original AiiDA paper:
+
+Also please cite the original `AiiDA`_ paper:
 
 .. highlights:: Giovanni Pizzi, Andrea Cepellotti, Riccardo Sabatini, Nicola Marzari,
   and Boris Kozinsky, *AiiDA: automated interactive infrastructure and database
