@@ -49,8 +49,8 @@ class kkr_bs_wc(WorkChain):
     _wf_description = """Workflow for a bandstructure calculation starting eithe from a structure with automatic voronoi'
                         calculation or a valid RemoteData of a previous calculation."""
     _wf_default = {
-                        'EMIN':1,  # Energy below the fermi surface for energy contour in ev unit
-                        'EMAX': 15,     # Energy over the fermi surface for energy contour in ev unit
+                        'EMIN':10,  # Energy below the fermi surface for energy contour in ev unit
+                        'EMAX': 5,     # Energy over the fermi surface for energy contour in ev unit
                         "NPT2": 200,   # Energy points in the energy contour
                         "RCLUSTZ": 2.3,
                         'TEMPR': 50.   # temperature
@@ -268,13 +268,13 @@ class kkr_bs_wc(WorkChain):
                     
                 elif key=='emin' or key=='EMIN':
                     key = 'EMIN'
-                    new_val = (ef - val)/evscal # converting the Energy value to eV while the fermi_energy in Ry
+                    new_val = (ef/evscal- val )# converting the Energy value to eV while the fermi_energy in Ry
                     para_check.set_value(key, new_val, silent=True)
 
                     para_check.set_value(key, new_val, silent=True)
                 elif key=='emax' or key== 'EMAX':
                     key = 'EMAX'
-                    new_val = ( ef + val)/evscal # Converting to the ev (unit of the energy)
+                    new_val = ( ef/evscal+ val) # Converting to the ev (unit of the energy)
                     para_check.set_value(key, new_val, silent=True)
                 elif key=='tempr' or key=='TEMPR':
                     key = 'TEMPR'
