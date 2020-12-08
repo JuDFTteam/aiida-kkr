@@ -268,13 +268,13 @@ class kkr_bs_wc(WorkChain):
                     
                 elif key=='emin' or key=='EMIN':
                     key = 'EMIN'
-                    new_val = (ef/evscal- val )# converting the Energy value to eV while the fermi_energy in Ry
+                    new_val = (ef- val/evscal)# converting the Energy value to Ry while the fermi_energy in Ry
                     para_check.set_value(key, new_val, silent=True)
 
                     para_check.set_value(key, new_val, silent=True)
                 elif key=='emax' or key== 'EMAX':
                     key = 'EMAX'
-                    new_val = ( ef/evscal+ val) # Converting to the ev (unit of the energy)
+                    new_val = ( ef+ val/evscal) # Converting to the Ry (unit of the energy)
                     para_check.set_value(key, new_val, silent=True)
                 elif key=='tempr' or key=='TEMPR':
                     key = 'TEMPR'
