@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+
 from six.moves import range
 import numpy as np
 from aiida.orm import Code,  Dict, RemoteData, StructureData, Float
@@ -14,7 +15,6 @@ from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.exceptions import InputValidationError, ConfigurationError
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
-
 __copyright__ = u"FZJ"
 __license__ = "MIT license"
 __version__ = "0.1.0"
@@ -48,30 +48,31 @@ class kkr_bs_wc(WorkChain):
     _wf_label = 'kkr_BandStructure_wc'
     _wf_description = """Workflow for a bandstructure calculation starting eithe from a structure with automatic voronoi'
                         calculation or a valid RemoteData of a previous calculation."""
-    _wf_params_default = {
-                        'EMIN':13,  # Energy below the fermi surface for energy contour in ev unit
+    _wf_default = {
+                        'EMIN':1,  # Energy below the fermi surface for energy contour in ev unit
                         'EMAX': 15,     # Energy over the fermi surface for energy contour in ev unit
                         "NPT2": 200,   # Energy points in the energy contour
                         "RCLUSTZ": 2.3,
                         'TEMPR': 50.   # temperature
                           }
-    _wf_option_default = {'max_wallclock_seconds': 36000,
+    
+    _options_default = {'max_wallclock_seconds': 36000,
                           'resources': {'num_machines': 1},
                           'withmpi': True,
                           'queue_name': ''
                          }
 
     @classmethod
-    def get_wf_params_defaults(self, silent=False):
+    def get_wf_default(self, silent=False):
         if not silent: print('Version of the wf pparameters  {}'.format(self._wf_version))
-        return self._wf_params_default
+        return self._wf_default
 
     @classmethod
     def define(cls, spec):
         super(kkr_bs_wc, cls).define(spec)
         # here inputs are defined
-        spec.input("wf_parameters", valid_type = Dict, required = False,default=lambda: Dict(self._wf_params_default))
-        spec.input("options", valid_type=Dict, required=False,default=lambda: Dict(dict=cls._wf_option_default))
+        spec.input("wf_parameters", valid_type = Dict, required = False,default=lambda: Dict(self._wf_default))
+        spec.input("options", valid_type=Dict, required=False,default=lambda: Dict(dict=cls._options_default))
         spec.input("remote_data", valid_type=RemoteData, required=True)
         spec.input("kkr", valid_type=Code, required=True)
         spec.input("kpoints", valid_type=KpointsData, required = False)
@@ -109,14 +110,14 @@ class kkr_bs_wc(WorkChain):
         options_dict = self.inputs.options.get_dict()
         if wf_dict == {}:
             self.report('INFO: Using default wf parameter')
-            wf_dict = self._wf_params_default
+            wf_dict = self._wf_default
         if options_dict == {}:
             self.report('INFO: Using default wf Options')
-            options_dict = self._wf_option_default
-        self.ctx.withmpi = options_dict.get('withmpi', self._wf_option_default['withmpi'])
-        self.ctx.resources = options_dict.get('resources', self._wf_option_default['resources'])
-        self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._wf_option_default['max_wallclock_seconds'])
-        self.ctx.queue = options_dict.get('queue_name', self._wf_option_default['queue_name'])
+            options_dict = self._options_default
+        self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
+        self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
+        self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
+        self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', '')
         self.ctx.BS_params_dict = wf_dict
         self.ctx.BS_kkrparams = None # is set in set_params_BS
@@ -451,7 +452,7 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
         nk = np.shape(qdos_intensity)[1]
 
         qdos_intensity[ne,:] = total_qdos[ ne*nk : (ne+1)*nk, 5 ]/eVscale 
-
+        
     qdos_intensity = qdos_intensity.T # setting eng-kpts corresponds to x-y asix
     q_vec = np.asarray(q_vec) # converting q_vec into array
     eng_points = (np.asarray(eng_points)) # converting eng_popints into array in Ry unit
@@ -466,4 +467,5 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
     array.extras['k-labels'] = klbl_dict
 
     return {'BS_Data' : array}
+
 
