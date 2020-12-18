@@ -4,7 +4,7 @@
 
 from six.moves import range
 import numpy as np
-from aiida.orm import Code,  Dict, RemoteData, StructureData, Float
+from aiida.orm import Code,  Dict, RemoteData, StructureData, Float, Str
 from aiida.orm import XyData, WorkChainNode, load_node, CalcJobNode, ArrayData, KpointsData
 from aiida.engine import WorkChain, if_, ToContext, submit
 from aiida.engine import CalcJob, calcfunction
