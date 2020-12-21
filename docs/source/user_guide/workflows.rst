@@ -140,7 +140,6 @@ Inputs:
     * ``description``\ (Str, optional) : description for WC but will be found in the “result_wf” output Dict as ‘BS_wf_description’ key
 
 Returns nodes:
-
     * ``BS_Data``\ (ArrayData): Consist of (BlochSpectralFunction, numpy array), (k_points, numpy array), (energy_points, numpy array), (special_kpoints, dict)
 
     * ``result_wf``\ (Dict): work_chain_specifications (such as ‘successful’, ‘list_of_errors’, ‘BS_params’ etc) node , BS_data (‘BlochSpectralFunction’,‘Kpts’,‘energy_points’, k-labels’ ) node.
@@ -158,7 +157,7 @@ To access into the data
    eng_pts = BS_Data.get_array('energy_points')
    k-label= BS_Data.extras['k-labels']
 
-The bsf is an 2d-numpy array and containing the total dessity of states depending on the K-points(Y-asix, bellongs to kpts) and energy(x-axis, belongs to energy_points) and k-label give the python dict archiving the special points, ``label:index``, in kpts.
+The bsf is an 2d-numpy array and containing the total dessity of states depending on the K-points(Y-asix, bellongs to kpts) and energy(x-axis, belongs to energy_points) and k-label give the python dict archiving the special points, ``index:label``, in kpts.
 
 Example Usage:
 
@@ -206,7 +205,7 @@ To start the Band Structure calculation the steps:
 To plot :
 ^^^^^^^^^
 
-To plot one or more wc node.
+To plot one or more kkr_bs_wc node.
 
 ::
 
