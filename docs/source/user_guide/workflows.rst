@@ -130,25 +130,24 @@ other inputs are being discussed below:
 
 Inputs:
 
-
-    * ``wf_parameters``\ (Dict, optional): Workchain Specifications, contains
+    * ``wf_parameters`` (Dict, optional): Workchain Specifications, contains
 npt2/NPT2(int), tempr/TEMPR(float), emin/EMIN(ev), emax/EMAX(ev),
 rclustz/RCLUSTZ(float). The Energy emin and emax are the energy
 difference from the fermi level.
 
-    * ``options``\ (Dict, optional): Intended for Computer Specifications,
+    * ``options`` (Dict, optional): Intended for Computer Specifications,
 Schedualer command, parallel or serial
 
-    * ``kpoints``\ (KpointsData, optional): Kpoints data type from the
+    * ``kpoints`` (KpointsData, optional): Kpoints data type from the
 structure, but not mendatory as it can be extrruct from structure
 internaly from the remote data. (Although it is important the k-points
 should come from the primitive structure, internally it will be consider
 in the next version.)
 
-    * ``remote_data``\ (RemoteData, mendaory): From the previous kkr-converged
+    * ``remote_data`` (RemoteData, mendaory): From the previous kkr-converged
 calcualtion.
 
-    * ``param kkr``\ (Code, mendaory): KKR code using kkr.kkr pluging.
+    * ``param kkr`` (Code, mendaory): KKR code using kkr.kkr pluging.
 
     * ``label``\ (Str, optional): label for WC but will be found in the
 “result_wf” output Dict as ‘BS_wf_label’ key
