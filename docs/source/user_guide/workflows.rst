@@ -142,7 +142,7 @@ Inputs:
 Returns nodes:
     * ``BS_Data``\ (ArrayData): Consist of (BlochSpectralFunction, numpy array), (k_points, numpy array), (energy_points, numpy array), (special_kpoints, dict)
 
-    * ``result_wf``\ (Dict): work_chain_specifications (such as ‘successful’, ‘list_of_errors’, ‘BS_params’ etc) node , BS_data (‘BlochSpectralFunction’,‘Kpts’,‘energy_points’, k-labels’ ) node.
+    * ``result_wf``\ (Dict): work_chain_specifications (such as ‘ *successful* ’, ‘ *list_of_errors* ’, ‘ *BS_params* ’ etc) node , *BS_data* (‘ *BlochSpectralFunction* ’,‘ *Kpts* ’,‘ *energy_points* ’, ' *k-labels* ’ ) node.
 
 Access To Data:
 ---------------
