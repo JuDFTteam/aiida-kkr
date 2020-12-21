@@ -215,7 +215,7 @@ To plot one or more kkr_bs_wc node.
    from aiida_kkr.tools import plot_kkr
    plot_kkr( NODE, strucplot=False, logscale=True, silent=True, noshow=True) 
     
-.. image:: ../images/DOS_Cu_example.png
+.. image:: ../images/bs_Cu_example.png
     :width: 60%
 
    
