@@ -121,49 +121,29 @@ which will produce the following plot:
 Bandstructure (bs):
 +++++++++++++++++++
 
-The bandstructure calculation, using workchain kkr_bs_wc, yields the
-density of states as function of energy points as well as **k**-points
-(SpectralBlochFunction). To run the bs calculation all the requried
-parameters are taken from the converged kkr calculation and user defined
-wf_parameters ( which also possible \_wf_default as default ). Some
-other inputs are being discussed below:
+The bandstructure calculation, using workchain kkr_bs_wc, yields the density of states as function of energy points as well as **k**-points (SpectralBlochFunction). To run the bs calculation all the requried parameters are taken from the converged kkr calculation and user defined wf_parameters ( which also possible \_wf_default as default ). Some other inputs are being discussed below:
 
 Inputs:
 
-    * ``wf_parameters`` (Dict, optional): Workchain Specifications, contains
-npt2/NPT2(int), tempr/TEMPR(float), emin/EMIN(ev), emax/EMAX(ev),
-rclustz/RCLUSTZ(float). The Energy emin and emax are the energy
-difference from the fermi level.
+    * ``wf_parameters`` (Dict, optional): Workchain Specifications, contains npt2/NPT2(int), tempr/TEMPR(float), emin/EMIN(ev), emax/EMAX(ev), rclustz/RCLUSTZ(float). The Energy emin and emax are the energy difference from the fermi level.
 
-    * ``options`` (Dict, optional): Intended for Computer Specifications,
-Schedualer command, parallel or serial
+    * ``options`` (Dict, optional): Intended for Computer Specifications, Schedualer command, parallel or serial
 
-    * ``kpoints`` (KpointsData, optional): Kpoints data type from the
-structure, but not mendatory as it can be extrruct from structure
-internaly from the remote data. (Although it is important the k-points
-should come from the primitive structure, internally it will be consider
-in the next version.)
+    * ``kpoints`` (KpointsData, optional): Kpoints data type from the structure, but not mendatory as it can be extrruct from structure internaly from the remote data. (Although it is important the k-points should come from the primitive structure, internally it will be consider in the next version.)
 
-    * ``remote_data`` (RemoteData, mendaory): From the previous kkr-converged
-calcualtion.
+    * ``remote_data`` (RemoteData, mendaory): From the previous kkr-converged calcualtion.
 
     * ``param kkr`` (Code, mendaory): KKR code using kkr.kkr pluging.
 
-    * ``label``\ (Str, optional): label for WC but will be found in the
-“result_wf” output Dict as ‘BS_wf_label’ key
+    * ``label``\ (Str, optional): label for WC but will be found in the “result_wf” output Dict as ‘BS_wf_label’ key
 
-    * ``description``\ (Str, optional) : description for WC but will be found
-in the “result_wf” output Dict as ‘BS_wf_description’ key
+    * ``description``\ (Str, optional) : description for WC but will be found in the “result_wf” output Dict as ‘BS_wf_description’ key
 
 Returns nodes:
 
-    * ``BS_Data``\ (ArrayData): Consist of (BlochSpectralFunction, numpy
-array), (k_points, numpy array), (energy_points, numpy array),
-(special_kpoints, dict)
+    * ``BS_Data``\ (ArrayData): Consist of (BlochSpectralFunction, numpy array), (k_points, numpy array), (energy_points, numpy array), (special_kpoints, dict)
 
-    * ``result_wf``\ (Dict): work_chain_specifications (such as ‘successful’,
-‘list_of_errors’, ‘BS_params’ etc) node , BS_data
-(‘BlochSpectralFunction’,‘Kpts’,‘energy_points’, k-labels’ ) node.
+    * ``result_wf``\ (Dict): work_chain_specifications (such as ‘successful’, ‘list_of_errors’, ‘BS_params’ etc) node , BS_data (‘BlochSpectralFunction’,‘Kpts’,‘energy_points’, k-labels’ ) node.
 
 Access To Data:
 ---------------
@@ -178,10 +158,7 @@ To access into the data
    eng_pts = BS_Data.get_array('energy_points')
    k-label= BS_Data.extras['k-labels']
 
-The bsf is an 2d-numpy array and containing the total dessity of states
-depending on the K-points(Y-asix, bellongs to kpts) and energy(x-axis,
-belongs to energy_points) and k-label give the python dict archiving the
-special points, ``label:index``, in kpts.
+The bsf is an 2d-numpy array and containing the total dessity of states depending on the K-points(Y-asix, bellongs to kpts) and energy(x-axis, belongs to energy_points) and k-label give the python dict archiving the special points, ``label:index``, in kpts.
 
 Example Usage:
 
