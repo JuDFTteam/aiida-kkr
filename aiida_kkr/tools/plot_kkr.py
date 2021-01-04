@@ -970,29 +970,32 @@ class plot_kkr(object):
                 sxlbl[j+1]  = str(sxlbl[j]) + '|' + str(sxlbl[j+1])
                 sxlbl[j] = ''
             j += 1
-        y ,x = np.mgrid[slice(0,len(Kpts[:,0])+1,1),
-                                slice(0,len(eng)+1,1)]
+        y,x = np.mgrid[slice(0,len(eng)+1,1),
+               slice(0,len(Kpts[:,0])+1,1)]
 
         eng_extend = np.ones(len(eng[:])+1)
+
         eng = eng[::-1]
         eng_extend[:-1] = np.sort(eng)
         eng_extend[-1] = eng_extend[-2]
-        x = np.array(x, float)
-        for i in range(len(x[:,0])):
-            x[i,:]=eng_extend
+
+        y = np.array(y, float)
+        for i in range(len(x[0,:])):
+            y[:,i]=eng_extend       
+       
 
 #        %matplotlib inline
         fig = plt.figure(figsize = (5,5))
+        plt.pcolormesh(x,y, np.log(BSF.T), cmap=plt.cm.viridis, edgecolor='face',rasterized= True)
+        plt.ylabel("energy (E-E_F)")
+        plt.xlabel("kpoints")
 
-        plt.pcolormesh(x, y, np.log(BSF), cmap=plt.cm.viridis, edgecolor='face',rasterized= True)
-        plt.xlabel("energy,E-E_F (eV)")
-        plt.ylabel("kpoints")
         plt.colorbar()
 
         plt.title('band structure from kkr_bs_wc (pk- {} or uuid- {})'.format(node_bs_wc.pk, node_bs_wc.uuid))
         
-        plt.yticks(ixlbl,sxlbl)
-        plt.axvline(0 ,color='red', ls=':', lw=2)
+        plt.xticks(ixlbl,sxlbl)
+        plt.axhline(0 ,color='red', ls=':', lw=2)
 
 
 
