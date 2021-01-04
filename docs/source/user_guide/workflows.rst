@@ -214,10 +214,11 @@ To plot one or more kkr_bs_wc node.
    NODE =  singel or list of nodes
    from aiida_kkr.tools import plot_kkr
    plot_kkr( NODE, strucplot=False, logscale=True, silent=True, noshow=True) 
-    
-.. image:: ../images/bs_Cu_example.png
+for 12 energy points:
+.. image:: ../images/bs_Cu_example_12.png
     :width: 60%
-
+.. image:: ../images/bs_Cu_example_200.png
+    :width: 60%
    
 Generate KKR start potential
 ++++++++++++++++++++++++++++
