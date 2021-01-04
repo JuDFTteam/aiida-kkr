@@ -219,7 +219,7 @@ Plot for 12 energy points:
 .. image:: ../images/bs_Cu_example_12.png
     :width: 60%
 
- Plot for 200 energy points:
+Plot for 200 energy points:
 
 .. image:: ../images/bs_Cu_example_200.png
     :width: 60%
