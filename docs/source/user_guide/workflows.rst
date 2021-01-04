@@ -215,9 +215,12 @@ To plot one or more kkr_bs_wc node.
    from aiida_kkr.tools import plot_kkr
    plot_kkr( NODE, strucplot=False, logscale=True, silent=True, noshow=True) 
 Plot for 12 energy points:
+
 .. image:: ../images/bs_Cu_example_12.png
     :width: 60%
-Plot for 200 energy points:
+
+ Plot for 200 energy points:
+
 .. image:: ../images/bs_Cu_example_200.png
     :width: 60%
    
