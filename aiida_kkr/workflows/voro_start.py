@@ -49,21 +49,23 @@ class kkr_startpot_wc(WorkChain):
     """
 
     _workflowversion = __version__
-    _wf_default = {'num_rerun' : 4,                          # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
-                   'fac_cls_increase' : 1.15, # alat         # factor by which the screening cluster is increased each iteration (up to num_rerun times)
-                   'natom_in_cls_min' : 79,                  # minimum number of atoms in screening cluster
-                   'delta_e_min' : 1., # eV                  # minimal distance in DOS contour to emin and emax in eV
-                   'threshold_dos_zero' : 10**-2, #states/eV #
-                   'check_dos': False,                       # logical to determine if DOS is computed and checked
-                   'delta_e_min_core_states': 0.2, # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
-                   'ef_set': None                            # set Fermi level of starting potential to this value
-                   }
-    _options_default = {'queue_name' : '',                        # Queue name to submit jobs to
-                        'resources': {"num_machines": 1},         # resources to allowcate for the job
-                        'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)
-                        'withmpi' : True,                         # execute KKR with mpi or without
-                        'custom_scheduler_commands' : '',         # some additional scheduler commands
-                        }
+    _wf_default = {
+        'num_rerun': 4,                          # number of times voronoi+starting dos+checks is rerun to ensure non-negative DOS etc
+        'fac_cls_increase' : 1.15, # alat         # factor by which the screening cluster is increased each iteration (up to num_rerun times)
+        'natom_in_cls_min' : 79,                  # minimum number of atoms in screening cluster
+        'delta_e_min' : 1., # eV                  # minimal distance in DOS contour to emin and emax in eV
+        'threshold_dos_zero' : 10**-2, #states/eV #
+        'check_dos': False,                       # logical to determine if DOS is computed and checked
+        'delta_e_min_core_states': 0.2, # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
+        'ef_set': None                            # set Fermi level of starting potential to this value
+        }
+    _options_default = {
+        'queue_name' : '',                        # Queue name to submit jobs to
+        'resources': {"num_machines": 1},         # resources to allowcate for the job
+        'max_wallclock_seconds' : 60*60,          # walltime after which the job gets killed (gets parsed to KKR)
+        'withmpi' : True,                         # execute KKR with mpi or without
+        'custom_scheduler_commands' : '',         # some additional scheduler commands
+        }
     # add defaults of dos_params since they are passed onto that workflow
     for key, value in kkr_dos_wc.get_wf_defaults(silent=True).items():
         if key == 'dos_params':
@@ -373,9 +375,9 @@ class kkr_startpot_wc(WorkChain):
             gmax_input = default_values.get('GMAX')
         # check if any mandatory keys are not set and set them with the default values if missing in input parameters
         for key, value in default_values.items():
-          if key not in update_list and key not in set_vals:
-              self.report("INFO: setting {} to default value {}".format(key, value))
-              kkr_para.set_value(key, value)
+            if key not in update_list and key not in set_vals:
+                self.report("INFO: setting {} to default value {}".format(key, value))
+                kkr_para.set_value(key, value)
 
         # check if Fermi lavel should be set with input value
         if self.ctx.ef_set is not None:
@@ -581,11 +583,13 @@ class kkr_startpot_wc(WorkChain):
         if self.ctx.check_dos:
             self.report("INFO: Doing DOS calculation in iteration {}".format(self.ctx.iter))
             # take subset of input and prepare parameter node for dos workflow
-            options_dict =  {'queue_name' : self.ctx.queue,
-                             'resources': self.ctx.resources,
-                             'max_wallclock_seconds' : self.ctx.max_wallclock_seconds,
-                             'withmpi' : self.ctx.withmpi,
-                             'custom_scheduler_commands' : self.ctx.custom_scheduler_commands}
+            options_dict = {
+                'queue_name' : self.ctx.queue,
+                'resources': self.ctx.resources,
+                'max_wallclock_seconds' : self.ctx.max_wallclock_seconds,
+                'withmpi' : self.ctx.withmpi,
+                'custom_scheduler_commands' : self.ctx.custom_scheduler_commands
+                }
             options_node = Dict(dict=options_dict)
             options_node.label = 'options'
             wfdospara_dict = {'dos_params' : self.ctx.dos_params_dict}

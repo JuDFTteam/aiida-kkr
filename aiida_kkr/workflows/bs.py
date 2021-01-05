@@ -1,37 +1,43 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+"""
+This module contains the band structure workflow for KKR which is done by calculating the k-resolved spectral density
+also known as Bloch spectral function.
+"""
 
-from six.moves import range
-import numpy as np
-from aiida.orm import Code,  Dict, RemoteData, StructureData, Float
-from aiida.orm import XyData, WorkChainNode, load_node, CalcJobNode, ArrayData, KpointsData
-from aiida.engine import WorkChain, if_, ToContext, submit
-from aiida.engine import CalcJob, calcfunction
-from masci_tools.io.kkr_params import kkrparams
-from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
+from __future__ import absolute_import
+from __future__ import print_function
+from aiida.orm import Code, Dict, RemoteData, StructureData, Float, Str, WorkChainNode, load_node, CalcJobNode, ArrayData, KpointsData
+from aiida.engine import WorkChain, ToContext, calcfunction
+from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
+from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida.common.exceptions import InputValidationError, ConfigurationError
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
-from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
-__copyright__ = u"FZJ"
-__license__ = "MIT license"
-__version__ = "0.1.0"
-__contributors__ = u"Rubel Mozumder"
+from masci_tools.io.kkr_params import kkrparams
+from masci_tools.io.common_functions import get_Ry2eV
+import numpy as np
+from six.moves import range
+
+__copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
+                 "IAS-1/PGI-1, Germany. All rights reserved.")
+__license__ = "MIT license, see LICENSE.txt file"
+__version__ = "0.1.1"
+__contributors__ = (u"Rubel Mozumder", u"Philipp Rüßmann")
 
 class kkr_bs_wc(WorkChain):
     """
-    Workchain for BandStructure calculation, starting from RemoteFolderData the previous converged KKR calculation remote folder data
+    Workchain for BandStructure calculation, starting from RemoteFolderData of the previous converged KKR calculation remote folder data
 
     inputs:
-    :param wf_parameters: (Dict), (optional); Workchain Specifications, contains npt2, tempr, emin(ev), emax(ev), RCLUSTZ
-                          keys. The Energy emin and emax are the energy difference from the fermi energy.
+    :param wf_parameters: (Dict), (optional); Workchain Specifications, contains nepts, tempr, emin (in eV relative to EF), emax (in eV), 
+                          and RCLUSTZ (can be used to increase the screening cluster radius) keys.
 
-    :param options: (Dict), (optional); Computer Specifications, Schedualer command, parallel or serial
-    :param kpoints: (KpointsData),(optional); Kpoints data type from thestructure,
-                                   but not mendatory as it can be extrruct from structure internaly from the remote data
-    :param remote_data: (RemoteData)(mendaory); From the previous kkr-converged calcualtion.
+    :param options: (Dict), (optional); Computer Specifications, scheduler command, parallel or serial
+    :param kpoints: (KpointsData),(optional); Kpoints data type from the structure,
+                                   but not mendatory as it can be extracted from structure internaly from the remote data
+    :param remote_data: (RemoteData)(mendaory); From the previous kkr-converged calculation.
     :param kkr: (Code)(mendaory); KKR code specifiaction
     :param label: (Str) (optional) ; label for WC but will be found in the "result_wf" output 
                                      Dict as 'BS_wf_label' key
@@ -40,7 +46,7 @@ class kkr_bs_wc(WorkChain):
 
 
     returns:
-    :out BS_Data : (ArrayData) ; Consist of (BlochSpectralFunction), k_points (list), energy_points (list), special_kpoints(dict)
+    :out BS_Data : (ArrayData) ; Consist of BlochSpectralFunction, k_points (list), energy_points (list), special_kpoints(dict)
     :out result_wf: (Dict); work_chain_specifications node, BS_data node, remote_folder node  
     """
 
@@ -49,35 +55,72 @@ class kkr_bs_wc(WorkChain):
     _wf_description = """Workflow for a bandstructure calculation starting eithe from a structure with automatic voronoi'
                         calculation or a valid RemoteData of a previous calculation."""
     _wf_default = {
-                        'EMIN':10,  # Energy below the fermi surface for energy contour in ev unit
-                        'EMAX': 5,     # Energy over the fermi surface for energy contour in ev unit
-                        "NPT2": 200,   # Energy points in the energy contour
-                        "RCLUSTZ": 2.3,
-                        'TEMPR': 50.   # temperature
-                          }
+        "emin": -10.0,   # start of the energy range in eV, relative to the Fermi energy
+        "emax":  5.0,    # end of the energy range in eV, relative to the Fermi energy
+        "nepts": 200,    # number of energy points
+        "RCLUSTZ": None, # can be used to increase the cluster radius if a value is set here
+        "tempr": 50.,    # smearing temperature in K
+    }
     
-    _options_default = {'max_wallclock_seconds': 36000,
-                          'resources': {'num_machines': 1},
-                          'withmpi': True,
-                          'queue_name': ''
-                         }
+    _options_default = {
+        'max_wallclock_seconds': 36000,
+        'resources': {'num_machines': 1},
+        'withmpi': True,
+        'queue_name': ''
+    }
 
     @classmethod
     def get_wf_default(self, silent=False):
-        if not silent: print('Version of the wf pparameters  {}'.format(self._wf_version))
+        """
+        Return the default values of the workflow parameters (wf_parameters input node)
+        """
+        if not silent: print(('Version of the kkr_bs_wc workflow: {}'.format(self._wf_version)))
         return self._wf_default
 
     @classmethod
     def define(cls, spec):
+        """
+        Layout of the workflow, defines the input nodes and the outline of the workchain
+        """
         super(kkr_bs_wc, cls).define(spec)
         # here inputs are defined
-        spec.input("wf_parameters", valid_type = Dict, required = False,default=lambda: Dict(self._wf_default))
-        spec.input("options", valid_type=Dict, required=False,default=lambda: Dict(dict=cls._options_default))
-        spec.input("remote_data", valid_type=RemoteData, required=True)
-        spec.input("kkr", valid_type=Code, required=True)
-        spec.input("kpoints", valid_type=KpointsData, required = False)
-        spec.input("label", valid_type=Str, required=False)
-        spec.input("description", valid_type=Str, required=False)
+        spec.input("wf_parameters",
+            valid_type=Dict,
+            required=False,
+            default=lambda: Dict(self._wf_default),
+            help="Parameters of the bandstructure workflow (see output of kkr_bs_wc.get_wf_default() for more details)."
+        )
+        spec.input("options",
+            valid_type=Dict,
+            required=False,
+            default=lambda: Dict(dict=cls._options_default),
+            help="Computer options (walltime etc.) passed onto KkrCalculation"
+        )
+        spec.input("remote_data",
+            valid_type=RemoteData,
+            required=True,
+            help="Parent folder of previoously converged KkrCalculation"
+        )
+        spec.input("kkr",
+            valid_type=Code,
+            required=True,
+            help="KKRhost code, needed to run the qdos KkrCalculation"
+        )
+        spec.input("kpoints",
+            valid_type=KpointsData,
+            required=False,
+            help="K-points data for the calculation. If not given the seekpath library is used to find the irreducable k-points of a structure."
+        )
+        spec.input("label",
+            valid_type=Str,
+            required=False,
+            help="label for the workflow"
+        )
+        spec.input("description",
+            valid_type=Str,
+            required=False,
+            help="description for the workflow"
+        )
         
         # Here outputs are defined
         spec.output("results_wf", valid_type=Dict, required=True)        
@@ -104,13 +147,17 @@ class kkr_bs_wc(WorkChain):
         
         
     def start(self):
-        self.report('INFO: started KKR Band Structure workflow version {}'
-                    ''.format(self._wf_version))
+        """
+        set up context of the workflow
+        """
+        self.report('INFO: started KKR Band Structure workflow version {}'.format(self._wf_version))
         wf_dict = self.inputs.wf_parameters.get_dict()
+        # add missing default values
+        for key, val in self._wf_default.items():
+            if key not in wf_dict and val is not None:
+                self.report('INFO: Using default wf parameter {}: {}'.format(key, val))
+                wf_dict[key] = val
         options_dict = self.inputs.options.get_dict()
-        if wf_dict == {}:
-            self.report('INFO: Using default wf parameter')
-            wf_dict = self._wf_default
         if options_dict == {}:
             self.report('INFO: Using default wf Options')
             options_dict = self._options_default
@@ -124,26 +171,31 @@ class kkr_bs_wc(WorkChain):
         self.ctx.BS_kpoints = None
         self.ctx.description_wf = self.inputs.get('description', self._wf_description)
         self.ctx.label_wf = self.inputs.get('label', self._wf_label)
-        self.report('INFO: use the following parameter:\n'
-                    'withmpi: {}\n'
-                    'Resources: {}\n'
-                    'Walltime (s): {}\n'
-                    'queue name: {}\n'
-                    'scheduler command: {}\n'
-                    'description_wf: {}\n'
-                    'label_wf: {}\n'
-                    'BS_params: {}\n'.format(self.ctx.withmpi, self.ctx.resources, self.ctx.max_wallclock_seconds,
-                                              self.ctx.queue, self.ctx.custom_scheduler_commands,
-                                              self.ctx.description_wf, self.ctx.label_wf,
-                                              self.ctx.BS_params_dict))
+        self.report(
+            'INFO: use the following parameter:\n'
+            'withmpi: {}\n'
+            'Resources: {}\n'
+            'Walltime (s): {}\n'
+            'queue name: {}\n'
+            'scheduler command: {}\n'
+            'description_wf: {}\n'
+            'label_wf: {}\n'
+            'BS_params: {}\n'.format(
+                self.ctx.withmpi, self.ctx.resources, self.ctx.max_wallclock_seconds,
+                self.ctx.queue, self.ctx.custom_scheduler_commands,
+                self.ctx.description_wf, self.ctx.label_wf,
+                self.ctx.BS_params_dict
+            )
+        )
     
         self.ctx.successful = True
         self.ctx.errors = []
 
+
     def validate_input(self):
         """
-        # validate input and find out which path ( converged kkr calc or wf ) to take
-        # return True means run voronoi if false run kkr directly
+        validate input and find out which path ( converged kkr calc or wf ) to take
+        return True means run voronoi if false run kkr directly
         """
         inputs = self.inputs
         if 'remote_data' in inputs:
@@ -186,7 +238,7 @@ class kkr_bs_wc(WorkChain):
             maxdiff_cell = sum(abs(np.array(primitive_struc.cell) - np.array(struc_kkr.cell))).max()
             
             if maxdiff_cell>3*10**-9:
-                print('Error in cell : {}'.format(maxdiff_cell))
+                self.report('Error in cell : {}'.format(maxdiff_cell))
                 self.report('WARNING : The structure data from the voronoi calc is not the primitive structure type and in come cases it is medatory')
                 self.ctx.structure_data = 'conventional_unit_cell '
             else:
@@ -214,14 +266,15 @@ class kkr_bs_wc(WorkChain):
 
         # set self.ctx.input_params_KKR
         self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
-        
         self.report('The validation input_ok {}'.format(input_ok))
 
+
     def set_params_BS(self):
-        from masci_tools.io.common_functions import get_Ry2eV
+        """
+        set kkr parameters for the bandstructure (i.e. qdos) calculation
+        """
         evscal = get_Ry2eV()
         params = self.ctx.input_params_KKR
-        
         
         input_dict = params.get_dict()
         para_check = kkrparams()
@@ -261,20 +314,19 @@ class kkr_bs_wc(WorkChain):
             for key, val in econt_new.items():
                 if key=='nepts' or key=='NPT2':
                     key = 'NPT2'
-                    # add IEMXD which has to be big enough
-                    print('setting IEMXD', val)
+                    # also add IEMXD which has to be big enough
                     para_check.set_value('NPT2', val, silent=True)
                     para_check.set_value('IEMXD', val, silent=True)
                     
                 elif key=='emin' or key=='EMIN':
                     key = 'EMIN'
-                    new_val = (ef- val/evscal)# converting the Energy value to Ry while the fermi_energy in Ry
+                    new_val = (ef + val/evscal)# converting the Energy value to Ry while the fermi_energy in Ry
                     para_check.set_value(key, new_val, silent=True)
 
                     para_check.set_value(key, new_val, silent=True)
                 elif key=='emax' or key== 'EMAX':
                     key = 'EMAX'
-                    new_val = ( ef+ val/evscal) # Converting to the Ry (unit of the energy)
+                    new_val = (ef + val/evscal) # Converting to the Ry (unit of the energy)
                     para_check.set_value(key, new_val, silent=True)
                 elif key=='tempr' or key=='TEMPR':
                     key = 'TEMPR'
@@ -294,13 +346,17 @@ class kkr_bs_wc(WorkChain):
         paranode_BS = update_params_wf(self.ctx.input_params_KKR, updatenode)
         self.ctx.BS_kkrparams = paranode_BS
 
+
     def get_BS(self):
+        """
+        submit the KkrCalcultion with the qdos settings for a bandstructure calculation
+        """
         label = 'KKR BS calc.'
         BS_dict = self.ctx.BS_params_dict
         key_list = list(BS_dict)
         description = 'User defined BandStructure parameters '
-        for index in range(len(key_list)):
-            description += '{}= {} ,'.format(key_list[index], BS_dict[key_list[index]])
+        for key in key_list:
+            description += '{}= {} ,'.format(key, BS_dict[key])
 
         code = self.inputs.kkr
         remote = self.inputs.remote_data
@@ -322,8 +378,8 @@ class kkr_bs_wc(WorkChain):
         BS_run = self.submit(KkrCalculation, **create_builder)
         self.ctx.last_calc = BS_run
 
-
         return ToContext(BS_run=BS_run)
+
 
     def return_results(self):
         """
@@ -331,18 +387,12 @@ class kkr_bs_wc(WorkChain):
         """
 
         caching_info = "INFO: cache_source of BS calc node: {}".format(self.ctx.BS_run.get_cache_source)
-        print(caching_info)
         self.report(caching_info)
 
         if not self.ctx.BS_run.is_finished_ok:
             self.ctx.successful = False
             error = ('ERROR BS calculation failed somehow it is '
                     'in state {}'.format(self.ctx.BS_run.process_state))
-            print(error)
-            from pprint import pprint
-            pprint(self.ctx.BS_run.attributes)
-            print('stdout', self.ctx.BS_run.get_scheduler_stdout())
-            print('stderr', self.ctx.BS_run.get_scheduler_stderr())
             self.report(error)
             self.ctx.errors.append(error)
             return self.exit_codes.ERROR_BS_CALC_FAILED
@@ -358,8 +408,6 @@ class kkr_bs_wc(WorkChain):
         outputnode_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
         outputnode_dict['BS_params'] = self.ctx.BS_params_dict
         outputnode_dict['structure_type'] = self.ctx.structure_data
-        
-        
         outputnode_dict['BS_wf_description'] = self.ctx.description_wf
         outputnode_dict['BS_wf_label'] = self.ctx.label_wf
         try:
@@ -393,8 +441,8 @@ class kkr_bs_wc(WorkChain):
         ef = self.ctx.fermi_energy  # in Ry unit
         kpoints = self.ctx.BS_kpoints
         
-      # Here outdict dictionary has been created to set the Dict result_wf, BS_data
-      # to the output(spec.output) of the wf
+        # Here outdict dictionary has been created to set the Dict result_wf, BS_data
+        # to the output(spec.output) of the wf
         outdict = {}
         if has_BS_run:
             ArraData = parse_BS_data(BS_retrieved, Float(ef), kpoints)
@@ -405,18 +453,19 @@ class kkr_bs_wc(WorkChain):
       
         outdict['results_wf'] = create_out_dict_node(outputnode, **link_nodes)
 
-    # create links to output nodes
+        # create links to output nodes
         for link_name, node in outdict.items():
             self.out(link_name, node)
 
         self.report("INFO: done with BS_workflow!\n")
 
+
 @calcfunction
 def parse_BS_data(retrieved_folder, fermi_level, kpoints):
-    from masci_tools.io.common_functions import get_Ry2eV
-    from aiida.plugins import DataFactory
-    import numpy as np
-
+    """
+    parse the qdos files from the retreived folderand save as ArrayData
+    """
+    # conversion factor from Ry to eV
     eVscale = get_Ry2eV()  
     
     retrieved_list = retrieved_folder.list_object_names()
@@ -425,10 +474,8 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
 
     if q_vec_file in retrieved_list:
         file_opened = retrieved_folder.open(q_vec_file)
-        q_vec = np.loadtxt(file_opened, skiprows=1 )
+        q_vec = np.loadtxt(file_opened, skiprows=1)
 
-    else:
-        print('{} file is not present in the retrived folder'.format(q_vec_file))
     no_q_vec = len(q_vec[:,0])
 
     num_qdos_files = len(qdos_file_list)
@@ -459,7 +506,6 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
     
     klbl_dict = dict(kpoints.labels) # Special k-points
     # To save into the ArrayData
-    ArrayData = DataFactory('array')
     array = ArrayData()
     array.set_array('BlochSpectralFunction', qdos_intensity)
     array.set_array('Kpts', q_vec)
