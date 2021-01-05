@@ -7,7 +7,7 @@ from __future__ import unicode_literals
 import os
 import numpy as np
 from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData
+from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData, Bool
 from .voro import VoronoiCalculation
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import InputValidationError, ValidationError
@@ -26,7 +26,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.7"
+__version__ = "0.11.8"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -137,6 +137,8 @@ The Dict node should be of the form
 """)
         spec.input('deciout_parent', valid_type=RemoteData, required=False,
                    help="KkrCalculation RemoteData folder from deci-out calculation")
+        spec.input('retrieve_kkrflex', valid_type=Bool, required=False, default= lambda: Bool(True),
+                   help="For a GF writeout caluculation, determine whether or not the kkrflex_* files are copied to the retrieved (can clutter the database) or are ony left in the remote folder.")
 
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the KKR calculation')
@@ -493,7 +495,12 @@ The Dict node should be of the form
                 if 'KKRFLEX' in stripped_run_opts:
                     retrieve_kkrflex_files = True
         if retrieve_kkrflex_files:
-            add_files = self._ALL_KKRFLEX_FILES
+            if self.inputs.retrieve_kkrflex.value:
+                # retrieve all kkrflex files
+                add_files = self._ALL_KKRFLEX_FILES
+            else:
+                # do not retrieve kkrflex_tmat and kkrflex_green, they are kept on the remote and used from there
+                add_files = [self._KKRFLEX_ATOMINFO, self._KKRFLEX_INTERCELL_REF, self._KKRFLEX_INTERCELL_CMOMS]
             print('adding files for KKRFLEX output', add_files)
             calcinfo.retrieve_list += add_files
 

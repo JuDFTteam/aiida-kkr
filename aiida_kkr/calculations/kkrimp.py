@@ -24,7 +24,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.9"
+__version__ = "0.6.10"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -137,6 +137,8 @@ The Dict node should be of the form
         # define exit codes, also used in parser
         spec.exit_code(301, 'ERROR_NO_RETRIEVED_FOLDER', message='Retrieved folder of KKRimp calculation not found.')
         spec.exit_code(302, 'ERROR_PARSING_KKRIMPCALC', message='KKRimp parser returned an error.')
+        spec.exit_code(303, 'ERROR_KKRFLEX_GREEN_NOT_FOUND', message='Could not create symlink to kkrflex_green file. Hint: Did you iuse the same computer?')
+        spec.exit_code(304, 'ERROR_KKRFLEX_TMAT_NOT_FOUND', message='Could not create symlink to kkrflex_tmat file. Hint: Did you iuse the same computer?')
         #TBD
 
 
@@ -931,32 +933,51 @@ The Dict node should be of the form
         comp = code.computer
         workdir = comp.get_workdir()
         GFpath_remote = os.path.join(workdir, self._DIRNAME_GF_UPLOAD)
+        
+        
+        self.report('local_copy_list: {}'.format(local_copy_list))
 
         # extract GF information from retrieved folder of host GF calc
-        GF_local_copy_info = [i for i in local_copy_list if i[1]==self._KKRFLEX_GREEN][0]
-        TM_local_copy_info = [i for i in local_copy_list if i[1]==self._KKRFLEX_TMAT][0]
+        uuid_GF_calc = local_copy_list[0][0]
+        GF_local_copy_info = [i for i in local_copy_list if i[1]==self._KKRFLEX_GREEN]
+        TM_local_copy_info = [i for i in local_copy_list if i[1]==self._KKRFLEX_TMAT]
+        if len(TM_local_copy_info)>0:
+            TM_local_copy_info = TM_local_copy_info[0]
+        else:
+            TM_local_copy_info = None
+        if len(GF_local_copy_info)>0:
+            GF_local_copy_info = GF_local_copy_info[0]
+        else:
+            GF_local_copy_info = None
+            
 
         # open transport to remote computer
         with comp.get_transport() as connection:
-            # do this for GMAT
-            uuid_GF = GF_local_copy_info[0]
-            filename = GF_local_copy_info[1]
-            GF_remote_path = os.path.join(GFpath_remote, uuid_GF, filename)
+            # do this for GMAT if it was found in retreived folder, otherwise we must assume to find it on the remote
+            filename = self._KKRFLEX_GREEN
+            GF_remote_path = os.path.join(GFpath_remote, uuid_GF_calc, filename)
             # check if file exists on remote
             if connection.isfile(GF_remote_path):
                 # remove GF from local copy list and add to remote symlink list
-                local_copy_list.remove(GF_local_copy_info)
+                if GF_local_copy_info is not None:
+                    local_copy_list.remove(GF_local_copy_info)
                 remote_symlink_list.append((comp.uuid, GF_remote_path, filename))
+            else:
+                self.report('did not find kkrflex_green: {}'.format(GF_remote_path))
+                return self.ctx.exit_codes.ERROR_KKRFLEX_GREEN_NOT_FOUND
 
             # do the same for TMAT
-            uuid_TM = TM_local_copy_info[0]
-            filename = TM_local_copy_info[1]
-            TM_remote_path = os.path.join(GFpath_remote, uuid_TM, filename)
+            filename = self._KKRFLEX_TMAT
+            TM_remote_path = os.path.join(GFpath_remote, uuid_GF_calc, filename)
             # check if file exists on remote
             if connection.isfile(TM_remote_path):
                 # remove TMAT from local copy list and add to remote symlink list
-                local_copy_list.remove(TM_local_copy_info)
+                if TM_local_copy_info is not None:
+                    local_copy_list.remove(TM_local_copy_info)
                 remote_symlink_list.append((comp.uuid, TM_remote_path, filename))
+            else:
+                self.report('did not find kkrflex_tmat: {}'.format(TM_remote_path))
+                return self.ctx.exit_codes.ERROR_KKRFLEX_TMAT_NOT_FOUND
 
         # print symlink and local copy list (for debugging purposes)
         self.report('local_copy_list: {}'.format(local_copy_list))
