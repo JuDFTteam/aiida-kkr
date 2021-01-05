@@ -48,7 +48,7 @@ class TestAiida_kkr_entrypoints(object):
 
 
     # Data
-
+    """
     def test_kkrstructuredata_entry_point(self):
         from aiida.plugins import DataFactory
         from aiida.orm import Data
@@ -59,7 +59,7 @@ class TestAiida_kkr_entrypoints(object):
         assert kkrstruc == KkrstructureData
         assert isinstance(kkrstruc(), Data)
         assert isinstance(kkrstruc(), StructureData)
-
+    """
 
     # Parsers
 
@@ -110,6 +110,14 @@ class TestAiida_kkr_entrypoints(object):
 
         wf = WorkflowFactory('kkr.dos')
         assert wf == kkr_dos_wc
+
+
+    def test_bs_workchain_entry_point(self):
+        from aiida_kkr.workflows.bs import kkr_bs_wc
+        from aiida.plugins import WorkflowFactory
+
+        wf = WorkflowFactory('kkr.bs')
+        assert wf == kkr_bs_wc
 
 
     def test_eos_workchain_entry_point(self):
