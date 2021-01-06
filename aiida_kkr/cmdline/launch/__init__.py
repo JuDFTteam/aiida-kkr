@@ -7,6 +7,7 @@ from .launch import launch_voro
 from .launch import launch_kkr
 #from .launch import launch_kkrimp
 from .launch import launch_dos
+from .launch import launch_bs
 from .launch import launch_scf
 #from .launch import launch_gf_writeout
 from .launch import launch_kkrimp_scf
@@ -26,6 +27,7 @@ cmd_launch.add_command(launch_kkr)
 #cmd_launch.add_command(launch_kkrimp)
 cmd_launch.add_command(launch_scf)
 cmd_launch.add_command(launch_dos)
+cmd_launch.add_command(launch_bs)
 #cmd_launch.add_command(launch_gf_writeout)
 cmd_launch.add_command(launch_kkrimp_scf)
 #cmd_launch.add_command(launch_kkr_imp_dos)
