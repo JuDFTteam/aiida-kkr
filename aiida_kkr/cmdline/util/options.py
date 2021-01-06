@@ -21,6 +21,7 @@ STRUCTURE = OverridableOption('-s',
                               type=types.DataParamType(sub_classes=('aiida.data:structure',)),
                               help='StructureData node, given by pk or uuid.')
 
+
 VORO = OverridableOption('-v',
                            '--voro',
                            type=types.CodeParamType(entry_point='kkr.voro'),
