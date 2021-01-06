@@ -168,7 +168,7 @@ def launch_dos(kkr, wf_parameters, option_node, parent_folder, daemon):
 @options.KPOINTS()
 @options.OPTION_NODE()
 @options.PARENT_FOLDER()
-@options.LABLE()
+@options.LABEL()
 @options.DAEMON()
 def launch_bs(kkr, wf_parameters, kpoints, option_node, parent_folder, label, daemon):
     """
