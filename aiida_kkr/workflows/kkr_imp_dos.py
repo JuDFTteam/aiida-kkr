@@ -22,7 +22,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.8"
+__version__ = "0.6.9"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
 
 #TODO: improve workflow output node structure
@@ -317,7 +317,6 @@ label: {}
             self.ctx.errors.append(1) # raises ERROR_NO_PARENT_FOUND
 
         message = 'INFO: validated input successfully: {}'.format(inputs_ok)
-        print(message)
         self.report(message)
 
         return inputs_ok
@@ -359,7 +358,6 @@ label: {}
             future = self.submit(builder)
 
             message = 'INFO: running GF writeout (pid: {})'.format(future.pk)
-            print(message)
             self.report(message)
 
             return ToContext(gf_writeout=future)

@@ -10,8 +10,226 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.4"
+__version__ = "0.5.5"
 __contributors__ = ("Philipp Rüßmann")
+
+
+def _in_notebook():
+    """
+    Helper function to check if code is executed from within a jupyter notebook
+    this is used to change to a different default visualization
+    """
+    try:
+        from IPython import get_ipython
+        if 'IPKernelApp' not in get_ipython().config:  # pragma: no cover
+            return False
+    except ImportError:
+        return False
+    return True
+
+def _has_ase_notebook():
+    """
+    Helper function to check if ase_notebook is installed
+    """
+    try:
+        import ase_notebook
+    except ImportError:
+        return False
+    return True
+
+def strucplot_ase_notebook(struc, **kwargs):
+    """
+    plotting function for aiida structure using ase_notebook visulaization
+    """
+    from ase_notebook import ViewConfig, AseView
+    
+    # extract some setting if given as kwargs
+    repeat_uc = kwargs.get('repeat_uc', (1,1,1))
+    canvas_size = kwargs.get('canvas_size', (300, 300))
+    zoom = kwargs.get('zoom', 1.0)
+    atom_opacity = kwargs.get('atom_opacity', 0.95)
+    static = kwargs.get('static', False)
+    rotations = kwargs.get('rotations', "-80x,-20y,-5z")
+    
+    # set up structure viewer from ase_notebook
+    config_dict = {
+        'atom_show_label': True,
+        'rotations': rotations,
+        'show_uc_repeats': True,
+        'show_bonds': False,
+        'show_unit_cell': True,
+        'canvas_size': canvas_size,
+        'zoom': zoom,
+        'show_axes': True,
+        'canvas_background_opacity': 1.00,
+        'canvas_color_background': 'white',
+        'axes_length': 30,
+        'atom_opacity': atom_opacity
+    }
+
+    config = ViewConfig(**config_dict)
+    ase_view = AseView(config)
+
+    # create ase atoms object from structure
+    ase_atoms = struc.get_ase()
+
+    # now create plot
+    strucview = None
+    if not static and _in_notebook():
+        # render view in notebook
+        strucview = ase_view.make_render(
+            ase_atoms, center_in_uc=True,
+            create_gui=True, 
+            repeat_uc=repeat_uc,
+            use_atom_arrays=True,
+        )    
+    elif _in_notebook():
+        # static plot in notebook (svg)
+        strucview = ase_view.make_svg(
+            ase_atoms, center_in_uc=True,
+            repeat_uc=repeat_uc,
+        )
+    elif static:
+        # open gui window
+        ase_view.make_gui(
+            ase_atoms, center_in_uc=True,
+            repeat_uc=repeat_uc,
+            use_atom_arrays=True,
+        )
+    else:
+        # return error message or implement static image opening
+        print("WARNING: static strucplot_ase_notebook")
+
+    return strucview
+        
+
+def plot_imp_cluster(kkrimp_calc_node, **kwargs):
+    """
+    Plot impurity cluster from KkrimpCalculation node
+    
+    These kwargs can be used to control the behavior of the plotting tool:
+    
+    kwargs = {
+        static = False,              # make gui or static (svg) images
+        canvas_size = (300, 300),    # size of the canvas
+        zoom = 1.0,                  # zoom, set to >1 (<1) to zoom in (out)
+        atom_opacity = 0.95,         # set opacity level of the atoms, useful for overlapping atoms
+        rotations = "-80x,-20y,-5z", # rotation in degrees around x,y,z axes
+        show_unit_cell = True,       # show the unit cell of the host
+    }
+    
+    """
+    from aiida.orm import StructureData
+    from aiida.common.constants import elements
+    from ase_notebook import ViewConfig, AseView
+    from aiida_kkr.calculations import VoronoiCalculation
+    from aiida_kkr.tools.tools_kkrimp import create_scoef_array
+    from masci_tools.io.common_functions import get_alat_from_bravais
+    import numpy as np
+    
+    imp_info = kkrimp_calc_node.inputs.impurity_info.get_dict()
+    structure0, _ = VoronoiCalculation.find_parent_structure(kkrimp_calc_node.inputs.host_Greenfunction_folder)
+
+    # needed to transform from internal to Angstroem units
+    alat = get_alat_from_bravais(np.array(structure0.cell), structure0.pbc[2])
+
+    # extract infos from impurity info node
+    rimp_rel = np.array(imp_info.get('Rimp_rel', [[0,0,0]]))
+    zimp = imp_info.get('Zimp')
+    if not (isinstance(zimp, list) or isinstance(zimp, np.ndarray)):
+        zimp = [zimp]
+    if 'Rimp_rel' in imp_info and 'imp_cls' in imp_info:
+        imp_cls = np.array(imp_info['imp_cls'])
+    else:
+        ilayer = imp_info['ilayer_center']
+        radius = imp_info['Rcut']
+        h = imp_info.get('hcut', -1.)
+        vector = imp_info.get('cylinder_orient', [0., 0., 1.])
+        i = imp_info.get('ilayer_center', 0)
+        imp_cls = np.array(create_scoef_array(structure0, radius, h, vector, i))
+
+    # adapt imp_cls from zimp+rimp_rel and find ghost atoms
+    ghost_map = []
+    for isite, site in enumerate(imp_cls):
+        pos = site[:3]
+        dmin = 1e9
+        i0 = -1
+        for iimp, z in enumerate(zimp):
+            dist = np.sqrt(np.sum((rimp_rel[iimp]-pos)**2))
+            if dist<dmin:
+                dmin = dist
+                i0 = iimp
+        if dmin<1e-5:
+            ghost_map.append(False)
+            imp_cls[isite, 4] = zimp[i0]
+        else:
+            ghost_map.append(True)
+        # position to convert to Ang. units
+        imp_cls[isite, :3] *= alat
+    ghost_map = np.array(ghost_map)
+    # create auxiliary structure
+    struc_aux = StructureData(cell=structure0.cell)
+    for site in imp_cls:
+        struc_aux.append_atom(position=site[:3],
+                              symbols=elements[int(site[4])]['symbol']
+                             )
+
+    # extract settings from kwargs
+    canvas_size = kwargs.get('canvas_size', (300, 300))
+    zoom = kwargs.get('zoom', 1.0)
+    atom_opacity = kwargs.get('atom_opacity', 0.95)
+    static = kwargs.get('static', False)
+    rotations = kwargs.get('rotations', "-80x,-20y,-5z")
+    show_unit_cell = kwargs.get('show_unit_cell', True)
+
+    # set up structure viewer from ase_notebook
+    config_dict = {
+        'atom_show_label': True,
+        'rotations': rotations,
+        'show_uc_repeats': True,
+        'show_bonds': False,
+        'show_unit_cell': show_unit_cell,
+        'canvas_size': canvas_size,
+        'zoom': zoom,
+        'show_axes': True,
+        'canvas_background_opacity': 0.00,
+        'canvas_color_background': 'white',
+        'axes_length': 30,
+        'atom_opacity': atom_opacity
+    }
+    config = ViewConfig(**config_dict)
+    ase_view_imp = AseView(config)
+
+    # create ase atoms object from auxiliary structure with ghost atoms mapping
+    ase_atoms_impcls = struc_aux.get_ase()
+    ase_atoms_impcls.set_array('ghost', ghost_map)
+
+    # create plot
+    strucview_imp = None
+    if not static and _in_notebook():
+        strucview_imp = ase_view_imp.make_render(
+            ase_atoms_impcls,
+            center_in_uc=True,
+            create_gui=True, 
+            use_atom_arrays=True,
+        )
+    elif _in_notebook():
+        strucview_imp = ase_view_imp.make_svg(
+            ase_atoms_impcls,
+            center_in_uc=True,
+        )
+    elif static:
+        ase_view_imp.make_gui(
+            ase_atoms_impcls,
+            center_in_uc=True,
+            use_atom_arrays=True,
+        )
+    else:
+        # return error message or implement static image opening
+        print("WARNING: static strucplot_ase_notebook")
+        
+    return strucview_imp
+
 
 
 class plot_kkr(object):
@@ -86,7 +304,8 @@ class plot_kkr(object):
         elif nodes is not None:
             self.plot_kkr_single_node(nodes, **kwargs)
 
-            if self.classify_and_plot_node(nodes, return_name_only=True)=='struc':
+            display = kwargs.get('display', True)
+            if display and self.sview is not None: #self.classify_and_plot_node(nodes, return_name_only=True)=='struc':
                 from IPython.display import display
                 display(self.sview)
 
@@ -307,17 +526,24 @@ class plot_kkr(object):
                     print("removing atom", site)
             stmp.set_pbc(structure.pbc)
             structure = stmp
-        # now construct ase object and use ase's viewer
-        ase_atoms = structure.get_ase()
-        if 'silent' in kwargs:
-            silent = kwargs.pop('silent')
-        # remove things that are not understood bt ase's view
-        print(kwargs)
-        for key in ['nofig', 'interpol', 'all_atoms', 'l_channels',
-                    'sum_spins', 'logscale', 'switch_xy', 'iatom', 'label']:
-            if key in kwargs: _ = kwargs.pop(key)
-        print("plotting structure using ase's `view` with kwargs={}".format(kwargs))
-        self.sview = view(ase_atoms, **kwargs)
+            
+        if _has_ase_notebook() and 'viewer' not in kwargs:
+            # by default use ase_notebook if it is available
+            self.sview = strucplot_ase_notebook(structure, **kwargs)
+        else:
+            # use ase's view function instead
+        
+            # now construct ase object and use ase's viewer
+            ase_atoms = structure.get_ase()
+            if 'silent' in kwargs:
+                silent = kwargs.pop('silent')
+            # remove things that are not understood bt ase's view
+            for key in ['nofig', 'interpol', 'all_atoms', 'l_channels',
+                        'sum_spins', 'logscale', 'switch_xy', 'iatom', 'label']:
+                if key in kwargs: _ = kwargs.pop(key)
+            print("plotting structure using ase's `view` with kwargs={}".format(kwargs))
+            
+            self.sview = view(ase_atoms, **kwargs)
 
     def dosplot(self, d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, **kwargs):
         """plot dos from xydata node"""
@@ -734,6 +960,14 @@ class plot_kkr(object):
         """plot things from a kkrimp Calculation node"""
         from numpy import array, ndarray
         from numpy import sqrt, sum
+        
+        # plot impurity cluster
+        if kwargs.get('strucplot', True):
+            self.sview = plot_imp_cluster(node, **kwargs)
+        # remove plotting-exclusive keys from kwargs
+        for k in ['static', 'canvas_size', 'zoom', 'atom_opacity', 'rotations', 'show_unit_cell', 'strucplot']:
+            if k in kwargs:
+                kwargs.pop(k)
 
         # read data from output node
         rms_goal, rms = None, []
@@ -793,8 +1027,17 @@ class plot_kkr(object):
         """plot things from a kkrimp_sub_wc workflow"""
         from aiida_kkr.calculations import KkrimpCalculation
 
-        # extract rms from calculations
         impcalcs = [i.node for i in node.get_outgoing(node_class=KkrimpCalculation).all()]
+        
+        # plot impurity cluster
+        if len(impcalcs)>0 and kwargs.get('strucplot', True):
+            self.sview = plot_imp_cluster(impcalcs[0], **kwargs)
+        # remove plotting-exclusive keys from kwargs
+        for k in ['static', 'canvas_size', 'zoom', 'atom_opacity', 'rotations', 'show_unit_cell', 'strucplot']:
+            if k in kwargs:
+                kwargs.pop(k)
+
+        # extract rms from calculations
         rms_all, pks_all, stot_all = [], [], []
         rms_goal = None
         for impcalc in impcalcs:
@@ -807,6 +1050,7 @@ class plot_kkr(object):
                 else:
                     rms_goal = rms_goal_tmp
             stot_all.append(stot_tmp)
+
 
         if 'ptitle' in list(kwargs.keys()):
             ptitle = kwargs.pop('ptitle')
@@ -891,7 +1135,6 @@ class plot_kkr(object):
         if 'switch_xy' in list(kwargs.keys()): switch_xy = kwargs.pop('switch_xy')
         nofig = False
         if 'nofig' in list(kwargs.keys()): nofig = kwargs.pop('nofig')
-        if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
         if 'silent' in list(kwargs.keys()): silent = kwargs.pop('silent')
         if 'switch_sign_spin2' in list(kwargs.keys()): switch_sign_spin2 = kwargs.pop('switch_sign_spin2')
         else: switch_sign_spin2 = True
@@ -908,6 +1151,15 @@ class plot_kkr(object):
 
         if has_dos:
             calcnode = [i for i in node.called_descendants if i.process_label=='KkrimpCalculation'][0]
+            
+            # plot impurity cluster
+            if kwargs.get('strucplot', True):
+                self.sview = plot_imp_cluster(calcnode, **kwargs)
+            # remove plotting-exclusive keys from kwargs
+            for k in ['static', 'canvas_size', 'zoom', 'atom_opacity', 'rotations', 'show_unit_cell', 'strucplot']:
+                if k in kwargs:
+                    kwargs.pop(k)
+            
             if calcnode.is_finished_ok:
                 natoms = len(calcnode.outputs.output_parameters.get_dict().get('charge_core_states_per_atom'))
                 self.dosplot(d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, yscale=yscale, **kwargs)

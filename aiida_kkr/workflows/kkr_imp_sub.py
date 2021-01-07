@@ -77,9 +77,7 @@ class kkr_imp_sub_wc(WorkChain):
                    'hfield' : [0.02, 5], # Ry                     # external magnetic field used in initialization step
                    'init_pos' : None,                             # position in unit cell where magnetic field is applied [default (None) means apply to all]
                    'dos_run': False,                              # specify if DOS should be calculated (!KKRFLEXFILES with energy contour necessary as GF_remote_data!)
-
                    'lmdos': True,                                 # specify if DOS calculation should calculate l-resolved or l and m resolved output
-
                    'jij_run': False,                              # specify if Jijs should be calculated (!changes behavior of the code!!!)
                    'do_final_cleanup': True,                      # decide whether or not to clean up intermediate files (THIS BREAKS CACHABILITY!)
 #                   # Some parameter for direct solver (if None, use the same as in host code, otherwise overwrite)
@@ -1133,7 +1131,9 @@ class kkr_imp_sub_wc(WorkChain):
 def remove_out_pot_impcalcs(successful, pks_all_calcs, dry_run=False):
     """
     Remove out_potential file from all but the last KKRimp calculation if workflow was successful
-    Usage:
+    
+    Usage::
+    
         imp_wf = load_node(266885) # maybe start with outer workflow
         pk_imp_scf = imp_wf.outputs.workflow_info['used_subworkflows'].get('kkr_imp_sub')
         imp_scf_wf = load_node(pk_imp_scf) # this is now the imp scf sub workflow
