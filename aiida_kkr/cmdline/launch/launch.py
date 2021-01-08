@@ -168,11 +168,11 @@ def launch_dos(kkr, wf_parameters, option_node, parent_folder, daemon):
 @options.KPOINTS()
 @options.OPTION_NODE()
 @options.PARENT_FOLDER()
-@options.LABEL()
 @options.DAEMON()
-def launch_bs(kkr, wf_parameters, kpoints, option_node, parent_folder, label, daemon):
+def launch_bs(kkr, wf_parameters, kpoints, option_node, parent_folder, daemon):
     """
-    Launch an KKRhost bandstructure workflow
+    Launch an KKRhost bandstructure workflow with required inputs 
+    (kkr code, remote_data, options, wf-parameters, daemon)
     """
     process_class = WorkflowFactory('kkr.bs')
 
@@ -182,7 +182,6 @@ def launch_bs(kkr, wf_parameters, kpoints, option_node, parent_folder, label, da
         'kpoints' : kpoints,
         'options': option_node,
         'wf_parameters': wf_parameters,
-        'label' : label,
     }
     inputs = clean_nones(inputs)
     builder = process_class.get_builder()

@@ -24,6 +24,26 @@ def test_launch_voro_base(run_cli_process_launch_command, fixture_code):
     run_cli_process_launch_command(launch_voro, options=options)
 
 
+def test_launch_bs(run_cli_process_launch_command, fixture_code, generate_remote_data):
+
+    """A test for invoking the bs launch commmand with required inputs."""
+    from aiida_kkr.cmdline.launch import launch_bs
+    from aiida.engine.processes.calcjobs.tasks import PreSubmitException
+    code = fixture_code('kkr.kkr').store()
+    params = kkrparams(params_type='kkr')
+    params.set_multiple_values(
+            MIN= -10,
+            MAX= 5, 
+            NPT2= 12, 
+            RCLUSTZ= 2.3, 
+            TEMPR= 50,)
+    
+    param_node = Dict(dict=params.get_dict()).store()
+    path = os.path.abspath(os.path.join(THISFILE_PATH, '../../files/bd_dump_bs/parent_kkr'))
+    remote = generate_remote_data(code.computer, path).store()
+    options = ['--kkr', code.uuid, '--parameters', param_node.uuid, '--parent-folder', remote.uuid ]
+    run_cli_process_launch_command(launch_bs, options=options, raises=PreSubmitException)
+
 def test_launch_kkr_base(run_cli_process_launch_command, fixture_code, generate_remote_data):
     """Test invoking the kkr launch command with only required inputs."""
     from aiida_kkr.cmdline.launch import launch_kkr

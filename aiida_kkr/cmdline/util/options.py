@@ -21,6 +21,7 @@ STRUCTURE = OverridableOption('-s',
                               type=types.DataParamType(sub_classes=('aiida.data:structure',)),
                               help='StructureData node, given by pk or uuid.')
 
+
 VORO = OverridableOption('-v',
                            '--voro',
                            type=types.CodeParamType(entry_point='kkr.voro'),
@@ -122,7 +123,7 @@ DAEMON = OverridableOption('-d',
                            is_flag=True,
                            default=False,
                            show_default=True,
-                           help='Submit the process to the daemon instead of running it locally.')
+                           help='Submit the process to the daemon instead of running it locally. -d flag does not need any argument')
 
 NOCO_ANGLES = OverridableOption(
                                   '--noco-angles',
