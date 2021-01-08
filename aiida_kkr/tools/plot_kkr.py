@@ -21,6 +21,8 @@ def _in_notebook():
     """
     try:
         from IPython import get_ipython
+        if get_ipython() is None:
+            return False
         if 'IPKernelApp' not in get_ipython().config:  # pragma: no cover
             return False
     except ImportError:
@@ -37,6 +39,21 @@ def _has_ase_notebook():
         return False
     return True
 
+def _check_tk_gui(static):
+    """
+    check if tk gui can be openen, otherwise reset static to False
+    """
+    if not static:
+        try:
+            import tkinter as tk
+            window = tk.Tk()
+            window.quit()
+        except:
+            print("cannot open tk gui, fall back to static image")
+            static = True
+
+    return static
+
 def strucplot_ase_notebook(struc, **kwargs):
     """
     plotting function for aiida structure using ase_notebook visulaization
@@ -50,6 +67,9 @@ def strucplot_ase_notebook(struc, **kwargs):
     atom_opacity = kwargs.get('atom_opacity', 0.95)
     static = kwargs.get('static', False)
     rotations = kwargs.get('rotations', "-80x,-20y,-5z")
+
+    # check if static needs to be enforced
+    static = _check_tk_gui(static)
     
     # set up structure viewer from ase_notebook
     config_dict = {
@@ -98,12 +118,10 @@ def strucplot_ase_notebook(struc, **kwargs):
         print('saved static plot in svg format to ', filename)
         strucview.saveas(filename)
     else:
-        strucview_imp.saveas(filename)
         # open gui window
         ase_view.make_gui(
             ase_atoms, center_in_uc=True,
             repeat_uc=repeat_uc,
-            use_atom_arrays=True,
         )
 
     return strucview
@@ -188,6 +206,9 @@ def plot_imp_cluster(kkrimp_calc_node, **kwargs):
     static = kwargs.get('static', False)
     rotations = kwargs.get('rotations', "-80x,-20y,-5z")
     show_unit_cell = kwargs.get('show_unit_cell', True)
+
+    # check if static needs to be enforced
+    static = _check_tk_gui(static)
 
     # set up structure viewer from ase_notebook
     config_dict = {
