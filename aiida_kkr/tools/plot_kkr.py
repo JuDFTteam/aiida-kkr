@@ -90,15 +90,21 @@ def strucplot_ase_notebook(struc, **kwargs):
             repeat_uc=repeat_uc,
         )
     elif static:
+        strucview = ase_view.make_svg(
+            ase_atoms, center_in_uc=True,
+            repeat_uc=repeat_uc,
+        )
+        filename = kwargs.get('filename', 'plot_kkr_out.svg')
+        print('saved static plot in svg format to ', filename)
+        strucview.saveas(filename)
+    else:
+        strucview_imp.saveas(filename)
         # open gui window
         ase_view.make_gui(
             ase_atoms, center_in_uc=True,
             repeat_uc=repeat_uc,
             use_atom_arrays=True,
         )
-    else:
-        # return error message or implement static image opening
-        print("WARNING: static strucplot_ase_notebook")
 
     return strucview
         
@@ -110,12 +116,13 @@ def plot_imp_cluster(kkrimp_calc_node, **kwargs):
     These kwargs can be used to control the behavior of the plotting tool:
     
     kwargs = {
-        static = False,              # make gui or static (svg) images
-        canvas_size = (300, 300),    # size of the canvas
-        zoom = 1.0,                  # zoom, set to >1 (<1) to zoom in (out)
-        atom_opacity = 0.95,         # set opacity level of the atoms, useful for overlapping atoms
-        rotations = "-80x,-20y,-5z", # rotation in degrees around x,y,z axes
-        show_unit_cell = True,       # show the unit cell of the host
+        static = False,               # make gui or static (svg) images
+        canvas_size = (300, 300),     # size of the canvas
+        zoom = 1.0,                   # zoom, set to >1 (<1) to zoom in (out)
+        atom_opacity = 0.95,          # set opacity level of the atoms, useful for overlapping atoms
+        rotations = "-80x,-20y,-5z",  # rotation in degrees around x,y,z axes
+        show_unit_cell = True,        # show the unit cell of the host
+        filename = 'plot_kkr_out.svg' # filename used for the export of a static svg image
     }
     
     """
@@ -219,14 +226,19 @@ def plot_imp_cluster(kkrimp_calc_node, **kwargs):
             center_in_uc=True,
         )
     elif static:
+        strucview_imp = ase_view_imp.make_svg(
+            ase_atoms_impcls,
+            center_in_uc=True,
+        )
+        filename = kwargs.get('filename', 'plot_kkr_out.svg')
+        print('saved static plot in svg format to ', filename)
+        strucview_imp.saveas(filename)
+    else:
         ase_view_imp.make_gui(
             ase_atoms_impcls,
             center_in_uc=True,
             use_atom_arrays=True,
         )
-    else:
-        # return error message or implement static image opening
-        print("WARNING: static strucplot_ase_notebook")
         
     return strucview_imp
 
@@ -963,7 +975,10 @@ class plot_kkr(object):
         
         # plot impurity cluster
         if kwargs.get('strucplot', True):
-            self.sview = plot_imp_cluster(node, **kwargs)
+            if _has_ase_notebook():
+                self.sview = plot_imp_cluster(node, **kwargs)
+            else:
+                print('Cannot plot impurity structure because ase_notebook is not installed')
         # remove plotting-exclusive keys from kwargs
         for k in ['static', 'canvas_size', 'zoom', 'atom_opacity', 'rotations', 'show_unit_cell', 'strucplot']:
             if k in kwargs:
@@ -1031,7 +1046,10 @@ class plot_kkr(object):
         
         # plot impurity cluster
         if len(impcalcs)>0 and kwargs.get('strucplot', True):
-            self.sview = plot_imp_cluster(impcalcs[0], **kwargs)
+            if _has_ase_notebook():
+                self.sview = plot_imp_cluster(impcalcs[0], **kwargs)
+            else:
+                print('Cannot plot impurity structure because ase_notebook is not installed')
         # remove plotting-exclusive keys from kwargs
         for k in ['static', 'canvas_size', 'zoom', 'atom_opacity', 'rotations', 'show_unit_cell', 'strucplot']:
             if k in kwargs:
