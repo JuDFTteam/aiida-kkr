@@ -123,7 +123,7 @@ DAEMON = OverridableOption('-d',
                            is_flag=True,
                            default=False,
                            show_default=True,
-                           help='Submit the process to the daemon instead of running it locally.')
+                           help='Submit the process to the daemon instead of running it locally. -d flag does not need any argument')
 
 NOCO_ANGLES = OverridableOption(
                                   '--noco-angles',

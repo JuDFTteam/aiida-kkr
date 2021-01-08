@@ -171,7 +171,8 @@ def launch_dos(kkr, wf_parameters, option_node, parent_folder, daemon):
 @options.DAEMON()
 def launch_bs(kkr, wf_parameters, kpoints, option_node, parent_folder, daemon):
     """
-    Launch an KKRhost bandstructure workflow
+    Launch an KKRhost bandstructure workflow with required inputs 
+    (kkr code, remote_data, options, wf-parameters, daemon)
     """
     process_class = WorkflowFactory('kkr.bs')
 
