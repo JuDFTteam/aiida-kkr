@@ -61,6 +61,7 @@
         "aiida.workflows":[
             "kkr.scf = aiida_kkr.workflows.kkr_scf:kkr_scf_wc",
             "kkr.dos = aiida_kkr.workflows.dos:kkr_dos_wc",
+            "kkr.bs = aiida_kkr.workflows.bs:kkr_bs_wc",
             "kkr.eos = aiida_kkr.workflows.eos:kkr_eos_wc",
             "kkr.startpot = aiida_kkr.workflows.voro_start:kkr_startpot_wc",
             "kkr.check_mag = aiida_kkr.workflows.check_magnetic_state:kkr_check_mag_wc",

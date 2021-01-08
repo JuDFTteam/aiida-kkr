@@ -26,6 +26,13 @@ Density of states
    :members:
    :private-members:
    :special-members:
+   
+Bandstructure
+-------------
+.. automodule:: aiida_kkr.workflows.bs
+   :members:
+   :private-members:
+   :special-members:
 
 Equation of states
 ------------------

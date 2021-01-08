@@ -307,7 +307,7 @@ class plot_kkr(object):
                 # some settings for groups
                 if 'noshow' in list(kwargs.keys()): _ = kwargs.pop('noshow') # this is now removed from kwargs
                 if 'only' in list(kwargs.keys()): _ = kwargs.pop('only') # this is now removed from kwargs
-
+                if 'nofig' in list(kwargs.keys()): _ = kwargs.pop('nofig')# To revoke the 'nofig' kwarg from the list
                 # now plot groups one after the other
                 self.plot_group(groupname, node_groups, noshow=True, nofig=True, **kwargs)
 
@@ -418,6 +418,9 @@ class plot_kkr(object):
         elif node.process_label == u'kkr_dos_wc':
             if return_name_only: return 'dos'
             self.plot_kkr_dos(node, **kwargs)
+        elif node.process_label == u'kkr_bs_wc':
+            if return_name_only: return 'bs'
+            self.plot_kkr_bs(node, **kwargs)
         elif node.process_label == u'kkr_startpot_wc':
             if return_name_only: return 'startpot'
             self.plot_kkr_startpot(node, **kwargs)
@@ -1220,6 +1223,50 @@ class plot_kkr(object):
                 ptitle = 'pk= {}'.format(node.pk)
             self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
             title(ptitle)
+    def plot_kkr_bs(self, node, **kwargs):
+        print('the plot is from the function plot_kkr_bs')
+        import matplotlib.pyplot as plt
+        import numpy as np
+        node_bs_wc = node
+        BSF = node_bs_wc.outputs.BS_Data.get_array('BlochSpectralFunction')
+        eng = node_bs_wc.outputs.BS_Data.get_array('energy_points')
+        Kpts = node_bs_wc.outputs.BS_Data.get_array('Kpts')
+        k_label = node_bs_wc.outputs.BS_Data.extras['k-labels']
+        ixlbl =  [int(i) for i in k_label.keys()]
+        sxlbl =  [i for i in k_label.values()]
+        j = 0
+        for i in ixlbl[:-1]:
+            if (ixlbl[j+1] - i) < 2:
+                sxlbl[j+1]  = str(sxlbl[j]) + '|' + str(sxlbl[j+1])
+                sxlbl[j] = ''
+            j += 1
+        y,x = np.mgrid[slice(0,len(eng)+1,1),
+               slice(0,len(Kpts[:,0])+1,1)]
+
+        eng_extend = np.ones(len(eng[:])+1)
+
+        eng = eng[::-1]
+        eng_extend[:-1] = np.sort(eng)
+        eng_extend[-1] = eng_extend[-2]
+
+        y = np.array(y, float)
+        for i in range(len(x[0,:])):
+            y[:,i]=eng_extend       
+       
+
+#        %matplotlib inline
+        fig = plt.figure(figsize = (5,5))
+        plt.pcolormesh(x,y, np.log(BSF.T), cmap=plt.cm.viridis, edgecolor='face',rasterized= True)
+        plt.ylabel("energy (E-E_F)")
+        plt.xlabel("kpoints")
+
+        plt.colorbar()
+
+        plt.title('band structure from kkr_bs_wc (pk- {} or uuid- {})'.format(node_bs_wc.pk, node_bs_wc.uuid))
+        
+        plt.xticks(ixlbl,sxlbl)
+        plt.axhline(0 ,color='red', ls=':', lw=2)
+
 
 
     def plot_kkr_startpot(self, node, **kwargs):
