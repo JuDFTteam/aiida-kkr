@@ -137,8 +137,6 @@ The Dict node should be of the form
         # define exit codes, also used in parser
         spec.exit_code(301, 'ERROR_NO_RETRIEVED_FOLDER', message='Retrieved folder of KKRimp calculation not found.')
         spec.exit_code(302, 'ERROR_PARSING_KKRIMPCALC', message='KKRimp parser returned an error.')
-        spec.exit_code(303, 'ERROR_KKRFLEX_GREEN_NOT_FOUND', message='Could not create symlink to kkrflex_green file. Hint: Did you iuse the same computer?')
-        spec.exit_code(304, 'ERROR_KKRFLEX_TMAT_NOT_FOUND', message='Could not create symlink to kkrflex_tmat file. Hint: Did you iuse the same computer?')
         #TBD
 
 
@@ -962,9 +960,6 @@ The Dict node should be of the form
                 if GF_local_copy_info is not None:
                     local_copy_list.remove(GF_local_copy_info)
                 remote_symlink_list.append((comp.uuid, GF_remote_path, filename))
-            else:
-                self.report('did not find kkrflex_green: {}'.format(GF_remote_path))
-                return self.ctx.exit_codes.ERROR_KKRFLEX_GREEN_NOT_FOUND
 
             # do the same for TMAT
             filename = self._KKRFLEX_TMAT
@@ -975,9 +970,6 @@ The Dict node should be of the form
                 if TM_local_copy_info is not None:
                     local_copy_list.remove(TM_local_copy_info)
                 remote_symlink_list.append((comp.uuid, TM_remote_path, filename))
-            else:
-                self.report('did not find kkrflex_tmat: {}'.format(TM_remote_path))
-                return self.ctx.exit_codes.ERROR_KKRFLEX_TMAT_NOT_FOUND
 
         # print symlink and local copy list (for debugging purposes)
         self.report('local_copy_list: {}'.format(local_copy_list))

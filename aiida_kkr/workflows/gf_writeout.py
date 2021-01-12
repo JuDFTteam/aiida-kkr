@@ -168,7 +168,7 @@ class kkr_flex_wc(WorkChain):
 
         self.ctx.description_wf = self.inputs.get('description', self._wf_description)
         self.ctx.label_wf = self.inputs.get('label', self._wf_label)
-        
+
         self.ctx.retrieve_kkrflex = wf_dict.get('retrieve_kkrflex', self._wf_default['retrieve_kkrflex'])
 
         self.report('INFO: use the following parameter:\n'
@@ -367,8 +367,8 @@ class kkr_flex_wc(WorkChain):
         flexrun = self.submit(KkrCalculation, **inputs)
 
         return ToContext(flexrun=flexrun)
-    
-    
+
+
     def move_kkrflex_files(self):
         """
         Move the kkrflex files from the remote folder to KkrimpCalculation._DIRNAME_GF_UPLOAD 
@@ -421,7 +421,7 @@ class kkr_flex_wc(WorkChain):
                 else:
                     self.report('dir exsists already, skip moving the kkrflex_tmat and gree files to: ' + gf_upload_path)
 
-                    
+
     def return_results(self):
         """
         Return the results of the KKRFLEX calculation.

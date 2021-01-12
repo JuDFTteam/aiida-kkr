@@ -11,7 +11,7 @@ from __future__ import print_function
 from aiida.orm import Code, Dict, RemoteData, StructureData, Float, Str, WorkChainNode, load_node, CalcJobNode, ArrayData, KpointsData
 from aiida.engine import WorkChain, ToContext, calcfunction
 from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
-from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf
+from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
@@ -57,7 +57,7 @@ class kkr_bs_wc(WorkChain):
     _wf_default = {
         "emin": -10.0,   # start of the energy range in eV, relative to the Fermi energy
         "emax":  5.0,    # end of the energy range in eV, relative to the Fermi energy
-        "nepts": 200,    # number of energy points
+        "nepts": 96,     # number of energy points
         "RCLUSTZ": None, # can be used to increase the cluster radius if a value is set here
         "tempr": 50.,    # smearing temperature in K
     }
@@ -70,7 +70,7 @@ class kkr_bs_wc(WorkChain):
     }
 
     @classmethod
-    def get_wf_default(self, silent=False):
+    def get_wf_defaults(self, silent=False):
         """
         Return the default values of the workflow parameters (wf_parameters input node)
         """
@@ -230,7 +230,13 @@ class kkr_bs_wc(WorkChain):
             input_ok = True
         else:
             struc_kkr, remote_voro = VoronoiCalculation.find_parent_structure(self.inputs.remote_data)
-            output = get_explicit_kpoints_path(struc_kkr)
+            #create an auxiliary structure with unique kind_names, this leads to using the input structure in the seekpath method instead of finding the primitive one
+            saux = StructureData(cell=struc.cell)
+            for isite,site in enumerate(struc.sites):
+                kind = struc.get_kind(site.kind_name)
+                saux.append_atom(name='atom'+str(isite)+':'+site.kind_name, symbols=kind.symbol, position=site.position)
+            # use auxiliary structure inside k-point generator
+            output = get_explicit_kpoints_path(saux)
             primitive_struc = output['primitive_structure']
             kpoints_ok = True 
             
@@ -273,7 +279,6 @@ class kkr_bs_wc(WorkChain):
         """
         set kkr parameters for the bandstructure (i.e. qdos) calculation
         """
-        evscal = get_Ry2eV()
         params = self.ctx.input_params_KKR
         
         input_dict = params.get_dict()
@@ -311,30 +316,7 @@ class kkr_bs_wc(WorkChain):
 
         # Set BS params 
         try:
-            for key, val in econt_new.items():
-                if key=='nepts' or key=='NPT2':
-                    key = 'NPT2'
-                    # also add IEMXD which has to be big enough
-                    para_check.set_value('NPT2', val, silent=True)
-                    para_check.set_value('IEMXD', val, silent=True)
-                    
-                elif key=='emin' or key=='EMIN':
-                    key = 'EMIN'
-                    new_val = (ef + val/evscal)# converting the Energy value to Ry while the fermi_energy in Ry
-                    para_check.set_value(key, new_val, silent=True)
-
-                    para_check.set_value(key, new_val, silent=True)
-                elif key=='emax' or key== 'EMAX':
-                    key = 'EMAX'
-                    new_val = (ef + val/evscal) # Converting to the Ry (unit of the energy)
-                    para_check.set_value(key, new_val, silent=True)
-                elif key=='tempr' or key=='TEMPR':
-                    key = 'TEMPR'
-                    para_check.set_value(key, val, silent=True)
-                elif key=='RCLUSTZ' or key=='rclustz':
-                    key = 'RCLUSTZ'
-                    para_check.set_value(key, val, silent=True)
-
+            para_check = set_energy_params(econt_new, ef, para_check)
         except:
             return self.exit_codes.ERROR_CALC_PARAMETERS_INVALID
         para_check.set_multiple_values(NPT1=0, NPT3=0, NPOL=0,)
@@ -364,18 +346,17 @@ class kkr_bs_wc(WorkChain):
         kpoints = self.ctx.BS_kpoints
         options = {"max_wallclock_seconds": self.ctx.max_wallclock_seconds,
                    "resources": self.ctx.resources,
-                   "queue_name" : self.ctx.queue}#,
+                   "queue_name" : self.ctx.queue,
+        }
         if self.ctx.custom_scheduler_commands:
             options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
 
-        create_builder = KkrCalculation.get_builder()
-        create_builder.parent_folder = remote
-        create_builder.code = code
-        create_builder.parameters = params
-        create_builder.kpoints = kpoints
-        create_builder.metadata.options = options
+        # get inputs for band structure calculation
+        inputs = get_inputs_kkr(code, remote, options, label, description,
+                                parameters=params, serial=(not self.ctx.withmpi))
+        inputs.kpoints = kpoints
 
-        BS_run = self.submit(KkrCalculation, **create_builder)
+        BS_run = self.submit(KkrCalculation, **inputs)
         self.ctx.last_calc = BS_run
 
         return ToContext(BS_run=BS_run)
@@ -458,6 +439,35 @@ class kkr_bs_wc(WorkChain):
             self.out(link_name, node)
 
         self.report("INFO: done with BS_workflow!\n")
+
+
+def set_energy_params(econt_new, ef, para_check):
+    """
+    set energy contour values to para_check
+    internally convert from relative eV units to absolute Ry units
+    """
+    evscal = get_Ry2eV()
+
+    for key, val in econt_new.items():
+        if key == "kmesh":
+            key = "BZDIVIDE"
+        elif key=='nepts' or key=='NPT2':
+            key = 'NPT2'
+            # also add IEMXD which has to be big enough
+            para_check.set_value('IEMXD', val, silent=True)
+        elif key=='emin' or key=='EMIN':
+            key = 'EMIN'
+            val = (ef + val/evscal)# converting the Energy value to Ry while the fermi_energy in Ry
+        elif key=='emax' or key== 'EMAX':
+            key = 'EMAX'
+            val = (ef + val/evscal) # Converting to the Ry (unit of the energy)
+        elif key=='tempr' or key=='TEMPR':
+            key = 'TEMPR'
+        elif key=='RCLUSTZ' or key=='rclustz':
+            key = 'RCLUSTZ'
+        para_check.set_value(key, val, silent=True)
+            
+    return para_check
 
 
 @calcfunction

@@ -18,12 +18,13 @@ from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.engine import CalcJob, calcfunction
 from aiida.common.exceptions import InputValidationError
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
+from aiida_kkr.workflows.bs import set_energy_params
 
 
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.7.2"
+__version__ = "0.8.0"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -45,12 +46,12 @@ class kkr_dos_wc(WorkChain):
     _wf_label = "kkr_dos_wc"
     _wf_description = "Workflow for a KKR dos calculation starting either from a structure with automatic voronoi calculation or a valid RemoteData node of a previous calculation."
     _wf_default = {
-        "dos_params": {
-            "nepts": 61,              # DOS params: number of points in contour
-            "tempr": 200,  # K        # DOS params: temperature
-            "emin": -1,    # Ry       # DOS params: start of energy contour
-            "emax": 1,     # Ry       # DOS params: end of energy contour
-            "kmesh": [30, 30, 30]}    # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
+       "nepts": 96,   # number of points in contour
+       "tempr": 200.,  # K, smearing temperature
+       "emin": -10., # eV, rel to EF, start of energy contour
+       "emax": 5.,   # eV       end of energy contour
+       "kmesh": [30, 30, 30],  # kmesh for DOS calculation (typically higher than in scf contour)
+       "RCLUSTZ": None, # cluster radiu, only used if a value is set
     }
     _options_default = {
         "queue_name": "",                        # Queue name to submit jobs to
@@ -162,9 +163,7 @@ class kkr_dos_wc(WorkChain):
             self._options_default["custom_scheduler_commands"]
         )
 
-        self.ctx.dos_params_dict = wf_dict.get(
-            "dos_params", self._wf_default["dos_params"]
-        )
+        self.ctx.dos_params_dict = self.inputs.wf_parameters.get_dict()
         self.ctx.dos_kkrparams = None  # is set in set_params_dos
 
         self.ctx.description_wf = self.inputs.get(
@@ -298,23 +297,10 @@ class kkr_dos_wc(WorkChain):
         econt_new["NPOL"] = 0
         econt_new["NPT1"] = 0
         econt_new["NPT3"] = 0
+        kkr_calc = self.inputs.remote_data.get_incoming().first().node
+        ef = kkr_calc.outputs.output_parameters.get_dict()['fermi_energy'] # unit in Ry
         try:
-            for key, val in econt_new.items():
-                if key == "kmesh":
-                    key = "BZDIVIDE"
-                elif key == "nepts":
-                    key = "NPT2"
-                    # add IEMXD which has to be big enough
-                    print("setting IEMXD", val)
-                    para_check.set_value("IEMXD", val, silent=True)
-                elif key == "emin":
-                    key = "EMIN"
-                elif key == "emax":
-                    key = "EMAX"
-                elif key == "tempr":
-                    key = "TEMPR"
-                # set params
-                para_check.set_value(key, val, silent=True)
+            para_check = set_energy_params(econt_new, ef, para_check)
         except:
             return self.exit_codes.ERROR_DOS_PARAMS_INVALID
 

@@ -26,7 +26,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2017-2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.12.0"
+__version__ = "0.12.1"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -67,9 +67,7 @@ class kkr_startpot_wc(WorkChain):
         'custom_scheduler_commands' : '',         # some additional scheduler commands
         }
     # add defaults of dos_params since they are passed onto that workflow
-    for key, value in kkr_dos_wc.get_wf_defaults(silent=True).items():
-        if key == 'dos_params':
-            _wf_default[key] = value
+    _wf_default['dos_params'] = kkr_dos_wc.get_wf_defaults(silent=True)
 
     _wf_label = ''
     _wf_description = ''

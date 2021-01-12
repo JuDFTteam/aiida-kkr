@@ -356,7 +356,7 @@ class kkr_imp_wc(WorkChain):
         sub_description = 'GF writeout sub workflow for kkrimp_wc using converged host remote data (pid: {}) and impurity_info node (pid: {})'.format(converged_host_remote.pk, imp_info.pk)
 
         builder = kkr_flex_wc.get_builder()
-        
+       
         builder.metadata.label = sub_label
         builder.metadata.description = sub_description
         builder.kkr = kkrcode

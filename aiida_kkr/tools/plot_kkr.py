@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.5"
+__version__ = "0.6.0"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -42,8 +42,9 @@ def _has_ase_notebook():
 def _check_tk_gui(static):
     """
     check if tk gui can be openen, otherwise reset static to False
+    this is only needed if we are not inside a notebook
     """
-    if not static:
+    if not _in_notebook() and not static:
         try:
             import tkinter as tk
             window = tk.Tk()
@@ -799,7 +800,7 @@ class plot_kkr(object):
                     try:
                         node.outputs.remote_folder.getfile('out_kkr', f.name)
                         has_outfile = True
-                    except IOError:
+                    except:
                         has_outfile = False
                 if has_outfile:
                     with tempfolder.open('tempfile', 'r') as f:
@@ -952,11 +953,10 @@ class plot_kkr(object):
                             dispersionplot(f.name.replace('qvec.dat',''), newfig=(not nofig), ptitle=ptitle, logscale=logscale, ef=ef, **kwargs)
                             # add plot labels
                             try:
-                                ilbl = node.inputs.kpoints.get_attr('label_numbers')
-                                slbl = node.inputs.kpoints.get_attr('labels')
-                                ilbl = array(ilbl)
-                                slbl = array(slbl)
-                                m_overlap = where(abs(ilbl[1:]-ilbl[:-1])== 1)
+                                labels = node.inputs.kpoints.labels
+                                ilbl = array([int(i[0]) for i in labels])
+                                slbl = array([i[1] for i in labels])
+                                m_overlap = where(abs(ilbl[1:]-ilbl[:-1])==1)
                                 if len(m_overlap[0])>0:
                                     for i in m_overlap[0]:
                                         slbl[i+1] = '\n'+slbl[i+1]
@@ -1058,8 +1058,9 @@ class plot_kkr(object):
 
         # call imp_sub plotting from here
         from aiida_kkr.workflows import kkr_imp_sub_wc
-        sub_wf = [i.node for i in node.get_outgoing(node_class=kkr_imp_sub_wc).all()][0]
-        self.plot_kkrimp_sub_wc(sub_wf, **kwargs)
+        sub_wf = [i.node for i in node.get_outgoing(node_class=kkr_imp_sub_wc).all()]
+        if len(sub_wf)>0:
+            self.plot_kkrimp_sub_wc(sub_wf[0], **kwargs)
 
 
     def plot_kkrimp_sub_wc(self, node, **kwargs):
@@ -1244,49 +1245,50 @@ class plot_kkr(object):
                 ptitle = 'pk= {}'.format(node.pk)
             self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
             title(ptitle)
+
+
     def plot_kkr_bs(self, node, **kwargs):
-        print('the plot is from the function plot_kkr_bs')
         import matplotlib.pyplot as plt
         import numpy as np
-        node_bs_wc = node
-        BSF = node_bs_wc.outputs.BS_Data.get_array('BlochSpectralFunction')
-        eng = node_bs_wc.outputs.BS_Data.get_array('energy_points')
-        Kpts = node_bs_wc.outputs.BS_Data.get_array('Kpts')
-        k_label = node_bs_wc.outputs.BS_Data.extras['k-labels']
-        ixlbl =  [int(i) for i in k_label.keys()]
-        sxlbl =  [i for i in k_label.values()]
-        j = 0
-        for i in ixlbl[:-1]:
-            if (ixlbl[j+1] - i) < 2:
-                sxlbl[j+1]  = str(sxlbl[j]) + '|' + str(sxlbl[j+1])
-                sxlbl[j] = ''
-            j += 1
-        y,x = np.mgrid[slice(0,len(eng)+1,1),
-               slice(0,len(Kpts[:,0])+1,1)]
+        if node.is_finished_ok:
+            BSF = node.outputs.BS_Data.get_array('BlochSpectralFunction')
+            eng = node.outputs.BS_Data.get_array('energy_points')
+            Kpts = node.outputs.BS_Data.get_array('Kpts')
+            k_label = node.outputs.BS_Data.extras['k-labels']
 
-        eng_extend = np.ones(len(eng[:])+1)
+            ixlbl =  [int(i) for i in k_label.keys()]
+            sxlbl =  [i for i in k_label.values()]
+            j = 0
+            for i in ixlbl[:-1]:
+                if (ixlbl[j+1] - i) < 2:
+                    sxlbl[j+1]  = str(sxlbl[j]) + '|' + str(sxlbl[j+1])
+                    sxlbl[j] = ''
+                j += 1
 
-        eng = eng[::-1]
-        eng_extend[:-1] = np.sort(eng)
-        eng_extend[-1] = eng_extend[-2]
-
-        y = np.array(y, float)
-        for i in range(len(x[0,:])):
-            y[:,i]=eng_extend       
-       
-
-#        %matplotlib inline
-        fig = plt.figure(figsize = (5,5))
-        plt.pcolormesh(x,y, np.log(BSF.T), cmap=plt.cm.viridis, edgecolor='face',rasterized= True)
-        plt.ylabel("energy (E-E_F)")
-        plt.xlabel("kpoints")
-
-        plt.colorbar()
-
-        plt.title('band structure from kkr_bs_wc (pk- {} or uuid- {})'.format(node_bs_wc.pk, node_bs_wc.uuid))
-        
-        plt.xticks(ixlbl,sxlbl)
-        plt.axhline(0 ,color='red', ls=':', lw=2)
+            y,x = np.mgrid[slice(0,len(eng)+1,1),
+                   slice(0,len(Kpts[:,0])+1,1)]
+            
+            eng_extend = np.ones(len(eng[:])+1)
+            
+            eng = eng[::-1]
+            eng_extend[:-1] = np.sort(eng)
+            eng_extend[-1] = eng_extend[-2]
+            
+            y = np.array(y, float)
+            for i in range(len(x[0,:])):
+                y[:,i]=eng_extend       
+           
+            fig = plt.figure(figsize = (5,5))
+            plt.pcolormesh(x,y, np.log(abs(BSF.T)), cmap=plt.cm.viridis, edgecolor='face',rasterized= True)
+            plt.ylabel("energy (E-E_F)")
+            plt.xlabel("kpoints")
+            
+            plt.colorbar()
+            
+            plt.title('band structure from kkr_bs_wc (pk- {} or uuid- {})'.format(node.pk, node.uuid))
+            
+            plt.xticks(ixlbl,sxlbl)
+            plt.axhline(0 ,color='red', ls=':', lw=2)
 
 
 
