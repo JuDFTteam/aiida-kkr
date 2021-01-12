@@ -154,6 +154,7 @@ class kkr_imp_wc(WorkChain):
         spec.output('last_calc_output_parameters', valid_type=Dict)
         spec.output('last_calc_info', valid_type=Dict)
         spec.output('converged_potential', valid_type=SinglefileData, required=False)
+        spec.output('remote_data_gf', valid_type=RemoteData)
 
 
 
@@ -610,6 +611,8 @@ class kkr_imp_wc(WorkChain):
         else:
             self.report('INFO: get GF remote from input node (pid: {})'.format(self.inputs.remote_data_gf.pk))
             gf_remote = self.inputs.remote_data_gf
+        # save in context to return as output node
+        self.ctx.gf_remote = gf_remote
 
         # set label and description
         sub_label = 'kkrimp_sub scf wf (GF host remote: {}, imp_info: {})'.format(gf_remote.pk, self.inputs.impurity_info.pk)
@@ -679,6 +682,7 @@ class kkr_imp_wc(WorkChain):
             self.out('last_calc_output_parameters', last_calc_output_params)
             self.out('last_calc_info', last_calc_info)
             self.out('converged_potential', self.ctx.kkrimp_scf_sub.outputs.host_imp_pot)
+            self.out('remote_data_gf', self.ctx.gf_remote)
 
             # cleanup things that are not needed anymore
             self.final_cleanup()

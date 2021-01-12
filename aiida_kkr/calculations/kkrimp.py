@@ -687,7 +687,7 @@ The Dict node should be of the form
                 # extract file from tarfile of retrieved to tempfolder
                 with tarfile.open(tfpath) as tf:
                     tar_filenames = [ifile.name for ifile in tf.getmembers()]
-                    self.report(tar_filenames)
+                    self.report('extract potfile from tarball {}'.format(tar_filenames))
                     filename = self._OUT_POTENTIAL
                     if filename in tar_filenames:
                         tf.extract(filename, tempfolder_path) # extract to tempfolder
@@ -697,6 +697,7 @@ The Dict node should be of the form
                     with tempfolder.open(filename, u'w') as newfile:
                         with retrieved.open(filename, u'r') as oldfile:
                             newfile.writelines(oldfile.readlines())
+                    self.report('copied potfile from retrieved to tempfolder')
 
             # now out_potential is in tempfolder (either copied or extracted) and can be copied from there
             potfile_name, potfile_folder = self._OUT_POTENTIAL, tempfolder

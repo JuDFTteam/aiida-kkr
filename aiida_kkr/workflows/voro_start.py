@@ -590,8 +590,7 @@ class kkr_startpot_wc(WorkChain):
                 }
             options_node = Dict(dict=options_dict)
             options_node.label = 'options'
-            wfdospara_dict = {'dos_params' : self.ctx.dos_params_dict}
-            wfdospara_node = Dict(dict=wfdospara_dict)
+            wfdospara_node = Dict(dict=self.ctx.dos_params_dict)
             wfdospara_node.label = 'DOS params'
             wfdospara_node.description = 'DOS parameters passed from kkr_startpot_wc input to DOS sub-workflow'
 

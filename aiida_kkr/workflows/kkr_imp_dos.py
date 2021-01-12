@@ -63,11 +63,8 @@ class kkr_imp_dos_wc(WorkChain):
                    'lmdos': False,                                # caculate l,m or only l-resolved DOS
                    'retrieve_kkrflex': True,                      # retrieve kkrflex files to repository or leave on remote computer only
                   }
-
     # add defaults of dos_params since they are passed onto that workflow
-    for key, value in kkr_dos_wc.get_wf_defaults(silent=True).items():
-        if key == 'dos_params':
-            _wf_default[key] = value
+    _wf_default['dos_params'] = kkr_dos_wc.get_wf_defaults(silent=True)
 
 
     @classmethod
@@ -333,8 +330,10 @@ label: {}
             converged_host_remote = self.ctx.conv_host_remote
             imp_info = self.ctx.imp_info
 
-            wf_params_gf = {'ef_shift':self.ctx.ef_shift, 'dos_run':True,
-                            'dos_params':self.ctx.dos_params_dict}
+            wf_params_gf = {'ef_shift': self.ctx.ef_shift,
+                            'dos_run': True,
+                            'dos_params': self.ctx.dos_params_dict,
+            }
             # maybe set kkrflex_retrieve
             if not self.ctx.retrieve_kkrflex:
                 wf_params_gf['retrieve_kkrflex'] = self.ctx.retrieve_kkrflex

@@ -231,21 +231,24 @@ class kkr_bs_wc(WorkChain):
         else:
             struc_kkr, remote_voro = VoronoiCalculation.find_parent_structure(self.inputs.remote_data)
             #create an auxiliary structure with unique kind_names, this leads to using the input structure in the seekpath method instead of finding the primitive one
-            saux = StructureData(cell=struc.cell)
-            for isite,site in enumerate(struc.sites):
-                kind = struc.get_kind(site.kind_name)
+            saux = StructureData(cell=struc_kkr.cell)
+            for isite,site in enumerate(struc_kkr.sites):
+                kind = struc_kkr.get_kind(site.kind_name)
                 saux.append_atom(name='atom'+str(isite)+':'+site.kind_name, symbols=kind.symbol, position=site.position)
             # use auxiliary structure inside k-point generator
             output = get_explicit_kpoints_path(saux)
             primitive_struc = output['primitive_structure']
+            conventional_struc = output['conv_structure']
             kpoints_ok = True 
             
             #check if primitive_structure and input structure are identical:
-            maxdiff_cell = sum(abs(np.array(primitive_struc.cell) - np.array(struc_kkr.cell))).max()
+            maxdiff_cell = sum(abs(np.array(primitive_struc.cell) - np.array(saux.cell))).max()
             
             if maxdiff_cell>3*10**-9:
                 self.report('Error in cell : {}'.format(maxdiff_cell))
                 self.report('WARNING : The structure data from the voronoi calc is not the primitive structure type and in come cases it is medatory')
+                self.report('prim: {} {}'.format(primitive_struc.cell, primitive_struc.sites))
+                self.report('conv: {} {}'.format(conventional_struc.cell, conventional_struc.sites))
                 self.ctx.structure_data = 'conventional_unit_cell '
             else:
                 self.ctx.structure_data = 'primitive_unit_cell'

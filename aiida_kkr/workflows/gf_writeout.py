@@ -18,6 +18,7 @@ from masci_tools.io.common_functions import get_Ry2eV
 from aiida.orm import WorkChainNode, RemoteData, StructureData, Dict, FolderData
 from aiida.common.exceptions import InputValidationError
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
+from aiida_kkr.workflows.dos import kkr_dos_wc
 import os
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
@@ -57,14 +58,11 @@ class kkr_flex_wc(WorkChain):
                         'withmpi' : True}                 # execute KKR with mpi or without
 
     _wf_default = {'ef_shift': 0. ,                       # set costum absolute E_F (in eV)
-                   'dos_params': {'nepts': 61,            # DOS params: number of points in contour
-                                  'tempr': 200, # K       # DOS params: temperature
-                                  'emin': -1, # Ry        # DOS params: start of energy contour
-                                  'emax': 1,  # Ry        # DOS params: end of energy contour
-                                  'kmesh': [10, 10, 10]}, # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
                    'dos_run': False,                      # activate a DOS run with the parameters given in the dos_params input
                    'retrieve_kkrflex': True,              # retrieve the DOS files or only keep them on the computer (move to KkrimpCalculation._DIRNAME_GF_UPLOAD on the remote computer's working dir), needs to use the same computer for GF writeout as for the KKRimp calculation!
                    }
+    # add defaults of dos_params since they are passed onto that workflow
+    _wf_default['dos_params'] = kkr_dos_wc.get_wf_defaults(silent=True)
 
     @classmethod
     def get_wf_defaults(self):
@@ -165,6 +163,10 @@ class kkr_flex_wc(WorkChain):
         self.ctx.ef_shift = wf_dict.get('ef_shift', self._wf_default['ef_shift'])
         self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
         self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
+        # fill missing key, value pairs with defaults
+        for k,v in self._wf_default['dos_params'].items():
+            if k not in self.ctx.dos_params_dict.keys():
+                self.ctx.dos_params_dict[k] = v
 
         self.ctx.description_wf = self.inputs.get('description', self._wf_description)
         self.ctx.label_wf = self.inputs.get('label', self._wf_label)
@@ -313,22 +315,27 @@ class kkr_flex_wc(WorkChain):
         self.report('INFO: RUNOPT set to: {}'.format(runopt))
 
         if 'wf_parameters' in self.inputs:
+            # extract Fermi energy in Ry
+            remote_data_parent = self.inputs.remote_data
+            parent_calc = remote_data_parent.get_incoming(link_label_filter='remote_folder').first().node
+            ef = parent_calc.outputs.output_parameters.get_dict().get('fermi_energy')
+
             if self.ctx.dos_run:
-                for key, val in {'EMIN': self.ctx.dos_params_dict['emin'], 'EMAX': self.ctx.dos_params_dict['emax'],
+                # convert emin, emax to Ry units
+                emin = ef + self.ctx.dos_params_dict['emin']/get_Ry2eV()
+                emax = ef + self.ctx.dos_params_dict['emax']/get_Ry2eV()
+                # set dos params
+                for key, val in {'EMIN': emin, 'EMAX': emax,
                                  'NPT2': self.ctx.dos_params_dict['nepts'], 'NPOL': 0, 'NPT1': 0, 'NPT3': 0,
                                  'BZDIVIDE': self.ctx.dos_params_dict['kmesh'], 'IEMXD': self.ctx.dos_params_dict['nepts'],
                                  'TEMPR': self.ctx.dos_params_dict['tempr']}.items():
                     updatedict[key] = val
             elif self.ctx.ef_shift != 0:
-                # extract old Fermi energy in Ry
-                remote_data_parent = self.inputs.remote_data
-                parent_calc = remote_data_parent.get_incoming(link_label_filter='remote_folder').first().node
-                ef_old = parent_calc.outputs.output_parameters.get_dict().get('fermi_energy')
                 # get Fermi energy shift in eV
                 ef_shift = self.ctx.ef_shift #set new E_F in eV
                 # calculate new Fermi energy in Ry
-                ef_new = (ef_old + ef_shift/get_Ry2eV())
-                self.report('INFO: ef_old + ef_shift = ef_new: {} eV + {} eV = {} eV'.format(ef_old*get_Ry2eV(), ef_shift, ef_new*get_Ry2eV()))
+                ef_new = (ef + ef_shift)
+                self.report('INFO: ef_old + ef_shift = ef_new: {} eV + {} eV = {} eV'.format(ef*get_Ry2eV(), ef_shift, ef_new*get_Ry2eV()))
                 updatedict['ef_set'] = ef_new
 
         #construct the final param node containing all of the params

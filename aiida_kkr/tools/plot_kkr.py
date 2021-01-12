@@ -988,14 +988,13 @@ class plot_kkr(object):
         if strucplot:
             self.plot_struc(node, **kwargs)
 
-        outdict = node.outputs.output_parameters.get_dict()
         # TODO maybe plot some output of voronoi
+        #outdict = node.outputs.output_parameters.get_dict()
 
 
     def plot_kkrimp_calc(self, node, return_rms=False, return_stot=False, plot_rms=True, **kwargs):
         """plot things from a kkrimp Calculation node"""
-        from numpy import array, ndarray
-        from numpy import sqrt, sum
+        import numpy as np
         
         # plot impurity cluster
         if kwargs.get('strucplot', True):
@@ -1022,9 +1021,9 @@ class plot_kkr(object):
             if nspin>1:
                 try:
                     nat = out_para_dict['number_of_atoms_in_unit_cell']
-                    s = array(out_para_dict['convergence_group']['spin_moment_per_atom_all_iterations'], dtype=float)
-                    ss = sqrt(sum(s**2, axis=1)).reshape(-1,nat)
-                    stot = sum(ss, axis=1)
+                    s = np.array(out_para_dict['convergence_group']['total_spin_moment_all_iterations'][1], dtype=float)
+                    ss = np.sqrt(np.sum(s**2, axis=1)).reshape(-1,nat)
+                    stot = np.sum(ss, axis=1)
                 except:
                     stot = None
             else:
@@ -1171,6 +1170,8 @@ class plot_kkr(object):
         from matplotlib.pyplot import show, figure, title, xticks, xlabel, axvline
 
         interpol, all_atoms, l_channels, sum_spins, switch_xy = True, False, True, False, False
+        ptitle = None
+        if 'ptitle' in list(kwargs.keys()): ptitle = kwargs.pop('ptitle')
         if 'interpol' in list(kwargs.keys()): interpol = kwargs.pop('interpol')
         if 'all_atoms' in list(kwargs.keys()): all_atoms = kwargs.pop('all_atoms')
         if 'l_channels' in list(kwargs.keys()): l_channels = kwargs.pop('l_channels')
@@ -1206,7 +1207,10 @@ class plot_kkr(object):
             if calcnode.is_finished_ok:
                 natoms = len(calcnode.outputs.output_parameters.get_dict().get('charge_core_states_per_atom'))
                 self.dosplot(d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, yscale=yscale, **kwargs)
-                title('pk= {}'.format(node.pk))
+                if ptitle is None:
+                    title('pk= {}'.format(node.pk))
+                else:
+                    title(ptitle)
 
 
     ### workflows ###
@@ -1281,11 +1285,19 @@ class plot_kkr(object):
             fig = plt.figure(figsize = (5,5))
             plt.pcolormesh(x,y, np.log(abs(BSF.T)), cmap=plt.cm.viridis, edgecolor='face',rasterized= True)
             plt.ylabel("energy (E-E_F)")
-            plt.xlabel("kpoints")
+            plt.xlabel("")
+
+            # contol limits of the color scale
+            clim = kwargs.get('clim', None)
+            if clim is not None:
+                plt.clim(clim[0], clim[1])
+            else:
+                # fix lower bound
+                plt.clim(-6)
             
             plt.colorbar()
             
-            plt.title('band structure from kkr_bs_wc (pk- {} or uuid- {})'.format(node.pk, node.uuid))
+            plt.title('band structure from kkr_bs_wc (pk= {})'.format(node.pk))
             
             plt.xticks(ixlbl,sxlbl)
             plt.axhline(0 ,color='red', ls=':', lw=2)
