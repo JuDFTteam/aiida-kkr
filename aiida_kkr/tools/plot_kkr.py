@@ -1282,9 +1282,11 @@ class plot_kkr(object):
             for i in range(len(x[0,:])):
                 y[:,i]=eng_extend       
            
-            fig = plt.figure(figsize = (5,5))
+            nofig = kwargs.get('nofig', False)
+            if not nofig:
+                fig = plt.figure(figsize = (5,5))
             plt.pcolormesh(x,y, np.log(abs(BSF.T)), cmap=plt.cm.viridis, edgecolor='face',rasterized= True)
-            plt.ylabel("energy (E-E_F)")
+            plt.ylabel("E-E_F (eV)")
             plt.xlabel("")
 
             # contol limits of the color scale
@@ -1295,7 +1297,9 @@ class plot_kkr(object):
                 # fix lower bound
                 plt.clim(-6)
             
-            plt.colorbar()
+            show_cbar = kwargs.get('show_cbar', True)
+            if show_cbar:
+                plt.colorbar()
             
             plt.title('band structure from kkr_bs_wc (pk= {})'.format(node.pk))
             

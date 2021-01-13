@@ -809,6 +809,30 @@ def structure_from_params(parameters):
     return is_complete, struc
 
 
+def extract_potname_from_remote(parent_calc_folder):
+    """
+    extract the bname of the output potential from a RemoteData folder
+    """
+    from aiida_kkr.calculations import KkrCalculation
+    from aiida.orm import CalcJobNode
+
+    pot_name = None
+    # extract list of parents (can only extract the parent calculation
+    # if there is only a single incoming link to follow)
+    parents = parent_calc_folder.get_incoming(node_class=CalcJobNode)
+    if len(list(parents))==1:
+        parent = parents.first().node
+        # now extract the pot_name dependeing on the parent calculation's type
+        if parent.process_class == KkrCalculation:
+            pot_name = KkrCalculation._OUT_POTENTIAL
+
+    # return the potential name or raise an error if nothing was found
+    if pot_name is not None:
+        return pot_name
+    else:
+        raise ValueError('Could not extract a potential name')
+
+
 @calcfunction
 # , parent_calc_folder2=None):
 def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs):
@@ -832,10 +856,12 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs):
 
         The settings_node dictionary needs to be of the following form::
 
-            settings_dict = {'pot1': '<filename_input_potential>',  'out_pot': '<filename_output_potential>', 'neworder': [list of intended order in output potential]}
+            settings_dict = {'neworder': [list of intended order in output potential]}
 
         Optional entries are::
 
+            'out_pot': '<filename_output_potential>'  name of the output potential file, defaults to 'potential_neworder' if not specified   
+            'pot1': '<filename_input_potential>'      if not given we will try to find it from the type of the parent remote folder
             'pot2': '<filename_second_input_file>'
             'replace_newpos': [[position in neworder list which is replace with potential from pot2, position in pot2 that is chosen for replacement]]
             'switch_spins': [indices of atom for which spins are exchanged] (indices refer to position in neworder input list)
@@ -872,17 +898,25 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs):
     settings_dict = settings_node.get_dict()
     pot1 = settings_dict.get('pot1', None)
     if pot1 is None:
-        raise InputValidationError(
-            'settings_node_dict needs to have key "pot1" containing the filename of the input potential')
-    out_pot = settings_dict.get('out_pot', None)
-    if out_pot is None:
-        raise InputValidationError(
-            'settings_node_dict needs to have key "out_pot" containing the filename of the input potential')
+        # try to extract the potential name from the type of the parent_calc_folder
+        try:
+            pot1 = extract_potname_from_remote(parent_calc_folder)
+        except ValueError:
+            raise InputValidationError(
+                'settings_node_dict needs to have key "pot1" containing the filename of the input potential')
+    out_pot = settings_dict.get('out_pot', 'potential_neworder')
     neworder = settings_dict.get('neworder', None)
     if neworder is None:
         raise InputValidationError(
             'settings_node_dict needs to have key "neworder" containing the list of new positions')
     pot2 = settings_dict.get('pot2', None)
+    if pot2 is None and parent_calc_folder2 is not None:
+        # try to extract the potential name from the type of the parent_calc_folder
+        try:
+            pot2 = extract_potname_from_remote(parent_calc_folder2)
+        except ValueError:
+            raise InputValidationError(
+                'settings_node_dict needs to have key "pot2" containing the filename of the input potential')
     replace_newpos = settings_dict.get('replace_newpos', None)
     switch_spins = settings_dict.get('switch_spins', [])
 
