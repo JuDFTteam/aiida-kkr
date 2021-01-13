@@ -14,3 +14,21 @@ from .tools_kkrimp import modify_potential, rotate_onto_z, find_neighbors, make_
 # make the most important things from masci-tools importable here
 from masci_tools.io.kkr_params import kkrparams
 
+# expose structure finder from VoronoiCalculation
+def find_parent_structure(calc_or_remote, return_voro=False):
+    """
+    Traverse the provenance graph upwards to find the input structure
+    from a KkrCalculation or VoronoiCalculation node or their remote_folder
+    nodes, respectively.
+
+    :param calc_or_remote: CalcJobNode or RemoteData node of VoronoiCalculation or KkrCalculation
+    :return struc: parent StructureData node
+    """
+    from aiida_kkr.calculations.voro import VoronoiCalculation
+
+    struc, voro_calc = VoronoiCalculation.find_parent_structure(calc_or_remote)
+
+    return struc
+
+
+
