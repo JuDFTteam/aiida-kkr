@@ -1,13 +1,26 @@
 # -*- coding: utf-8 -*-
+###############################################################################
+# Copyright (c), Forschungszentrum Jülich GmbH, IAS-1/PGI-1, Germany.         #
+#                All rights reserved.                                         #
+# This file is part of the AiiDA-KKR package.                                 #
+#                                                                             #
+# For further information on the license, see the LICENSE.txt file            #
+###############################################################################
+# pylint: disable=cyclic-import
+# ,reimported,unused-import,wrong-import-position
+
 """
 Module with CLI commands for various data types.
 """
 import click
 
-
 @click.group('data')
 def cmd_data():
     """Commands to create and inspect data nodes."""
+
+# Import the sub commands to register them with the CLI
+from .structure import cmd_structure
+from .parameters import cmd_parameter
 
 #TODO
 # aiida-kkr data create kkrparams: create a Dict node using the kkrparams class to have help and verification
