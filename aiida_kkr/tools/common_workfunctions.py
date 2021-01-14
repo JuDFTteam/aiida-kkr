@@ -755,21 +755,24 @@ def structure_from_params(parameters):
     cell = array(parameters.get_value('BRAVAIS')) * alat * get_aBohr2Ang()
     struc = StructureData(cell=cell)
 
+    # extract atom numbers
+    zatom_all = parameters.get_value('<ZATOM>')
+
     # extract sites with positions, charges/Atom labels, weights
     # positions in units of alat
     pos_all = array(parameters.get_value('<RBASIS>'))
+    if len(pos_all.shape)==1:
+        pos_all = array([pos_all])
+        zatom_all = [zatom_all]
     if not parameters.get_value('CARTESIAN'):
         # convert from internal to cartesian coordinates
         for isite, tmp_pos in enumerate(pos_all):
-            tmp_pos = pos_all[isite]
             # cell already contains alat factor to convert to Ang. units
             pos_all[isite] = tmp_pos[0]*cell[0] + \
-                tmp_pos[1]*cell[1]+tmp_pos[2]*cell[2]
+                tmp_pos[1]*cell[1] + tmp_pos[2]*cell[2]
     else:
         pos_all = pos_all * alat * get_aBohr2Ang()  # now positions are in Ang. units
 
-    # extract atom numbers
-    zatom_all = parameters.get_value('<ZATOM>')
     # convert to list if input contains a single entry only
     if not isinstance(zatom_all, list):
         zatom_all = [zatom_all]
@@ -793,9 +796,8 @@ def structure_from_params(parameters):
             raise NotImplementedError('VCA functionality not implemented')
 
         if zatom_all[isite-1] < 1:
-            symbol = 'H'
-            weight = 0.0
-            struc.append_atom(position=pos, symbols='H', weights=0.0, mass=1.0)
+            symbol = 'X'
+            struc.append_atom(position=pos, symbols='X', weights=weight)
         else:
             symbol = PeriodicTableElements.get(
                 zatom_all[isite-1]).get('symbol')

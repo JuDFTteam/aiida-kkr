@@ -28,9 +28,14 @@ cmd_data.add_command(cmd_structure)
               default=False,
               show_default=True,
               help='Store also the kkrparams Dict in the db.')
+@click.option('--verbose', '-v',
+              is_flag=True,
+              default=False,
+              show_default=True,
+              help='Print verbose output.')
 @options.DRY_RUN()
 @decorators.with_dbenv()
-def cmd_import(filename, kkrpara, dry_run):
+def cmd_import(filename, kkrpara, verbose, dry_run):
     """
     Import a `StructureData` from a KKRhost input file.
 
@@ -41,7 +46,11 @@ def cmd_import(filename, kkrpara, dry_run):
     """
 
     kkr_para = kkrparams()
+    if verbose:
+        print('start reading from file: {}'.format(filename))
     kkr_para.read_keywords_from_inputcard(filename)
+    if verbose:
+        print('read kkr params: {}'.format(kkr_para.get_set_values()))
 
     # extract kkr params
     missing = kkr_para.get_missing_keys(use_aiida=True)

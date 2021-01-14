@@ -110,6 +110,12 @@ WITH_MPI = OverridableOption('-I',
                              show_default=True,
                              help='Run the calculations with MPI enabled.')
 
+QUEUE_NAME = OverridableOption('-Q',
+                               '--queue-name',
+                                default='',
+                                show_default=True,
+                                help='The queue_name to be used in the submission script of the job.')
+
 PARENT_FOLDER = OverridableOption('-P',
                            '--parent-folder',
                            'parent_folder',

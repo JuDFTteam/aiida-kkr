@@ -28,8 +28,10 @@ from ..util import defaults
 @options.PARAMETERS()
 @options.PARENT_FOLDER()
 @options.POTENTIAL_OVERWRITE()
+@options.MAX_WALLCLOCK_SECONDS()
+@options.QUEUE_NAME()
 @options.DAEMON()
-def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite, daemon):
+def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite, max_wallclock_seconds, queue_name, daemon):
     """
     Launch an Voronoi calcjob on given input
     """
@@ -45,7 +47,8 @@ def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite,
         'metadata': {
             'options': {
                 'withmpi': False,
-                'max_wallclock_seconds': 6000,
+                'queue_name': queue_name,
+                'max_wallclock_seconds': max_wallclock_seconds,
                 'resources': {
                     'num_machines': 1,
                     'num_mpiprocs_per_machine': 1,
@@ -69,7 +72,8 @@ def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite,
 @options.NUM_MPIPROCS_PER_MACHINE()
 @options.MAX_WALLCLOCK_SECONDS()
 @options.MAX_NUM_MACHINES()
-def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon, with_mpi, num_mpiprocs_per_machine, max_wallclock_seconds, max_num_machines):
+@options.QUEUE_NAME()
+def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon, with_mpi, num_mpiprocs_per_machine, max_wallclock_seconds, max_num_machines, queue_name):
     """
     Launch an KKRhost calcjob on given input
     """
@@ -85,10 +89,11 @@ def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon, w
             'options': {
                 'withmpi': with_mpi,
                 'max_wallclock_seconds': max_wallclock_seconds,
+                'queue_name': queue_name,
                 'resources': {
                     'num_machines': max_num_machines,
                     'num_mpiprocs_per_machine': num_mpiprocs_per_machine,
-                }
+                },
             }
         }
     }
