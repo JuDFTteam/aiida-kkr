@@ -87,7 +87,7 @@ class kkr_bs_wc(WorkChain):
         spec.input("wf_parameters",
             valid_type=Dict,
             required=False,
-            default=lambda: Dict(self._wf_default),
+            default=lambda: Dict(dict=cls._wf_default),
             help="Parameters of the bandstructure workflow (see output of kkr_bs_wc.get_wf_default() for more details)."
         )
         spec.input("options",

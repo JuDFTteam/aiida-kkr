@@ -55,6 +55,22 @@ def _check_tk_gui(static):
 
     return static
 
+def save_fig_to_file(kwargs, filename0='plot_kkr_out.png'):
+    """
+    save the figure as a png file
+    look for filename and static in kwargs
+    save only if static is True after _check_tk_gui check to make it work in the command line script
+    """
+    import matplotlib.pyplot as plt
+    if not _in_notebook():
+        # check if static needs to be enforced
+        static = kwargs.get('static', False)
+        static = _check_tk_gui(static)
+        if static:
+            filename = kwargs.get('filename', filename0)
+            print('saved static plot to ', filename)
+            plt.savefig(filename)
+
 def strucplot_ase_notebook(struc, **kwargs):
     """
     plotting function for aiida structure using ase_notebook visulaization
@@ -115,7 +131,7 @@ def strucplot_ase_notebook(struc, **kwargs):
             ase_atoms, center_in_uc=True,
             repeat_uc=repeat_uc,
         )
-        filename = kwargs.get('filename', 'plot_kkr_out.svg')
+        filename = kwargs.get('filename', 'plot_kkr_out_struc.svg')
         print('saved static plot in svg format to ', filename)
         strucview.saveas(filename)
     else:
@@ -141,7 +157,7 @@ def plot_imp_cluster(kkrimp_calc_node, **kwargs):
         atom_opacity = 0.95,          # set opacity level of the atoms, useful for overlapping atoms
         rotations = "-80x,-20y,-5z",  # rotation in degrees around x,y,z axes
         show_unit_cell = True,        # show the unit cell of the host
-        filename = 'plot_kkr_out.svg' # filename used for the export of a static svg image
+        filename = 'plot_kkr_out_impstruc.svg' # filename used for the export of a static svg image
     }
     
     """
@@ -252,7 +268,7 @@ def plot_imp_cluster(kkrimp_calc_node, **kwargs):
             ase_atoms_impcls,
             center_in_uc=True,
         )
-        filename = kwargs.get('filename', 'plot_kkr_out.svg')
+        filename = kwargs.get('filename', 'plot_kkr_out_impstruc.svg')
         print('saved static plot in svg format to ', filename)
         strucview_imp.saveas(filename)
     else:
@@ -895,6 +911,8 @@ class plot_kkr(object):
 
         if len(rms)>1:
             self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
+            # maybe save as file
+            save_fig_to_file(kwargs, 'plot_kkr_out_rms.png')
 
         # try to plot dos and qdos data if Calculation was bandstructure or DOS run
         from subprocess import check_output
@@ -965,10 +983,14 @@ class plot_kkr(object):
                                 [axvline(i, color='grey', ls=':') for i in ilbl]
                             except:
                                 xlabel('id_kpt')
+                            # maybe save as file
+                            save_fig_to_file(kwargs, 'plot_kkr_out_bs.png')
                         else:
                             ef = check_output('grep "Fermi energy" {}'.format(f.name.replace('qvec.dat', 'output.0.txt')), shell=True, text=True)
                             ef = float(ef.split('=')[2].split()[0])
                             FSqdos2D(f.name.replace('qvec.dat',''), logscale=logscale, ef=ef, **kwargs)
+                            # maybe save as file
+                            save_fig_to_file(kwargs, 'plot_kkr_out_FS.png')
 
             # dos only if qdos was not plotted already
             if has_dos and not has_qdos:
@@ -976,6 +998,8 @@ class plot_kkr(object):
                     if not nofig: figure()
                     dosplot(f, **kwargs)
                     title(ptitle)
+                    # maybe save as file
+                    save_fig_to_file(kwargs, 'plot_kkr_out_dos.png')
 
 
     def plot_voro_calc(self, node, **kwargs):
@@ -1157,6 +1181,8 @@ class plot_kkr(object):
                     for i in niter_calcs:
                         tmpsum+=i
                         axvline(tmpsum-1, color='k', ls=':')
+                # maybe save as file
+                save_fig_to_file(kwargs, 'plot_kkr_out_rms.png')
 
 
     def plot_kkrimp_dos_wc(self, node, **kwargs):
@@ -1211,6 +1237,8 @@ class plot_kkr(object):
                     title('pk= {}'.format(node.pk))
                 else:
                     title(ptitle)
+                # maybe save as file
+                save_fig_to_file(kwargs, 'plot_kkr_out_dos.png')
 
 
     ### workflows ###
@@ -1249,6 +1277,8 @@ class plot_kkr(object):
                 ptitle = 'pk= {}'.format(node.pk)
             self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
             title(ptitle)
+            # maybe save as file
+            save_fig_to_file(kwargs, 'plot_kkr_out_dos.png')
 
 
     def plot_kkr_bs(self, node, **kwargs):
@@ -1305,6 +1335,9 @@ class plot_kkr(object):
             
             plt.xticks(ixlbl,sxlbl)
             plt.axhline(0 ,color='red', ls=':', lw=2)
+
+            # maybe save as file
+            save_fig_to_file(kwargs, 'plot_kkr_out_bs.png')
 
 
 
@@ -1481,6 +1514,8 @@ class plot_kkr(object):
                 for i in niter_calcs:
                     tmpsum+=i
                     axvline(tmpsum-1, color='k', ls=':')
+            # maybe save as file
+            save_fig_to_file(kwargs, 'plot_kkr_out_rms.png')
             did_plot = True
         else:
             did_plot = False
@@ -1520,6 +1555,8 @@ class plot_kkr(object):
                 ptitle = 'pk= {}'.format(node.pk)
             self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
             title(ptitle)
+            # maybe save as file
+            save_fig_to_file(kwargs, 'plot_kkr_out_dos.png')
 
         return did_plot
 
