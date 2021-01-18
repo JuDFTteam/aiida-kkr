@@ -1175,3 +1175,27 @@ def find_cluster_radius(structure, nclsmin, n_max_box=50, nbins=100):
     # now the minimal cluster radius needed to get the spherical screening clusters around the atoms larger than
     # nclsmin atoms is found and can be returned
     return rclsmax_ang, rclsmax_alat
+
+
+def get_username(computer):
+    """
+    set upload dir (get the remote username and try 5 times if there was a connection error
+    """
+    import time
+    try_trans = 0
+    while try_trans<5:
+        try_trans += 1
+        try:
+            with computer.get_transport() as transport:
+                remote_user = transport.whoami()
+        except:
+            # this means we have some ssh connection error, thus we wait 5 seconds before we try again
+            remote_user = None
+            time.sleep(5)
+        if remote_user is not None:
+            break
+    # check if username was extracted correctly and raise an error otherwise
+    if remote_user is None:
+        raise ValueError('Error getting the username from the computer!')
+
+    return remote_user

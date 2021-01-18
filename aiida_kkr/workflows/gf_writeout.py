@@ -18,13 +18,14 @@ from masci_tools.io.common_functions import get_Ry2eV
 from aiida.orm import WorkChainNode, RemoteData, StructureData, Dict, FolderData
 from aiida.common.exceptions import InputValidationError
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
+from aiida_kkr.tools.common_workfunctions import get_username
 from aiida_kkr.workflows.dos import kkr_dos_wc
 import os
 
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.4"
+__version__ = "0.5.5"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
 
 # ToDo: add more default values to wf_parameters
@@ -391,8 +392,9 @@ class kkr_flex_wc(WorkChain):
             computer = self.ctx.flexrun.computer
             computername = computer.name
 
-            # set upload dir
-            workdir = computer.get_workdir()
+            # set upload dir (get the remote username and try 5 times if there was a connection error
+            remote_user = get_username(computer)
+            workdir = computer.get_workdir().format(username=remote_user)
             gf_upload_path = os.path.join(workdir, gf_upload_path)
 
             self.report('move kkrflex files to: '+ computername)
@@ -426,7 +428,7 @@ class kkr_flex_wc(WorkChain):
                     connection.symlink(abspath_tmat_new, abspath_tmat)
                     connection.symlink(abspath_gmat_new, abspath_gmat)
                 else:
-                    self.report('dir exsists already, skip moving the kkrflex_tmat and gree files to: ' + gf_upload_path)
+                    self.report('dir exsists already, skip moving the kkrflex_tmat and green files to: ' + gf_upload_path)
 
 
     def return_results(self):

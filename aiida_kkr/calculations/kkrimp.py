@@ -13,6 +13,7 @@ from masci_tools.io.kkr_params import kkrparams
 from .voro import VoronoiCalculation
 from .kkr import KkrCalculation
 from aiida_kkr.tools.tools_kkrimp import modify_potential, make_scoef, write_scoef_full_imp_cls
+from aiida_kkr.tools.common_workfunctions import get_username
 from masci_tools.io.common_functions import search_string, get_ef_from_potfile
 import os
 import tarfile
@@ -24,7 +25,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.10"
+__version__ = "0.6.11"
 __contributors__ = (u"Philipp Rüßmann", u"Fabian Bertoldo")
 
 #TODO: implement 'ilayer_center' consistency check
@@ -930,7 +931,9 @@ The Dict node should be of the form
         # extract remote computer information
         code = self.inputs.code
         comp = code.computer
-        workdir = comp.get_workdir()
+        # set upload dir (get the remote username and try 5 times if there was a connection error
+        remote_user = get_username(comp)
+        workdir = comp.get_workdir().format(username=remote_user)
         GFpath_remote = os.path.join(workdir, self._DIRNAME_GF_UPLOAD)
         
         
