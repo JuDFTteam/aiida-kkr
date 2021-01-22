@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -183,7 +183,7 @@ def plot_imp_cluster(kkrimp_calc_node, **kwargs):
     if 'Rimp_rel' in imp_info and 'imp_cls' in imp_info:
         imp_cls = np.array(imp_info['imp_cls'])
     else:
-        ilayer = imp_info['ilayer_center']
+        ilayer = imp_info.get('ilayer_center', 0)
         radius = imp_info['Rcut']
         h = imp_info.get('hcut', -1.)
         vector = imp_info.get('cylinder_orient', [0., 0., 1.])
