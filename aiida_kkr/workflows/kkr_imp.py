@@ -21,7 +21,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 __contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -732,7 +732,7 @@ def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at ce
             zatom = 0
         else:
             zatom = _atomic_numbers[kind.get_symbols_string()]
-        if isite == imp_info.get_dict().get('ilayer_center'):
+        if isite == imp_info.get_dict().get('ilayer_center', 0):
             zatom = imp_info.get_dict().get('Zimp')
             if type(zatom)==list:
               zatom = zatom[0] # here this works for single impurity only!

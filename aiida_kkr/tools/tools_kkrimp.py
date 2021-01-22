@@ -22,7 +22,7 @@ from aiida.common.constants import elements as PeriodicTableElements
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH,"
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.4"
+__version__ = "0.6.5"
 __contributors__ = u"Philipp Rüßmann"
 
 
@@ -140,6 +140,9 @@ class modify_potential(object):
             1. modify_potential().neworder_potential(<path_to_input_pot>, <path_to_output_pot>, [])
         """
 
+        # read potfile
+        if debug:
+            print('potfile: {}'.format(potfile_in))
         index1, index2, data = self._read_input(potfile_in)
         if debug:
             print(index1, index2)
@@ -152,7 +155,10 @@ class modify_potential(object):
                     data[i] = line
                     ii+=1
 
+        # read potfile2
         if potfile_2 is not None:
+            if debug:
+                print('potfile2: {}'.format(potfile_2))
             index12, index22, data2 = self._read_input(potfile_2)
             if debug:
                 print(index12, index22)
@@ -181,17 +187,24 @@ class modify_potential(object):
         order = [int(i) for i in neworder]
         if debug: print('neworder:', order)
 
+        # create output potential
         datanew=[]
         for i in range(len(order)):
             # check if new position is replaced with position from old pot
             if replace_from_pot2 is not None and i in replace_from_pot2[:,0]:
                 replace_index = replace_from_pot2[replace_from_pot2[:,0]==i][0][1]
-                if debug: print(i, replace_index)
-                for ii in range(index12[replace_index], index22[replace_index]+1 ):
+                if debug:
+                    print(i, replace_index)
+                for count, ii in enumerate(range(index12[replace_index], index22[replace_index]+1)):
+                    if count==0 and debug:
+                        print(data2[ii])
                     datanew.append(data2[ii])
             else: # otherwise take new potntial according to input list
-                if debug: print(i)
-                for ii in range(index1[order[i]], index2[order[i]]+1 ):
+                if debug:
+                    print(i)
+                for count, ii in enumerate(range(index1[order[i]], index2[order[i]]+1)):
+                    if count==0 and debug:
+                        print(data[ii])
                     datanew.append(data[ii])
 
         # write out new potential
