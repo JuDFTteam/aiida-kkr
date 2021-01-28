@@ -10,7 +10,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 __contributors__ = ("Philipp Rüßmann")
 
 
@@ -365,7 +365,7 @@ class plot_kkr(object):
         groups_dict = {}
 
         for node in nodes:
-            node = self.get_node(node)
+            node = get_node(node)
             nodeclass = self.classify_and_plot_node(node, return_name_only=True)
             if nodeclass not in list(groups_dict.keys()):
                 groups_dict[nodeclass] = []
@@ -384,7 +384,7 @@ class plot_kkr(object):
         # open a single new figure for each plot here
         if groupname in ['kkr', 'scf']: figure()
         for node in nodeslist:
-            node = self.get_node(node)
+            node = get_node(node)
             print(groupname)
             # open new figure for each plot in these groups
             if groupname in ['eos', 'dos', 'startpot']: figure()
@@ -413,7 +413,7 @@ class plot_kkr(object):
         if 'noshow' in list(kwargs.keys()):
             noshow = kwargs.pop('noshow') # this is now removed from kwargs
 
-        node = self.get_node(node)
+        node = get_node(node)
 
         # print input and output nodes
         if not silent: self.print_clean_inouts(node)
@@ -432,7 +432,7 @@ class plot_kkr(object):
         from aiida.plugins import DataFactory
         from aiida.orm import CalculationNode
 
-        node = self.get_node(node)
+        node = get_node(node)
 
         # basic aiida nodes
         if isinstance(node, DataFactory('structure')):
@@ -495,20 +495,6 @@ class plot_kkr(object):
             raise TypeError("input node neither a `Calculation` nor a `WorkChainNode` (i.e. workflow): {} {}".format(type(node), node))
 
     ### helper functions (structure plot, rms plot, dos plot, data extraction ...) ###
-
-    def get_node(self, node):
-        """Get node from pk or uuid"""
-        from aiida.orm import load_node, Node
-        # load node if pk or uuid is given
-        if type(node)==int:
-            node = load_node(node)
-        elif type(node)==type(''):
-            node = load_node(node)
-        elif isinstance(node, Node):
-            pass
-        else:
-            raise TypeError("input node should either be the nodes pk (int), it's uuid (str) or the node itself (aiida.orm.Node). Got type(node)={}".format(type(node)))
-        return node
 
     def print_clean_inouts(self, node):
         """print inputs and outputs of nodes without showing 'CALL' and 'CREATE' links in workflows."""
@@ -739,7 +725,7 @@ class plot_kkr(object):
         if not nofig: figure()
 
         # allow to overwrite name for second quantity, plotted on second y axis
-        name_second_y = 'charge_neutrality'
+        name_second_y = 'charge neutrality'
         if rename_second is not None:
             name_second_y = rename_second
 
@@ -787,8 +773,6 @@ class plot_kkr(object):
     def get_rms_kkrcalc(self, node, title=None):
         """extract rms etc from kkr Calculation. Works for both finished and still running Calculations."""
         from aiida.engine import ProcessState
-        from aiida.common.folders import SandboxFolder
-        from masci_tools.io.common_functions import search_string
 
         rms, neutr, etot, efermi = [], [], [], []
         ptitle = ''
@@ -802,56 +786,7 @@ class plot_kkr(object):
                 rms = o['convergence_group'][u'rms_all_iterations']
                 ptitle = 'Time per iteration: ' + str(o['timings_group'].get('Time in Iteration')) + ' s'
         elif node.process_state in [ProcessState.WAITING, ProcessState.FINISHED, ProcessState.RUNNING]:
-            # extract info needed to open transport
-            c = node.inputs.code
-            comp = c.computer
-            authinfo = comp.get_authinfo(c.user)
-            transport = authinfo.get_transport()
-
-            out_kkr = ''
-
-            # now get contents of out_kkr using remote call of 'cat'
-            with SandboxFolder() as tempfolder:
-                with tempfolder.open('tempfile', 'w') as f:
-                    try:
-                        node.outputs.remote_folder.getfile('out_kkr', f.name)
-                        has_outfile = True
-                    except:
-                        has_outfile = False
-                if has_outfile:
-                    with tempfolder.open('tempfile', 'r') as f:
-                        out_kkr = f.readlines()
-
-            # now extract rms, charge neutrality, total energy and value of Fermi energy
-            if has_outfile:
-                itmp = 0
-                while itmp>=0:
-                    itmp = search_string('rms', out_kkr)
-                    if itmp>=0:
-                        tmpline = out_kkr.pop(itmp)
-                        tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
-                        rms.append(tmpval)
-                itmp = 0
-                while itmp>=0:
-                    itmp = search_string('charge neutrality', out_kkr)
-                    if itmp>=0:
-                        tmpline = out_kkr.pop(itmp)
-                        tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
-                        neutr.append(tmpval)
-                itmp = 0
-                while itmp>=0:
-                    itmp = search_string('TOTAL ENERGY in ryd', out_kkr)
-                    if itmp>=0:
-                        tmpline = out_kkr.pop(itmp)
-                        tmpval = float(tmpline.split(':')[1].split()[0].replace('D', 'e'))
-                        etot.append(tmpval)
-                itmp = 0
-                while itmp>=0:
-                    itmp = search_string('E FERMI', out_kkr)
-                    if itmp>=0:
-                        tmpline = out_kkr.pop(itmp)
-                        tmpval = float(tmpline.split('FERMI')[1].split()[0].replace('D', 'e'))
-                        efermi.append(tmpval)
+            rms, neutr, etot, efermi = get_rms_kkrcalc_from_remote(node)
         else:
             print('no rms extracted', node.process_state)
 
@@ -1679,3 +1614,94 @@ class plot_kkr(object):
                     print('{} {} {}'.format(abs(1-v02/v0), abs(1-e02/e0), abs(1-B2/B)))
         except:
             pass # do nothing if no eos data there
+
+
+def get_node(node):
+    """Get node from pk or uuid"""
+    from aiida.orm import load_node, Node
+    # load node if pk or uuid is given
+    if type(node)==int:
+        node = load_node(node)
+    elif type(node)==type(''):
+        node = load_node(node)
+    elif isinstance(node, Node):
+        pass
+    else:
+        raise TypeError("input node should either be the nodes pk (int), it's uuid (str) or the node itself (aiida.orm.Node). Got type(node)={}".format(type(node)))
+    return node
+
+
+def get_rms_kkrcalc_from_remote(node, **kwargs):
+    """
+    connect to remote folder and extract the rms etc from the out_kkr file
+    if kwargs are given, a dict is retuned for each of the search keys
+    """
+    from aiida.common.folders import SandboxFolder
+    from masci_tools.io.common_functions import search_string
+    # extract info needed to open transport
+    c = node.inputs.code
+    comp = c.computer
+    authinfo = comp.get_authinfo(c.user)
+    transport = authinfo.get_transport()
+
+    out_kkr = ''
+    rms, neutr, etot, efermi = [], [], [], []
+    return_dict = {}
+
+    # now get contents of out_kkr using remote call of 'cat'
+    with SandboxFolder() as tempfolder:
+        with tempfolder.open('tempfile', 'w') as f:
+            try:
+                node.outputs.remote_folder.getfile('out_kkr', f.name)
+                has_outfile = True
+            except:
+                has_outfile = False
+        if has_outfile:
+            with tempfolder.open('tempfile', 'r') as f:
+                out_kkr = f.readlines()
+
+    # now extract rms, charge neutrality, total energy and value of Fermi energy
+    if has_outfile:
+        itmp = 0
+        while itmp>=0:
+            itmp = search_string('rms', out_kkr)
+            if itmp>=0:
+                tmpline = out_kkr.pop(itmp)
+                tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
+                rms.append(tmpval)
+        itmp = 0
+        while itmp>=0:
+            itmp = search_string('charge neutrality', out_kkr)
+            if itmp>=0:
+                tmpline = out_kkr.pop(itmp)
+                tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
+                neutr.append(tmpval)
+        itmp = 0
+        while itmp>=0:
+            itmp = search_string('TOTAL ENERGY in ryd', out_kkr)
+            if itmp>=0:
+                tmpline = out_kkr.pop(itmp)
+                tmpval = float(tmpline.split(':')[1].split()[0].replace('D', 'e'))
+                etot.append(tmpval)
+        itmp = 0
+        while itmp>=0:
+            itmp = search_string('E FERMI', out_kkr)
+            if itmp>=0:
+                tmpline = out_kkr.pop(itmp)
+                tmpval = float(tmpline.split('FERMI')[1].split()[0].replace('D', 'e'))
+                efermi.append(tmpval)
+        # search for all additinoal keys
+        for key in kwargs:
+            return_dict[key] = []
+            itmp = 0
+            while itmp>=0:
+                itmp = search_string(key, out_kkr)
+                if itmp>=0:
+                    tmpline = out_kkr.pop(itmp)
+                    tmpval = float(tmpline.split(key)[1])
+                return_dict[key].append(tmpval)
+
+    if return_dict == {}:
+        return rms, neutr, etot, efermi
+    else:
+        return rms, neutr, etot, efermi, return_dict

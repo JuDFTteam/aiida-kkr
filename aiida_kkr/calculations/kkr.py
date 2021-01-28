@@ -26,7 +26,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.8"
+__version__ = "0.11.9"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
@@ -91,6 +91,8 @@ class KkrCalculation(CalcJob):
     _SHELLS_DAT = 'shells.dat'
     # deci-out and decimation
     _DECIFILE = 'decifile'
+    # BdG mode
+    _BDG_POT = 'den_lm_ir.%0.3i.%i.txt'
 
     # template.product entry point defined in setup.json
     _default_parser = 'kkr.kkrparser'
@@ -436,9 +438,13 @@ The Dict node should be of the form
             # for set-ef option (needs to be done AFTER kicking out core states):
             ef_set = parameters.get_dict().get('ef_set', None)
             ef_set = parameters.get_dict().get('EF_SET', ef_set)
-            self.report(f"efset: {ef_set}  efset_1: {parameters.get_dict().get('ef_set')} efset_2: {parameters.get_dict().get('EF_SET')} params: {parameters.get_dict()}")
+            if verbose:
+                self.report(f"efset: {ef_set}  efset_1: {parameters.get_dict().get('ef_set')} efset_2: {parameters.get_dict().get('EF_SET')} params: {parameters.get_dict()}")
             if ef_set is not None:
                 local_copy_list = self._set_ef_value_potential(ef_set, local_copy_list, tempfolder)
+
+            # add BdG potential if it is there
+            self._copy_BdG_pot(outfolder, tempfolder)
 
             # TODO different copy lists, depending on the keywors input
             print('local copy list: {}'.format(local_copy_list))
@@ -550,6 +556,17 @@ The Dict node should be of the form
             add_files = [self._DECIFILE]
             print('adding files for deci-out', add_files)
             calcinfo.retrieve_list += add_files
+        
+        # 6. BdG
+        retrieve_BdG_files= False
+        use_BdG_dict = {k.upper().replace('<','').replace('>',''):v for  k,v in parameters.get_dict().items() if 'USE_BDG'==k.upper().replace('<','').replace('>','')}
+        retrieve_BdG_files = use_BdG_dict.get('USE_BDG', False)
+        self.report('retrieve BdG? {}'.format(retrieve_BdG_files))
+        if retrieve_BdG_files:
+            for iatom in range(natom):
+                for ispin in range(nspin):
+                    print('adding files for BdG mode')
+                    calcinfo.retrieve_list += [self._BDG_POT%(iatom+1, ispin+1)]
 
         # now set calcinfo and return
         codeinfo = CodeInfo()
@@ -659,7 +676,6 @@ The Dict node should be of the form
             tempfolder.remove_path(self._POTENTIAL)
 
 
-
         # return updated local_copy_list
         return local_copy_list
 
@@ -757,6 +773,7 @@ The Dict node should be of the form
 
         return parameters
     
+
     def _use_decimation(self, parameters, tempfolder):
         """
         Activate decimation mode and copy decifile from output of deciout_parent calculation
@@ -797,6 +814,20 @@ The Dict node should be of the form
             decifile_handle.writelines(decifile_txt)
             
         return parameters
+    
+
+    def _copy_BdG_pot(self, retrieved, tempfolder):
+        """
+        Activate BdG mode and copy den_lm_ir files of the previous output to the input of this calculation.
+        """
+        BDG_POT_FILES = [i for i in retrieved.list_object_names() if self._BDG_POT.split('.')[0] in i]
+
+        # add 'den-lm_ir' files to input
+        for BdG_pot in BDG_POT_FILES:
+            with retrieved.open(BdG_pot, 'r') as file_handle:
+                file_txt = file_handle.readlines()
+            with tempfolder.open(BdG_pot, 'w') as file_handle:
+                file_handle.writelines(file_txt)
 
 
 
