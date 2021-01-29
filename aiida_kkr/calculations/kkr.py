@@ -30,6 +30,8 @@ __version__ = "0.11.9"
 __contributors__ = ("Jens Broeder", "Philipp Rüßmann")
 
 
+verbose = False
+
 
 class KkrCalculation(CalcJob):
     """
