@@ -1250,7 +1250,22 @@ class plot_kkr(object):
             nofig = kwargs.get('nofig', False)
             if not nofig:
                 fig = plt.figure(figsize = (5,5))
-            plt.pcolormesh(x,y, np.log(abs(BSF.T)), cmap=plt.cm.viridis, edgecolor='face',rasterized= True)
+            
+            # maybe change the colormap
+            cmap = kwargs.get('cmap', plt.cm.viridis)
+
+            # maybe scale and shift the x values
+            xscale = kwargs.get('xscale', 1.0)
+            xshift = kwargs.get('xshift', 0.0)
+            x = (x+xshift)*xscale
+
+            # maybe scale and shift the y values
+            yscale = kwargs.get('yscale', 1.0)
+            yshift = kwargs.get('yshift', 0.0)
+            y = (y+yshift)*yscale
+
+            # now create the plot
+            plt.pcolormesh(x,y, np.log(abs(BSF.T)), cmap=cmap, edgecolor='face', rasterized= True)
             plt.ylabel("E-E_F (eV)")
             plt.xlabel("")
 

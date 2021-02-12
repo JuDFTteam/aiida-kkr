@@ -23,7 +23,7 @@ from six.moves import range
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __contributors__ = (u"Rubel Mozumder", u"Philipp Rüßmann")
 
 class kkr_bs_wc(WorkChain):
@@ -226,8 +226,9 @@ class kkr_bs_wc(WorkChain):
             self.inputs.remote_data = output_remote
         # To validate for kpoints
         if "kpoints" in inputs:
-            self.ctx.BS_kpoints = 'kpoints'
+            self.ctx.BS_kpoints = self.inputs.kpoints
             input_ok = True
+            self.ctx.structure_data = 'None (kpoints taken from input)'
         else:
             struc_kkr, remote_voro = VoronoiCalculation.find_parent_structure(self.inputs.remote_data)
             #create an auxiliary structure with unique kind_names, this leads to using the input structure in the seekpath method instead of finding the primitive one
@@ -322,7 +323,6 @@ class kkr_bs_wc(WorkChain):
             para_check = set_energy_params(econt_new, ef, para_check)
         except:
             return self.exit_codes.ERROR_CALC_PARAMETERS_INVALID
-        para_check.set_multiple_values(NPT1=0, NPT3=0, NPOL=0,)
         
         updatenode = Dict(dict=para_check.get_dict())
         updatenode.label = label+'KKRparam_BS'
@@ -469,7 +469,12 @@ def set_energy_params(econt_new, ef, para_check):
         elif key=='RCLUSTZ' or key=='rclustz':
             key = 'RCLUSTZ'
         para_check.set_value(key, val, silent=True)
-            
+
+    # set the rest of the DOS contour
+    para_check.set_multiple_values(NPT1=0, NPT3=0, NPOL=0,
+                                   use_semi_circle_contour=False, # this is needed to get a DOS contour
+    )
+
     return para_check
 
 
