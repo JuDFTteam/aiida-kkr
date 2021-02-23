@@ -45,7 +45,9 @@ class combine_imps_wc(WorkChain):
     """
 
     _workflowversion = __version__
-
+    _wf_defaults = { 'jij_run': False
+                    
+                    }
     @classmethod
     def get_wf_defaults(cls, silent=False):
         """
@@ -113,6 +115,7 @@ If given then the writeout step of the host GF is omitted.""")
                 cls.run_gf_writeout),       # write out the host GF
             cls.check_host_gf,
             cls.create_big_potential,       # combine preconverged potentials to big one
+            cls.update_kkrimp_params,       # update wf_parameters of scf namespace from _wf_defaults
             cls.run_kkrimp_scf,             # run the kkrimp_sub workflow to converge the host-imp startpot
             cls.return_results)             # check if the calculation was successful and return the result nodes
 
@@ -164,7 +167,14 @@ If given then the writeout step of the host GF is omitted.""")
 
         # settings for offset between imps
         self.ctx.i_neighbor_inplane = self.inputs.offset_imp2['index']
-     
+        
+        # preserve the inputs from scf namespace to context
+        self.ctx.scf_kkrimp = self.inputs.scf.kkrimp
+        if 'options' in self.inputs.scf:
+            self.ctx.scf_options = self.inputs.scf.options
+        if 'wf_parameters' in self.inputs.scf:
+            self.ctx.scf_wf_parameters = self.inputs.scf.wf_parameters
+
     
     def get_imp_node_from_input(self, iimp=1):
         """
@@ -369,6 +379,25 @@ If given then the writeout step of the host GF is omitted.""")
         output_potential_sfd_node = combine_potentials_cf(kickout_info, pot_imp1, pot_imp2, Int(nspin1))
 
         self.ctx.combined_potentials = output_potential_sfd_node
+       
+    ##   
+    def update_kkrimp_params(self):
+        """
+        Update the parameters in scf_wf_parameters according to _wf_defaults dict if 
+        any change occur there.
+        """
+        # 
+        scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
+        for key in _wf_default.keys():
+            val = _wf_default.get(key)
+            if key in scf_wf_parameters.keys():
+                # To print the previous value
+                scf_wf_val = scf_wf_parameters[key]
+                scf_wf_parameters[key] = val
+                print('The value of {} is converted from {} to {}'.format(key,scf_wf_val,val)
+            else:
+                msg = 'Warning: The updated key {} in _wf_default is not any control parameter key, therefore the process continues with the deafults parameter of kkr_imp_wc'.format(key)
+        self.ctx.scf_wf_parameters = Dict(dict=scf_wf_parameters)   
 
 
     def run_kkrimp_scf(self):
@@ -394,12 +423,10 @@ If given then the writeout step of the host GF is omitted.""")
             gf_remote = self.inputs.gf_host_remote
         builder.remote_data = gf_remote
 
-        # settings from scf namespace
-        builder.kkrimp = self.inputs.scf.kkrimp
-        if 'options' in self.inputs.scf:
-            builder.options = self.inputs.scf.options
-        if 'wf_parameters' in self.inputs.scf:
-            builder.wf_parameters = self.inputs.scf.wf_parameters
+        # To set kkrimp code, options, and wf_parameters
+        builder.kkrimp = self.ctx.scf_kkrimp
+        builder.options = self.ctx.scf_options
+        builder.wf_parameters = self.inputs.scf_wf_parameters
             
         # take care of LDA+U settings
         add_ldausettings, settings_LDAU_combined = self.get_ldau_combined()
