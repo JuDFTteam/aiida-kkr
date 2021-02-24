@@ -45,9 +45,8 @@ class combine_imps_wc(WorkChain):
     """
 
     _workflowversion = __version__
-    _wf_defaults = { 'jij_run': False
-                    
-                    }
+    _wf_default = {'jij_run': False}
+
     @classmethod
     def get_wf_defaults(cls, silent=False):
         """
@@ -57,7 +56,7 @@ class combine_imps_wc(WorkChain):
         returns _wf_defaults
         """
         if not silent:
-            print(('Version of workflow: {}'.format(cls._workflowversion)))
+            print('Version of workflow: {}'.format(cls._workflowversion))
         return cls._wf_default
 
 
@@ -388,15 +387,17 @@ If given then the writeout step of the host GF is omitted.""")
         """
         # 
         scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
-        for key in _wf_default.keys():
-            val = _wf_default.get(key)
+        wf_default = self._wf_default
+        for key in wf_default.keys():
+            val = wf_default.get(key)
             if key in scf_wf_parameters.keys():
                 # To print the previous value
                 scf_wf_val = scf_wf_parameters[key]
                 scf_wf_parameters[key] = val
-                print('The value of {} is converted from {} to {}'.format(key,scf_wf_val,val)
+                print('The value of {} is converted from {} to {}'.format(key,scf_wf_val,val))
             else:
-                msg = 'Warning: The updated key {} in _wf_default is not any control parameter key, therefore the process continues with the deafults parameter of kkr_imp_wc'.format(key)
+                msg = 'Warning: The updated key {} in _wf_defaults is not any control parameter key, therefore the process continues with the deafults parameter of kkr_imp_wc'.format(key)
+                print(msg)
         self.ctx.scf_wf_parameters = Dict(dict=scf_wf_parameters)   
 
 
