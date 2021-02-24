@@ -45,7 +45,13 @@ class combine_imps_wc(WorkChain):
     """
 
     _workflowversion = __version__
-    _wf_default = {'jij_run': False}
+    _wf_default = {'jij_run': False,
+                   'lmdos': True,
+                   'dos_run': False,
+                   'strmix': 0.03,
+                   'aggressive_mix': 5,
+                   'agrmix': 0.05
+                    }
 
     @classmethod
     def get_wf_defaults(cls, silent=False):
