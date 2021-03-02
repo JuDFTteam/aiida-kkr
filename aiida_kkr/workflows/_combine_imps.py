@@ -45,13 +45,8 @@ class combine_imps_wc(WorkChain):
     """
 
     _workflowversion = __version__
-    _wf_default = {'jij_run': False,
-                   'lmdos': True,
-                   'dos_run': False,
-                   'strmix': 0.03,
-                   'aggressive_mix': 5,
-                   'agrmix': 0.05
-                    }
+    # If need to edit some parameter keys _wf_default is available to edit 
+    _wf_default = {}
 
     @classmethod
     def get_wf_defaults(cls, silent=False):
@@ -179,6 +174,8 @@ If given then the writeout step of the host GF is omitted.""")
             self.ctx.scf_options = self.inputs.scf.options
         if 'wf_parameters' in self.inputs.scf:
             self.ctx.scf_wf_parameters = self.inputs.scf.wf_parameters
+        # TODO: PRESERVE THE INPUTS FROM host_gf NAMESPACE TO CONTEXT
+        # TODO: ALSO EDIT THE RUN_GF_WRITEOUT() FOR THIS CORRESPONDING CHANGES
 
     
     def get_imp_node_from_input(self, iimp=1):
@@ -385,7 +382,7 @@ If given then the writeout step of the host GF is omitted.""")
 
         self.ctx.combined_potentials = output_potential_sfd_node
        
-    ##   
+    # To collate and combine the _wf_defaults and scf_wf_parameters
     def update_kkrimp_params(self):
         """
         Update the parameters in scf_wf_parameters according to _wf_defaults dict if 
@@ -395,15 +392,17 @@ If given then the writeout step of the host GF is omitted.""")
         scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
         wf_default = self._wf_default
         for key in wf_default.keys():
+            # check any update needed in scf_wf_parameters
             val = wf_default.get(key)
             if key in scf_wf_parameters.keys():
                 # To print the previous value
                 scf_wf_val = scf_wf_parameters[key]
                 scf_wf_parameters[key] = val
-                print('The value of {} is converted from {} to {}'.format(key,scf_wf_val,val))
+                self.report('The value of {} is converted from {} to {}'.format(key,scf_wf_val,val))
             else:
-                msg = 'Warning: The updated key {} in _wf_defaults is not any control parameter key, therefore the process continues with the deafults parameter of kkr_imp_wc'.format(key)
-                print(msg)
+                msg = ('Warning: The updated key {} in _wf_defaults is not any control parameter key,'+
+                ' therefore the process continues with parameters of scf.wf_parameters').format(key)
+                self.report(msg)
         self.ctx.scf_wf_parameters = Dict(dict=scf_wf_parameters)   
 
 
@@ -448,7 +447,7 @@ If given then the writeout step of the host GF is omitted.""")
         self.report("INFO: running kkrimp scf workflow for combined impts (uuid= {})".format(future.uuid))
 
         return ToContext(kkrimp_scf_sub=future)
-        
+    
         
     def get_ldau_combined(self):
         """
