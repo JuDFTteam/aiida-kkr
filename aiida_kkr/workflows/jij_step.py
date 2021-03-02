@@ -3,10 +3,12 @@
   {
    "cell_type": "code",
    "execution_count": 3,
-   "id": "later-details",
+   "id": "boolean-instrument",
    "metadata": {},
    "outputs": [],
    "source": [
+    "#!/usr/bin/env python\n",
+    "# coding: utf-8\n",
     "\"\"\"\n",
     "This module will run Jij calculation step from converged combined_imp_wc.\n",
     "\"\"\"\n",
@@ -29,7 +31,7 @@
   {
    "cell_type": "code",
    "execution_count": 4,
-   "id": "middle-institute",
+   "id": "pointed-gauge",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -43,7 +45,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "difficult-optimization",
+   "id": "leading-signature",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -80,6 +82,7 @@
     "            * Run the Jij calculation from the successful combine_imps_wc\n",
     "                NEED:\n",
     "                * combine_imps_wc\n",
+    "                * impurity_combined_output_node\n",
     "            * Or Run Jij calcualtion from the successful single imp workchain i.e. kkr_imp_sub_wc, and kkr_flex_wc\n",
     "                NEED:\n",
     "                * kkr_imp_sub_wc\n",
@@ -147,6 +150,16 @@
     "    # Beside the conventional keys as other 'workflows_info' contains, it should contain\n",
     "    #  1. host_imp_pot (uuid) from the coverge_imp_cluster \n",
     "    spec.output('JijData' valid_type=ArrayData)\n",
+    "    \n",
+    "    # outline of the wf\n",
+    "    spec.outline(\n",
+    "        cls.start,                         # Initialization of the workflow, to check and set the inputs into ctx, to set the workflow outline \n",
+    "        if_(cls.need_combine_imps_wc_run)( # Incase jij calc has to be run from the single imp wc\n",
+    "            cls.run_coombine_imps_wc_run), \n",
+    "        cls.update_kkrimp_params,          # To collate the _wf_defaults and input wf_parameters, afterwards update the wf_parameters\n",
+    "        cls.run_jij_step,                  # Run jij step\n",
+    "        cls.return_results                 # Parse the calculation result\n",
+    "    )\n",
     "        "
    ]
   }
