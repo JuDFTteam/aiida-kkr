@@ -45,8 +45,8 @@ class combine_imps_wc(WorkChain):
     """
 
     _workflowversion = __version__
-    # If need to edit some parameter keys _wf_default is available to edit 
-    _wf_default = {}
+    _wf_default = {'jij_run': False,
+                    }
 
     @classmethod
     def get_wf_defaults(cls, silent=False):
@@ -117,6 +117,8 @@ If given then the writeout step of the host GF is omitted.""")
             cls.create_big_potential,       # combine preconverged potentials to big one
             cls.update_kkrimp_params,       # update wf_parameters of scf namespace from _wf_defaults
             cls.run_kkrimp_scf,             # run the kkrimp_sub workflow to converge the host-imp startpot
+            if_(cls.run_jij)(
+            cls.run_jij_step),                    # run jij step
             cls.return_results)             # check if the calculation was successful and return the result nodes
 
 
@@ -133,6 +135,7 @@ If given then the writeout step of the host GF is omitted.""")
             message="The impurity calculations have different NSPIN values")
         spec.exit_code(700, 'ERROR_HOST_GF_CALC_FAILED',
             message="The writeout of the host GF failed")
+
         #TODO to fix this create_combined_imp_info_cf need to take the different layers into account
         # when the difference vector and the neighbors are created
 
@@ -150,10 +153,11 @@ If given then the writeout step of the host GF is omitted.""")
         """
         message = 'INFO: started combine_imps_wc workflow version {}'.format(self._workflowversion)
         self.report(message)
-
+        self.ctx.wf_default = self._wf_default
+        self.ctx.run_options = {'jij_run': False}
         self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
         self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
-
+        
         # find and compare host structures for the two imps to make sure the impurities are consistent
         host_structure1 = get_host_structure(self.ctx.imp1)
         host_structure2 = get_host_structure(self.ctx.imp2)
@@ -388,13 +392,18 @@ If given then the writeout step of the host GF is omitted.""")
         Update the parameters in scf_wf_parameters according to _wf_defaults dict if 
         any change occur there.
         """
-        # 
+         
         scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
-        wf_default = self._wf_default
+        wf_default = self.ctx.wf_default
+        
         for key in wf_default.keys():
-            # check any update needed in scf_wf_parameters
             val = wf_default.get(key)
-            if key in scf_wf_parameters.keys():
+            # separate run options
+            if key in self.ctx.run_options:
+                self.ctx.run_options[key] = wf_default.get(key, False)
+
+             # check any update needed in scf_wf_parameters
+         elif key in scf_wf_parameters.keys():
                 # To print the previous value
                 scf_wf_val = scf_wf_parameters[key]
                 scf_wf_parameters[key] = val
@@ -448,7 +457,40 @@ If given then the writeout step of the host GF is omitted.""")
 
         return ToContext(kkrimp_scf_sub=future)
     
+    def run_jij(self):
+        jij_option = False
+        if 'jij_run' in self.ctx.run_options:
+            jij_option = self.ctx.run_options['jij_run']
+        return jij_option
         
+    
+    # To launch jij step
+    def run_jij_step(self):
+        """Run the jij calculation with the converged combined_imp_host_pot"""
+        if self.ctx.kkrimp_scf_sub.is_finished_ok:
+            msg = "kkr_imp_sub_wc for combined impurity cluster is succefully done"+
+                    "and jij step is getting prepared for launching."
+            self.report(msg)
+            combined_scf_node = self.ctx.kkrimp_scf_sub
+        else:
+            self.exit_codes.ERROR_SOMETHING_WENT_WRONG
+
+        
+        last_calc = load_node(combined_scf_node.outputs.workflow_info['last_calc_nodeinfo']['uuid'])
+        builder = last_calc.get_builder_restart()
+        builder.pop('parent_calc_folder')
+        builder.impurity_potential = combined_scf_node.outputs.host_imp_pot
+        param_dict = {k:v for k,v in builder.parameters.get_dict().items() if v is not None}
+        param_dict['CALCJIJMAT'] = 1 # activate Jij calculation, leave the rest as is
+        builder.parameters = Dict(dict=param_dict)
+        builder.metadata.label = 'KKRimp_Jij ('+last_calc.label.split('=')[1][3:]
+
+        future = self.submit(builder)
+        self.report('submitted Jij calculation (uuid=%s)'%(future.uuid))
+
+        return ToContext(imp_scf_combined_jij = future)
+
+
     def get_ldau_combined(self):
         """
         check if impurity input calculations have LDA+U settings in input and add this here if needed
@@ -500,6 +542,7 @@ If given then the writeout step of the host GF is omitted.""")
         kkrimp_scf_sub = self.ctx.kkrimp_scf_sub
         results_kkrimp_sub = kkrimp_scf_sub.outputs.workflow_info
         last_calc = load_node(results_kkrimp_sub['last_calc_nodeinfo']['uuid'])
+        output_parameters = last_calc.outputs.parameters
         last_remote = last_calc.outputs.remote_folder
         last_output_params = last_calc.outputs.output_parameters
         last_pot = kkrimp_scf_sub.outputs.host_imp_pot
@@ -515,6 +558,9 @@ If given then the writeout step of the host GF is omitted.""")
         for key in ['successful', 'convergence_value', 'convergence_reached', 'convergence_values_all_steps']:
             out_dict[key] = results_kkrimp_sub[key]
 
+        magmom_all = np.array(output_parameters['magnetism_group']['spin_moment_per_atom'], dtype=float)[:,-1]
+        out_dict['magmoms'] = magmom_all
+
         # collect outputs of host_gf sub_workflow if it was done
         if 'gf_host_remote' not in self.inputs:
             gf_writeout = self.ctx.gf_writeout
@@ -525,13 +571,14 @@ If given then the writeout step of the host GF is omitted.""")
 
             # add info about sub-workflow to dict output
             out_dict['sub_workflows']['host_gf'] = {'pk': gf_writeout.pk, 'uuid': gf_writeout.uuid}
-        
+    
 
         # add information on combined cluster and potential
         out_dict['imp_info_combined'] = self.ctx.imp_info_combined.get_dict()
         out_dict['potential_kickout_info'] = self.ctx.kickout_info.get_dict()
-
+     
         # create results node with input links
+        # TODO: Add the imp_scf_combined_jij to link the run_jij_step output on provanace graph 
         link_nodes = {'kkrimp_scf_results': results_kkrimp_sub}
         if 'gf_host_remote' not in self.inputs:
             link_nodes['GF_host_remote'] = gf_sub_remote
@@ -543,4 +590,90 @@ If given then the writeout step of the host GF is omitted.""")
         self.out('last_potential', last_pot)
         self.out('last_calc_remote', last_remote)
         self.out('last_calc_output_parameters', last_output_params)
+    
+    
+
+    @calcfunction
+    def parse_Jij(retrieved, impurity_info):
+        """parser output of Jij calculation and return as ArrayData node"""
+
+        _FILENAME_TAR = 'output_all.tar.gz'
+
+        if _FILENAME_TAR in retrieved.list_object_names():
+            # get path of tarfile
+            with retrieved.open(_FILENAME_TAR) as tf:
+                tfpath = tf.name
+            # extract file from tarfile of retrieved to tempfolder
+            with tarfile.open(tfpath) as tf:
+                tar_filenames = [ifile.name for ifile in tf.getmembers()]
+                filename = 'out_Jijmatrix'
+                if filename in tar_filenames:
+                    tf.extract(filename, tfpath.replace(_FILENAME_TAR,'')) # extract to tempfolder
+
+        jijdata = np.loadtxt(tfpath.replace(_FILENAME_TAR,'')+'out_Jijmatrix')
+
+        pos = np.array(impurity_info['imp_cls'])
+        z = np.array(impurity_info['imp_cls'])[:,4]
+        Vpos = np.where(z==23)[0]
+
+        Ry2eV = get_Ry2eV()
+
+        # extract number of atoms
+        natom = int(np.sqrt(jijdata.shape[0]/3/3))
+
+        # reshape data
+        jij_reshape = jijdata.reshape(3, natom, natom, 3, 3) # iter, i, j, k, l (Jij_k,l matrix)
+
+        # now combine iterations to get full 3 by 3 Jij matrices for all atom pairs
+        jij_combined_iter = np.zeros((natom, natom, 3, 3))
+        for iatom in range(natom):
+            for jatom in range(natom):
+                for iiter in range(3):
+                    if iiter==0:
+                        # first iteration with theta, phi = 0, 0
+                        # take complete upper block from here since this calculation should be converged best
+                        # (rotated moments only one-shot calculations)
+                        jij_combined_iter[iatom, jatom, 0, 0] = jij_reshape[iiter, iatom, jatom, 0, 0]
+                        jij_combined_iter[iatom, jatom, 0, 1] = jij_reshape[iiter, iatom, jatom, 0, 1]
+                        jij_combined_iter[iatom, jatom, 1, 0] = jij_reshape[iiter, iatom, jatom, 1, 0]
+                        jij_combined_iter[iatom, jatom, 1, 1] = jij_reshape[iiter, iatom, jatom, 1, 1]
+                    elif iiter==1:
+                        # second iteraton with theta, phi = 90, 0
+                        jij_combined_iter[iatom, jatom, 1, 2] = jij_reshape[iiter, iatom, jatom, 1, 2]
+                        jij_combined_iter[iatom, jatom, 2, 1] = jij_reshape[iiter, iatom, jatom, 2, 1]
+                        jij_combined_iter[iatom, jatom, 2, 2] = jij_reshape[iiter, iatom, jatom, 2, 2]
+                    else:
+                        # from third iteration with theta, phi = 90, 90
+                        jij_combined_iter[iatom, jatom, 0, 2] = jij_reshape[iiter, iatom, jatom, 0, 2]
+                        jij_combined_iter[iatom, jatom, 2, 0] = jij_reshape[iiter, iatom, jatom, 2, 0]
+                        # add this value to z-z component and average
+                        jij_combined_iter[iatom, jatom, 2, 2] += jij_reshape[iiter, iatom, jatom, 2, 2]
+                        jij_combined_iter[iatom, jatom, 2, 2] *= 0.5
+
+        # finally convert to meV units (and sign change to have positive number indicate ferromagnetism and negative number antiferromagnetism)
+        jij_combined_iter *= -1.*Ry2eV*1000
+
+        jij_trace = (jij_combined_iter[:,:,0,0]+jij_combined_iter[:,:,1,1]+jij_combined_iter[:,:,2,2])/3
+        Dij_vec = np.array([(jij_combined_iter[:,:,1,2]-jij_combined_iter[:,:,2,1]), (jij_combined_iter[:,:,2,0]-jij_combined_iter[:,:,0,2]), (jij_combined_iter[:,:,0,1]-jij_combined_iter[:,:,1,0])])
+
+        plotdata = []
+
+        #return jij_combined_iter
+        out_txt = "Output Jij values between V impurities:\ni   j     Jij (meV)       Dij(meV)        D/J\n-----------------------------------------------\n"
+        for iatom in range(natom):
+            for jatom in range(natom):
+                if iatom!=jatom and iatom in Vpos and jatom in Vpos:
+                    J = jij_trace[iatom, jatom]
+                    Dx, Dy, Dz = Dij_vec[0, iatom , jatom], Dij_vec[1, iatom , jatom], Dij_vec[2, iatom , jatom]
+                    D = np.sqrt(Dx**2 + Dy**2 + Dz**2)
+                    out_txt += '%3i %3i %15.5e %15.5e %15.5e\n'%(iatom, jatom, J, D, D/J)
+                    rdiff = pos[jatom] - pos[iatom]
+                    plotdata.append([rdiff[0], rdiff[1], rdiff[2], J, D, Dx, Dy, Dz])
+        plotdata = np.array(plotdata)
+
+        a = ArrayData()
+        a.set_array('JijData', plotdata)
+
+        return {'Jijdata': a, 'info': Dict(dict={'text': out_txt})}
+
 
