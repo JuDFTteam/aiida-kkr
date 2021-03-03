@@ -410,8 +410,7 @@ If given then the writeout step of the host GF is omitted.""")
                 scf_wf_parameters[key] = val
                 self.report('The value of {} is converted from {} to {}'.format(key,scf_wf_val,val))
             else:
-                msg = ('Warning: The updated key {} in wf_parameters_overwrite is not any control parameter key,'+
-                ' therefore the process continues with parameters of scf.wf_parameters').format(key)
+                msg = ('Warning: The updated key {} in wf_parameters_overwrite is not any control parameter key, therefore the process continues with parameters of scf.wf_parameters').format(key)
                 self.report(msg)
         self.ctx.scf_wf_parameters = Dict(dict=scf_wf_parameters)   
 
