@@ -5,7 +5,7 @@ This module contains the workflow which combines pre-converged single-impurity c
 
 from __future__ import absolute_import
 from __future__ import print_function
-from aiida.engine import WorkChain, if_, ToContext
+from aiida.engine import WorkChain, if_, ToContext, calcfunction
 from aiida.orm import load_node, Dict, WorkChainNode, Int, RemoteData
 from aiida_kkr.calculations import KkrCalculation, KkrimpCalculation
 from aiida_kkr.workflows import kkr_imp_sub_wc, kkr_flex_wc, kkr_imp_wc
@@ -468,8 +468,7 @@ If given then the writeout step of the host GF is omitted.""")
     def run_jij_step(self):
         """Run the jij calculation with the converged combined_imp_host_pot"""
         if self.ctx.kkrimp_scf_sub.is_finished_ok:
-            msg = "kkr_imp_sub_wc for combined impurity cluster is succefully done"+
-                    "and jij step is getting prepared for launching."
+            msg = "kkr_imp_sub_wc for combined impurity cluster is succefully done and jij step is getting prepared for launching."
             self.report(msg)
             combined_scf_node = self.ctx.kkrimp_scf_sub
         else:
@@ -566,10 +565,10 @@ If given then the writeout step of the host GF is omitted.""")
             jij_retrieved = jij_calc.outputs.retrieved
             impurity_info = kkrimp_scf_sub.inputs.impurity_info.get_dict()
             out_dict['jij_step'] = {'jij':{'pk':jij_calc.pk,
-                                           'uuid': jij_calc.uuid
-                                           'is_finished_ok':jij_calc.is_finished_ok 
-                                           }}
-           jij_parsed_dict = parse_Jij(jij_retrieved,impurity_info)
+                                           'uuid': jij_calc.uuid,
+                                           'is_finished_ok':jij_calc.is_finished_ok }
+                                    }
+            jij_parsed_dict = parse_Jij(jij_retrieved,impurity_info)
         # collect outputs of host_gf sub_workflow if it was done
         if 'gf_host_remote' not in self.inputs:
             gf_writeout = self.ctx.gf_writeout
