@@ -474,7 +474,6 @@ If given then the writeout step of the host GF is omitted.""")
             combined_scf_node = self.ctx.kkrimp_scf_sub
         else:
             self.exit_codes.ERROR_SOMETHING_WENT_WRONG
-
         
         last_calc = load_node(combined_scf_node.outputs.workflow_info['last_calc_nodeinfo']['uuid'])
         builder = last_calc.get_builder_restart()
@@ -546,7 +545,6 @@ If given then the writeout step of the host GF is omitted.""")
         last_remote = last_calc.outputs.remote_folder
         last_output_params = last_calc.outputs.output_parameters
         last_pot = kkrimp_scf_sub.outputs.host_imp_pot
-
         out_dict = {}
         out_dict['workflow_name'] = self.__class__.__name__
         out_dict['workflow_version'] = self._workflowversion
@@ -560,7 +558,18 @@ If given then the writeout step of the host GF is omitted.""")
 
         magmom_all = np.array(output_parameters['magnetism_group']['spin_moment_per_atom'], dtype=float)[:,-1]
         out_dict['magmoms'] = magmom_all
-
+        
+        # Parse_jij and collect some info
+        is_jij_exist = self.run_jij() 
+        if is_jij_exist:
+            jij_calc = imp_scf_combined_jij
+            jij_retrieved = jij_calc.outputs.retrieved
+            impurity_info = kkrimp_scf_sub.inputs.impurity_info.get_dict()
+            out_dict['jij_step'] = {'jij':{'pk':jij_calc.pk,
+                                           'uuid': jij_calc.uuid
+                                           'is_finished_ok':jij_calc.is_finished_ok 
+                                           }}
+           jij_parsed_dict = parse_Jij(jij_retrieved,impurity_info)
         # collect outputs of host_gf sub_workflow if it was done
         if 'gf_host_remote' not in self.inputs:
             gf_writeout = self.ctx.gf_writeout
@@ -571,7 +580,6 @@ If given then the writeout step of the host GF is omitted.""")
 
             # add info about sub-workflow to dict output
             out_dict['sub_workflows']['host_gf'] = {'pk': gf_writeout.pk, 'uuid': gf_writeout.uuid}
-    
 
         # add information on combined cluster and potential
         out_dict['imp_info_combined'] = self.ctx.imp_info_combined.get_dict()
@@ -582,6 +590,8 @@ If given then the writeout step of the host GF is omitted.""")
         link_nodes = {'kkrimp_scf_results': results_kkrimp_sub}
         if 'gf_host_remote' not in self.inputs:
             link_nodes['GF_host_remote'] = gf_sub_remote
+        if is_jij_exist:
+            link_nodes['retrieved'] =jij_retrieved 
         outputnode = create_out_dict_node(Dict(dict=out_dict), **link_nodes)
         outputnode.label = 'combine_imps_wc_results'
 
@@ -590,9 +600,9 @@ If given then the writeout step of the host GF is omitted.""")
         self.out('last_potential', last_pot)
         self.out('last_calc_remote', last_remote)
         self.out('last_calc_output_parameters', last_output_params)
-    
-    
-
+        if is_jij_exist:
+            self.out('JijData', jij_parsed_dict['JijData'])
+            self.out('JijInfo', jij_parsed_dict['info'])
     @calcfunction
     def parse_Jij(retrieved, impurity_info):
         """parser output of Jij calculation and return as ArrayData node"""
