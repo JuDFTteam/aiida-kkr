@@ -101,7 +101,8 @@ Can be given either via the 'vector' or the 'index' keys in the dictionary.
 The 'vector' option allows to give the offset vector in cartesian units and 
 the 'index' option allows to five the offset vector in units of the lattice 
 vectors of the host system's structure.""")
-        
+        spec.input("wf_parameters_overwrite", valid_type=Dict, required=False,
+                    help="To add or edit wf_parameters in scf namespace and add run optioins, if needed")
         spec.input("gf_host_remote", valid_type=RemoteData, required=False, #TODO add validator that makes sure this is not given together with the host_gf sub-workflow namespace
                    help="""RemoteData node of pre-calculated host Green function (i.e. with kkr_flex_wc).
 If given then the writeout step of the host GF is omitted.""")
@@ -153,7 +154,7 @@ If given then the writeout step of the host GF is omitted.""")
         """
         message = 'INFO: started combine_imps_wc workflow version {}'.format(self._workflowversion)
         self.report(message)
-        self.ctx.wf_default = self._wf_default
+        self.ctx.wf_parameters_overwrite= self.inputs.wf_parameters_overwrite
         self.ctx.run_options = {'jij_run': False}
         self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
         self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
@@ -386,21 +387,21 @@ If given then the writeout step of the host GF is omitted.""")
 
         self.ctx.combined_potentials = output_potential_sfd_node
        
-    # To collate and combine the _wf_defaults and scf_wf_parameters
+    # To collate and combine the wf_parameters_overwrite and scf_wf_parameters
     def update_kkrimp_params(self):
         """
-        Update the parameters in scf_wf_parameters according to _wf_defaults dict if 
-        any change occur there.
+        Update the parameters in scf_wf_parameters according to wf_parameters_overwrite if 
+        any change occur there and also add the run options.
         """
          
         scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
-        wf_default = self.ctx.wf_default
+        wf_parameters_overwrite = self.ctx.wf_parameters_overwrite
         
-        for key in wf_default.keys():
-            val = wf_default.get(key)
+        for key in wf_parameters_overwrite.keys():
+            val = wf_parameters_overwrite.get(key)
             # separate run options
             if key in self.ctx.run_options:
-                self.ctx.run_options[key] = wf_default.get(key, False)
+                self.ctx.run_options[key] = wf_parameters_overwrite.get(key, False)
 
              # check any update needed in scf_wf_parameters
          elif key in scf_wf_parameters.keys():
@@ -409,7 +410,7 @@ If given then the writeout step of the host GF is omitted.""")
                 scf_wf_parameters[key] = val
                 self.report('The value of {} is converted from {} to {}'.format(key,scf_wf_val,val))
             else:
-                msg = ('Warning: The updated key {} in _wf_defaults is not any control parameter key,'+
+                msg = ('Warning: The updated key {} in wf_parameters_overwrite is not any control parameter key,'+
                 ' therefore the process continues with parameters of scf.wf_parameters').format(key)
                 self.report(msg)
         self.ctx.scf_wf_parameters = Dict(dict=scf_wf_parameters)   
