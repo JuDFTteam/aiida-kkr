@@ -404,7 +404,7 @@ If given then the writeout step of the host GF is omitted.""")
                 self.ctx.run_options[key] = wf_parameters_overwrite.get(key, False)
 
              # check any update needed in scf_wf_parameters
-         elif key in scf_wf_parameters.keys():
+            elif key in scf_wf_parameters.keys():
                 # To print the previous value
                 scf_wf_val = scf_wf_parameters[key]
                 scf_wf_parameters[key] = val
