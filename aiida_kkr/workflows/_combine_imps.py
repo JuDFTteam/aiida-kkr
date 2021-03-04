@@ -444,7 +444,7 @@ If given then the writeout step of the host GF is omitted.""")
         # To set kkrimp code, options, and wf_parameters
         builder.kkrimp = self.ctx.scf_kkrimp
         builder.options = self.ctx.scf_options
-        builder.wf_parameters = self.inputs.scf_wf_parameters
+        builder.wf_parameters = self.ctx.scf_wf_parameters
             
         # take care of LDA+U settings
         add_ldausettings, settings_LDAU_combined = self.get_ldau_combined()
