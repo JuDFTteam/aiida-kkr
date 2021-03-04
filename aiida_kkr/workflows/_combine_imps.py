@@ -154,8 +154,8 @@ If given then the writeout step of the host GF is omitted.""")
         """
         message = 'INFO: started combine_imps_wc workflow version {}'.format(self._workflowversion)
         self.report(message)
-        self.ctx.wf_parameters_overwrite= self.inputs.wf_parameters_overwrite
-        self.ctx.run_options = {'jij_run': False}
+        if 'wf_parameters_overwrite' in inputs:
+            self.ctx.wf_parameters_overwrite= self.inputs.wf_parameters_overwrite
         self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
         self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
         
@@ -179,6 +179,9 @@ If given then the writeout step of the host GF is omitted.""")
             self.ctx.scf_options = self.inputs.scf.options
         if 'wf_parameters' in self.inputs.scf:
             self.ctx.scf_wf_parameters = self.inputs.scf.wf_parameters
+        # Add some run option here
+        self.ctx.jij_option = False
+
         # TODO: PRESERVE THE INPUTS FROM host_gf NAMESPACE TO CONTEXT
         # TODO: ALSO EDIT THE RUN_GF_WRITEOUT() FOR THIS CORRESPONDING CHANGES
 
@@ -393,25 +396,25 @@ If given then the writeout step of the host GF is omitted.""")
         Update the parameters in scf_wf_parameters according to wf_parameters_overwrite if 
         any change occur there and also add the run options.
         """
-         
         scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
-        wf_parameters_overwrite = self.ctx.wf_parameters_overwrite
+        if 'wf_parameters_overwrite' in inputs: 
+            wf_parameters_overwrite = self.ctx.wf_parameters_overwrite
+            msg = 'The scf.wf_parameters is going to be updated according to wf_parameters_overwrite'
+            report(msg)
+            for key in wf_parameters_overwrite.keys():
+                val = wf_parameters_overwrite.get(key)
+                if key in scf_wf_parameters.keys():
+                    scf_wf_val = scf_wf_parameters[key]
+                    scf_wf_parameters[key] = val
+                    self.report('The value of {} is converted from {} to {}'.format(key,scf_wf_val,val))
+                else:
+                    msg = ('Warning: The updated key {} in wf_parameters_overwrite is not any control parameter key, therefore the process continues with parameters of scf.wf_parameters').format(key)
+                    self.report(msg)
+        else: 
+            report('The kkr_imp_sub_wc will be launchd with the scf.wf_parameters Dict')
+        if 'jij_run' in scf_wf_parameters.keys():
+            self.ctx.jij_option = scf_wf_parameters['jij_run']
         
-        for key in wf_parameters_overwrite.keys():
-            val = wf_parameters_overwrite.get(key)
-            # separate run options
-            if key in self.ctx.run_options:
-                self.ctx.run_options[key] = wf_parameters_overwrite.get(key, False)
-
-             # check any update needed in scf_wf_parameters
-            elif key in scf_wf_parameters.keys():
-                # To print the previous value
-                scf_wf_val = scf_wf_parameters[key]
-                scf_wf_parameters[key] = val
-                self.report('The value of {} is converted from {} to {}'.format(key,scf_wf_val,val))
-            else:
-                msg = ('Warning: The updated key {} in wf_parameters_overwrite is not any control parameter key, therefore the process continues with parameters of scf.wf_parameters').format(key)
-                self.report(msg)
         self.ctx.scf_wf_parameters = Dict(dict=scf_wf_parameters)   
 
 
@@ -458,9 +461,8 @@ If given then the writeout step of the host GF is omitted.""")
         return ToContext(kkrimp_scf_sub=future)
     
     def run_jij(self):
-        jij_option = False
-        if 'jij_run' in self.ctx.run_options:
-            jij_option = self.ctx.run_options['jij_run']
+        jij_option = self.ctx.jij_option
+        
         return jij_option
         
     
