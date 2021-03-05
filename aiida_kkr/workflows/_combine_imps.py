@@ -146,17 +146,17 @@ If given then the writeout step of the host GF is omitted.""")
         spec.output('last_potential')
         spec.output('last_calc_remote')
         spec.output('remote_data_gf')
+        spec.output('JijData')
+        spec.output('JijInfo')
 
 
     def start(self): # pylint: disable=inconsistent-return-statements
         """
         prepare context and do some consistency checks
         """
-        inputs = self.inputs
-        print('This is debug line to check the debug', inputs)
         message = 'INFO: started combine_imps_wc workflow version {}'.format(self._workflowversion)
         self.report(message)
-        if 'wf_parameters_overwrite' in inputs:
+        if 'wf_parameters_overwrite' in self.inputs:
             self.ctx.wf_parameters_overwrite= self.inputs.wf_parameters_overwrite
         self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
         self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
