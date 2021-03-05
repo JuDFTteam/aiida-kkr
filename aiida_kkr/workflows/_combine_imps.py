@@ -402,7 +402,7 @@ If given then the writeout step of the host GF is omitted.""")
         if 'wf_parameters_overwrite' in self.inputs: 
             wf_parameters_overwrite = self.ctx.wf_parameters_overwrite
             msg = 'The scf.wf_parameters is going to be updated according to wf_parameters_overwrite'
-            report(msg)
+            self.report(msg)
             for key in wf_parameters_overwrite.keys():
                 val = wf_parameters_overwrite.get(key)
                 if key in scf_wf_parameters.keys():
