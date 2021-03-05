@@ -154,7 +154,7 @@ If given then the writeout step of the host GF is omitted.""")
         """
         message = 'INFO: started combine_imps_wc workflow version {}'.format(self._workflowversion)
         self.report(message)
-        if 'wf_parameters_overwrite' in inputs:
+        if 'wf_parameters_overwrite' in self.inputs:
             self.ctx.wf_parameters_overwrite= self.inputs.wf_parameters_overwrite
         self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
         self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
@@ -397,7 +397,7 @@ If given then the writeout step of the host GF is omitted.""")
         any change occur there and also add the run options.
         """
         scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
-        if 'wf_parameters_overwrite' in inputs: 
+        if 'wf_parameters_overwrite' in self.inputs: 
             wf_parameters_overwrite = self.ctx.wf_parameters_overwrite
             msg = 'The scf.wf_parameters is going to be updated according to wf_parameters_overwrite'
             report(msg)
