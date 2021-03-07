@@ -484,6 +484,9 @@ If given then the writeout step of the host GF is omitted.""")
         return ToContext(kkrimp_scf_sub=future)
     
     def run_jij(self):
+        if not self.ctx.kkrimp_scf_sub.is_finished_ok:
+            return self.exit_code.ERROR_SOMETHING_WENT_WRONG
+
         scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
         if 'jij_run' in scf_wf_parameters.keys():
             self.ctx.jij_option = scf_wf_parameters['jij_run']
