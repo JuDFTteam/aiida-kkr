@@ -400,7 +400,7 @@ If given then the writeout step of the host GF is omitted.""")
         """
         scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
         if 'wf_parameters_overwrite' in self.inputs: 
-            wf_parameters_overwrite = self.ctx.wf_parameters_overwrite
+            wf_parameters_overwrite = self.ctx.wf_parameters_overwrite.get_dict()
             msg = 'The scf.wf_parameters is going to be updated according to wf_parameters_overwrite'
             self.report(msg)
             for key in wf_parameters_overwrite.keys():
