@@ -45,7 +45,9 @@ class combine_imps_wc(WorkChain):
     """
 
     _workflowversion = __version__
-    _wf_default = {'jij_run': False,
+    _wf_default = { 'jij_run': False,
+                    'dos_run': False,
+                    'retrieve_kkrflex': True,
                     }
 
     @classmethod
@@ -119,9 +121,9 @@ If given then the writeout step of the host GF is omitted.""")
             cls.update_kkrimp_params,       # update wf_parameters of scf namespace from _wf_defaults
             cls.run_kkrimp_scf,             # run the kkrimp_sub workflow to converge the host-imp startpot
             if_(cls.run_jij)(
-            cls.run_jij_step),                    # run jij step
-            cls.return_results)             # check if the calculation was successful and return the result nodes
-
+            cls.run_jij_step),              # run jij step
+            cls.return_results             # check if the calculation was successful and return the result nodes
+            )
 
         # define the possible exit codes
         spec.exit_code(999, 'ERROR_SOMETHING_WENT_WRONG',
@@ -158,6 +160,8 @@ If given then the writeout step of the host GF is omitted.""")
         self.report(message)
         if 'wf_parameters_overwrite' in self.inputs:
             self.ctx.wf_parameters_overwrite= self.inputs.wf_parameters_overwrite
+        # wf_parameters_flex for kkr_flex_wc
+        self.ctx.wf_parameters_flex = None        # Will be Update in the run_gf_writeout step
         self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
         self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
         
@@ -312,13 +316,26 @@ If given then the writeout step of the host GF is omitted.""")
 
     def run_gf_writeout(self):
         """
-        write out the host GF
+        Write out the host GF
+        Update the parameters in wf_paramters_flex for gf_writeout_step
         """
-        
+        # Default wf_parameter_flex
+        wf_parameters_flex = {'dos_run' : True,
+                              'retrieve_kkrflex' : False,
+                             }
+        wf_parameters_overwrite = self.ctx.wf_parameters_overwrite.get_dict()
+        for key, val in wf_parameters_flex.items():
+            if key in wf_parameters_overwrite.keys():
+               new_val = wf_parameters_overwrite[key]
+               wf_parameters_flex[key] = new_val
+        msg = 'INFO: wf parameters for the kkr_flex_wc step'.format(wf_parameters_flex)
+        self.report(msg)
+
         # create process builder for gf_writeout workflow
         builder = kkr_flex_wc.get_builder()
         builder.impurity_info = self.ctx.imp_info_combined
         builder.kkr = self.inputs.host_gf.kkr
+        builder.wf_parameters = Dict(dict=wf_parameters_flex)
 
         if 'options' in self.inputs.host_gf:
             builder.options = self.inputs.host_gf.options
@@ -398,25 +415,30 @@ If given then the writeout step of the host GF is omitted.""")
         Update the parameters in scf_wf_parameters according to wf_parameters_overwrite if 
         any change occur there and also add the run options.
         """
+        
+        # Some kkr_flex_wc specific keys
+        flex_spec_keys = ['retrieve_kkrflex'] 
         scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
+
         if 'wf_parameters_overwrite' in self.inputs: 
             wf_parameters_overwrite = self.ctx.wf_parameters_overwrite.get_dict()
-            msg = 'The scf.wf_parameters is going to be updated according to wf_parameters_overwrite'
-            self.report(msg)
+            
             for key in wf_parameters_overwrite.keys():
+                if key in flex_spec_keys[:]:
+                    continue
                 val = wf_parameters_overwrite.get(key)
                 if key in scf_wf_parameters.keys():
-                    scf_wf_val = scf_wf_parameters[key]
-                    scf_wf_parameters[key] = val
-                    self.report('The value of {} is converted from {} to {}'.format(key,scf_wf_val,val))
+                    if wf_parameters_overwrite[key] != scf_wf_parameters[key]:
+                        scf_wf_val = scf_wf_parameters[key]
+                        scf_wf_parameters[key] = val
+                        self.report('The value of {} is converted from {} to {}'.format(key,scf_wf_val,val))
                 else:
-                    msg = ('Warning: The updated key {} in wf_parameters_overwrite is not any control parameter key, therefore the process continues with parameters of scf.wf_parameters').format(key)
-                    self.report(msg)
+                    scf_wf_parameters[key] = val
+                    msg = 'INFO: A new key {} and the corresponding value {} in the kkr_imp_sub_wc has been added'.format(key,val)
+                    
         else: 
-            report('The kkr_imp_sub_wc will be launchd with the scf.wf_parameters Dict')
-        if 'jij_run' in scf_wf_parameters.keys():
-            self.ctx.jij_option = scf_wf_parameters['jij_run']
-        
+            report('INFO: The kkr_imp_sub_wc will be launchd with the scf.wf_parameters input Dict')
+                
         self.ctx.scf_wf_parameters = Dict(dict=scf_wf_parameters)   
 
 
@@ -425,7 +447,6 @@ If given then the writeout step of the host GF is omitted.""")
         run the kkrimp_sub workflow to converge the host-imp startpot
         """
 
-        self.report("run imp scf with combined potentials")
 
         # construct process builder for kkrimp scf workflow
         builder = kkr_imp_sub_wc.get_builder()
@@ -463,16 +484,18 @@ If given then the writeout step of the host GF is omitted.""")
         return ToContext(kkrimp_scf_sub=future)
     
     def run_jij(self):
-        jij_option = self.ctx.jij_option
-        
-        return jij_option
+        scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
+        if 'jij_run' in scf_wf_parameters.keys():
+            self.ctx.jij_option = scf_wf_parameters['jij_run']
+
+        return self.ctx.jij_option
         
     
     # To launch jij step
     def run_jij_step(self):
         """Run the jij calculation with the converged combined_imp_host_pot"""
         if self.ctx.kkrimp_scf_sub.is_finished_ok:
-            msg = "kkr_imp_sub_wc for combined impurity cluster is succefully done and jij step is getting prepared for launching."
+            msg = "INFO: kkr_imp_sub_wc for combined impurity cluster is succefully done and jij step is getting prepared for launching."
             self.report(msg)
             combined_scf_node = self.ctx.kkrimp_scf_sub
         else:
@@ -488,7 +511,7 @@ If given then the writeout step of the host GF is omitted.""")
         builder.metadata.label = 'KKRimp_Jij ('+last_calc.label.split('=')[1][3:]
 
         future = self.submit(builder)
-        self.report('submitted Jij calculation (uuid=%s)'%(future.uuid))
+        self.report('INFO: Submiting Jij calculation (uuid=%s)'%(future.uuid))
 
         return ToContext(imp_scf_combined_jij = future)
 
@@ -544,9 +567,8 @@ If given then the writeout step of the host GF is omitted.""")
         kkrimp_scf_sub = self.ctx.kkrimp_scf_sub
         results_kkrimp_sub = kkrimp_scf_sub.outputs.workflow_info
         last_calc = load_node(results_kkrimp_sub['last_calc_nodeinfo']['uuid'])
-        output_parameters = last_calc.outputs.parameters
+        output_parameters = last_calc.outputs.output_parameters
         last_remote = last_calc.outputs.remote_folder
-        last_output_params = last_calc.outputs.output_parameters
         last_pot = kkrimp_scf_sub.outputs.host_imp_pot
         out_dict = {}
         out_dict['workflow_name'] = self.__class__.__name__
@@ -563,9 +585,9 @@ If given then the writeout step of the host GF is omitted.""")
         out_dict['magmoms'] = magmom_all
         
         # Parse_jij and collect some info
-        is_jij_exist = self.run_jij() 
+        is_jij_exist = self.ctx.jij_option 
         if is_jij_exist:
-            jij_calc = imp_scf_combined_jij
+            jij_calc = self.ctx.imp_scf_combined_jij
             jij_retrieved = jij_calc.outputs.retrieved
             impurity_info = kkrimp_scf_sub.inputs.impurity_info.get_dict()
             out_dict['jij_step'] = {'jij':{'pk':jij_calc.pk,
@@ -602,10 +624,11 @@ If given then the writeout step of the host GF is omitted.""")
         self.out('workflow_info', outputnode)
         self.out('last_potential', last_pot)
         self.out('last_calc_remote', last_remote)
-        self.out('last_calc_output_parameters', last_output_params)
+        self.out('last_calc_output_parameters', output_parameters)
         if is_jij_exist:
             self.out('JijData', jij_parsed_dict['JijData'])
             self.out('JijInfo', jij_parsed_dict['info'])
+
     @calcfunction
     def parse_Jij(retrieved, impurity_info):
         """parser output of Jij calculation and return as ArrayData node"""
