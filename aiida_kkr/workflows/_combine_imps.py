@@ -161,7 +161,11 @@ If given then the writeout step of the host GF is omitted.""")
         if 'wf_parameters_overwrite' in self.inputs:
             self.ctx.wf_parameters_overwrite= self.inputs.wf_parameters_overwrite
         # wf_parameters_flex for kkr_flex_wc
-        self.ctx.wf_parameters_flex = None        # Will be Update in the run_gf_writeout step
+        self.ctx.wf_parameters_flex = { 'retrieve_kkrflex': True
+                                      }
+        self.ctx.run_options = {'jij_run': False,
+                                'dos_run': False
+                               }
         self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
         self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
         
@@ -416,29 +420,53 @@ If given then the writeout step of the host GF is omitted.""")
         any change occur there and also add the run options.
         """
         
-        # Some kkr_flex_wc specific keys
-        flex_spec_keys = ['retrieve_kkrflex'] 
         scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
-
+        wf_parameters_flex = self.ctx.wf_parameters_flex
+        run_options = self.ctx.run_options
+        # Update the wf_parameters from the wf_parameters_overwrite
         if 'wf_parameters_overwrite' in self.inputs: 
             wf_parameters_overwrite = self.ctx.wf_parameters_overwrite.get_dict()
             
             for key in wf_parameters_overwrite.keys():
-                if key in flex_spec_keys[:]:
-                    continue
-                val = wf_parameters_overwrite.get(key)
+
+                val = wf_parameters_overwrite.get(key)#
+                # Here preparing the kkr_flex_wc
+                if key in wf_parameters_flex.keys():
+                    wf_parameters_flex[key] = val
+                    if key in scf_wf_parameters.keys():
+                        scf_wf_parameters.pop(key)
+                # Here preparing the some run option and remove from the kkr_imp_sub_wc
+                if key in run_options.keys():
+                    run_options[key] = val
+                    if key in scf_wf_parameters.keys():
+                        scf_wf_parameters.pop(key)
+                # Update the scf_wf_parameters from wf_parameters_overwrite
                 if key in scf_wf_parameters.keys():
                     if wf_parameters_overwrite[key] != scf_wf_parameters[key]:
-                        scf_wf_val = scf_wf_parameters[key]
+                        scf_old_val = scf_wf_parameters[key]
                         scf_wf_parameters[key] = val
-                        self.report('The value of {} is converted from {} to {}'.format(key,scf_wf_val,val))
+                        self.report('The value of {} is converted from {} to {}'.format(key,scf_old_val,val))
                 else:
                     scf_wf_parameters[key] = val
                     msg = 'INFO: A new key {} and the corresponding value {} in the kkr_imp_sub_wc has been added'.format(key,val)
                     
-        else: 
+         else: 
+            key_list = []
+            for key, val in scf_wf_parameters.items():
+                if key in wf_parameters_flex.keys():
+                    deflt_val = wf_parameters_flex[key]
+                    wf_parameters_flex[key] = scf_wf_parameters.get(key,deflt_val)
+                    key_list.append(key)
+                if key in run_options.keys():
+                    deflt_val = run_options[key]
+                    run_options[key] = run_options.get(key, deflt_val)
+                    key_list.append(key)
+            val_list = [scf_wf_parameters.pop(key) for key in key_list]
+
             report('INFO: The kkr_imp_sub_wc will be launchd with the scf.wf_parameters input Dict')
-                
+        
+        self.ctx.run_options = run_options
+        self.ctx.wf_parameters_flex = wf_parameter_flex
         self.ctx.scf_wf_parameters = Dict(dict=scf_wf_parameters)   
 
 
@@ -486,11 +514,11 @@ If given then the writeout step of the host GF is omitted.""")
     def run_jij(self):
         if not self.ctx.kkrimp_scf_sub.is_finished_ok:
             return self.exit_code.ERROR_SOMETHING_WENT_WRONG
-
-        scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
-        if 'jij_run' in scf_wf_parameters.keys():
-            self.ctx.jij_option = scf_wf_parameters['jij_run']
-
+        # TODO : work here from the RUNOPT instead of scf_wf_parameters, because all the RUNOPT and wf_parameters_flex are updated in the update parameter funcion.
+        run_options = self.ctx.run_options
+        if 'jij_run' in run_options.keys():
+            self.ctx.jij_option = run_options['jij_run']
+        
         return self.ctx.jij_option
         
     
@@ -506,10 +534,33 @@ If given then the writeout step of the host GF is omitted.""")
         
         last_calc = load_node(combined_scf_node.outputs.workflow_info['last_calc_nodeinfo']['uuid'])
         builder = last_calc.get_builder_restart()
+
         builder.pop('parent_calc_folder')
         builder.impurity_potential = combined_scf_node.outputs.host_imp_pot
         param_dict = {k:v for k,v in builder.parameters.get_dict().items() if v is not None}
         param_dict['CALCJIJMAT'] = 1 # activate Jij calculation, leave the rest as is
+
+        # To activate the dos and lmdos
+        if 'RUNOPT' in param_dict.keys():
+            runopt =  param_dict['RUNOPT']
+            if 'dos_run' in self.ctx.run_options.keys() and self.ctx.run_options['dos_run']:
+                if 'lmdos' in self.ctx.run_options.keys() and self.ctx.run_options['lmdos']:
+                    runopt = runopt[0:-1] + ['lmdos'] + runopt[-1]
+                else:
+                    runopt = runopt[0:-1] + ['dos_run'] + runopt[-1]
+                param_dict['RUNOPT'] = runopt
+        else:
+            runopt =  ['']
+            if 'dos_run' in self.ctx.run_options.keys() and self.ctx.run_options['dos_run']:
+                if 'lmdos' in self.ctx.run_options.keys() and self.ctx.run_options['lmdos']:
+                    runopt = runopt[0:-1] + ['lmdos'] + runopt[-1]
+                else:
+                    runopt = runopt[0:-1] + ['dos_run'] + runopt[-1]
+        
+                param_dict['RUNOPT'] = runopt
+
+
+
         builder.parameters = Dict(dict=param_dict)
         builder.metadata.label = 'KKRimp_Jij ('+last_calc.label.split('=')[1][3:]
 
