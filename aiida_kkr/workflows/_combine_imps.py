@@ -466,7 +466,7 @@ If given then the writeout step of the host GF is omitted.""")
             report('INFO: The kkr_imp_sub_wc will be launchd with the scf.wf_parameters input Dict')
         
         self.ctx.run_options = run_options
-        self.ctx.wf_parameters_flex = wf_parameter_flex
+        self.ctx.wf_parameters_flex = wf_parameters_flex
         self.ctx.scf_wf_parameters = Dict(dict=scf_wf_parameters)   
 
 
