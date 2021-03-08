@@ -45,9 +45,9 @@ class combine_imps_wc(WorkChain):
     """
 
     _workflowversion = __version__
-    _wf_default = { 'jij_run': False,
+    _wf_default = { 'jij_run': False,           # Any kind of addition should be updated into the start()
                     'dos_run': False,
-                    'retrieve_kkrflex': True,
+                    'retrieve_kkrflex': False,
                     }
 
     @classmethod
@@ -114,11 +114,11 @@ If given then the writeout step of the host GF is omitted.""")
         spec.outline(
             cls.start,                      # initialize workflow (set things in context and some consistency checks)
             cls.create_big_cluster,         # combine imp clusters of the two imps
+            cls.update_params,              # update wf_parameters of scf namespace from _wf_defaults
             if_(cls.need_gf_run)(           # check if GF was given in input and can be reused
                 cls.run_gf_writeout),       # write out the host GF
             cls.check_host_gf,
             cls.create_big_potential,       # combine preconverged potentials to big one
-            cls.update_kkrimp_params,       # update wf_parameters of scf namespace from _wf_defaults
             cls.run_kkrimp_scf,             # run the kkrimp_sub workflow to converge the host-imp startpot
             if_(cls.run_jij)(
             cls.run_jij_step),              # run jij step
@@ -161,7 +161,8 @@ If given then the writeout step of the host GF is omitted.""")
         if 'wf_parameters_overwrite' in self.inputs:
             self.ctx.wf_parameters_overwrite= self.inputs.wf_parameters_overwrite
         # wf_parameters_flex for kkr_flex_wc
-        self.ctx.wf_parameters_flex = { 'retrieve_kkrflex': True
+        self.ctx.wf_parameters_flex = { 'retrieve_kkrflex': False,
+                                        'dos_run': False
                                       }
         self.ctx.run_options = {'jij_run': False,
                                 'dos_run': False
@@ -324,16 +325,15 @@ If given then the writeout step of the host GF is omitted.""")
         Update the parameters in wf_paramters_flex for gf_writeout_step
         """
         # Default wf_parameter_flex
-        wf_parameters_flex = {'dos_run' : True,
-                              'retrieve_kkrflex' : False,
-                             }
-        wf_parameters_overwrite = self.ctx.wf_parameters_overwrite.get_dict()
-        for key, val in wf_parameters_flex.items():
-            if key in wf_parameters_overwrite.keys():
-               new_val = wf_parameters_overwrite[key]
-               wf_parameters_flex[key] = new_val
-        msg = 'INFO: wf parameters for the kkr_flex_wc step'.format(wf_parameters_flex)
-        self.report(msg)
+        wf_parameters_flex = self.ctx.wf_parameters_flex
+# This part has been updated into the update_params()
+      #  wf_parameters_overwrite = self.ctx.wf_parameters_overwrite.get_dict()
+      #  for key, val in wf_parameters_flex.items():
+       #     if key in wf_parameters_overwrite.keys():
+        #       new_val = wf_parameters_overwrite[key]
+       #        wf_parameters_flex[key] = new_val
+       # msg = 'INFO: wf parameters for the kkr_flex_wc step'.format(wf_parameters_flex)
+        #self.report(msg)
 
         # create process builder for gf_writeout workflow
         builder = kkr_flex_wc.get_builder()
@@ -414,7 +414,7 @@ If given then the writeout step of the host GF is omitted.""")
         self.ctx.combined_potentials = output_potential_sfd_node
        
     # To collate and combine the wf_parameters_overwrite and scf_wf_parameters
-    def update_kkrimp_params(self):
+    def update_params(self):
         """
         Update the parameters in scf_wf_parameters according to wf_parameters_overwrite if 
         any change occur there and also add the run options.
@@ -423,7 +423,7 @@ If given then the writeout step of the host GF is omitted.""")
         scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
         wf_parameters_flex = self.ctx.wf_parameters_flex
         run_options = self.ctx.run_options
-        # Update the wf_parameters from the wf_parameters_overwrite
+        # Update the scf_wf_parameters from the wf_parameters_overwrite
         if 'wf_parameters_overwrite' in self.inputs: 
             wf_parameters_overwrite = self.ctx.wf_parameters_overwrite.get_dict()
             
@@ -449,7 +449,7 @@ If given then the writeout step of the host GF is omitted.""")
                 else:
                     scf_wf_parameters[key] = val
                     msg = 'INFO: A new key {} and the corresponding value {} in the kkr_imp_sub_wc has been added'.format(key,val)
-                    
+        # Update the scf_wf_parameters from itself and separate other keys            
         else: 
             key_list = []
             for key, val in scf_wf_parameters.items():
