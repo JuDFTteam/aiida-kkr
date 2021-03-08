@@ -513,7 +513,7 @@ If given then the writeout step of the host GF is omitted.""")
     
     def run_jij(self):
         if not self.ctx.kkrimp_scf_sub.is_finished_ok:
-            return self.exit_code.ERROR_SOMETHING_WENT_WRONG
+            return self.exit_codes.ERROR_SOMETHING_WENT_WRONG
         # TODO : work here from the RUNOPT instead of scf_wf_parameters, because all the RUNOPT and wf_parameters_flex are updated in the update parameter funcion.
         run_options = self.ctx.run_options
         if 'jij_run' in run_options.keys():
