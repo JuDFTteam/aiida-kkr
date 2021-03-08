@@ -464,7 +464,7 @@ If given then the writeout step of the host GF is omitted.""")
                 key_list.append(key)
         val_list = [scf_wf_parameters.pop(key, None) for key in key_list[:]]
 
-        self.eport('INFO: The kkr_imp_sub_wc will be launchd with the scf.wf_parameters input Dict')
+        self.report('INFO: The kkr_imp_sub_wc will be launchd with the scf.wf_parameters input Dict')
         
         self.ctx.run_options = run_options
         self.ctx.wf_parameters_flex = wf_parameters_flex
