@@ -48,6 +48,7 @@ class combine_imps_wc(WorkChain):
     _wf_default = { 'jij_run': False,           # Any kind of addition should be updated into the start()
                     'dos_run': False,
                     'retrieve_kkrflex': False,
+                    'lmdos': False
                     }
 
     @classmethod
@@ -165,7 +166,8 @@ If given then the writeout step of the host GF is omitted.""")
                                         'dos_run': False
                                       }
         self.ctx.run_options = {'jij_run': False,
-                                'dos_run': False
+                                'dos_run': False,
+                                'lmdos': False
                                }
         self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
         self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
