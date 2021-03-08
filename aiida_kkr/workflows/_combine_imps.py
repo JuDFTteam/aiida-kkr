@@ -430,37 +430,29 @@ If given then the writeout step of the host GF is omitted.""")
             wf_parameters_overwrite = self.ctx.wf_parameters_overwrite.get_dict()
             
             for key in wf_parameters_overwrite.keys():
-
                 val = wf_parameters_overwrite.get(key)#
-                # Here preparing the wf parameters for kkr_flex_wc
-                if key in wf_parameters_flex.keys():
-                    wf_parameters_flex[key] = val
-                    if key in scf_wf_parameters.keys():
-                        scf_wf_parameters.pop(key)
-                # Here preparing the some run option and remove from the kkr_imp_sub_wc
-                if key in run_options.keys():
-                    run_options[key] = val
-                    if key in scf_wf_parameters.keys():
-                        scf_wf_parameters.pop(key)
-                # Update the scf_wf_parameters from wf_parameters_overwrite
+               # Update the scf_wf_parameters from wf_parameters_overwrite
                 if key in scf_wf_parameters.keys():
                     if wf_parameters_overwrite[key] != scf_wf_parameters[key]:
                         scf_old_val = scf_wf_parameters[key]
                         scf_wf_parameters[key] = val
-                        self.report('The value of {} is converted from {} to {}'.format(key,scf_old_val,val))
+                        msg = 'INFO: Parameter value of {} set from {} to {}'.format(key, scf_old_val, val)
+                        self.report(msg)
                 else:
                     scf_wf_parameters[key] = val
-                    msg = 'INFO: A new key {} and the corresponding value {} in the kkr_imp_sub_wc has been added'.format(key,val)
+
         # Update the scf_wf_parameters from itself and separate other keys             
         key_list = []
         for key, val in scf_wf_parameters.items():
-            if key in wf_parameters_flex.keys():
-                deflt_val = wf_parameters_flex[key]
-                wf_parameters_flex[key] = scf_wf_parameters.get(key,deflt_val)
-                key_list.append(key)
-            if key in run_options.keys():
-                deflt_val = run_options[key]
-                run_options[key] = run_options.get(key, deflt_val)
+            if key in wf_parameters_flex.keys() or  key in wf_parameters_flex.keys():
+                # Here preparing the wf parameters for kkr_flex_wc
+                if key in wf_parameters_flex.keys():
+                    deflt_val = wf_parameters_flex[key]
+                    wf_parameters_flex[key] = scf_wf_parameters.get(key,deflt_val)
+                # Here preparing the some run option and remove from the kkr_imp_sub_wc
+                if key in run_options.keys():
+                    deflt_val = run_options[key]
+                    run_options[key] = run_options.get(key, deflt_val)
                 key_list.append(key)
         val_list = [scf_wf_parameters.pop(key, None) for key in key_list[:]]
 
