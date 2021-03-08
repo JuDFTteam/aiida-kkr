@@ -450,7 +450,7 @@ If given then the writeout step of the host GF is omitted.""")
                     scf_wf_parameters[key] = val
                     msg = 'INFO: A new key {} and the corresponding value {} in the kkr_imp_sub_wc has been added'.format(key,val)
                     
-         else: 
+        else: 
             key_list = []
             for key, val in scf_wf_parameters.items():
                 if key in wf_parameters_flex.keys():
