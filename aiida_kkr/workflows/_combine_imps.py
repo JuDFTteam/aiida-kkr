@@ -462,7 +462,7 @@ If given then the writeout step of the host GF is omitted.""")
                 deflt_val = run_options[key]
                 run_options[key] = run_options.get(key, deflt_val)
                 key_list.append(key)
-        val_list = [scf_wf_parameters.pop(key) for key in key_list[:]]
+        val_list = [scf_wf_parameters.pop(key, None) for key in key_list[:]]
 
         report('INFO: The kkr_imp_sub_wc will be launchd with the scf.wf_parameters input Dict')
         
