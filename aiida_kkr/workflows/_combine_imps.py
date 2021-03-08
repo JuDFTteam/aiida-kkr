@@ -430,7 +430,7 @@ If given then the writeout step of the host GF is omitted.""")
             for key in wf_parameters_overwrite.keys():
 
                 val = wf_parameters_overwrite.get(key)#
-                # Here preparing the kkr_flex_wc
+                # Here preparing the wf parameters for kkr_flex_wc
                 if key in wf_parameters_flex.keys():
                     wf_parameters_flex[key] = val
                     if key in scf_wf_parameters.keys():
@@ -449,21 +449,20 @@ If given then the writeout step of the host GF is omitted.""")
                 else:
                     scf_wf_parameters[key] = val
                     msg = 'INFO: A new key {} and the corresponding value {} in the kkr_imp_sub_wc has been added'.format(key,val)
-        # Update the scf_wf_parameters from itself and separate other keys            
-        else: 
-            key_list = []
-            for key, val in scf_wf_parameters.items():
-                if key in wf_parameters_flex.keys():
-                    deflt_val = wf_parameters_flex[key]
-                    wf_parameters_flex[key] = scf_wf_parameters.get(key,deflt_val)
-                    key_list.append(key)
-                if key in run_options.keys():
-                    deflt_val = run_options[key]
-                    run_options[key] = run_options.get(key, deflt_val)
-                    key_list.append(key)
-            val_list = [scf_wf_parameters.pop(key) for key in key_list]
+        # Update the scf_wf_parameters from itself and separate other keys             
+        key_list = []
+        for key, val in scf_wf_parameters.items():
+            if key in wf_parameters_flex.keys():
+                deflt_val = wf_parameters_flex[key]
+                wf_parameters_flex[key] = scf_wf_parameters.get(key,deflt_val)
+                key_list.append(key)
+            if key in run_options.keys():
+                deflt_val = run_options[key]
+                run_options[key] = run_options.get(key, deflt_val)
+                key_list.append(key)
+        val_list = [scf_wf_parameters.pop(key) for key in key_list[:]]
 
-            report('INFO: The kkr_imp_sub_wc will be launchd with the scf.wf_parameters input Dict')
+        report('INFO: The kkr_imp_sub_wc will be launchd with the scf.wf_parameters input Dict')
         
         self.ctx.run_options = run_options
         self.ctx.wf_parameters_flex = wf_parameters_flex
