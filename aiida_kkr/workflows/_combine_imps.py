@@ -45,7 +45,7 @@ class combine_imps_wc(WorkChain):
     """
 
     _workflowversion = __version__
-    _wf_default = { 'jij_run': False,           # Any kind of addition should be updated into the start()
+    _wf_default = { 'jij_run': False,           # Any kind of addition in _wf_default should be updated into the start()
                     'dos_run': False,
                     'retrieve_kkrflex': False,
                     'lmdos': False
@@ -429,8 +429,7 @@ If given then the writeout step of the host GF is omitted.""")
         if 'wf_parameters_overwrite' in self.inputs: 
             wf_parameters_overwrite = self.ctx.wf_parameters_overwrite.get_dict()
             
-            for key in wf_parameters_overwrite.keys():
-                val = wf_parameters_overwrite.get(key)#
+            for key, val in wf_parameters_overwrite.items():
                # Update the scf_wf_parameters from wf_parameters_overwrite
                 if key in scf_wf_parameters.keys():
                     if wf_parameters_overwrite[key] != scf_wf_parameters[key]:
@@ -444,7 +443,7 @@ If given then the writeout step of the host GF is omitted.""")
         # Update the scf_wf_parameters from itself and separate other keys             
         key_list = []
         for key, val in scf_wf_parameters.items():
-            if key in wf_parameters_flex.keys() or  key in wf_parameters_flex.keys():
+            if key in wf_parameters_flex.keys() or  key in run_options.keys():
                 # Here preparing the wf parameters for kkr_flex_wc
                 if key in wf_parameters_flex.keys():
                     deflt_val = wf_parameters_flex[key]
@@ -456,7 +455,7 @@ If given then the writeout step of the host GF is omitted.""")
                 key_list.append(key)
         val_list = [scf_wf_parameters.pop(key, None) for key in key_list[:]]
 
-        self.report('INFO: The kkr_imp_sub_wc will be launchd with the scf.wf_parameters input Dict')
+        self.report('INFO: The wf_parameters Dict for kkr_imp_sub_wc is ready.')
         
         self.ctx.run_options = run_options
         self.ctx.wf_parameters_flex = wf_parameters_flex
