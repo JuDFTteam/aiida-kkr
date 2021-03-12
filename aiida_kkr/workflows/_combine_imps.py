@@ -505,7 +505,9 @@ If given then the writeout step of the host GF is omitted.""")
     
     def run_jij(self):
         if not self.ctx.kkrimp_scf_sub.is_finished_ok:
-            return self.exit_codes.ERROR_SOMETHING_WENT_WRONG
+            msg = self.exit_codes.ERROR_SOMETHING_WENT_WRONG
+            self.report(msg)
+            return False       
         # TODO : work here from the RUNOPT instead of scf_wf_parameters, because all the RUNOPT and wf_parameters_flex are updated in the update parameter funcion.
         run_options = self.ctx.run_options
         if 'jij_run' in run_options.keys():
@@ -522,7 +524,7 @@ If given then the writeout step of the host GF is omitted.""")
             self.report(msg)
             combined_scf_node = self.ctx.kkrimp_scf_sub
         else:
-            self.exit_codes.ERROR_SOMETHING_WENT_WRONG
+            return self.exit_codes.ERROR_SOMETHING_WENT_WRONG
         
         last_calc = load_node(combined_scf_node.outputs.workflow_info['last_calc_nodeinfo']['uuid'])
         builder = last_calc.get_builder_restart()
