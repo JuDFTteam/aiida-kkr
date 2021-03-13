@@ -327,14 +327,6 @@ If given then the writeout step of the host GF is omitted.""")
         """
         # Default wf_parameter_flex
         wf_parameters_flex = self.ctx.wf_parameters_flex
-# This part has been updated into the update_params()
-      #  wf_parameters_overwrite = self.ctx.wf_parameters_overwrite.get_dict()
-      #  for key, val in wf_parameters_flex.items():
-       #     if key in wf_parameters_overwrite.keys():
-        #       new_val = wf_parameters_overwrite[key]
-       #        wf_parameters_flex[key] = new_val
-       # msg = 'INFO: wf parameters for the kkr_flex_wc step'.format(wf_parameters_flex)
-        #self.report(msg)
 
         # create process builder for gf_writeout workflow
         builder = kkr_flex_wc.get_builder()
