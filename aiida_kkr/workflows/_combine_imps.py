@@ -162,8 +162,7 @@ If given then the writeout step of the host GF is omitted.""")
         if 'wf_parameters_overwrite' in self.inputs:
             self.ctx.wf_parameters_overwrite= self.inputs.wf_parameters_overwrite
         # wf_parameters_flex for kkr_flex_wc
-        self.ctx.wf_parameters_flex = { 'retrieve_kkrflex': False,
-                                        'dos_run': False
+        self.ctx.wf_parameters_flex = { 'retrieve_kkrflex': False
                                       }
         self.ctx.run_options = {'jij_run': False,
                                 'dos_run': False,
@@ -535,23 +534,23 @@ If given then the writeout step of the host GF is omitted.""")
         param_dict['CALCJIJMAT'] = 1 # activate Jij calculation, leave the rest as is
 
         # To activate the dos and lmdos
-        if 'RUNOPT' in param_dict.keys():
-            runopt =  param_dict['RUNOPT']
-            if 'dos_run' in self.ctx.run_options.keys() and self.ctx.run_options['dos_run']:
-                if 'lmdos' in self.ctx.run_options.keys() and self.ctx.run_options['lmdos']:
-                    runopt = runopt[0:-1] + ['lmdos'] + runopt[-1]
-                else:
-                    runopt = runopt[0:-1] + ['dos_run'] + runopt[-1]
-                param_dict['RUNOPT'] = runopt
-        else:
-            runopt =  ['']
-            if 'dos_run' in self.ctx.run_options.keys() and self.ctx.run_options['dos_run']:
-                if 'lmdos' in self.ctx.run_options.keys() and self.ctx.run_options['lmdos']:
-                    runopt = runopt[0:-1] + ['lmdos'] + runopt[-1]
-                else:
-                    runopt = runopt[0:-1] + ['dos_run'] + runopt[-1]
-        
-                param_dict['RUNOPT'] = runopt
+#        if 'RUNOPT' in param_dict.keys():
+#            runopt =  param_dict['RUNOPT']
+#            if 'dos_run' in self.ctx.run_options.keys() and self.ctx.run_options['dos_run']:
+#                if 'lmdos' in self.ctx.run_options.keys() and self.ctx.run_options['lmdos']:
+#                    runopt = runopt[0:-1] + ['lmdos'] + runopt[-1]
+#                else:
+#                    runopt = runopt[0:-1] + ['dos_run'] + runopt[-1]
+#                param_dict['RUNOPT'] = runopt
+#        else:
+#            runopt =  ['']
+#            if 'dos_run' in self.ctx.run_options.keys() and self.ctx.run_options['dos_run']:
+#                if 'lmdos' in self.ctx.run_options.keys() and self.ctx.run_options['lmdos']:
+#                    runopt = runopt[0:-1] + ['lmdos'] + runopt[-1]
+#                else:
+#                    runopt = runopt[0:-1] + ['dos_run'] + runopt[-1]
+#        
+#                param_dict['RUNOPT'] = runopt
 
 
 
