@@ -161,12 +161,12 @@ If given then the writeout step of the host GF is omitted.""")
         self.report(message)
         if 'wf_parameters_overwrite' in self.inputs:
             self.ctx.wf_parameters_overwrite= self.inputs.wf_parameters_overwrite
-        # wf_parameters_flex for kkr_flex_wc
+        # wf_parameters_flex to keep upto time the  gf_writeout_step
         self.ctx.wf_parameters_flex = { 'retrieve_kkrflex': False
                                       }
+        # 
         self.ctx.run_options = {'jij_run': False,
-                                'dos_run': False,
-                                'lmdos': False
+                                'dos_run': False
                                }
         self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
         self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
@@ -431,7 +431,7 @@ If given then the writeout step of the host GF is omitted.""")
                 else:
                     scf_wf_parameters[key] = val
 
-        # Update the scf_wf_parameters from itself and separate other keys             
+        # Update the wf_parameters_flex and run_options from the scf_wf_parameters            
         key_list = []
         for key, val in scf_wf_parameters.items():
             if key in wf_parameters_flex.keys() or  key in run_options.keys():
@@ -442,8 +442,10 @@ If given then the writeout step of the host GF is omitted.""")
                 # Here preparing the some run option and remove from the kkr_imp_sub_wc
                 if key in run_options.keys():
                     deflt_val = run_options[key]
-                    run_options[key] = run_options.get(key, deflt_val)
+                    run_options[key] = scf_wf_parameters.get(key, deflt_val)
+                    self.report('INFO: Probable run option <{}> is updated here as <{}>'.format(key,run_options[key])
                 key_list.append(key)
+        # Here to remove keys from scf_wf_parameters that are needed only for gf_writeout_step and run_option 
         val_list = [scf_wf_parameters.pop(key, None) for key in key_list[:]]
 
         self.report('INFO: The wf_parameters Dict for kkr_imp_sub_wc is ready.')
@@ -601,7 +603,15 @@ If given then the writeout step of the host GF is omitted.""")
         """
         check if the calculation was successful and return the result nodes
         """
+
         import  numpy as np
+
+        self.report('INFO: Return_results:INFO: Return_results:  To collect the WF info and Other results')
+
+        if not self.ctx.kkrimp_scf_sub.is_finished_ok:
+            self.report('kkrimp convergence step is not finished successfully')
+            return self.exit_codes.ERROR_SOMETHING_WENT_WRONG
+        
         # collect results of kkrimp_scf sub-workflow
         kkrimp_scf_sub = self.ctx.kkrimp_scf_sub
         results_kkrimp_sub = kkrimp_scf_sub.outputs.workflow_info
