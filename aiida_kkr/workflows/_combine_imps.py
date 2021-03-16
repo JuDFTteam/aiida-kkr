@@ -601,7 +601,7 @@ If given then the writeout step of the host GF is omitted.""")
         """
         check if the calculation was successful and return the result nodes
         """
-
+        import  numpy as np
         # collect results of kkrimp_scf sub-workflow
         kkrimp_scf_sub = self.ctx.kkrimp_scf_sub
         results_kkrimp_sub = kkrimp_scf_sub.outputs.workflow_info
