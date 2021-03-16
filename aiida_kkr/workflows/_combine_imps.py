@@ -443,7 +443,7 @@ If given then the writeout step of the host GF is omitted.""")
                 if key in run_options.keys():
                     deflt_val = run_options[key]
                     run_options[key] = scf_wf_parameters.get(key, deflt_val)
-                    self.report('INFO: Probable run option <{}> is updated here as <{}>'.format(key,run_options[key])
+                    self.report('INFO: Probable run option <{}> is updated here as <{}>'.format(key,run_options[key]))
                 key_list.append(key)
         # Here to remove keys from scf_wf_parameters that are needed only for gf_writeout_step and run_option 
         val_list = [scf_wf_parameters.pop(key, None) for key in key_list[:]]
