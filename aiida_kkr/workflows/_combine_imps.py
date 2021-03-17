@@ -639,7 +639,7 @@ If given then the writeout step of the host GF is omitted.""")
             jij_calc = self.ctx.imp_scf_combined_jij
             jij_retrieved = jij_calc.outputs.retrieved
             impurity_info = kkrimp_scf_sub.inputs.impurity_info.get_dict()
-            out_dict['jij_step'] = {'jij_calc':{'pk':jij_calc.pk,
+            out_dict['run_option_info'] = {'jij_calc':{'pk':jij_calc.pk,
                                            'uuid': jij_calc.uuid,
                                            'is_finished_ok':jij_calc.is_finished_ok }
                                     }
