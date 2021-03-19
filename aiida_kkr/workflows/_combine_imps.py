@@ -638,7 +638,7 @@ If given then the writeout step of the host GF is omitted.""")
         if is_jij_exist:
             jij_calc = self.ctx.imp_scf_combined_jij
             jij_retrieved = jij_calc.outputs.retrieved
-            impurity_info = kkrimp_scf_sub.inputs.impurity_info.get_dict()
+            impurity_info = kkrimp_scf_sub.inputs.impurity_info
             out_dict['run_option_info'] = {'jij_calc':{'pk':jij_calc.pk,
                                            'uuid': jij_calc.uuid,
                                            'is_finished_ok':jij_calc.is_finished_ok }
@@ -696,7 +696,7 @@ def parse_Jij(retrieved, impurity_info):
                 tf.extract(filename, tfpath.replace(_FILENAME_TAR,'')) # extract to tempfolder
 
     jijdata = np.loadtxt(tfpath.replace(_FILENAME_TAR,'')+'out_Jijmatrix')
-
+    impurity_info = impurity_info.get_dict()
     pos = np.array(impurity_info['imp_cls'])
     z = np.array(impurity_info['imp_cls'])[:,4]
     Vpos = np.where(z==23)[0]
