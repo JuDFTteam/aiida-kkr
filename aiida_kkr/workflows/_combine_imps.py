@@ -12,6 +12,7 @@ from aiida_kkr.workflows import kkr_imp_sub_wc, kkr_flex_wc, kkr_imp_wc
 from aiida_kkr.tools.combine_imps import (create_combined_imp_info_cf, combine_potentials_cf,
                                           get_zimp, get_host_structure, get_nspin_and_pot, combine_settings_ldau)
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
+import tarfile
 
 
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
