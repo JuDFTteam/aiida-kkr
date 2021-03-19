@@ -678,87 +678,87 @@ If given then the writeout step of the host GF is omitted.""")
             self.out('JijData', jij_parsed_dict['JijData'])
             self.out('JijInfo', jij_parsed_dict['info'])
 
-    @calcfunction
-    def parse_Jij(retrieved, impurity_info):
-        """parser output of Jij calculation and return as ArrayData node"""
+@calcfunction
+def parse_Jij(retrieved, impurity_info):
+    """parser output of Jij calculation and return as ArrayData node"""
 
-        _FILENAME_TAR = 'output_all.tar.gz'
+    _FILENAME_TAR = 'output_all.tar.gz'
 
-        if _FILENAME_TAR in retrieved.list_object_names():
-            # get path of tarfile
-            with retrieved.open(_FILENAME_TAR) as tf:
-                tfpath = tf.name
-            # extract file from tarfile of retrieved to tempfolder
-            with tarfile.open(tfpath) as tf:
-                tar_filenames = [ifile.name for ifile in tf.getmembers()]
-                filename = 'out_Jijmatrix'
-                if filename in tar_filenames:
-                    tf.extract(filename, tfpath.replace(_FILENAME_TAR,'')) # extract to tempfolder
+    if _FILENAME_TAR in retrieved.list_object_names():
+        # get path of tarfile
+        with retrieved.open(_FILENAME_TAR) as tf:
+            tfpath = tf.name
+        # extract file from tarfile of retrieved to tempfolder
+        with tarfile.open(tfpath) as tf:
+            tar_filenames = [ifile.name for ifile in tf.getmembers()]
+            filename = 'out_Jijmatrix'
+            if filename in tar_filenames:
+                tf.extract(filename, tfpath.replace(_FILENAME_TAR,'')) # extract to tempfolder
 
-        jijdata = np.loadtxt(tfpath.replace(_FILENAME_TAR,'')+'out_Jijmatrix')
+    jijdata = np.loadtxt(tfpath.replace(_FILENAME_TAR,'')+'out_Jijmatrix')
 
-        pos = np.array(impurity_info['imp_cls'])
-        z = np.array(impurity_info['imp_cls'])[:,4]
-        Vpos = np.where(z==23)[0]
+    pos = np.array(impurity_info['imp_cls'])
+    z = np.array(impurity_info['imp_cls'])[:,4]
+    Vpos = np.where(z==23)[0]
 
-        Ry2eV = get_Ry2eV()
+    Ry2eV = get_Ry2eV()
 
-        # extract number of atoms
-        natom = int(np.sqrt(jijdata.shape[0]/3/3))
+    # extract number of atoms
+    natom = int(np.sqrt(jijdata.shape[0]/3/3))
 
-        # reshape data
-        jij_reshape = jijdata.reshape(3, natom, natom, 3, 3) # iter, i, j, k, l (Jij_k,l matrix)
+    # reshape data
+    jij_reshape = jijdata.reshape(3, natom, natom, 3, 3) # iter, i, j, k, l (Jij_k,l matrix)
 
-        # now combine iterations to get full 3 by 3 Jij matrices for all atom pairs
-        jij_combined_iter = np.zeros((natom, natom, 3, 3))
-        for iatom in range(natom):
-            for jatom in range(natom):
-                for iiter in range(3):
-                    if iiter==0:
-                        # first iteration with theta, phi = 0, 0
-                        # take complete upper block from here since this calculation should be converged best
-                        # (rotated moments only one-shot calculations)
-                        jij_combined_iter[iatom, jatom, 0, 0] = jij_reshape[iiter, iatom, jatom, 0, 0]
-                        jij_combined_iter[iatom, jatom, 0, 1] = jij_reshape[iiter, iatom, jatom, 0, 1]
-                        jij_combined_iter[iatom, jatom, 1, 0] = jij_reshape[iiter, iatom, jatom, 1, 0]
-                        jij_combined_iter[iatom, jatom, 1, 1] = jij_reshape[iiter, iatom, jatom, 1, 1]
-                    elif iiter==1:
-                        # second iteraton with theta, phi = 90, 0
-                        jij_combined_iter[iatom, jatom, 1, 2] = jij_reshape[iiter, iatom, jatom, 1, 2]
-                        jij_combined_iter[iatom, jatom, 2, 1] = jij_reshape[iiter, iatom, jatom, 2, 1]
-                        jij_combined_iter[iatom, jatom, 2, 2] = jij_reshape[iiter, iatom, jatom, 2, 2]
-                    else:
-                        # from third iteration with theta, phi = 90, 90
-                        jij_combined_iter[iatom, jatom, 0, 2] = jij_reshape[iiter, iatom, jatom, 0, 2]
-                        jij_combined_iter[iatom, jatom, 2, 0] = jij_reshape[iiter, iatom, jatom, 2, 0]
-                        # add this value to z-z component and average
-                        jij_combined_iter[iatom, jatom, 2, 2] += jij_reshape[iiter, iatom, jatom, 2, 2]
-                        jij_combined_iter[iatom, jatom, 2, 2] *= 0.5
+    # now combine iterations to get full 3 by 3 Jij matrices for all atom pairs
+    jij_combined_iter = np.zeros((natom, natom, 3, 3))
+    for iatom in range(natom):
+        for jatom in range(natom):
+            for iiter in range(3):
+                if iiter==0:
+                    # first iteration with theta, phi = 0, 0
+                    # take complete upper block from here since this calculation should be converged best
+                    # (rotated moments only one-shot calculations)
+                    jij_combined_iter[iatom, jatom, 0, 0] = jij_reshape[iiter, iatom, jatom, 0, 0]
+                    jij_combined_iter[iatom, jatom, 0, 1] = jij_reshape[iiter, iatom, jatom, 0, 1]
+                    jij_combined_iter[iatom, jatom, 1, 0] = jij_reshape[iiter, iatom, jatom, 1, 0]
+                    jij_combined_iter[iatom, jatom, 1, 1] = jij_reshape[iiter, iatom, jatom, 1, 1]
+                elif iiter==1:
+                    # second iteraton with theta, phi = 90, 0
+                    jij_combined_iter[iatom, jatom, 1, 2] = jij_reshape[iiter, iatom, jatom, 1, 2]
+                    jij_combined_iter[iatom, jatom, 2, 1] = jij_reshape[iiter, iatom, jatom, 2, 1]
+                    jij_combined_iter[iatom, jatom, 2, 2] = jij_reshape[iiter, iatom, jatom, 2, 2]
+                else:
+                    # from third iteration with theta, phi = 90, 90
+                    jij_combined_iter[iatom, jatom, 0, 2] = jij_reshape[iiter, iatom, jatom, 0, 2]
+                    jij_combined_iter[iatom, jatom, 2, 0] = jij_reshape[iiter, iatom, jatom, 2, 0]
+                    # add this value to z-z component and average
+                    jij_combined_iter[iatom, jatom, 2, 2] += jij_reshape[iiter, iatom, jatom, 2, 2]
+                    jij_combined_iter[iatom, jatom, 2, 2] *= 0.5
 
-        # finally convert to meV units (and sign change to have positive number indicate ferromagnetism and negative number antiferromagnetism)
-        jij_combined_iter *= -1.*Ry2eV*1000
+    # finally convert to meV units (and sign change to have positive number indicate ferromagnetism and negative number antiferromagnetism)
+    jij_combined_iter *= -1.*Ry2eV*1000
 
-        jij_trace = (jij_combined_iter[:,:,0,0]+jij_combined_iter[:,:,1,1]+jij_combined_iter[:,:,2,2])/3
-        Dij_vec = np.array([(jij_combined_iter[:,:,1,2]-jij_combined_iter[:,:,2,1]), (jij_combined_iter[:,:,2,0]-jij_combined_iter[:,:,0,2]), (jij_combined_iter[:,:,0,1]-jij_combined_iter[:,:,1,0])])
+    jij_trace = (jij_combined_iter[:,:,0,0]+jij_combined_iter[:,:,1,1]+jij_combined_iter[:,:,2,2])/3
+    Dij_vec = np.array([(jij_combined_iter[:,:,1,2]-jij_combined_iter[:,:,2,1]), (jij_combined_iter[:,:,2,0]-jij_combined_iter[:,:,0,2]), (jij_combined_iter[:,:,0,1]-jij_combined_iter[:,:,1,0])])
 
-        plotdata = []
+    plotdata = []
 
-        #return jij_combined_iter
-        out_txt = "Output Jij values between V impurities:\ni   j     Jij (meV)       Dij(meV)        D/J\n-----------------------------------------------\n"
-        for iatom in range(natom):
-            for jatom in range(natom):
-                if iatom!=jatom and iatom in Vpos and jatom in Vpos:
-                    J = jij_trace[iatom, jatom]
-                    Dx, Dy, Dz = Dij_vec[0, iatom , jatom], Dij_vec[1, iatom , jatom], Dij_vec[2, iatom , jatom]
-                    D = np.sqrt(Dx**2 + Dy**2 + Dz**2)
-                    out_txt += '%3i %3i %15.5e %15.5e %15.5e\n'%(iatom, jatom, J, D, D/J)
-                    rdiff = pos[jatom] - pos[iatom]
-                    plotdata.append([rdiff[0], rdiff[1], rdiff[2], J, D, Dx, Dy, Dz])
-        plotdata = np.array(plotdata)
+    #return jij_combined_iter
+    out_txt = "Output Jij values between V impurities:\ni   j     Jij (meV)       Dij(meV)        D/J\n-----------------------------------------------\n"
+    for iatom in range(natom):
+        for jatom in range(natom):
+            if iatom!=jatom and iatom in Vpos and jatom in Vpos:
+                J = jij_trace[iatom, jatom]
+                Dx, Dy, Dz = Dij_vec[0, iatom , jatom], Dij_vec[1, iatom , jatom], Dij_vec[2, iatom , jatom]
+                D = np.sqrt(Dx**2 + Dy**2 + Dz**2)
+                out_txt += '%3i %3i %15.5e %15.5e %15.5e\n'%(iatom, jatom, J, D, D/J)
+                rdiff = pos[jatom] - pos[iatom]
+                plotdata.append([rdiff[0], rdiff[1], rdiff[2], J, D, Dx, Dy, Dz])
+    plotdata = np.array(plotdata)
 
-        a = ArrayData()
-        a.set_array('JijData', plotdata)
+    a = ArrayData()
+    a.set_array('JijData', plotdata)
 
-        return {'Jijdata': a, 'info': Dict(dict={'text': out_txt})}
+    return {'Jijdata': a, 'info': Dict(dict={'text': out_txt})}
 
 
