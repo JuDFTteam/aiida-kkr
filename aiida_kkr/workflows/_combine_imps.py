@@ -13,6 +13,11 @@ from aiida_kkr.tools.combine_imps import (create_combined_imp_info_cf, combine_p
                                           get_zimp, get_host_structure, get_nspin_and_pot, combine_settings_ldau)
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 import tarfile
+import numpy as np
+from masci_tools.io.common_functions import get_Ry2eV
+from aiida.orm import ArrayData
+
+
 
 
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
