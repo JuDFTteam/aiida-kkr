@@ -681,7 +681,7 @@ If given then the writeout step of the host GF is omitted.""")
         self.out('last_calc_remote', last_remote)
         self.out('last_calc_output_parameters', output_parameters)
         if is_jij_exist:
-            self.out('JijData', jij_parsed_dict['JijData'])
+            self.out('JijData', jij_parsed_dict['Jijdata'])
             self.out('JijInfo', jij_parsed_dict['info'])
 
 @calcfunction
