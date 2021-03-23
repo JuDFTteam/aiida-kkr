@@ -642,8 +642,8 @@ If given then the writeout step of the host GF is omitted.""")
         # Parse_jij and collect some info
         is_jij_exist = self.ctx.jij_option 
         if is_jij_exist:
-            impurity1_output_node = ctx.inputs.impurity1_output_node
-            impurity2_output_node = ctx.inputs.impurity2_output_node
+            impurity1_output_node = self.ctx.inputs.impurity1_output_node
+            impurity2_output_node = self.ctx.inputs.impurity2_output_node
             jij_calc = self.ctx.imp_scf_combined_jij
             jij_retrieved = jij_calc.outputs.retrieved
             impurity_info = kkrimp_scf_sub.inputs.impurity_info
