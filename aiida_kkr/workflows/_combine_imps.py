@@ -642,6 +642,8 @@ If given then the writeout step of the host GF is omitted.""")
         # Parse_jij and collect some info
         is_jij_exist = self.ctx.jij_option 
         if is_jij_exist:
+            impurity1_output_node = ctx.inputs.impurity1_output_node
+            impurity2_output_node = ctx.inputs.impurity2_output_node
             jij_calc = self.ctx.imp_scf_combined_jij
             jij_retrieved = jij_calc.outputs.retrieved
             impurity_info = kkrimp_scf_sub.inputs.impurity_info
@@ -649,7 +651,7 @@ If given then the writeout step of the host GF is omitted.""")
                                            'uuid': jij_calc.uuid,
                                            'is_finished_ok':jij_calc.is_finished_ok }
                                     }
-            jij_parsed_dict = parse_Jij(jij_retrieved,impurity_info)
+            jij_parsed_dict = parse_Jij(jij_retrieved, impurity_info, impurity1_output_node, impurity2_output_node)
         # collect outputs of host_gf sub_workflow if it was done
         if 'gf_host_remote' not in self.inputs:
             gf_writeout = self.ctx.gf_writeout
@@ -685,7 +687,7 @@ If given then the writeout step of the host GF is omitted.""")
             self.out('JijInfo', jij_parsed_dict['info'])
 
 @calcfunction
-def parse_Jij(retrieved, impurity_info):
+def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_node):
     """parser output of Jij calculation and return as ArrayData node"""
 
     _FILENAME_TAR = 'output_all.tar.gz'
@@ -701,11 +703,14 @@ def parse_Jij(retrieved, impurity_info):
             if filename in tar_filenames:
                 tf.extract(filename, tfpath.replace(_FILENAME_TAR,'')) # extract to tempfolder
 
+    imp1_z = impurity1_output_node.inputs.impurity1_output_node.get_incoming(node_class=kkr_imp_wc).first().node.inputs.impurity_info.get_dict()['Zimp']
+    imp2_z = impurity2_output_node.inputs.impurity2_output_node.get_incoming(node_class=kkr_imp_wc).first().node.inputs.impurity_info.get_dict()['Zimp'] 
+    
     jijdata = np.loadtxt(tfpath.replace(_FILENAME_TAR,'')+'out_Jijmatrix')
     impurity_info = impurity_info.get_dict()
     pos = np.array(impurity_info['imp_cls'])
     z = np.array(impurity_info['imp_cls'])[:,4]
-    Vpos = np.where(z==23)[0]
+    Vpos = list(imp2_z.where( z == imp1_z )[0]) + list(np.where( z == imp2_z )[0])
 
     Ry2eV = get_Ry2eV()
 
