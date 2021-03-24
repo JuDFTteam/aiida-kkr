@@ -704,7 +704,7 @@ def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_
     impurity_info = impurity_info.get_dict()
     pos = np.array(impurity_info['imp_cls'])
     z = np.array(impurity_info['imp_cls'])[:,4]
-    Vpos = list(imp2_z.where( z == imp1_z )[0]) + list(np.where( z == imp2_z )[0])
+    Vpos = list(np.where( z == imp1_z )[0]) + list(np.where( z == imp2_z )[0])
 
     Ry2eV = get_Ry2eV()
 
