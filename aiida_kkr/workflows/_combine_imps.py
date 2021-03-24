@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-This module contains the workflow which combines pre-converged single-impurity calculations to a larger impurity
+This module contains the workflow which combines pre-converged two single-impurity calculations to a larger impurity calculation
 """
 
 from __future__ import absolute_import
@@ -24,51 +24,73 @@ __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.3.1"
-__contributors__ = (u"Philipp Rüßmann")
+__contributors__ = (u"Philipp Rüßmann , Rubel Mozumder")
 
 
 class combine_imps_wc(WorkChain):
     """
     Workchain that combines 2 converged single-impurity calculations to a bigger impurity,
     reusing the preconverged potentials. This is useful, for example, to study co-doping.
+   
+   Inputs:
+    :param impurity1_output_node:(Dict), required, output node from singel impurity wc, and should be one of the
+                                 following: 
+                                 * for `kkr_imp_wc`: single_imp_worlfow.outputs.workflow_info
+                                 * for `kkr_imp_sub_wc`: single_imp_worlfow.outputs.workflow_info
+                                 * for `KkrimpCalculation`: single_imp_worlfow.outputs.output_parameters
+    
+    :param impurity2_output_node:(Dict), required, output node from second singel impurity wc, and should be one of 
+                                 the following: 
+                                 * for `kkr_imp_wc`: single_imp_worlfow.outputs.workflow_info
+                                 * for `kkr_imp_sub_wc`: single_imp_worlfow.outputs.workflow_info
+                                 * for `KkrimpCalculation`: single_imp_worlfow.outputs.output_parameters
+    :offset_imp2:(Dict), required, offset of the second impurity with respect to the first impurity position.
+                 e.g. {'index:0 or 1}, the replacement by the second impurity will take place at the same cell 
+                        or at the next nearest cell respectively.
 
-    :param wf_parameters: (Dict), optional, specifications for workflow behavior
-    :param remote_data_gf: (RemoteData), optional, remote folder of a previous kkrflex writeout
-        calculations containing the flexfiles
-    :param scf.kkrimp: (Code), mandatory, KKRimp code needed to run the calculations
-    :param scf.wf_parameters: (Dict), optional, KKRimp code needed to run the calculations
-    :param scf.options: (Dict), optional, computer options for KKRimp runs
-    :param host_gf.kkr: (Code), optional, KKR code for GF writeout, needed if remote_data_gf is not given
-    :param host_gf.options: (Dict), optional, computer options for KKRhost runs
+    :param scf.kkrimp: (Code), mandatory, KKRimp code needed to submit kkr_imp_wc
+    :param scf.wf_parameters: (Dict), optional, KKRimp code needed to submit kkr_imp_sub_wc
+    :param scf.options: (Dict), optional, computer options for kkr_imp_sub_wc
 
+    :param host_gf.kkr: (Code), optional, KKR code for submit kkr_flex_wc, needed if remote_data_gf is not given
+    :param host_gf.options: (Dict), optional, computer options for kkr_flex_wc
+    :param host_gf.params_kkr_overwrite: (Dict), optional, needed for kkr calculation for GF writeout
+    
+    :param wf_parameters_overwrite: (Dict), optional, specifications for wf_parameters of kkr_imp_sub_wc as well 
+                                  as well as wf_parameters of kkr_flex_wc.
+    :param gf_host_remote: (RemoteData), optional, remote folder of a previous kkrflex writeout step
+                          calculations containing the flexfiles and will be used for combine host GF.
+
+   Returns:
     :return workflow_info: (Dict), Information of workflow results
-    :return last_calc_output_parameters: (Dict), output parameters of
-        the last called calculation (should be the converged one)
-    :return last_potential: (SingleFileData) link to last output potential (should be the converged one)
-    :return last_calc_remote: (RemoteData) link to last called KKRimp calculation (should be the converged one)
-    :return remote_data_gf: (RemoteData) link to last KKRhost calculation that generated the host GF files
-        (only present of host GF was generated here)
+    :return last_calc_output_parameters: (Dict), link to output parameters of the last called calculation of the 
+                                        scf kkr_imp_sub_wc.
+    :return last_potential: (SingleFileData) link to last output potential of scf kkr_imp_sub_wc step.
+    :return last_calc_remote: (RemoteData) link to remote data of last called calculation of the scf step.
+    :return remote_data_gf: (RemoteData) link to GF_host_remote of outputs of kkr_flex_wc e.g. gf_writeou
+                           step (only present of host GF was generated here).
+    :return JijData: (ArrayData) Consists magnetic interaction data among the magnetic impurity atoms, 
+                    such as vector distance(rx, ry, rz) between atoms, spin interaction magnetude J, 
+                    Dzyaloshinskii-Moriya vector magnitude, and Dzyaloshinskii-Moriya vector component(Dx, Dy, Dz)
+    :return JijInfo :(Dict) Consists description about the JijData.
+
     """
 
     _workflowversion = __version__
-    _wf_default = { 'jij_run': False,           # Any kind of addition in _wf_default should be updated into the start()
-                    'dos_run': False,
+    _wf_default = { 'jij_run': False,           # Any kind of addition in _wf_default should be updated into the start() as well.
                     'retrieve_kkrflex': False,
-                    'lmdos': False
-                    }
+                   }
 
     @classmethod
     def get_wf_defaults(cls, silent=False):
         """
         Print and return _wf_defaults dictionary. Can be used to easily create
-        set of wf_parameters.
-
+        set of wf_parameters_overwrite.
         returns _wf_defaults
         """
         if not silent:
             print('Version of workflow: {}'.format(cls._workflowversion))
         return cls._wf_default
-
 
     @classmethod
     def define(cls, spec):
@@ -86,8 +108,6 @@ class combine_imps_wc(WorkChain):
                            include=('kkr', 'options', 'params_kkr_overwrite',), # expose only those port which are not set automatically
                            namespace_options={'required': False, 'populate_defaults': False}, # this makes sure the kkr code input is not needed if gf_host_remote is provided and the entire namespace is omitted
                           )
-
-        # define the inputs of the workflow
 
         # mandatory inputs
         spec.input("impurity1_output_node", required=True, valid_type=Dict, #TODO make validator for input node to make sure it is the output of kkr_imp_wc
@@ -112,7 +132,7 @@ the 'index' option allows to five the offset vector in units of the lattice
 vectors of the host system's structure.""")
         spec.input("wf_parameters_overwrite", valid_type=Dict, required=False,
                     help="To add or edit wf_parameters in scf namespace and add run optioins, if needed")
-        spec.input("gf_host_remote", valid_type=RemoteData, required=False, #TODO add validator that makes sure this is not given together with the host_gf sub-workflow namespace
+        spec.input("gf_host_remote", valid_type=RemoteData, required=False, #TODO Add validator that makes sure this is not given together with the host_gf sub-workflow namespace
                    help="""RemoteData node of pre-calculated host Green function (i.e. with kkr_flex_wc).
 If given then the writeout step of the host GF is omitted.""")
 
@@ -121,15 +141,15 @@ If given then the writeout step of the host GF is omitted.""")
         spec.outline(
             cls.start,                      # initialize workflow (set things in context and some consistency checks)
             cls.create_big_cluster,         # combine imp clusters of the two imps
-            cls.update_params,              # update wf_parameters of scf namespace from _wf_defaults
+            cls.update_params,              # update wf_parameters of kkr_imp_sub_wc, kkr_flex_wc and run_options
             if_(cls.need_gf_run)(           # check if GF was given in input and can be reused
                 cls.run_gf_writeout),       # write out the host GF
-            cls.check_host_gf,
+            cls.check_host_gf,              # update the host GF
             cls.create_big_potential,       # combine preconverged potentials to big one
             cls.run_kkrimp_scf,             # run the kkrimp_sub workflow to converge the host-imp startpot
-            if_(cls.run_jij)(
+            if_(cls.run_jij)(               # Check Jij step should run or not
             cls.run_jij_step),              # run jij step
-            cls.return_results             # check if the calculation was successful and return the result nodes
+            cls.return_results              # check if the calculation was successful and return the result nodes
             )
 
         # define the possible exit codes
@@ -161,7 +181,7 @@ If given then the writeout step of the host GF is omitted.""")
 
     def start(self): # pylint: disable=inconsistent-return-statements
         """
-        prepare context and do some consistency checks
+        prepare context, run_option, wf_parameter, run_option, wf_parameterss and do some consistency checks
         """
         message = 'INFO: started combine_imps_wc workflow version {}'.format(self._workflowversion)
         self.report(message)
@@ -170,10 +190,8 @@ If given then the writeout step of the host GF is omitted.""")
         # wf_parameters_flex to keep upto time the  gf_writeout_step
         self.ctx.wf_parameters_flex = { 'retrieve_kkrflex': False
                                       }
-        # 
-        self.ctx.run_options = {'jij_run': False,
-                                'dos_run': False
-                               }
+        
+        self.ctx.run_options = {'jij_run': False }
         self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
         self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
         
@@ -329,11 +347,9 @@ If given then the writeout step of the host GF is omitted.""")
     def run_gf_writeout(self):
         """
         Write out the host GF
-        Update the parameters in wf_paramters_flex for gf_writeout_step
         """
-        # Default wf_parameter_flex
-        wf_parameters_flex = self.ctx.wf_parameters_flex
 
+        wf_parameters_flex = self.ctx.wf_parameters_flex
         # create process builder for gf_writeout workflow
         builder = kkr_flex_wc.get_builder()
         builder.impurity_info = self.ctx.imp_info_combined
@@ -445,7 +461,7 @@ If given then the writeout step of the host GF is omitted.""")
                 if key in wf_parameters_flex.keys():
                     deflt_val = wf_parameters_flex[key]
                     wf_parameters_flex[key] = scf_wf_parameters.get(key,deflt_val)
-                # Here preparing the some run option and remove from the kkr_imp_sub_wc
+                # Here preparing the some run option
                 if key in run_options.keys():
                     deflt_val = run_options[key]
                     run_options[key] = scf_wf_parameters.get(key, deflt_val)
@@ -465,7 +481,6 @@ If given then the writeout step of the host GF is omitted.""")
         """
         run the kkrimp_sub workflow to converge the host-imp startpot
         """
-
 
         # construct process builder for kkrimp scf workflow
         builder = kkr_imp_sub_wc.get_builder()
@@ -532,27 +547,6 @@ If given then the writeout step of the host GF is omitted.""")
         builder.impurity_potential = combined_scf_node.outputs.host_imp_pot
         param_dict = {k:v for k,v in builder.parameters.get_dict().items() if v is not None}
         param_dict['CALCJIJMAT'] = 1 # activate Jij calculation, leave the rest as is
-
-        # To activate the dos and lmdos
-#        if 'RUNOPT' in param_dict.keys():
-#            runopt =  param_dict['RUNOPT']
-#            if 'dos_run' in self.ctx.run_options.keys() and self.ctx.run_options['dos_run']:
-#                if 'lmdos' in self.ctx.run_options.keys() and self.ctx.run_options['lmdos']:
-#                    runopt = runopt[0:-1] + ['lmdos'] + runopt[-1]
-#                else:
-#                    runopt = runopt[0:-1] + ['dos_run'] + runopt[-1]
-#                param_dict['RUNOPT'] = runopt
-#        else:
-#            runopt =  ['']
-#            if 'dos_run' in self.ctx.run_options.keys() and self.ctx.run_options['dos_run']:
-#                if 'lmdos' in self.ctx.run_options.keys() and self.ctx.run_options['lmdos']:
-#                    runopt = runopt[0:-1] + ['lmdos'] + runopt[-1]
-#                else:
-#                    runopt = runopt[0:-1] + ['dos_run'] + runopt[-1]
-#        
-#                param_dict['RUNOPT'] = runopt
-
-
 
         builder.parameters = Dict(dict=param_dict)
         builder.metadata.label = 'KKRimp_Jij ('+last_calc.label.split('=')[1][3:]
@@ -673,7 +667,7 @@ If given then the writeout step of the host GF is omitted.""")
         if 'gf_host_remote' not in self.inputs:
             link_nodes['GF_host_remote'] = gf_sub_remote
         if is_jij_exist:
-            link_nodes['retrieved'] =jij_retrieved 
+            link_nodes['Jij_retrieved'] =jij_retrieved 
         outputnode = create_out_dict_node(Dict(dict=out_dict), **link_nodes)
         outputnode.label = 'combine_imps_wc_results'
 
@@ -702,9 +696,9 @@ def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_
             filename = 'out_Jijmatrix'
             if filename in tar_filenames:
                 tf.extract(filename, tfpath.replace(_FILENAME_TAR,'')) # extract to tempfolder
-
-    imp1_z = impurity1_output_node.inputs.impurity1_output_node.get_incoming(node_class=kkr_imp_wc).first().node.inputs.impurity_info.get_dict()['Zimp']
-    imp2_z = impurity2_output_node.inputs.impurity2_output_node.get_incoming(node_class=kkr_imp_wc).first().node.inputs.impurity_info.get_dict()['Zimp'] 
+    # Collect the zimp for impurity_output_node
+    imp1_z = impurity1_output_node.get_incoming(node_class=kkr_imp_wc).first().node.inputs.impurity_info.get_dict()['Zimp']
+    imp2_z = impurity2_output_node.get_incoming(node_class=kkr_imp_wc).first().node.inputs.impurity_info.get_dict()['Zimp'] 
     
     jijdata = np.loadtxt(tfpath.replace(_FILENAME_TAR,'')+'out_Jijmatrix')
     impurity_info = impurity_info.get_dict()
