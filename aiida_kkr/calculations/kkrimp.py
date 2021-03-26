@@ -17,7 +17,7 @@ from aiida_kkr.tools.common_workfunctions import get_username
 from masci_tools.io.common_functions import search_string, get_ef_from_potfile
 import os
 import tarfile
-from numpy import array, sqrt, sum, where, loadtxt
+from numpy import array, array_equal, sqrt, sum, where, loadtxt
 import six
 from six.moves import range
 
@@ -276,7 +276,16 @@ The Dict node should be of the form
         # case, raise an error
         if found_impurity_inputnode and found_host_parent:
             #TODO: implement also 'ilayer_center' check
-            if imp_info_inputnode.get_dict().get('Rcut') == imp_info.get_dict().get('Rcut'):
+            if 'imp_cls' in imp_info_inputnode.get_dict().keys():
+                input_imp_cls_arr = array(imp_info_inputnode.get_dict()['imp_cls'])
+                parent_imp_cls_arr = array(imp_info_inputnode.get_dict()['imp_cls'])
+                is_identical = array_equal(input_imp_cls_arr[:,0:4],parent_imp_cls_arr[:,0:4])
+                if is_identical:
+                    check_consistency_imp_info = True
+                else:
+                        self.report('impurity_info node from input and from previous GF calculation are NOT compatible!. '
+
+            elif imp_info_inputnode.get_dict().get('Rcut') == imp_info.get_dict().get('Rcut'):
                 check_consistency_imp_info = True
                 try:
                     if (imp_info_inputnode.get_dict().get('hcut') == imp_info.get_dict().get('hcut')
