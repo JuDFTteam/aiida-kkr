@@ -283,7 +283,7 @@ The Dict node should be of the form
                 if is_identical:
                     check_consistency_imp_info = True
                 else:
-                        self.report('impurity_info node from input and from previous GF calculation are NOT compatible!. '
+                        self.report('impurity_info node from input and from previous GF calculation are NOT compatible!. ')
 
             elif imp_info_inputnode.get_dict().get('Rcut') == imp_info.get_dict().get('Rcut'):
                 check_consistency_imp_info = True
