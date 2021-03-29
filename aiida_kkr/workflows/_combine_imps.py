@@ -174,7 +174,7 @@ If given then the writeout step of the host GF is omitted.""")
         spec.output('last_calc_output_parameters')
         spec.output('last_potential')
         spec.output('last_calc_remote')
-#        spec.output('remote_data_gf')
+        spec.output('remote_data_gf')
 #        spec.output('JijData')
 #        spec.output('JijInfo')
 
@@ -651,11 +651,17 @@ If given then the writeout step of the host GF is omitted.""")
             gf_writeout = self.ctx.gf_writeout
             gf_sub_remote = gf_writeout.outputs.GF_host_remote
 
-            # add as output node
-            self.out('remote_data_gf', gf_sub_remote)
 
             # add info about sub-workflow to dict output
             out_dict['sub_workflows']['host_gf'] = {'pk': gf_writeout.pk, 'uuid': gf_writeout.uuid}
+        else:
+            msg = 'INFO: <remote_data_gf> is being add from the input gf_host_remote.'
+            self.report(msg)
+            gf_sub_remote = self.inputs.gf_host_remote
+        
+        # add as output node
+        self.out('remote_data_gf', gf_sub_remote)
+
 
         # add information on combined cluster and potential
         out_dict['imp_info_combined'] = self.ctx.imp_info_combined.get_dict()
