@@ -175,8 +175,8 @@ If given then the writeout step of the host GF is omitted.""")
         spec.output('last_potential')
         spec.output('last_calc_remote')
         spec.output('remote_data_gf')
-#        spec.output('JijData')
-#        spec.output('JijInfo')
+        spec.output('JijData')
+        spec.output('JijInfo')
 
 
     def start(self): # pylint: disable=inconsistent-return-statements
