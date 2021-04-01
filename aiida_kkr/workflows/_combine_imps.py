@@ -174,9 +174,9 @@ If given then the writeout step of the host GF is omitted.""")
         spec.output('last_calc_output_parameters')
         spec.output('last_potential')
         spec.output('last_calc_remote')
-        spec.output('remote_data_gf')
-        spec.output('JijData')
-        spec.output('JijInfo')
+        spec.output('remote_data_gf', required=False)
+        spec.output('JijData', required=False)
+        spec.output('JijInfo', required=False)
 
 
     def start(self): # pylint: disable=inconsistent-return-statements
@@ -651,16 +651,10 @@ If given then the writeout step of the host GF is omitted.""")
             gf_writeout = self.ctx.gf_writeout
             gf_sub_remote = gf_writeout.outputs.GF_host_remote
 
-
             # add info about sub-workflow to dict output
             out_dict['sub_workflows']['host_gf'] = {'pk': gf_writeout.pk, 'uuid': gf_writeout.uuid}
-        else:
-            msg = 'INFO: <remote_data_gf> is being add from the input gf_host_remote.'
-            self.report(msg)
-            gf_sub_remote = self.inputs.gf_host_remote
-        
-        # add as output node
-        self.out('remote_data_gf', gf_sub_remote)
+            # add as output node
+            self.out('remote_data_gf', gf_sub_remote)
 
 
         # add information on combined cluster and potential
@@ -722,8 +716,8 @@ def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_
 
     # now combine iterations to get full 3 by 3 Jij matrices for all atom pairs
     jij_combined_iter = np.zeros((natom, natom, 3, 3))
-    for iatom in range(natom):
-        for jatom in range(natom):
+    for iatom in range(natom-1):
+        for jatom in range(natom)[iatom+1:]:
             for iiter in range(3):
                 if iiter==0:
                     # first iteration with theta, phi = 0, 0
