@@ -750,8 +750,8 @@ def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_
 
     #return jij_combined_iter
     out_txt = "Output Jij values between V impurities:\ni   j     Jij (meV)       Dij(meV)        D/J\n-----------------------------------------------\n"
-    for iatom in range(natom):
-        for jatom in range(natom):
+    for iatom in range(natom-1):
+        for jatom in range(natom)[iatom+1:] :
             if iatom!=jatom and iatom in Vpos and jatom in Vpos:
                 J = jij_trace[iatom, jatom]
                 Dx, Dy, Dz = Dij_vec[0, iatom , jatom], Dij_vec[1, iatom , jatom], Dij_vec[2, iatom , jatom]
