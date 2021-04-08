@@ -664,8 +664,8 @@ If given then the writeout step of the host GF is omitted.""")
         # create results node with input links
         # TODO: Add the imp_scf_combined_jij to link the run_jij_step output on provanace graph 
         link_nodes = {'kkrimp_scf_results': results_kkrimp_sub}
-        if 'gf_host_remote' not in self.inputs:
-            link_nodes['GF_host_remote'] = gf_sub_remote
+        if 'gf_host_remote' in self.inputs:
+            link_nodes['GF_host_remote'] = self.inputs.gf_host_remote 
         if is_jij_exist:
             link_nodes['Jij_retrieved'] =jij_retrieved 
         outputnode = create_out_dict_node(Dict(dict=out_dict), **link_nodes)
