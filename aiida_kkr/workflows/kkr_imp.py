@@ -20,7 +20,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.7.4'
+__version__ = '0.8.1'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -65,6 +65,8 @@ class kkr_imp_wc(WorkChain):
     }  # execute KKR with mpi or without
 
     _wf_default = kkr_imp_sub_wc.get_wf_defaults(silent=True)  # settings for sub workflow (impurity convergence)
+    _wf_default['retrieve_kkrflex'
+                ] = True  # add control to retrieve kkrflex files to repository or leave on remote computer only
     _voro_aux_default = kkr_startpot_wc.get_wf_defaults(
         silent=True
     )  # settings for vorostart workflow, used to generate starting potential
@@ -209,6 +211,7 @@ class kkr_imp_wc(WorkChain):
         spec.output('last_calc_output_parameters', valid_type=Dict)
         spec.output('last_calc_info', valid_type=Dict)
         spec.output('converged_potential', valid_type=SinglefileData, required=False)
+        spec.output('remote_data_gf', valid_type=RemoteData)
 
     def start(self):
         """
@@ -344,6 +347,9 @@ class kkr_imp_wc(WorkChain):
             }
         )
 
+        # retrieve option for kkrlfex files
+        self.ctx.retrieve_kkrflex = wf_dict.get('retrieve_kkrflex', self._wf_default['retrieve_kkrflex'])
+
         # list of things that are cleaned if everything ran through
         self.ctx.sfd_final_cleanup = []
 
@@ -465,14 +471,24 @@ class kkr_imp_wc(WorkChain):
         )
 
         builder = kkr_flex_wc.get_builder()
+
         builder.metadata.label = sub_label
         builder.metadata.description = sub_description
         builder.kkr = kkrcode
         builder.options = options
         builder.remote_data = converged_host_remote
         builder.impurity_info = imp_info
+
         if 'params_kkr_overwrite' in self.inputs:
             builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
+
+        # maybe set kkrflex_retrieve
+        wf_params_gf = {}
+        if not self.ctx.retrieve_kkrflex:
+            wf_params_gf['retrieve_kkrflex'] = self.ctx.retrieve_kkrflex
+        wf_params_gf = Dict(dict=wf_params_gf)
+        builder.wf_parameters = wf_params_gf
+
         future = self.submit(builder)
 
         self.report('INFO: running GF writeout (pk: {})'.format(future.pk))
@@ -721,6 +737,8 @@ class kkr_imp_wc(WorkChain):
         else:
             self.report('INFO: get GF remote from input node (pid: {})'.format(self.inputs.remote_data_gf.pk))
             gf_remote = self.inputs.remote_data_gf
+        # save in context to return as output node
+        self.ctx.gf_remote = gf_remote
 
         # set label and description
         sub_label = 'kkrimp_sub scf wf (GF host remote: {}, imp_info: {})'.format(
@@ -800,6 +818,7 @@ class kkr_imp_wc(WorkChain):
             self.out('last_calc_output_parameters', last_calc_output_params)
             self.out('last_calc_info', last_calc_info)
             self.out('converged_potential', self.ctx.kkrimp_scf_sub.outputs.host_imp_pot)
+            self.out('remote_data_gf', self.ctx.gf_remote)
 
             # cleanup things that are not needed anymore
             self.final_cleanup()
@@ -852,7 +871,7 @@ def change_struc_imp_aux_wf(struc, imp_info):  # Note: works for single imp at c
             zatom = 0
         else:
             zatom = _atomic_numbers[kind.get_symbols_string()]
-        if isite == imp_info.get_dict().get('ilayer_center'):
+        if isite == imp_info.get_dict().get('ilayer_center', 0):
             zatom = imp_info.get_dict().get('Zimp')
             if type(zatom) == list:
                 zatom = zatom[0]  # here this works for single impurity only!

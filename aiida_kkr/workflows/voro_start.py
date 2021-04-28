@@ -24,7 +24,7 @@ __copyright__ = (
     'IAS-1/PGI-1, Germany. All rights reserved.'
 )
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.12.0'
+__version__ = '0.12.1'
 __contributors__ = u'Philipp Rüßmann'
 
 
@@ -69,9 +69,7 @@ class kkr_startpot_wc(WorkChain):
         'custom_scheduler_commands': '',  # some additional scheduler commands
     }
     # add defaults of dos_params since they are passed onto that workflow
-    for key, value in kkr_dos_wc.get_wf_defaults(silent=True).items():
-        if key == 'dos_params':
-            _wf_default[key] = value
+    _wf_default['dos_params'] = kkr_dos_wc.get_wf_defaults(silent=True)
 
     _wf_label = ''
     _wf_description = ''
@@ -770,8 +768,7 @@ class kkr_startpot_wc(WorkChain):
             }
             options_node = orm.Dict(dict=options_dict)
             options_node.label = 'options'
-            wfdospara_dict = {'dos_params': self.ctx.dos_params_dict}
-            wfdospara_node = orm.Dict(dict=wfdospara_dict)
+            wfdospara_node = Dict(dict=self.ctx.dos_params_dict)
             wfdospara_node.label = 'DOS params'
             wfdospara_node.description = 'DOS parameters passed from kkr_startpot_wc input to DOS sub-workflow'
 

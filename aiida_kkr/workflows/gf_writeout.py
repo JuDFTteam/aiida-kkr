@@ -6,21 +6,25 @@ some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from aiida.orm import Code, load_node
+from aiida.orm import Code, load_node, Bool
 from aiida.engine import WorkChain, ToContext, if_
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
+from aiida_kkr.calculations import KkrimpCalculation
 from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode
 from masci_tools.io.common_functions import get_Ry2eV
 from aiida.orm import WorkChainNode, RemoteData, StructureData, Dict, FolderData
 from aiida.common.exceptions import InputValidationError
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
+from aiida_kkr.tools.common_workfunctions import get_username
+from aiida_kkr.workflows.dos import kkr_dos_wc
+import os
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.5.3'
+__version__ = '0.5.5'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 
 # ToDo: add more default values to wf_parameters
@@ -59,15 +63,12 @@ class kkr_flex_wc(WorkChain):
 
     _wf_default = {
         'ef_shift': 0.,  # set costum absolute E_F (in eV)
-        'dos_params': {
-            'nepts': 61,  # DOS params: number of points in contour
-            'tempr': 200,  # K                  # DOS params: temperature
-            'emin': -1,  # Ry                   # DOS params: start of energy contour
-            'emax': 1,  # Ry                   # DOS params: end of energy contour
-            'kmesh': [10, 10, 10]
-        },  # DOS params: kmesh for DOS calculation (typically higher than in scf contour)
-        'dos_run': False
+        'dos_run': False,  # activate a DOS run with the parameters given in the dos_params input
+        'retrieve_kkrflex':
+        True,  # retrieve the DOS files or only keep them on the computer (move to KkrimpCalculation._DIRNAME_GF_UPLOAD on the remote computer's working dir), needs to use the same computer for GF writeout as for the KKRimp calculation!
     }
+    # add defaults of dos_params since they are passed onto that workflow
+    _wf_default['dos_params'] = kkr_dos_wc.get_wf_defaults(silent=True)
 
     @classmethod
     def get_wf_defaults(self):
@@ -107,8 +108,9 @@ class kkr_flex_wc(WorkChain):
                 cls.set_params_flex,
                 # TODO: encapsulate this in restarting mechanism (should be a base class of workflows that start calculations)
                 # i.e. use base_restart_calc workchain as parent
-                cls.get_flex
-            ),  # calculate host GF and kkr-flexfiles
+                cls.get_flex,  # calculate host GF and kkr-flexfiles
+                cls.move_kkrflex_files,  # maybe move them on the remote folder to some other directory
+            ),
             cls.return_results
         )
 
@@ -180,9 +182,15 @@ class kkr_flex_wc(WorkChain):
         self.ctx.ef_shift = wf_dict.get('ef_shift', self._wf_default['ef_shift'])
         self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
         self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
+        # fill missing key, value pairs with defaults
+        for k, v in self._wf_default['dos_params'].items():
+            if k not in self.ctx.dos_params_dict.keys():
+                self.ctx.dos_params_dict[k] = v
 
         self.ctx.description_wf = self.inputs.get('description', self._wf_description)
         self.ctx.label_wf = self.inputs.get('label', self._wf_label)
+
+        self.ctx.retrieve_kkrflex = wf_dict.get('retrieve_kkrflex', self._wf_default['retrieve_kkrflex'])
 
         self.report(
             'INFO: use the following parameter:\n'
@@ -330,10 +338,19 @@ class kkr_flex_wc(WorkChain):
         self.report('INFO: RUNOPT set to: {}'.format(runopt))
 
         if 'wf_parameters' in self.inputs:
+            # extract Fermi energy in Ry
+            remote_data_parent = self.inputs.remote_data
+            parent_calc = remote_data_parent.get_incoming(link_label_filter='remote_folder').first().node
+            ef = parent_calc.outputs.output_parameters.get_dict().get('fermi_energy')
+
             if self.ctx.dos_run:
+                # convert emin, emax to Ry units
+                emin = ef + self.ctx.dos_params_dict['emin'] / get_Ry2eV()
+                emax = ef + self.ctx.dos_params_dict['emax'] / get_Ry2eV()
+                # set dos params
                 for key, val in {
-                    'EMIN': self.ctx.dos_params_dict['emin'],
-                    'EMAX': self.ctx.dos_params_dict['emax'],
+                    'EMIN': emin,
+                    'EMAX': emax,
                     'NPT2': self.ctx.dos_params_dict['nepts'],
                     'NPOL': 0,
                     'NPT1': 0,
@@ -344,17 +361,13 @@ class kkr_flex_wc(WorkChain):
                 }.items():
                     updatedict[key] = val
             elif self.ctx.ef_shift != 0:
-                # extract old Fermi energy in Ry
-                remote_data_parent = self.inputs.remote_data
-                parent_calc = remote_data_parent.get_incoming(link_label_filter='remote_folder').first().node
-                ef_old = parent_calc.outputs.output_parameters.get_dict().get('fermi_energy')
                 # get Fermi energy shift in eV
                 ef_shift = self.ctx.ef_shift  #set new E_F in eV
                 # calculate new Fermi energy in Ry
-                ef_new = (ef_old + ef_shift / get_Ry2eV())
+                ef_new = (ef + ef_shift)
                 self.report(
                     'INFO: ef_old + ef_shift = ef_new: {} eV + {} eV = {} eV'.format(
-                        ef_old * get_Ry2eV(), ef_shift, ef_new * get_Ry2eV()
+                        ef * get_Ry2eV(), ef_shift, ef_new * get_Ry2eV()
                     )
                 )
                 updatedict['ef_set'] = ef_new
@@ -397,12 +410,69 @@ class kkr_flex_wc(WorkChain):
             serial=(not self.ctx.withmpi),
             imp_info=imp_info
         )
+        # add retrieve_kkrflex to inputs
+        inputs.retrieve_kkrflex = Bool(self.ctx.retrieve_kkrflex)
 
         # run the KKRFLEX calculation
         self.report('INFO: doing calculation')
         flexrun = self.submit(KkrCalculation, **inputs)
 
         return ToContext(flexrun=flexrun)
+
+    def move_kkrflex_files(self):
+        """
+        Move the kkrflex files from the remote folder to KkrimpCalculation._DIRNAME_GF_UPLOAD
+        on the remote computer's working dir. This skips retrieval to the file repository and
+        reduces cluttering the database.
+        """
+        # skip this if we want to retrieve the data to the file repository
+        if not self.ctx.retrieve_kkrflex and self.ctx.flexrun.is_finished_ok:
+            # get name where GF is uploaded to
+            gf_upload_path = KkrimpCalculation._DIRNAME_GF_UPLOAD
+
+            # extract computer info
+            computer = self.ctx.flexrun.computer
+            computername = computer.name
+
+            # set upload dir (get the remote username and try 5 times if there was a connection error
+            remote_user = get_username(computer)
+            workdir = computer.get_workdir().format(username=remote_user)
+            gf_upload_path = os.path.join(workdir, gf_upload_path)
+
+            self.report('move kkrflex files to: ' + computername)
+
+            # extract absolute filepath of retrieved dir, used as source to upload kkrflex_* files from
+            abspath_remote = self.ctx.flexrun.outputs.remote_folder.get_remote_path()
+            abspath_tmat = os.path.join(abspath_remote, KkrimpCalculation._KKRFLEX_TMAT)
+            abspath_gmat = os.path.join(abspath_remote, KkrimpCalculation._KKRFLEX_GREEN)
+
+            # extract uuid (used as filename for remote dir)
+            uuid_retrieved = self.ctx.flexrun.outputs.retrieved.uuid
+            gf_upload_path = os.path.join(gf_upload_path, uuid_retrieved)
+
+            # open connection to computer and upload files
+            with computer.get_transport() as connection:
+                if not connection.isdir(gf_upload_path):
+                    self.report('move kkrflex_tmat and green to: ' + gf_upload_path)
+                    # create directory
+                    connection.makedirs(gf_upload_path, ignore_existing=True)
+                    abspath_tmat_new = os.path.join(gf_upload_path, KkrimpCalculation._KKRFLEX_TMAT)
+                    abspath_gmat_new = os.path.join(gf_upload_path, KkrimpCalculation._KKRFLEX_GREEN)
+
+                    # create a symlink to to original dir to be able to find it easily
+                    connection.symlink(os.path.join(abspath_remote, 'out_kkr'), os.path.join(gf_upload_path, 'out_kkr'))
+                    # copy files
+                    connection.copyfile(abspath_tmat, abspath_tmat_new)
+                    connection.copyfile(abspath_gmat, abspath_gmat_new)
+                    # remove from remote_folder and replace by a symlink to save space on remote
+                    connection.remove(abspath_tmat)
+                    connection.remove(abspath_gmat)
+                    connection.symlink(abspath_tmat_new, abspath_tmat)
+                    connection.symlink(abspath_gmat_new, abspath_gmat)
+                else:
+                    self.report(
+                        'dir exsists already, skip moving the kkrflex_tmat and green files to: ' + gf_upload_path
+                    )
 
     def return_results(self):
         """

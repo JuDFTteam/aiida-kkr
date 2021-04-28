@@ -21,7 +21,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
 __copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.7'
+__version__ = '0.6.9'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 
 #TODO: improve workflow output node structure
@@ -63,13 +63,11 @@ class kkr_imp_dos_wc(WorkChain):
         'ef_shift': 0.,  # set custom absolute E_F (in eV)
         'clean_impcalc_retrieved': True,  # remove output of KKRimp calculation after successful parsing of DOS files
         'jij_run': False,  # calculate Jij's energy resolved
-        'lmdos': False,
+        'lmdos': False,  # caculate l,m or only l-resolved DOS
+        'retrieve_kkrflex': True,  # retrieve kkrflex files to repository or leave on remote computer only
     }
-
     # add defaults of dos_params since they are passed onto that workflow
-    for key, value in kkr_dos_wc.get_wf_defaults(silent=True).items():
-        if key == 'dos_params':
-            _wf_default[key] = value
+    _wf_default['dos_params'] = kkr_dos_wc.get_wf_defaults(silent=True)
 
     @classmethod
     def get_wf_defaults(self):
@@ -241,6 +239,7 @@ class kkr_imp_dos_wc(WorkChain):
         # set workflow parameters for the KKR imputrity calculations
         self.ctx.ef_shift = wf_dict.get('ef_shift', self._wf_default['ef_shift'])
         self.ctx.lmdos = wf_dict.get('lmdos', self._wf_default['lmdos'])
+        self.ctx.retrieve_kkrflex = wf_dict.get('retrieve_kkrflex', self._wf_default['retrieve_kkrflex'])
 
         self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
         # fill missing key, value pairs with defaults
@@ -378,7 +377,6 @@ label: {}
             self.ctx.errors.append(1)  # raises ERROR_NO_PARENT_FOUND
 
         message = 'INFO: validated input successfully: {}'.format(inputs_ok)
-        print(message)
         self.report(message)
 
         return inputs_ok
@@ -394,13 +392,17 @@ label: {}
             converged_host_remote = self.ctx.conv_host_remote
             imp_info = self.ctx.imp_info
 
-            wf_params_gf = Dict(
-                dict={
-                    'ef_shift': self.ctx.ef_shift,
-                    'dos_run': True,
-                    'dos_params': self.ctx.dos_params_dict
-                }
-            )
+            wf_params_gf = {
+                'ef_shift': self.ctx.ef_shift,
+                'dos_run': True,
+                'dos_params': self.ctx.dos_params_dict,
+            }
+            # maybe set kkrflex_retrieve
+            if not self.ctx.retrieve_kkrflex:
+                wf_params_gf['retrieve_kkrflex'] = self.ctx.retrieve_kkrflex
+            # now convert to AiiDA Dict
+            wf_params_gf = Dict(dict=wf_params_gf)
+
             label_gf = 'GF writeout for imp DOS'
             description_gf = 'GF writeout step with energy contour for impurity DOS'
 
@@ -418,7 +420,6 @@ label: {}
             future = self.submit(builder)
 
             message = 'INFO: running GF writeout (pid: {})'.format(future.pk)
-            print(message)
             self.report(message)
 
             return ToContext(gf_writeout=future)

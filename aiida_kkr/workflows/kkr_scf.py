@@ -1065,8 +1065,8 @@ class kkr_scf_wc(WorkChain):
                         struc = self.inputs.structure
                     else:
                         struc, voro_parent = VoronoiCalculation.find_parent_structure(self.ctx.last_remote)
-                    natom = len(struc.sites)
-                    xinipol = np.ones(natom)
+                    natom = len(get_site_symbols(struc))
+                    xinipol = ones(natom)
                 new_params['LINIPOL'] = True
                 new_params['HFIELD'] = self.ctx.hfield
                 new_params['XINIPOL'] = xinipol
@@ -1882,3 +1882,18 @@ def create_scf_result_node(**kwargs):
         outdict['final_dosdata_interpol'] = outputnode
 
     return outdict
+
+
+def get_site_symbols(structure):
+    """
+    extract the site number taking into account a possible CPA structure
+    """
+    sites = structure.sites
+    sitelist = []
+    for isite, site in enumerate(sites):
+        sitekind = structure.get_kind(site.kind_name)
+        for ikind in range(len(sitekind.symbols)):
+            site_symbol = sitekind.symbols[ikind]
+            sitelist.append([isite, site_symbol])
+
+    return sitelist

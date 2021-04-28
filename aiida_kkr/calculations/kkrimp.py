@@ -13,6 +13,7 @@ from masci_tools.io.kkr_params import kkrparams
 from .voro import VoronoiCalculation
 from .kkr import KkrCalculation
 from aiida_kkr.tools.tools_kkrimp import modify_potential, make_scoef, write_scoef_full_imp_cls
+from aiida_kkr.tools.common_workfunctions import get_username
 from masci_tools.io.common_functions import search_string, get_ef_from_potfile
 import os
 import tarfile
@@ -22,7 +23,7 @@ from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.9'
+__version__ = '0.6.11'
 __contributors__ = (u'Philipp Rüßmann', u'Fabian Bertoldo')
 
 #TODO: implement 'ilayer_center' consistency check
@@ -633,6 +634,15 @@ The Dict node should be of the form
             if parameters.get_value('CALCJIJMAT') is not None and parameters.get_value('CALCJIJMAT') == 1:
                 raise InputValidationError('ERROR: ')
 
+            # extract NATOM from atominfo file
+            with GFhost_folder.open(self._KKRFLEX_ATOMINFO) as file:
+                atominfo = file.readlines()
+            itmp = search_string('NATOM', atominfo)
+            if itmp >= 0:
+                natom = int(atominfo[itmp + 1].split()[0])
+            else:
+                raise ValueError('Could not extract NATOM value from kkrflex_atominfo')
+
             # extract values from input node
             thetas = self.inputs.initial_noco_angles['theta']
             if len(thetas) != natom:
@@ -779,7 +789,7 @@ The Dict node should be of the form
                 # extract file from tarfile of retrieved to tempfolder
                 with tarfile.open(tfpath) as tf:
                     tar_filenames = [ifile.name for ifile in tf.getmembers()]
-                    self.report(tar_filenames)
+                    self.report('extract potfile from tarball {}'.format(tar_filenames))
                     filename = self._OUT_POTENTIAL
                     if filename in tar_filenames:
                         tf.extract(filename, tempfolder_path)  # extract to tempfolder
@@ -789,6 +799,7 @@ The Dict node should be of the form
                     with tempfolder.open(filename, u'w') as newfile:
                         with retrieved.open(filename, u'r') as oldfile:
                             newfile.writelines(oldfile.readlines())
+                    self.report('copied potfile from retrieved to tempfolder')
 
             # now out_potential is in tempfolder (either copied or extracted) and can be copied from there
             potfile_name, potfile_folder = self._OUT_POTENTIAL, tempfolder
@@ -1018,33 +1029,46 @@ The Dict node should be of the form
         # extract remote computer information
         code = self.inputs.code
         comp = code.computer
-        workdir = comp.get_workdir()
+        # set upload dir (get the remote username and try 5 times if there was a connection error
+        remote_user = get_username(comp)
+        workdir = comp.get_workdir().format(username=remote_user)
         GFpath_remote = os.path.join(workdir, self._DIRNAME_GF_UPLOAD)
 
+        self.report('local_copy_list: {}'.format(local_copy_list))
+
         # extract GF information from retrieved folder of host GF calc
-        GF_local_copy_info = [i for i in local_copy_list if i[1] == self._KKRFLEX_GREEN][0]
-        TM_local_copy_info = [i for i in local_copy_list if i[1] == self._KKRFLEX_TMAT][0]
+        uuid_GF_calc = local_copy_list[0][0]
+        GF_local_copy_info = [i for i in local_copy_list if i[1] == self._KKRFLEX_GREEN]
+        TM_local_copy_info = [i for i in local_copy_list if i[1] == self._KKRFLEX_TMAT]
+        if len(TM_local_copy_info) > 0:
+            TM_local_copy_info = TM_local_copy_info[0]
+        else:
+            TM_local_copy_info = None
+        if len(GF_local_copy_info) > 0:
+            GF_local_copy_info = GF_local_copy_info[0]
+        else:
+            GF_local_copy_info = None
 
         # open transport to remote computer
         with comp.get_transport() as connection:
-            # do this for GMAT
-            uuid_GF = GF_local_copy_info[0]
-            filename = GF_local_copy_info[1]
-            GF_remote_path = os.path.join(GFpath_remote, uuid_GF, filename)
+            # do this for GMAT if it was found in retreived folder, otherwise we must assume to find it on the remote
+            filename = self._KKRFLEX_GREEN
+            GF_remote_path = os.path.join(GFpath_remote, uuid_GF_calc, filename)
             # check if file exists on remote
             if connection.isfile(GF_remote_path):
                 # remove GF from local copy list and add to remote symlink list
-                local_copy_list.remove(GF_local_copy_info)
+                if GF_local_copy_info is not None:
+                    local_copy_list.remove(GF_local_copy_info)
                 remote_symlink_list.append((comp.uuid, GF_remote_path, filename))
 
             # do the same for TMAT
-            uuid_TM = TM_local_copy_info[0]
-            filename = TM_local_copy_info[1]
-            TM_remote_path = os.path.join(GFpath_remote, uuid_TM, filename)
+            filename = self._KKRFLEX_TMAT
+            TM_remote_path = os.path.join(GFpath_remote, uuid_GF_calc, filename)
             # check if file exists on remote
             if connection.isfile(TM_remote_path):
                 # remove TMAT from local copy list and add to remote symlink list
-                local_copy_list.remove(TM_local_copy_info)
+                if TM_local_copy_info is not None:
+                    local_copy_list.remove(TM_local_copy_info)
                 remote_symlink_list.append((comp.uuid, TM_remote_path, filename))
 
         # print symlink and local copy list (for debugging purposes)

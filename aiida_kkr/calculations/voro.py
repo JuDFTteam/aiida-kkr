@@ -174,13 +174,14 @@ class VoronoiCalculation(CalcJob):
         with tempfolder.open(self._INPUT_FILE_NAME, u'w') as input_file:
             try:
                 use_alat_input = parameters.get_dict().get('use_input_alat', False)
+                use_alat_input = parameters.get_dict().get('USE_INPUT_ALAT', use_alat_input)
                 natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(
                     parameters,
                     structure,
                     input_file,
                     isvoronoi=True,
                     vca_structure=vca_structure,
-                    use_input_alat=use_alat_input
+                    use_input_alat=use_alat_input,
                 )
             except ValueError as e:
                 raise InputValidationError('Input Dict not consistent: {}'.format(e))
@@ -211,7 +212,12 @@ class VoronoiCalculation(CalcJob):
         calcinfo.local_copy_list = local_copy_list
         calcinfo.remote_copy_list = []
         calcinfo.retrieve_list = [
-            self._OUTPUT_FILE_NAME, self._ATOMINFO, self._RADII, self._SHAPEFUN, self._VERTICES, self._INPUT_FILE_NAME
+            self._OUTPUT_FILE_NAME,
+            self._ATOMINFO,
+            self._RADII,
+            self._SHAPEFUN,
+            self._VERTICES,
+            self._INPUT_FILE_NAME,
         ]
 
         # pass on overwrite potential if this was given in input

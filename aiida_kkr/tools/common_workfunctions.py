@@ -17,6 +17,7 @@ from builtins import str
 
 # keys that are used by aiida-kkr some something else than KKR parameters
 _ignored_keys = ['ef_set', 'use_input_alat']
+_ignored_keys += [i.upper() for i in _ignored_keys]
 
 
 @calcfunction
@@ -777,21 +778,24 @@ def structure_from_params(parameters):
     cell = array(parameters.get_value('BRAVAIS')) * alat * get_aBohr2Ang()
     struc = StructureData(cell=cell)
 
+    # extract atom numbers
+    zatom_all = parameters.get_value('<ZATOM>')
+
     # extract sites with positions, charges/Atom labels, weights
     # positions in units of alat
     pos_all = array(parameters.get_value('<RBASIS>'))
+    if len(pos_all.shape) == 1:
+        pos_all = array([pos_all])
+        zatom_all = [zatom_all]
     if not parameters.get_value('CARTESIAN'):
         # convert from internal to cartesian coordinates
         for isite, tmp_pos in enumerate(pos_all):
-            tmp_pos = pos_all[isite]
             # cell already contains alat factor to convert to Ang. units
             pos_all[isite] = tmp_pos[0]*cell[0] + \
-                tmp_pos[1]*cell[1]+tmp_pos[2]*cell[2]
+                tmp_pos[1]*cell[1] + tmp_pos[2]*cell[2]
     else:
         pos_all = pos_all * alat * get_aBohr2Ang()  # now positions are in Ang. units
 
-    # extract atom numbers
-    zatom_all = parameters.get_value('<ZATOM>')
     # convert to list if input contains a single entry only
     if not isinstance(zatom_all, list):
         zatom_all = [zatom_all]
@@ -815,9 +819,8 @@ def structure_from_params(parameters):
             raise NotImplementedError('VCA functionality not implemented')
 
         if zatom_all[isite - 1] < 1:
-            symbol = 'H'
-            weight = 0.0
-            struc.append_atom(position=pos, symbols='H', weights=0.0, mass=1.0)
+            symbol = 'X'
+            struc.append_atom(position=pos, symbols='X', weights=weight)
         else:
             symbol = PeriodicTableElements.get(zatom_all[isite - 1]).get('symbol')
             struc.append_atom(position=pos, symbols=symbol, weights=weight)
@@ -828,6 +831,30 @@ def structure_from_params(parameters):
 
     # finally return structure
     return is_complete, struc
+
+
+def extract_potname_from_remote(parent_calc_folder):
+    """
+    extract the bname of the output potential from a RemoteData folder
+    """
+    from aiida_kkr.calculations import KkrCalculation
+    from aiida.orm import CalcJobNode
+
+    pot_name = None
+    # extract list of parents (can only extract the parent calculation
+    # if there is only a single incoming link to follow)
+    parents = parent_calc_folder.get_incoming(node_class=CalcJobNode)
+    if len(list(parents)) == 1:
+        parent = parents.first().node
+        # now extract the pot_name dependeing on the parent calculation's type
+        if parent.process_class == KkrCalculation:
+            pot_name = KkrCalculation._OUT_POTENTIAL
+
+    # return the potential name or raise an error if nothing was found
+    if pot_name is not None:
+        return pot_name
+    else:
+        raise ValueError('Could not extract a potential name')
 
 
 @calcfunction
@@ -853,10 +880,12 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs):
 
         The settings_node dictionary needs to be of the following form::
 
-            settings_dict = {'pot1': '<filename_input_potential>',  'out_pot': '<filename_output_potential>', 'neworder': [list of intended order in output potential]}
+            settings_dict = {'neworder': [list of intended order in output potential]}
 
         Optional entries are::
 
+            'out_pot': '<filename_output_potential>'  name of the output potential file, defaults to 'potential_neworder' if not specified
+            'pot1': '<filename_input_potential>'      if not given we will try to find it from the type of the parent remote folder
             'pot2': '<filename_second_input_file>'
             'replace_newpos': [[position in neworder list which is replace with potential from pot2, position in pot2 that is chosen for replacement]]
             'switch_spins': [indices of atom for which spins are exchanged] (indices refer to position in neworder input list)
@@ -890,20 +919,28 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs):
     settings_dict = settings_node.get_dict()
     pot1 = settings_dict.get('pot1', None)
     if pot1 is None:
-        raise InputValidationError(
-            'settings_node_dict needs to have key "pot1" containing the filename of the input potential'
-        )
-    out_pot = settings_dict.get('out_pot', None)
-    if out_pot is None:
-        raise InputValidationError(
-            'settings_node_dict needs to have key "out_pot" containing the filename of the input potential'
-        )
+        # try to extract the potential name from the type of the parent_calc_folder
+        try:
+            pot1 = extract_potname_from_remote(parent_calc_folder)
+        except ValueError:
+            raise InputValidationError(
+                'settings_node_dict needs to have key "pot1" containing the filename of the input potential'
+            )
+    out_pot = settings_dict.get('out_pot', 'potential_neworder')
     neworder = settings_dict.get('neworder', None)
     if neworder is None:
         raise InputValidationError(
             'settings_node_dict needs to have key "neworder" containing the list of new positions'
         )
     pot2 = settings_dict.get('pot2', None)
+    if pot2 is None and parent_calc_folder2 is not None:
+        # try to extract the potential name from the type of the parent_calc_folder
+        try:
+            pot2 = extract_potname_from_remote(parent_calc_folder2)
+        except ValueError:
+            raise InputValidationError(
+                'settings_node_dict needs to have key "pot2" containing the filename of the input potential'
+            )
     replace_newpos = settings_dict.get('replace_newpos', None)
     switch_spins = settings_dict.get('switch_spins', [])
 
@@ -1157,3 +1194,27 @@ def find_cluster_radius(structure, nclsmin, n_max_box=50, nbins=100):
     # now the minimal cluster radius needed to get the spherical screening clusters around the atoms larger than
     # nclsmin atoms is found and can be returned
     return rclsmax_ang, rclsmax_alat
+
+
+def get_username(computer):
+    """
+    set upload dir (get the remote username and try 5 times if there was a connection error
+    """
+    import time
+    try_trans = 0
+    while try_trans < 5:
+        try_trans += 1
+        try:
+            with computer.get_transport() as transport:
+                remote_user = transport.whoami()
+        except:
+            # this means we have some ssh connection error, thus we wait 5 seconds before we try again
+            remote_user = None
+            time.sleep(5)
+        if remote_user is not None:
+            break
+    # check if username was extracted correctly and raise an error otherwise
+    if remote_user is None:
+        raise ValueError('Error getting the username from the computer!')
+
+    return remote_user

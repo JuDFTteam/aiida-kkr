@@ -116,8 +116,109 @@ which will produce the following plot:
 
 .. image:: ../images/DOS_Cu_example.png
     :width: 60%
+
+
+Bandstructure
++++++++++++++
+
+The bandstructure calculation, using workchain ``kkr_bs_wc``, yields the band structure in terms of the Bloch spectral function. To run the bandstructure calculation all the requried parameters are taken from the parent (converved) KkrCalculation and user-defined ``wf_parameters``.
+
+.. note::   
+    Use ``kkr_bs_wc.get_wf_defaults()`` to get the default values for the ``wf_parameters`` input.
+
+Inputs:
+
+    * ``wf_parameters`` (Dict, optional): Workchain Specifications, contains ``nepts`` (int), ``tempr`` (float), ``emin`` (eV), ``emax`` (eV), ``rclustz`` (float, in units of the lattice constant). The energy range given by ``emin`` and ``emax`` are given relative to the Fermi level.
+
+    * ``options`` (Dict, optional): Computer Specifications, schedualer command, parallelization, walltime etc.
+
+    * ``kpoints`` (KpointsData, optional): k-point path used in the bandstructure calculation. If it is not given it is extructed from the structure. (Although it is important the k-points should come from the primitive structure, internally it will be consider in the next version.)
+
+    * ``remote_data`` (RemoteData, mendaory): Parent folder of a converged KkrCalculation.
+
+    * ``kkr`` (Code, mendaory): KKRhost code (i.e. using ``kkr.kkr`` plugin).
+
+    * ``label`` (Str, optional): label for the bandstructure WorkChainNode. Can also be found in the ``result_wf`` output Dict as ``BS_wf_label`` key.
+
+    * ``description`` (Str, optional) : description for the bandstructure WorkChainNode. Can be found in the ``result_wf`` output Dict as ``BS_wf_description`` key
+
+Returns nodes:
+    * ``BS_Data`` (ArrayData): Consist of (BlochSpectralFunction, numpy array), (k_points, numpy array), (energy_points, numpy array), (special_kpoints, dict)
+
+    * ``result_wf`` (Dict): work_chain_specifications (such as ‘ *successful* ’, ‘ *list_of_errors* ’, ‘ *BS_params* ’ etc) node , *BS_data* (‘ *BlochSpectralFunction* ’,‘ *Kpts* ’,‘ *energy_points* ’, ' *k-labels* ’ ) node.
+
+Access To Data:
+---------------
+
+To access into the data
+
+::
+
+   BS_Data = <WC_NODE>.outputs.BS_Data
+   bsf = BS_Data.get_array('BlochSpectralFunction')
+   kpts = BS_Data.get_array('Kpts')
+   eng_pts = BS_Data.get_array('energy_points')
+   k_label= BS_Data.extras['k-labels']
+
+The ``bsf`` array is a 2d-numpy array and contains the Bloch spectral function (k and energy resolved density) and ``k_label`` give the python dict archiving the high-symmetry points, ``index:label``, in kpts.
+
+Example Usage:
+^^^^^^^^^^^^^^
+
+To start the Band Structure calculation the steps:
+
+::
+
+   from aiida.orm import load_node, Str, Code, Dict
+
+   # setup the code and computer
+   kkrcode = Code.get_from_string('KKRcode@COMPUTERNAME')
+
+   # import the remote folder from the old converged kkr calculation
+   kkr_remote_folder = load_node(<KKR_CALC_JOB_NODE_ID>).outputs.remote_folder
     
-    
+   # create workflow parameter settings
+   workflow_parameters = Dict(dict={'emax': 5, # in eV, relative to EF
+                                    'tempr': 50.0, # in K
+                                    'emin': -10, # in eV
+                                    'rclustz' : 2.3, # alat units
+                                    'nepts': 6})
+
+   # Computer configuration
+   metadata_option_1 = Dict(dict={
+       'max_wallclock_seconds': 36000,
+       'resources': {'tot_num_mpiprocs': 48, 'num_machines': 1},
+       'custom_scheduler_commands':
+       '#SBATCH --account=jara0191\n\nulimit -s unlimited; export OMP_STACKSIZE=2g',
+       'withmpi': True})
+
+   label = Str('testing_the_kkr_bs_wc') 
+
+   inputs = {'wf_parameters':workflow_parameters,'options':metadata_option_1,'remote_data':kkr_remote_folder,'kkr':kkrcode,'label':label}
+
+   from aiida_kkr.workflows.bs import kkr_bs_wc
+   from aiida.engine import run
+   run(kkr_bs_wc, **inputs)
+
+To plot :
+^^^^^^^^^
+
+To plot one or more kkr_bs_wc node.
+
+::
+
+   from aiida import load_profile
+   load_profile()
+   NODE =  <singel or list of nodes>
+   from aiida_kkr.tools import plot_kkr
+   plot_kkr( NODE, strucplot=False, logscale=True, silent=True, noshow=True) 
+
+For bulk Cu this results in a plot like this:
+
+.. image:: ../images/bs_Cu_example_200.png
+    :width: 60%
+
+
 Generate KKR start potential
 ++++++++++++++++++++++++++++
 

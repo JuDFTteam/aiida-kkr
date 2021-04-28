@@ -7,7 +7,7 @@ from __future__ import unicode_literals
 import os
 import numpy as np
 from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData
+from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData, Bool
 from .voro import VoronoiCalculation
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import InputValidationError, ValidationError
@@ -24,7 +24,7 @@ from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.11.7'
+__version__ = '0.11.8'
 __contributors__ = ('Jens Broeder', 'Philipp Rüßmann')
 
 
@@ -360,6 +360,7 @@ class KkrCalculation(CalcJob):
         # check whether or not the alat from the input parameters are used
         # (this enters as a scaling factor for some parameters)
         use_alat_input = parameters.get_dict().get('use_input_alat', False)
+        use_alat_input = parameters.get_dict().get('USE_INPUT_ALAT', use_alat_input)
 
         # prepare scoef file if impurity_info was given
         write_scoef = False
@@ -556,12 +557,16 @@ class KkrCalculation(CalcJob):
 
             # for set-ef option (needs to be done AFTER kicking out core states):
             ef_set = parameters.get_dict().get('ef_set', None)
+            ef_set = parameters.get_dict().get('EF_SET', ef_set)
+            self.report(
+                f"efset: {ef_set}  efset_1: {parameters.get_dict().get('ef_set')} efset_2: {parameters.get_dict().get('EF_SET')} params: {parameters.get_dict()}"
+            )
             if ef_set is not None:
                 local_copy_list = self._set_ef_value_potential(ef_set, local_copy_list, tempfolder)
 
             # TODO different copy lists, depending on the keywors input
             print('local copy list: {}'.format(local_copy_list))
-            self.logger.info('local copy list: {}'.format(local_copy_list))
+            self.report('local copy list: {}'.format(local_copy_list))
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()
@@ -615,7 +620,12 @@ class KkrCalculation(CalcJob):
                 if 'KKRFLEX' in stripped_run_opts:
                     retrieve_kkrflex_files = True
         if retrieve_kkrflex_files:
-            add_files = self._ALL_KKRFLEX_FILES
+            if self.inputs.retrieve_kkrflex.value:
+                # retrieve all kkrflex files
+                add_files = self._ALL_KKRFLEX_FILES
+            else:
+                # do not retrieve kkrflex_tmat and kkrflex_green, they are kept on the remote and used from there
+                add_files = [self._KKRFLEX_ATOMINFO, self._KKRFLEX_INTERCELL_REF, self._KKRFLEX_INTERCELL_CMOMS]
             print('adding files for KKRFLEX output', add_files)
             calcinfo.retrieve_list += add_files
 
@@ -694,18 +704,25 @@ class KkrCalculation(CalcJob):
         """
         Set EF value ef_set in the potential file.
         """
-        print('local copy list before change: {}'.format(local_copy_list))
-        print("found 'ef_set' in parameters: change EF of potential to this value")
+        self.report('local copy list before change: {}'.format(local_copy_list))
+        self.report("found 'ef_set' in parameters: change EF of potential to this value")
 
         # first read old potential
 
-        try:
-            tempfolder.open(self._POTENTIAL)
+        if self._POTENTIAL in tempfolder.get_content_list():
             has_potfile = True
-        except OSError:
+        else:
             has_potfile = False
+        self.report(f'has_potfile? {has_potfile}')
 
-        if not has_potfile:
+        txt = []
+        if has_potfile:
+            # this is the case if we kicked out core states before
+            with tempfolder.open(self._POTENTIAL, 'r') as potfile:
+                # read potential
+                txt = potfile.readlines()
+
+        if not has_potfile or len(txt) == 0:
             # this is the case when we take the potential from an existing folder
             potcopy_info = [i for i in local_copy_list if i[2] == self._POTENTIAL][0]
             with load_node(potcopy_info[0]).open(potcopy_info[1]) as potfile:
@@ -713,11 +730,8 @@ class KkrCalculation(CalcJob):
                 local_copy_list.remove(potcopy_info)
                 # read potential
                 txt = potfile.readlines()
-        else:
-            # this is the case if we kicked out core states before
-            with tempfolder.open(self._POTENTIAL) as potfile:
-                # read potential
-                txt = potfile.readlines()
+
+        self.report(f'len(potfile)? {len(txt)}')
 
         # now change value of Fermi level in potential text
         potstart = []
@@ -726,9 +740,11 @@ class KkrCalculation(CalcJob):
             if 'exc:' in line:
                 potstart.append(iline)
         for ipotstart in potstart:
+            self.report(f'set ef {ef_set} in potential starting in line {ipotstart}')
             tmpline = txt[ipotstart + 3]
             tmpline = tmpline.split()
             newline = '%10.5f%20.14f%20.14f\n' % (float(tmpline[0]), ef_set, float(tmpline[-1]))
+
             txt[ipotstart + 3] = newline
 
         # now (over)writing potential file in tempfolder with changed Fermi energy
@@ -762,6 +778,9 @@ class KkrCalculation(CalcJob):
         # remove changed potential from local copy list (already in tempfolder without overlapping core states)
         if num_deleted > 0:
             local_copy_list.remove(potcopy_info)
+        else:
+            # remove temporarily created file
+            tempfolder.remove_path(self._POTENTIAL)
 
         # return updated local_copy_list
         return local_copy_list

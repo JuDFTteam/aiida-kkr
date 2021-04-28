@@ -74,10 +74,91 @@ POTENTIAL_OVERWRITE = OverridableOption(
 )
 
 IMPURITY_INFO = OverridableOption(
+    '-i',
     '--impurity-info',
     type=types.DataParamType(sub_classes=('aiida.data:dict',)),
     help=
     'Dict containing parameters that specify properties for a following impurity calculation (e.g. setting of impurity cluster in scoef file that is automatically created'
+)
+
+WF_PARAMETERS = OverridableOption(
+    '-wf',
+    '--wf-parameters',
+    type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    help='Dict containing parameters given to the workchain.'
+)
+
+VORO_PARAMETERS = OverridableOption(
+    '-vp',
+    '--voro-parameters',
+    type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    help='Dict containing parameters for the auxiliary voronoi starting potential workflow.'
+)
+
+OPTION_NODE = OverridableOption(
+    '-opt',
+    '--option-node',
+    type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    help=
+    'Dict, an option node for the workchain containing for instance: {"withmpi": False, "max_wallclock_seconds": 6000, "resources": {"num_machines": 1, "num_mpiprocs_per_machine": 1}}'
+)
+
+MAX_NUM_MACHINES = OverridableOption(
+    '-N',
+    '--max-num-machines',
+    type=click.INT,
+    default=1,
+    show_default=True,
+    help='The maximum number of machines (nodes) to use for the calculations.'
+)
+
+MAX_WALLCLOCK_SECONDS = OverridableOption(
+    '-W',
+    '--max-wallclock-seconds',
+    type=click.INT,
+    default=1800,
+    show_default=True,
+    help='The maximum wallclock time in seconds to set for the calculations.'
+)
+
+NUM_MPIPROCS_PER_MACHINE = OverridableOption(
+    '-M',
+    '--num-mpiprocs-per-machine',
+    type=click.INT,
+    default=12,
+    show_default=True,
+    help='Run the simulation with so many num-mpi-procs-per-machine.'
+)
+
+WITH_MPI = OverridableOption(
+    '-I', '--with-mpi', is_flag=True, default=False, show_default=True, help='Run the calculations with MPI enabled.'
+)
+
+QUEUE_NAME = OverridableOption(
+    '-Q',
+    '--queue-name',
+    default='',
+    show_default=True,
+    help='The queue_name to be used in the submission script of the job.'
+)
+
+PARENT_FOLDER = OverridableOption(
+    '-P',
+    '--parent-folder',
+    'parent_folder',
+    type=types.DataParamType(sub_classes=('aiida.data:remote',)),
+    show_default=True,
+    required=False,
+    help='The PK of a parent remote folder (for restarts).'
+)
+
+DAEMON = OverridableOption(
+    '-d',
+    '--daemon',
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help='Submit the process to the daemon instead of running it locally. -d flag does not need any argument'
 )
 
 WF_PARAMETERS = OverridableOption(

@@ -1232,7 +1232,9 @@ class kkr_imp_sub_wc(WorkChain):
 def remove_out_pot_impcalcs(successful, pks_all_calcs, dry_run=False):
     """
     Remove out_potential file from all but the last KKRimp calculation if workflow was successful
-    Usage:
+
+    Usage::
+
         imp_wf = load_node(266885) # maybe start with outer workflow
         pk_imp_scf = imp_wf.outputs.workflow_info['used_subworkflows'].get('kkr_imp_sub')
         imp_scf_wf = load_node(pk_imp_scf) # this is now the imp scf sub workflow
