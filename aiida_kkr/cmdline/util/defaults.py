@@ -3,6 +3,7 @@
 Here we specify some defaults for cli commands
 """
 
+
 # Structures
 def get_si_bulk_structure():
     """Return a `StructureData` representing bulk silicon.
@@ -46,6 +47,7 @@ def get_si_bulk_structure():
         structure = results[0]
 
     return structure.uuid
+
 
 def get_cu_bulk_structure():
     """Return a `StructureData` representing bulk copper.
@@ -101,8 +103,8 @@ def get_kkrpara_defaults():
 
     # Filters that will match the Dict node with kkr_default_params
     filters = {'extras.aiida-kkr_cmdline_info': 'kkr_default_params'}
-   
-    # now query for this 
+
+    # now query for this
     builder = QueryBuilder().append(Dict, filters=filters)
     results = builder.first()
 
@@ -111,7 +113,7 @@ def get_kkrpara_defaults():
         defaults, version = kkrparams.get_KKRcalc_parameter_defaults()
         params = Dict(dict=defaults)
         params.label = 'Default KKR parameters'
-        params.description = f"Version of the KKR params: {version}"
+        params.description = f'Version of the KKR params: {version}'
         params.extras['aiida-kkr_cmdline_info'] = 'kkr_default_params'
         params.store()
     else:
@@ -130,6 +132,7 @@ def get_voro():
 def get_kkr():
     """Return a `Code` node of the latest added inpgen executable in the database."""
     return get_last_code('kkr.kkr')
+
 
 def get_kkrimp():
     """Return a `Code` node of the latest added inpgen executable in the database."""

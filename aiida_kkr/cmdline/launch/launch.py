@@ -36,10 +36,10 @@ def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite,
     process_class = CalculationFactory('kkr.voro')
 
     inputs = {
-        'structure': structure, 
+        'structure': structure,
         'code': voro,
-        'parameters': parameters, 
-        'parent_kkr': parent_folder, 
+        'parameters': parameters,
+        'parent_kkr': parent_folder,
         'potential_overwrite': potential_overwrite,
         'metadata': {
             'options': {
@@ -57,6 +57,7 @@ def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite,
     builder.update(inputs)
     launch_process(builder, daemon)
 
+
 @click.command('kkr')
 @options.KKR()
 @options.PARAMETERS()
@@ -68,7 +69,10 @@ def launch_voro(structure, voro, parameters, parent_folder, potential_overwrite,
 @options.NUM_MPIPROCS_PER_MACHINE()
 @options.MAX_WALLCLOCK_SECONDS()
 @options.MAX_NUM_MACHINES()
-def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon, with_mpi, num_mpiprocs_per_machine, max_wallclock_seconds, max_num_machines):
+def launch_kkr(
+    kkr, parameters, parent_folder, impurity_info, kpoints, daemon, with_mpi, num_mpiprocs_per_machine,
+    max_wallclock_seconds, max_num_machines
+):
     """
     Launch an KKRhost calcjob on given input
     """
@@ -77,8 +81,8 @@ def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon, w
 
     inputs = {
         'code': kkr,
-        'parameters': parameters, 
-        'parent_folder': parent_folder, 
+        'parameters': parameters,
+        'parent_folder': parent_folder,
         'impurity_info': impurity_info,
         'metadata': {
             'options': {
@@ -107,7 +111,10 @@ def launch_kkr(kkr, parameters, parent_folder, impurity_info, kpoints, daemon, w
 @options.NUM_MPIPROCS_PER_MACHINE()
 @options.MAX_WALLCLOCK_SECONDS()
 @options.MAX_NUM_MACHINES()
-def launch_kkrimp(kkrimp, parameters, parent_folder, impurity_info, daemon, with_mpi, num_mpiprocs_per_machine, max_wallclock_seconds, max_num_machines):
+def launch_kkrimp(
+    kkrimp, parameters, parent_folder, impurity_info, daemon, with_mpi, num_mpiprocs_per_machine, max_wallclock_seconds,
+    max_num_machines
+):
     """
     Launch an KKRimp calcjob on given input
     """
@@ -116,8 +123,8 @@ def launch_kkrimp(kkrimp, parameters, parent_folder, impurity_info, daemon, with
 
     inputs = {
         'code': kkrimp,
-        'parameters': parameters, 
-        'parent_folder': parent_folder, 
+        'parameters': parameters,
+        'parent_folder': parent_folder,
         'impurity_info': impurity_info,
         'metadata': {
             'options': {
@@ -151,7 +158,7 @@ def launch_dos(kkr, wf_parameters, option_node, parent_folder, daemon):
 
     inputs = {
         'kkr': kkr,
-        'remote_data': parent_folder, 
+        'remote_data': parent_folder,
         'options': option_node,
         'wf_parameters': wf_parameters,
     }
@@ -172,7 +179,10 @@ def launch_dos(kkr, wf_parameters, option_node, parent_folder, daemon):
 @options.WF_PARAMETERS()
 @options.POTENTIAL_OVERWRITE()
 @options.NOCO_ANGLES()
-def launch_scf(kkr, voro, structure, parameters, parent_folder, daemon, option_node, wf_parameters, potential_overwrite, noco_angles):
+def launch_scf(
+    kkr, voro, structure, parameters, parent_folder, daemon, option_node, wf_parameters, potential_overwrite,
+    noco_angles
+):
     """
     Launch an KKRhost self-consistency workflow
     """
@@ -183,8 +193,8 @@ def launch_scf(kkr, voro, structure, parameters, parent_folder, daemon, option_n
         'kkr': kkr,
         'voronoi': voro,
         'structure': structure,
-        'calc_parameters': parameters, 
-        'remote_data': parent_folder, 
+        'calc_parameters': parameters,
+        'remote_data': parent_folder,
         'options': option_node,
         'wf_parameters': wf_parameters,
         'startpot_overwrite': potential_overwrite,
@@ -222,8 +232,8 @@ def launch_kkrimp_scf(kkr, voro, kkr_imp, parameters, parent_folder, daemon, opt
         'kkrimp': kkr_imp,
         'voronoi': voro,
         'structure': structure,
-        'calc_parameters': parameters, 
-        'remote_data': parent_folder, 
+        'calc_parameters': parameters,
+        'remote_data': parent_folder,
         'options': option_node,
         'wf_parameters': wf_parameters,
         'startpot_overwrite': potential_overwrite,

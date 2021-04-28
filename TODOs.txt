@@ -2,5 +2,3 @@ Ideas:
 Since all kkr codes will be installed via this plugin
 Maybe it makes sense to write base classes for calculations and parsers of the things the kkr codes have in common.
 In general do not dublicate to much code.
-
-

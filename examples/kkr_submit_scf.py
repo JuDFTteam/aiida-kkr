@@ -21,10 +21,8 @@ def create_fcc_cu(a_lat=lambda: orm.Float(3.6142)) -> orm.StructureData:
     :type a_lat: [type], optional
     """
     # Get the lattice distance for the fcc lattice
-    alat = 0.5*a_lat.value
-    structure = orm.StructureData(
-        cell=[[alat, alat, 0.0], [alat, 0.0, alat], [0.0, alat, alat]]
-    )
+    alat = 0.5 * a_lat.value
+    structure = orm.StructureData(cell=[[alat, alat, 0.0], [alat, 0.0, alat], [0.0, alat, alat]])
     # Add the positions of the atoms in the unitcell
     structure.append_atom(position=[0.0, 0.0, 0.0], symbols='Cu')
 
@@ -55,9 +53,9 @@ def main():
     Main function to run an SCF run using the kkrhost code
     """
     # Define the KKR code via the code string
-    kkr_code = orm.load_code("jukkr-host@dummy")
+    kkr_code = orm.load_code('jukkr-host@dummy')
     # Define the Voronoi code via the code string
-    voronoi_code = orm.load_code("jukkr-voronoi@dummy")
+    voronoi_code = orm.load_code('jukkr-voronoi@dummy')
 
     # Generate the fcc Cu structure that will be used for the calculation
     fcc_structure = create_fcc_cu(a_lat=orm.Float(3.6142))
@@ -66,12 +64,16 @@ def main():
     # calculation
     kkr_calculation_parameters = generate_kkr_parameters(
         input_parameters={
-            'LMAX': 2, 'RMAX': 7, 'GMAX': 65, 'NSPIN': 1, 'RCLUSTZ': 1.9
+            'LMAX': 2,
+            'RMAX': 7,
+            'GMAX': 65,
+            'NSPIN': 1,
+            'RCLUSTZ': 1.9
         }
     )
 
     # For the SGE scheduler
-    if kkr_code.computer.scheduler_type in ["sge"]:
+    if kkr_code.computer.scheduler_type in ['sge']:
         # Setting parameters for the submission of the job
         options = {
             'resources': {
@@ -87,7 +89,7 @@ def main():
         }
 
     # For slurm and pbs scheduler types
-    if kkr_code.computer.scheduler_type in ["slurm", "pbspro"]:
+    if kkr_code.computer.scheduler_type in ['slurm', 'pbspro']:
         # Setting parameters for the submission of the job
         options = {
             'resources': {
@@ -101,9 +103,9 @@ def main():
         }
 
     # Setting a label for the calculation
-    label = "JM-KKR_host_fcc_Cu"
+    label = 'JM-KKR_host_fcc_Cu'
     # Provide a more lengthy description of the actual calculation
-    description = "Test FCC Cu SCF calculation with the JM-KKR host code"
+    description = 'Test FCC Cu SCF calculation with the JM-KKR host code'
 
     # Populate the inputs of the kkrhost code
     builder = kkr_scf_wc.get_builder()
@@ -117,8 +119,8 @@ def main():
 
     # Submit the calculation to the daemon
     submission = submit(builder)
-    print("SCF calculation submitted with pk {}".format(submission.pk))
+    print('SCF calculation submitted with pk {}'.format(submission.pk))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

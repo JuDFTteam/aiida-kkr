@@ -14,11 +14,10 @@ from aiida.common.exceptions import UniquenessError, NotExistent
 import os
 import six
 
-__copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
-                 "IAS-1/PGI-1, Germany. All rights reserved.")
-__license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.3"
-__contributors__ = ("Jens Broeder", "Philipp Rüßmann")
+__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__license__ = 'MIT license, see LICENSE.txt file'
+__version__ = '0.5.3'
+__contributors__ = ('Jens Broeder', 'Philipp Rüßmann')
 
 
 class VoronoiCalculation(CalcJob):
@@ -32,8 +31,8 @@ class VoronoiCalculation(CalcJob):
     # calculation plugin version
     _CALCULATION_PLUGIN_VERSION = __version__
     # Default input and output files
-    _DEFAULT_INPUT_FILE = 'inputcard' # will be shown with inputcat
-    _DEFAULT_OUTPUT_FILE = 'out_voronoi' #'shell output will be shown with outputca
+    _DEFAULT_INPUT_FILE = 'inputcard'  # will be shown with inputcat
+    _DEFAULT_OUTPUT_FILE = 'out_voronoi'  #'shell output will be shown with outputca
     # List of mandatory input files
     _INPUT_FILE_NAME = 'inputcard'
     # List of output files that should always be present
@@ -56,21 +55,47 @@ class VoronoiCalculation(CalcJob):
         # reuse base class (i.e. CalcJob) functions
         super(VoronoiCalculation, cls).define(spec)
         # now define input files and parser
-        spec.input('metadata.options.parser_name', valid_type=six.string_types, default=cls._default_parser, non_db=True)
-        spec.input('metadata.options.input_filename', valid_type=six.string_types, default=cls._DEFAULT_INPUT_FILE, non_db=True)
-        spec.input('metadata.options.output_filename', valid_type=six.string_types, default=cls._DEFAULT_OUTPUT_FILE, non_db=True)
+        spec.input(
+            'metadata.options.parser_name', valid_type=six.string_types, default=cls._default_parser, non_db=True
+        )
+        spec.input(
+            'metadata.options.input_filename',
+            valid_type=six.string_types,
+            default=cls._DEFAULT_INPUT_FILE,
+            non_db=True
+        )
+        spec.input(
+            'metadata.options.output_filename',
+            valid_type=six.string_types,
+            default=cls._DEFAULT_OUTPUT_FILE,
+            non_db=True
+        )
         # define input nodes (optional ones have required=False)
         spec.input('parameters', valid_type=Dict, help='Use a node that specifies the input parameters')
-        spec.input('structure', valid_type=StructureData, required=False, help='Use a node that specifies the input crystal structure')
-        spec.input('parent_KKR', valid_type=RemoteData, required=False, help='Use a node that specifies a parent KKR calculation')
-        spec.input('potential_overwrite', valid_type=SinglefileData, required=False, help='Use a node that specifies the potential which is used instead of the voronoi output potential')
+        spec.input(
+            'structure',
+            valid_type=StructureData,
+            required=False,
+            help='Use a node that specifies the input crystal structure'
+        )
+        spec.input(
+            'parent_KKR',
+            valid_type=RemoteData,
+            required=False,
+            help='Use a node that specifies a parent KKR calculation'
+        )
+        spec.input(
+            'potential_overwrite',
+            valid_type=SinglefileData,
+            required=False,
+            help='Use a node that specifies the potential which is used instead of the voronoi output potential'
+        )
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the calculation')
         spec.default_output_node = 'output_parameters'
         # define exit codes, also used in parser
         spec.exit_code(301, 'ERROR_NO_OUTPUT_FILE', message='Voronoi output file not found')
         spec.exit_code(302, 'ERROR_VORONOI_PARSING_FAILED', message='Voronoi parser retuned an error')
-
 
     def prepare_for_submission(self, tempfolder):
         """Create the input files from the input nodes passed to this instance of the `CalcJob`.
@@ -107,8 +132,10 @@ class VoronoiCalculation(CalcJob):
 
             #cross check if no structure was given and extract structure from parent
             if found_structure and not vca_structure:
-                raise InputValidationError("parent_KKR and structure found in input. "
-                                           "Can only use either parent_KKR or structure in input.")
+                raise InputValidationError(
+                    'parent_KKR and structure found in input. '
+                    'Can only use either parent_KKR or structure in input.'
+                )
             else:
                 structure_remote_KKR, voro_parent = self.find_parent_structure(parent_calc)
                 if not vca_structure:
@@ -120,8 +147,7 @@ class VoronoiCalculation(CalcJob):
         else:
             overwrite_potential = False
             if not found_structure:
-                raise InputValidationError("Neither structure nor parent_KKR specified for this "
-                                           "calculation")
+                raise InputValidationError('Neither structure nor parent_KKR specified for this ' 'calculation')
 
         # check if overwrite potential is given explicitly
         if 'potential_overwrite' in self.inputs:
@@ -133,8 +159,10 @@ class VoronoiCalculation(CalcJob):
         if has_potfile_overwrite:
             overwrite_potential = True
             if not found_structure:
-                raise InputValidationError("Input structure needed for this calculation "
-                                           "(using 'potential_overwrite' input node)")
+                raise InputValidationError(
+                    'Input structure needed for this calculation '
+                    "(using 'potential_overwrite' input node)"
+                )
 
         ###################################
         # Check for 2D case
@@ -146,9 +174,16 @@ class VoronoiCalculation(CalcJob):
         with tempfolder.open(self._INPUT_FILE_NAME, u'w') as input_file:
             try:
                 use_alat_input = parameters.get_dict().get('use_input_alat', False)
-                natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_file, isvoronoi=True, vca_structure=vca_structure, use_input_alat=use_alat_input)
+                natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(
+                    parameters,
+                    structure,
+                    input_file,
+                    isvoronoi=True,
+                    vca_structure=vca_structure,
+                    use_input_alat=use_alat_input
+                )
             except ValueError as e:
-                raise InputValidationError("Input Dict not consistent: {}".format(e))
+                raise InputValidationError('Input Dict not consistent: {}'.format(e))
 
         # Decide what files to copy
         local_copy_list = []
@@ -156,10 +191,10 @@ class VoronoiCalculation(CalcJob):
             # copy the right files #TODO check first if file, exists and throw
             # warning, now this will throw an error
             if found_parent and self._is_KkrCalc(parent_calc):
-                outfolder = parent_calc.outputs.retrieved # copy from remote folder
+                outfolder = parent_calc.outputs.retrieved  # copy from remote folder
                 copylist = [parent_calc.process_class._OUT_POTENTIAL]
             elif has_potfile_overwrite:
-                outfolder = potfile_overwrite # copy from potential sfd
+                outfolder = potfile_overwrite  # copy from potential sfd
                 copylist = [potfile_overwrite.filename]
             else:
                 copylist = []
@@ -175,9 +210,9 @@ class VoronoiCalculation(CalcJob):
         calcinfo.uuid = self.uuid
         calcinfo.local_copy_list = local_copy_list
         calcinfo.remote_copy_list = []
-        calcinfo.retrieve_list = [self._OUTPUT_FILE_NAME, self._ATOMINFO,
-                                  self._RADII, self._SHAPEFUN, self._VERTICES,
-                                  self._INPUT_FILE_NAME]
+        calcinfo.retrieve_list = [
+            self._OUTPUT_FILE_NAME, self._ATOMINFO, self._RADII, self._SHAPEFUN, self._VERTICES, self._INPUT_FILE_NAME
+        ]
 
         # pass on overwrite potential if this was given in input
         # (KkrCalculation checks if this file is there and takes this file instead of _OUT_POTENTIAL_voronoi
@@ -195,7 +230,6 @@ class VoronoiCalculation(CalcJob):
 
         return calcinfo
 
-
     def _check_valid_parent(self, parent_calc_folder):
         """
         Check that calc is a valid parent for a FleurCalculation.
@@ -207,18 +241,19 @@ class VoronoiCalculation(CalcJob):
         parent_calcs = parent_calc_folder.get_incoming(node_class=CalcJobNode)
         n_parents = len(parent_calcs.all_link_labels())
         if n_parents != 1:
-            raise UniquenessError("Input RemoteData is child of {} "
-                                  "calculation{}, while it should have a single parent"
-                                  "".format(n_parents, "" if n_parents == 0 else "s"))
+            raise UniquenessError(
+                'Input RemoteData is child of {} '
+                'calculation{}, while it should have a single parent'
+                ''.format(n_parents, '' if n_parents == 0 else 's')
+            )
         else:
             parent_calc = parent_calcs.first().node
             overwrite_pot = True
 
-        if ((not self._is_KkrCalc(parent_calc)) ):
-            raise ValueError("Parent calculation must be a KkrCalculation")
+        if ((not self._is_KkrCalc(parent_calc))):
+            raise ValueError('Parent calculation must be a KkrCalculation')
 
         return overwrite_pot, parent_calc
-
 
     def _is_KkrCalc(self, calc):
         """
@@ -232,14 +267,12 @@ class VoronoiCalculation(CalcJob):
 
         return is_KKR
 
-
     @classmethod
     def _get_struc(self, parent_calc):
         """
         Get structure from a parent_folder (result of a calculation, typically a remote folder)
         """
         return parent_calc.inputs.structure
-
 
     @classmethod
     def _has_struc(self, parent_folder):
@@ -250,7 +283,6 @@ class VoronoiCalculation(CalcJob):
         if 'structure' not in parent_folder.get_incoming().all_link_labels():
             success = False
         return success
-
 
     @classmethod
     def _get_remote(self, parent_folder):
@@ -263,7 +295,6 @@ class VoronoiCalculation(CalcJob):
         except NotExistent:
             parent_folder_tmp = parent_folder_tmp0
         return parent_folder_tmp
-
 
     @classmethod
     def _get_parent(self, input_folder):
@@ -298,7 +329,6 @@ class VoronoiCalculation(CalcJob):
 
         return parent_folder_tmp
 
-
     @classmethod
     def find_parent_structure(self, parent_folder):
         """
@@ -307,12 +337,16 @@ class VoronoiCalculation(CalcJob):
         iiter = 0
         Nmaxiter = 1000
         parent_folder_tmp = self._get_remote(parent_folder)
-        while not self._has_struc(parent_folder_tmp) and iiter<Nmaxiter:
+        while not self._has_struc(parent_folder_tmp) and iiter < Nmaxiter:
             parent_folder_tmp = self._get_remote(self._get_parent(parent_folder_tmp))
             iiter += 1
-            if iiter%200==0: print('Warning: find_parent_structure takes quite long (already searched {} ancestors). Stop after {}'.format(iiter, Nmaxiter))
+            if iiter % 200 == 0:
+                print(
+                    'Warning: find_parent_structure takes quite long (already searched {} ancestors). Stop after {}'.
+                    format(iiter, Nmaxiter)
+                )
         if self._has_struc(parent_folder_tmp):
             struc = self._get_struc(parent_folder_tmp)
             return struc, parent_folder_tmp
         else:
-            raise ValueError("structure not found".format(parent_folder_tmp))
+            raise ValueError('structure not found'.format(parent_folder_tmp))

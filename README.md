@@ -53,6 +53,5 @@ $ reentry scan -r aiida
 
 # Contributing
 
-Thank you for your interest in contributing to aiida-kkr. 
+Thank you for your interest in contributing to aiida-kkr.
 Check out our [contributing guide](CONTRIBUTING.md) for some information.
-
