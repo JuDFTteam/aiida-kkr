@@ -31,7 +31,7 @@ from aiida_kkr.workflows.dos import kkr_dos_wc
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.10.4'
+__version__ = '0.10.6'
 __contributors__ = (u'Jens Broeder', u'Philipp Rüßmann')
 
 # TODO: magnetism (init and converge magnetic state)

@@ -23,7 +23,7 @@ from aiida_kkr.workflows.bs import set_energy_params
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.8.0'
+__version__ = '0.8.1'
 __contributors__ = u'Philipp Rüßmann'
 
 

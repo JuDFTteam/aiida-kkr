@@ -24,7 +24,7 @@ __copyright__ = (
     'IAS-1/PGI-1, Germany. All rights reserved.'
 )
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.12.1'
+__version__ = '0.12.2'
 __contributors__ = u'Philipp Rüßmann'
 
 

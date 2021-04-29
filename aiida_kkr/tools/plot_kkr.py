@@ -10,7 +10,7 @@ from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.1'
+__version__ = '0.6.2'
 __contributors__ = ('Philipp Rüßmann')
 
 
