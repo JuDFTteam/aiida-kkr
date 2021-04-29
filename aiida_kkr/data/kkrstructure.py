@@ -7,6 +7,7 @@ from __future__ import absolute_import
 from aiida.orm import Data, StructureData
 from aiida.plugins import DataFactory
 
+
 class KkrstructureData(StructureData):
     """
     Extention of AiiDA StructureData type that can store empty spheres/dummy atoms.

@@ -13,11 +13,10 @@ from aiida.common.exceptions import InputValidationError, NotExistent
 from masci_tools.io.parsers.kkrparser_functions import parse_kkr_outputfile, check_error_category
 from masci_tools.io.common_functions import search_string
 
-__copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
-                 "IAS-1/PGI-1, Germany. All rights reserved.")
-__license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.6"
-__contributors__ = ("Jens Broeder", u"Philipp Rüßmann")
+__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__license__ = 'MIT license, see LICENSE.txt file'
+__version__ = '0.6.6'
+__contributors__ = ('Jens Broeder', u'Philipp Rüßmann')
 
 
 class KkrParser(Parser):
@@ -68,7 +67,8 @@ class KkrParser(Parser):
         # we need at least the output file name as defined in calcs.py
         if KkrCalculation._DEFAULT_OUTPUT_FILE not in list_of_files:
             msg = "Output file '{}' not found in list of files: {}".format(
-                KkrCalculation._DEFAULT_OUTPUT_FILE, list_of_files)
+                KkrCalculation._DEFAULT_OUTPUT_FILE, list_of_files
+            )
             if self.icrit == 0:  # this check turns this off for the KKRimporter calculation
                 self.logger.error(msg)
                 return self.exit_codes.ERROR_NO_OUTPUT_FILE
@@ -80,7 +80,7 @@ class KkrParser(Parser):
             txt = file.readlines()
             itmp = search_string('RUNOPT', txt)
             if itmp >= 0:
-                runopts = txt[itmp+1]
+                runopts = txt[itmp + 1]
                 if 'qdos' in runopts:
                     skip_mode = True
                 if 'KKRFLEX' in runopts:
@@ -94,7 +94,7 @@ class KkrParser(Parser):
             with out_folder.open(KkrCalculation._DEFAULT_OUTPUT_FILE) as fhandle:
                 outfile = fhandle.name
         else:
-            file_errors.append((1+self.icrit, msg))
+            file_errors.append((1 + self.icrit, msg))
             outfile = None
 
         # get path to files and catch errors if files are not present
@@ -107,16 +107,14 @@ class KkrParser(Parser):
             with out_folder.open(fname) as fhandle:
                 outfile_0init = fhandle.name
         else:
-            file_errors.append(
-                (1+self.icrit, "Critical error! OUTPUT_0_INIT not found {}".format(fname)))
+            file_errors.append((1 + self.icrit, 'Critical error! OUTPUT_0_INIT not found {}'.format(fname)))
             outfile_0init = None
         fname = KkrCalculation._OUTPUT_000
         if fname in out_folder.list_object_names():
             with out_folder.open(fname) as fhandle:
                 outfile_000 = fhandle.name
         else:
-            file_errors.append(
-                (1+self.icrit, "Critical error! OUTPUT_000 not found {}".format(fname)))
+            file_errors.append((1 + self.icrit, 'Critical error! OUTPUT_000 not found {}'.format(fname)))
             outfile_000 = None
         fname = KkrCalculation._OUTPUT_2
         if fname in out_folder.list_object_names():
@@ -124,8 +122,7 @@ class KkrParser(Parser):
                 outfile_2 = fhandle.name
         else:
             if not only_000_present:
-                file_errors.append(
-                    (1+self.icrit, "Critical error! OUTPUT_2 not found {}".format(fname)))
+                file_errors.append((1 + self.icrit, 'Critical error! OUTPUT_2 not found {}'.format(fname)))
                 outfile_2 = None
             else:
                 outfile_2 = outfile_000
@@ -134,54 +131,76 @@ class KkrParser(Parser):
             with out_folder.open(fname) as fhandle:
                 potfile_out = fhandle.name
         else:
-            file_errors.append(
-                (1+self.icrit, "Critical error! OUT_POTENTIAL not found {}".format(fname)))
+            file_errors.append((1 + self.icrit, 'Critical error! OUT_POTENTIAL not found {}'.format(fname)))
             potfile_out = None
         fname = KkrCalculation._OUT_TIMING_000
         if fname in out_folder.list_object_names():
             with out_folder.open(fname) as fhandle:
                 timing_file = fhandle.name
         else:
-            file_errors.append(
-                (1+self.icrit, "Critical error! OUT_TIMING_000  not found {}".format(fname)))
+            file_errors.append((1 + self.icrit, 'Critical error! OUT_TIMING_000  not found {}'.format(fname)))
             timing_file = None
         fname = KkrCalculation._NONCO_ANGLES_OUT
         if fname in out_folder.list_object_names():
             with out_folder.open(fname) as fhandle:
                 nonco_out_file = fhandle.name
         else:
-            file_errors.append(
-                (2, "Error! NONCO_ANGLES_OUT not found {}".format(fname)))
+            file_errors.append((2, 'Error! NONCO_ANGLES_OUT not found {}'.format(fname)))
             nonco_out_file = None
 
-        out_dict = {'parser_version': self._ParserVersion,
-                    'calculation_plugin_version': KkrCalculation._CALCULATION_PLUGIN_VERSION}
+        out_dict = {
+            'parser_version': self._ParserVersion,
+            'calculation_plugin_version': KkrCalculation._CALCULATION_PLUGIN_VERSION
+        }
 
         # TODO job title, compound description
 
-        success, msg_list, out_dict = parse_kkr_outputfile(out_dict, outfile,
-                                                           outfile_0init, outfile_000,
-                                                           timing_file, potfile_out,
-                                                           nonco_out_file, outfile_2,
-                                                           skip_readin=skip_mode, debug=debug)
+        success, msg_list, out_dict = parse_kkr_outputfile(
+            out_dict,
+            outfile,
+            outfile_0init,
+            outfile_000,
+            timing_file,
+            potfile_out,
+            nonco_out_file,
+            outfile_2,
+            skip_readin=skip_mode,
+            debug=debug
+        )
 
         # try to parse with other combinations of files to minimize parser errors
         if self.icrit != 0:
             self.logger.info('msg_list0: {}'.format(msg_list))
             # try second combination of files
             out_dict2 = out_dict.copy()
-            success2, msg_list2, out_dict2 = parse_kkr_outputfile(out_dict2, outfile_2,
-                                                                  outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file,
-                                                                  outfile_2, skip_readin=skip_mode)
+            success2, msg_list2, out_dict2 = parse_kkr_outputfile(
+                out_dict2,
+                outfile_2,
+                outfile_0init,
+                outfile_000,
+                timing_file,
+                potfile_out,
+                nonco_out_file,
+                outfile_2,
+                skip_readin=skip_mode
+            )
             self.logger.info('msg_list1: {}'.format(msg_list2))
             if len(msg_list2) < len(msg_list):  # overwrite parser outputs if fewer errors
                 self.logger.info('take output of parser run 1')
                 success, msg_list, out_dict = success2, msg_list2, out_dict2
             # try third combination of files
             out_dict2 = out_dict.copy()
-            success2, msg_list2, out_dict2 = parse_kkr_outputfile(out_dict2, outfile_000,
-                                                                  outfile_0init, outfile_000, timing_file, potfile_out, nonco_out_file,
-                                                                  outfile_2, skip_readin=skip_mode)
+            success2, msg_list2, out_dict2 = parse_kkr_outputfile(
+                out_dict2,
+                outfile_000,
+                outfile_0init,
+                outfile_000,
+                timing_file,
+                potfile_out,
+                nonco_out_file,
+                outfile_2,
+                skip_readin=skip_mode
+            )
             self.logger.info('msg_list2: {}'.format(msg_list2))
             if len(msg_list2) < len(msg_list):  # overwrite parser outputs if fewer errors
                 self.logger.info('take output of parser run 2')
@@ -197,8 +216,7 @@ class KkrParser(Parser):
             else:
                 if 'parser_warnings' not in list(out_dict.keys()):
                     out_dict['parser_warnings'] = []
-                out_dict['parser_warnings'].append(
-                    f_err.replace('Error', 'Warning'))
+                out_dict['parser_warnings'].append(f_err.replace('Error', 'Warning'))
         out_dict['parser_errors'] = msg_list
 
         # create output node and link
@@ -206,7 +224,7 @@ class KkrParser(Parser):
 
         if self.icrit != 0 and not success:  # overwrite behavior with KKRimporter
             success = True  # set automatically to True even if only partial output was parsed
-            msg = "Automatically returned success=True for KKR importer although some parsing errors occurred"
+            msg = 'Automatically returned success=True for KKR importer although some parsing errors occurred'
             self.logger.warning(msg)
 
         if not success:
@@ -220,11 +238,10 @@ class KkrParser(Parser):
     def remove_unnecessary_files(self):
         """
         Remove files that are not needed anymore after parsing
-        The information is completely parsed (i.e. in outdict of calculation) 
+        The information is completely parsed (i.e. in outdict of calculation)
         and keeping the file would just be a duplication.
         """
-        files_to_delete = [KkrCalculation._POTENTIAL,
-                           KkrCalculation._SHAPEFUN]
+        files_to_delete = [KkrCalculation._POTENTIAL, KkrCalculation._SHAPEFUN]
         for fileid in files_to_delete:
             if fileid in self.retrieved.list_object_names():
                 self.retrieved.delete_object(fileid, force=True)

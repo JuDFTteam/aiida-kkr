@@ -1,12 +1,32 @@
-# Install pre-commit hooks via
-# pre-commit install
+exclude: "^(doc)|(cookiecutters)|(aiida_kkr/tests)"
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+      - id: double-quote-string-fixer
+      - id: forbid-new-submodules
 
-# modernizer: make sure our code-base is Python 3 ready
-- repo: https://github.com/python-modernize/python-modernize.git
-  sha: a234ce4e185cf77a55632888f1811d83b4ad9ef2
-  hooks:
-  - id: python-modernize
-    exclude: ^docs/
-    args:
-      - --write
-      - --nobackups
+  - repo: https://github.com/pre-commit/mirrors-yapf
+    rev: v0.30.0
+    hooks:
+      - id: yapf
+        name: yapf
+        types: [python]
+        args: ["-i"]
+
+  - repo: local
+    hooks:
+      - id: pylint
+        name: pylint
+        entry: pylint
+        types: [python]
+        language: system
+        exclude: |
+          (?x)(
+          ^examples/
+          )

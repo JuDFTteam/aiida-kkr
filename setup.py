@@ -19,8 +19,8 @@ if __name__ == '__main__':
     setup(
         packages=find_packages(),
         # add long_description from readme.md:
-        long_description = long_description, # add contents of README.md
-        long_description_content_type ='text/markdown',  # This is important to activate markdown!
+        long_description=long_description,  # add contents of README.md
+        long_description_content_type='text/markdown',  # This is important to activate markdown!
         # add rest of the things defined in setup.json
         **kwargs
     )

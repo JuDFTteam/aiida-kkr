@@ -6,6 +6,8 @@ import ase.spacegroup
 from aiida import orm
 from aiida.engine import submit
 from masci_tools.io.kkr_params import kkrparams
+from aiida_kkr.workflows.eos import kkr_eos_wc
+from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
 
 
@@ -53,9 +55,9 @@ def main():
     Main function to run an SCF run using the kkrhost code
     """
     # Define the KKR code via the code string
-    kkr_code = orm.load_code('jukkr-host@dummy')
+    kkr_code = orm.load_code('jukkr-host-intel@moggie')
     # Define the Voronoi code via the code string
-    voronoi_code = orm.load_code('jukkr-voronoi@dummy')
+    voronoi_code = orm.load_code('jukkr-voronoi-intel@moggie')
 
     # Generate the fcc Cu structure that will be used for the calculation
     fcc_structure = create_fcc_cu(a_lat=orm.Float(3.6142))
@@ -86,6 +88,7 @@ def main():
             'max_wallclock_seconds': 18000,
             # Whether to run in parallel
             'withmpi': True,
+            'custom_scheduler_commands': '#$ -l slot_type=hpc'
         }
 
     # For slurm and pbs scheduler types
@@ -102,24 +105,45 @@ def main():
             'withmpi': True,
         }
 
+    wf_parameters = {
+        # Minimum and maximum volume that will be studied
+        'scale_range': [0.90, 1.10],
+        # Number of volume steps in the eos determination
+        'nsteps': 11,
+        # create and return a structure which has the ground state volume
+        # determined by the fit used
+        'ground_state_structure': True,
+        # use seekpath to get primitive structure after scaling to reduce
+        # computational time
+        'use_primitive_structure': True,
+        # fitfunction used to determine ground state volume
+        # (see ase.eos.EquationOfState class for details)
+        'fitfunction': 'birchmurnaghan',
+        # settings for kkr_startpot behavior
+        'settings_kkr_startpot': kkr_startpot_wc.get_wf_defaults(silent=True),
+        # settings for kkr_scf behavior
+        'settings_kkr_scf': kkr_scf_wc.get_wf_defaults(silent=True)[0]
+    }
+
     # Setting a label for the calculation
     label = 'JM-KKR_host_fcc_Cu'
     # Provide a more lengthy description of the actual calculation
     description = 'Test FCC Cu SCF calculation with the JM-KKR host code'
 
     # Populate the inputs of the kkrhost code
-    builder = kkr_scf_wc.get_builder()
+    builder = kkr_eos_wc.get_builder()
     builder.kkr = kkr_code
     builder.voronoi = voronoi_code
     builder.options = orm.Dict(dict=options)
     builder.structure = fcc_structure
+    builder.wf_parameters = orm.Dict(dict=wf_parameters)
     builder.calc_parameters = orm.Dict(dict=kkr_calculation_parameters)
     builder.metadata.label = label
     builder.metadata.description = description
 
     # Submit the calculation to the daemon
     submission = submit(builder)
-    print('SCF calculation submitted with pk {}'.format(submission.pk))
+    print('EOS workchain calculation submitted with pk {}'.format(submission.pk))
 
 
 if __name__ == '__main__':

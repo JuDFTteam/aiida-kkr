@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Parser for the KKR imprter, slight modification to KKr parser (dealing of missing output files).
-The parser should never fail, but it should catch 
+The parser should never fail, but it should catch
 all errors and warnings and show them to the user.
 """
 
@@ -10,12 +10,10 @@ from aiida_kkr.calculations import KkrCalculation
 from aiida_kkr.parsers import KkrParser
 from aiida.common.exceptions import InputValidationError
 
-
-__copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
-                 "IAS-1/PGI-1, Germany. All rights reserved.")
-__license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1"
-__contributors__ = ("Philipp Rüßmann")
+__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__license__ = 'MIT license, see LICENSE.txt file'
+__version__ = '0.1'
+__contributors__ = ('Philipp Rüßmann')
 
 
 class KkrImporterParser(KkrParser):
@@ -29,8 +27,8 @@ class KkrImporterParser(KkrParser):
         """
         # check for valid input
         if not isinstance(calc, KkrCalculation):
-            raise InputValidationError("Input calc must be a KkrCalculation")
-        
+            raise InputValidationError('Input calc must be a KkrCalculation')
+
         self._ParserVersion = __version__
 
         #reuse init of base class but select icrit=1 (determines how missing files are interpreted)
