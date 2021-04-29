@@ -529,15 +529,14 @@ class kkr_startpot_wc(WorkChain):
         if 'potential_overwrite' in self.ctx.voro_calc.inputs:
             potfile_overwrite = self.ctx.voro_calc.inputs.potential_overwrite
             with potfile_overwrite.open(potfile_overwrite.filename) as f:
-                potfile_path = f.name
+                self.ctx.efermi = get_ef_from_potfile(f)
         else:
             potfile_name = VoronoiCalculation._OUT_POTENTIAL_voronoi
             if 'parent_KKR' in self.ctx.voro_calc.inputs:
                 potfile_name = VoronoiCalculation._POTENTIAL_IN_OVERWRITE
             print(ret.list_object_names(), potfile_name)
             with ret.open(potfile_name) as f:
-                potfile_path = f.name
-        self.ctx.efermi = get_ef_from_potfile(potfile_path)
+                self.ctx.efermi = get_ef_from_potfile(f)
         emax = self.ctx.dos_params_dict['emax']
         self.report("INFO: emax dos input: {}, efermi voronoi output: {}".format(emax, self.ctx.efermi))
         if emax < self.ctx.efermi + self.ctx.delta_e*eV2Ry:

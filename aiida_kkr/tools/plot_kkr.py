@@ -1441,18 +1441,22 @@ class plot_kkr(object):
         """plot outputs of a kkr_scf_wc workflow"""
         from aiida.orm import CalcJobNode, load_node
         from aiida_kkr.calculations.kkr import KkrCalculation
+        from aiida_kkr.tools import find_parent_structure
         from numpy import sort
-        from matplotlib.pyplot import axvline, axhline, subplot, figure
+        from matplotlib.pyplot import axvline, axhline, subplot, figure, title
 
         # structure plot only if structure is in inputs
-        try:
+        if 'structure' in node.inputs:
             struc = node.inputs.structure
-            strucplot = False
+        else:
+            struc = find_parent_structure(node.inputs.remote_data)
+
+        try:
             ptitle = struc.get_formula()
         except:
-            strucplot = False
             ptitle = ''
 
+        strucplot = False
         if 'strucplot' in list(kwargs.keys()): strucplot = kwargs.pop('strucplot')
         # plot structure
         if strucplot:

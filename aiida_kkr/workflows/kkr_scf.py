@@ -1544,8 +1544,8 @@ Can be skipped if a previous KkrCalculation is given with the `remote_data` inpu
                         emin_cont-self.ctx.delta_e*eV2Ry
                     )
                 )
-            self.ctx.efermi = get_ef_from_potfile(
-                self.ctx.last_calc.outputs.retrieved.open("out_potential"))
+            with self.ctx.last_calc.outputs.retrieved.open("out_potential") as f:
+                self.ctx.efermi = get_ef_from_potfile(f)
             emax = self.ctx.dos_params["emax"]
             if emax < self.ctx.efermi + self.ctx.delta_e*eV2Ry:
                 self.ctx.dos_params["emax"] = self.ctx.efermi + \
@@ -1558,16 +1558,7 @@ Can be skipped if a previous KkrCalculation is given with the `remote_data` inpu
                     )
                 )
 
-            # take subset of input and prepare parameter node for dos workflow
-            wfdospara_dict = {
-                "queue_name": self.ctx.queue,
-                "resources": self.ctx.resources,
-                "max_wallclock_seconds": self.ctx.max_wallclock_seconds,
-                "withmpi": self.ctx.withmpi,
-                "custom_scheduler_commands": self.ctx.custom_scheduler_commands,
-                "dos_params": self.ctx.dos_params
-            }
-            wfdospara_node = Dict(dict=wfdospara_dict)
+            wfdospara_node = Dict(dict=self.ctx.dos_params)
             wfdospara_node.label = "DOS params"
             wfdospara_node.description = "DOS parameter set for final DOS calculation of kkr_scf_wc"
 
