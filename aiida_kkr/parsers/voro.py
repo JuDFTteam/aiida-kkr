@@ -8,12 +8,10 @@ from aiida.common.exceptions import InputValidationError
 from masci_tools.io.parsers.voroparser_functions import parse_voronoi_output
 import os
 
-
-__copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
-                 "IAS-1/PGI-1, Germany. All rights reserved.")
-__license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3.2"
-__contributors__ = ("Jens Broeder", "Philipp Rüßmann")
+__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__license__ = 'MIT license, see LICENSE.txt file'
+__version__ = '0.3.2'
+__contributors__ = ('Jens Broeder', 'Philipp Rüßmann')
 
 
 class VoronoiParser(Parser):
@@ -61,10 +59,7 @@ class VoronoiParser(Parser):
 
         # we need at least the output file name as defined in calcs.py
         if VoronoiCalculation._OUTPUT_FILE_NAME not in list_of_files:
-            self.logger.error(
-                "Output file '{}' not found"
-                .format(VoronoiCalculation._OUTPUT_FILE_NAME)
-            )
+            self.logger.error("Output file '{}' not found".format(VoronoiCalculation._OUTPUT_FILE_NAME))
             return self.exit_codes.ERROR_NO_OUTPUT_FILE
 
         # Parse voronoi output, results that are stored in database are in out_dict
@@ -81,45 +76,35 @@ class VoronoiParser(Parser):
                     potfile = fhandle.name
             else:
                 file_errors.append(
-                    "Critical error! Neither potfile {}  not {} "
-                    "was found"
-                    .format(VoronoiCalculation._OUT_POTENTIAL_voronoi,
-                            VoronoiCalculation._POTENTIAL_IN_OVERWRITE)
+                    'Critical error! Neither potfile {}  not {} '
+                    'was found'.format(
+                        VoronoiCalculation._OUT_POTENTIAL_voronoi, VoronoiCalculation._POTENTIAL_IN_OVERWRITE
+                    )
                 )
                 potfile = 'file_not_found'
         if VoronoiCalculation._OUTPUT_FILE_NAME in out_folder.list_object_names():
             with out_folder.open(VoronoiCalculation._OUTPUT_FILE_NAME) as fhandle:
                 outfile = fhandle.name
         else:
-            file_errors.append(
-                "Critical error! outfile not found {}"
-                .format(VoronoiCalculation._OUTPUT_FILE_NAME)
-            )
+            file_errors.append('Critical error! outfile not found {}'.format(VoronoiCalculation._OUTPUT_FILE_NAME))
             outfile = 'file_not_found'
         if VoronoiCalculation._ATOMINFO in out_folder.list_object_names():
             with out_folder.open(VoronoiCalculation._ATOMINFO) as fhandle:
                 atominfo = fhandle.name
         else:
-            file_errors.append(
-                "Critical error! atominfo not found {}"
-                .format(VoronoiCalculation._ATOMINFO)
-            )
+            file_errors.append('Critical error! atominfo not found {}'.format(VoronoiCalculation._ATOMINFO))
             atominfo = 'file_not_found'
         if VoronoiCalculation._RADII in out_folder.list_object_names():
             with out_folder.open(VoronoiCalculation._RADII) as fhandle:
                 radii = fhandle.name
         else:
-            file_errors.append("Critical error! radii not found {}".format(
-                VoronoiCalculation._RADII))
+            file_errors.append('Critical error! radii not found {}'.format(VoronoiCalculation._RADII))
             radii = 'file_not_found'
         if VoronoiCalculation._INPUT_FILE_NAME in out_folder.list_object_names():
             with out_folder.open(VoronoiCalculation._INPUT_FILE_NAME) as fhandle:
                 inputfile = fhandle.name
         else:
-            file_errors.append(
-                "Critical error! inputfile not found {}"
-                .format(VoronoiCalculation._INPUT_FILE_NAME)
-            )
+            file_errors.append('Critical error! inputfile not found {}'.format(VoronoiCalculation._INPUT_FILE_NAME))
             inputfile = 'file_not_found'
         # initialize out_dict and parse output files
         out_dict = {'parser_version': self._ParserVersion}

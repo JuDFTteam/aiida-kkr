@@ -9,16 +9,16 @@ from aiida.engine import WorkChain, if_, ToContext
 from aiida.orm import load_node, Dict, WorkChainNode, Int, RemoteData
 from aiida_kkr.calculations import KkrCalculation, KkrimpCalculation
 from aiida_kkr.workflows import kkr_imp_sub_wc, kkr_flex_wc, kkr_imp_wc
-from aiida_kkr.tools.combine_imps import (create_combined_imp_info_cf, combine_potentials_cf,
-                                          get_zimp, get_host_structure, get_nspin_and_pot, combine_settings_ldau)
+from aiida_kkr.tools.combine_imps import (
+    create_combined_imp_info_cf, combine_potentials_cf, get_zimp, get_host_structure, get_nspin_and_pot,
+    combine_settings_ldau
+)
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
-
-__copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
-                 "IAS-1/PGI-1, Germany. All rights reserved.")
-__license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.3.1"
-__contributors__ = (u"Philipp Rüßmann")
+__copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__license__ = 'MIT license, see LICENSE.txt file'
+__version__ = '0.3.1'
+__contributors__ = (u'Philipp Rüßmann')
 
 
 class combine_imps_wc(WorkChain):
@@ -58,7 +58,6 @@ class combine_imps_wc(WorkChain):
             print(('Version of workflow: {}'.format(cls._workflowversion)))
         return cls._wf_default
 
-
     @classmethod
     def define(cls, spec):
         """
@@ -69,18 +68,33 @@ class combine_imps_wc(WorkChain):
         super(combine_imps_wc, cls).define(spec)
 
         # expose these inputs from sub-workflows
-        spec.expose_inputs(kkr_imp_sub_wc, namespace='scf', include=('kkrimp', 'options', 'wf_parameters',))
-        spec.expose_inputs(kkr_flex_wc,
-                           namespace='host_gf',
-                           include=('kkr', 'options', 'params_kkr_overwrite',), # expose only those port which are not set automatically
-                           namespace_options={'required': False, 'populate_defaults': False}, # this makes sure the kkr code input is not needed if gf_host_remote is provided and the entire namespace is omitted
-                          )
+        spec.expose_inputs(kkr_imp_sub_wc, namespace='scf', include=(
+            'kkrimp',
+            'options',
+            'wf_parameters',
+        ))
+        spec.expose_inputs(
+            kkr_flex_wc,
+            namespace='host_gf',
+            include=(
+                'kkr',
+                'options',
+                'params_kkr_overwrite',
+            ),  # expose only those port which are not set automatically
+            namespace_options={
+                'required': False,
+                'populate_defaults': False
+            },  # this makes sure the kkr code input is not needed if gf_host_remote is provided and the entire namespace is omitted
+        )
 
         # define the inputs of the workflow
 
         # mandatory inputs
-        spec.input("impurity1_output_node", required=True, valid_type=Dict, #TODO make validator for input node to make sure it is the output of kkr_imp_wc
-                   help="""
+        spec.input(
+            'impurity1_output_node',
+            required=True,
+            valid_type=Dict,  #TODO make validator for input node to make sure it is the output of kkr_imp_wc
+            help="""
 Output node of a single impurity calculation. This can be the output of either the `kkr_imp_wc`, `kkr_imp_sub_wc`
 workflows or of an `KkrimpCalculation`.
 
@@ -88,48 +102,69 @@ Use these output Dict nodes:
   * for `kkr_imp_wc`: single_imp_worlfow.outputs.workflow_info
   * for `kkr_imp_sub_wc`: single_imp_worlfow.outputs.workflow_info
   * for `KkrimpCalculation`: single_imp_worlfow.outputs.output_parameters
-""")
-        
-        spec.input("impurity2_output_node", required=True, valid_type=Dict,
-                   help="Output node of second single impurity calculation. See help string of `impurity1_output_node` for more details.")
-        
-        spec.input("offset_imp2", valid_type=Dict, required=True,
-                   help="""Offset of the secon impurity with respect to the first impurity.
-Can be given either via the 'vector' or the 'index' keys in the dictionary.
-The 'vector' option allows to give the offset vector in cartesian units and 
-the 'index' option allows to five the offset vector in units of the lattice 
-vectors of the host system's structure.""")
-        
-        spec.input("gf_host_remote", valid_type=RemoteData, required=False, #TODO add validator that makes sure this is not given together with the host_gf sub-workflow namespace
-                   help="""RemoteData node of pre-calculated host Green function (i.e. with kkr_flex_wc).
-If given then the writeout step of the host GF is omitted.""")
+"""
+        )
 
+        spec.input(
+            'impurity2_output_node',
+            required=True,
+            valid_type=Dict,
+            help=
+            'Output node of second single impurity calculation. See help string of `impurity1_output_node` for more details.'
+        )
+
+        spec.input(
+            'offset_imp2',
+            valid_type=Dict,
+            required=True,
+            help="""Offset of the secon impurity with respect to the first impurity.
+Can be given either via the 'vector' or the 'index' keys in the dictionary.
+The 'vector' option allows to give the offset vector in cartesian units and
+the 'index' option allows to five the offset vector in units of the lattice
+vectors of the host system's structure."""
+        )
+
+        spec.input(
+            'gf_host_remote',
+            valid_type=RemoteData,
+            required=
+            False,  #TODO add validator that makes sure this is not given together with the host_gf sub-workflow namespace
+            help="""RemoteData node of pre-calculated host Green function (i.e. with kkr_flex_wc).
+If given then the writeout step of the host GF is omitted."""
+        )
 
         # structure of the workflow
         spec.outline(
-            cls.start,                      # initialize workflow (set things in context and some consistency checks)
-            cls.create_big_cluster,         # combine imp clusters of the two imps
-            if_(cls.need_gf_run)(           # check if GF was given in input and can be reused
-                cls.run_gf_writeout),       # write out the host GF
+            cls.start,  # initialize workflow (set things in context and some consistency checks)
+            cls.create_big_cluster,  # combine imp clusters of the two imps
+            if_(cls.need_gf_run)(  # check if GF was given in input and can be reused
+                cls.run_gf_writeout
+            ),  # write out the host GF
             cls.check_host_gf,
-            cls.create_big_potential,       # combine preconverged potentials to big one
-            cls.run_kkrimp_scf,             # run the kkrimp_sub workflow to converge the host-imp startpot
-            cls.return_results)             # check if the calculation was successful and return the result nodes
-
+            cls.create_big_potential,  # combine preconverged potentials to big one
+            cls.run_kkrimp_scf,  # run the kkrimp_sub workflow to converge the host-imp startpot
+            cls.return_results
+        )  # check if the calculation was successful and return the result nodes
 
         # define the possible exit codes
-        spec.exit_code(999, 'ERROR_SOMETHING_WENT_WRONG',
-            message="ERROR: take a look")
-        spec.exit_code(900, 'ERROR_HOST_STRUCTURES_INCONSISTENT',
-            message="Host structures of impurity 1 and impurity 2 are not identical!")
-        spec.exit_code(800, 'ERROR_INPUT_NOT_SINGLE_IMP_CALC',
-            message="Impurity input is not a single impurity calculation.")
-        spec.exit_code(850, 'ERROR_INPLANE_NEIGHBOR_TOO_SMALL',
-            message="i_neighbor_inplane needs to be positive and bigger than 0 for in-plane neighbors")
-        spec.exit_code(950, 'ERROR_INCONSISTENT_NSPIN_VALUES',
-            message="The impurity calculations have different NSPIN values")
-        spec.exit_code(700, 'ERROR_HOST_GF_CALC_FAILED',
-            message="The writeout of the host GF failed")
+        spec.exit_code(999, 'ERROR_SOMETHING_WENT_WRONG', message='ERROR: take a look')
+        spec.exit_code(
+            900,
+            'ERROR_HOST_STRUCTURES_INCONSISTENT',
+            message='Host structures of impurity 1 and impurity 2 are not identical!'
+        )
+        spec.exit_code(
+            800, 'ERROR_INPUT_NOT_SINGLE_IMP_CALC', message='Impurity input is not a single impurity calculation.'
+        )
+        spec.exit_code(
+            850,
+            'ERROR_INPLANE_NEIGHBOR_TOO_SMALL',
+            message='i_neighbor_inplane needs to be positive and bigger than 0 for in-plane neighbors'
+        )
+        spec.exit_code(
+            950, 'ERROR_INCONSISTENT_NSPIN_VALUES', message='The impurity calculations have different NSPIN values'
+        )
+        spec.exit_code(700, 'ERROR_HOST_GF_CALC_FAILED', message='The writeout of the host GF failed')
         #TODO to fix this create_combined_imp_info_cf need to take the different layers into account
         # when the difference vector and the neighbors are created
 
@@ -140,8 +175,7 @@ If given then the writeout step of the host GF is omitted.""")
         spec.output('last_calc_remote')
         spec.output('remote_data_gf')
 
-
-    def start(self): # pylint: disable=inconsistent-return-statements
+    def start(self):  # pylint: disable=inconsistent-return-statements
         """
         prepare context and do some consistency checks
         """
@@ -156,43 +190,41 @@ If given then the writeout step of the host GF is omitted.""")
         host_structure2 = get_host_structure(self.ctx.imp2)
         #TODO this can be relaxed to make sure the same structure is used even if it is not the same node
         if host_structure1.uuid != host_structure2.uuid:
-            self.report("host structures inconsistent")
-            return self.exit_codes.ERROR_HOST_STRUCTURES_INCONSISTENT # pylint: disable=maybe-no-member
+            self.report('host structures inconsistent')
+            return self.exit_codes.ERROR_HOST_STRUCTURES_INCONSISTENT  # pylint: disable=maybe-no-member
 
         # save host structure in context
         self.ctx.host_structure = host_structure1
 
         # settings for offset between imps
         self.ctx.i_neighbor_inplane = self.inputs.offset_imp2['index']
-     
-    
+
     def get_imp_node_from_input(self, iimp=1):
         """
         extract impurty calculation from impurity output node of inputs
         """
-        if iimp==1:
+        if iimp == 1:
             imp_out = self.inputs.impurity1_output_node
         else:
             imp_out = self.inputs.impurity2_output_node
-        
+
         kkrimpcalc_parents = imp_out.get_incoming(node_class=KkrimpCalculation).all()
         if len(kkrimpcalc_parents) > 0:
             imp = kkrimpcalc_parents[0].node
         else:
             inc = imp_out.get_incoming(link_label_filter='workflow_info').all()
-            if len(inc)!=1:
-                self.report(f"input node of imp {iimp} inconsistent")
-                return self.exit_codes.ERROR_INPUT_NODE_INCONSISTENT # pylint: disable=maybe-no-member
+            if len(inc) != 1:
+                self.report(f'input node of imp {iimp} inconsistent')
+                return self.exit_codes.ERROR_INPUT_NODE_INCONSISTENT  # pylint: disable=maybe-no-member
             imp = inc[0].node
-        
+
         # consistency checks of input nodes
         # check if input calc was converged etc.
         if not self._check_input_imp(imp):
-            self.report(f"something wrong with imp {iimp}: {imp}")
-            return self.exit_codes.ERROR_SOMETHING_WENT_WRONG # pylint: disable=maybe-no-member
-        
+            self.report(f'something wrong with imp {iimp}: {imp}')
+            return self.exit_codes.ERROR_SOMETHING_WENT_WRONG  # pylint: disable=maybe-no-member
+
         return imp
-    
 
     def _check_input_imp(self, imp_calc_or_wf):
         """
@@ -206,28 +238,27 @@ If given then the writeout step of the host GF is omitted.""")
         else:
             # imp_calc_or_wf should be kkr_imp_wc or kkr_imp_sub_wc workflow
             if not isinstance(imp_calc_or_wf, WorkChainNode):
-                self.report("impurity_workflow not a WorkChainNode: {}".format(imp_calc_or_wf))
+                self.report('impurity_workflow not a WorkChainNode: {}'.format(imp_calc_or_wf))
                 return False
 
-            if not (imp_calc_or_wf.process_class==kkr_imp_wc or imp_calc_or_wf.process_class==kkr_imp_sub_wc):
-                self.report("impurity_workflow class is wrong: {}".format(imp_calc_or_wf))
+            if not (imp_calc_or_wf.process_class == kkr_imp_wc or imp_calc_or_wf.process_class == kkr_imp_sub_wc):
+                self.report('impurity_workflow class is wrong: {}'.format(imp_calc_or_wf))
                 return False
 
             # calculation should be converged
-            if imp_calc_or_wf.process_class==kkr_imp_wc:
+            if imp_calc_or_wf.process_class == kkr_imp_wc:
                 if not imp_calc_or_wf.outputs.workflow_info.get_dict().get('converged'):
-                    self.report("impurity_workflow not converged")
+                    self.report('impurity_workflow not converged')
                     return False
-            elif imp_calc_or_wf.process_class==kkr_imp_sub_wc:
+            elif imp_calc_or_wf.process_class == kkr_imp_sub_wc:
                 if not imp_calc_or_wf.outputs.workflow_info.get_dict().get('convergence_reached'):
-                    self.report("impurity_workflow not converged")
+                    self.report('impurity_workflow not converged')
                     return False
 
         # all checks passed
         return True
 
-
-    def create_big_cluster(self): # pylint: disable=inconsistent-return-statements
+    def create_big_cluster(self):  # pylint: disable=inconsistent-return-statements
         """
         combine imp clusters of the two imps
         """
@@ -236,32 +267,31 @@ If given then the writeout step of the host GF is omitted.""")
         impinfo2 = self.ctx.imp2.inputs.impurity_info
         host_structure = self.ctx.host_structure
 
-        self.report("create combined imp_info:")
-        self.report("host structure: {}".format(host_structure))
-        self.report("imp info 1: {}".format(impinfo1))
-        self.report("imp info 2: {}".format(impinfo2))
+        self.report('create combined imp_info:')
+        self.report('host structure: {}'.format(host_structure))
+        self.report('imp info 1: {}'.format(impinfo1))
+        self.report('imp info 2: {}'.format(impinfo2))
 
-        if self.inputs.offset_imp2['index']<0:
-            return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
-        if impinfo1['ilayer_center'] == impinfo2['ilayer_center'] and self.inputs.offset_imp2['index']<1:
-            return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
+        if self.inputs.offset_imp2['index'] < 0:
+            return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL  # pylint: disable=maybe-no-member
+        if impinfo1['ilayer_center'] == impinfo2['ilayer_center'] and self.inputs.offset_imp2['index'] < 1:
+            return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL  # pylint: disable=maybe-no-member
 
         # get zimp of imp1
         _, is_single_imp = self.get_and_check_zimp_list(impinfo1)
         if not is_single_imp:
-            return self.exit_codes.ERROR_INPUT_NOT_SINGLE_IMP_CALC # pylint: disable=maybe-no-member
+            return self.exit_codes.ERROR_INPUT_NOT_SINGLE_IMP_CALC  # pylint: disable=maybe-no-member
 
         # do the same for imp2
         _, is_single_imp = self.get_and_check_zimp_list(impinfo2)
         if not is_single_imp:
-            return self.exit_codes.ERROR_INPUT_NOT_SINGLE_IMP_CALC # pylint: disable=maybe-no-member
+            return self.exit_codes.ERROR_INPUT_NOT_SINGLE_IMP_CALC  # pylint: disable=maybe-no-member
 
         # create combined cluster, offset of second imp is extracted from i_neighbor_inplane
         out_dict = create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, self.inputs.offset_imp2)
 
         self.ctx.imp_info_combined = out_dict['imp_info_combined']
         self.ctx.kickout_info = out_dict['kickout_info']
-
 
     def get_and_check_zimp_list(self, impurity_info):
         """
@@ -272,11 +302,10 @@ If given then the writeout step of the host GF is omitted.""")
         zimp = get_zimp(impurity_info)
 
         # check if calculation is single imp calculation
-        if len(zimp)!=1:
+        if len(zimp) != 1:
             is_single_imp = False
 
         return zimp, is_single_imp
-
 
     def need_gf_run(self):
         """
@@ -287,12 +316,11 @@ If given then the writeout step of the host GF is omitted.""")
 
         return True
 
-
     def run_gf_writeout(self):
         """
         write out the host GF
         """
-        
+
         # create process builder for gf_writeout workflow
         builder = kkr_flex_wc.get_builder()
         builder.impurity_info = self.ctx.imp_info_combined
@@ -302,14 +330,19 @@ If given then the writeout step of the host GF is omitted.""")
             builder.options = self.inputs.host_gf.options
 
         if 'params_kkr_overwrite' in self.inputs.host_gf:
-            self.report("INFO: using params_kkr_overwrite in host_gf step: {}".format(self.inputs.host_gf.params_kkr_overwrite.get_dict()))
+            self.report(
+                'INFO: using params_kkr_overwrite in host_gf step: {}'.format(
+                    self.inputs.host_gf.params_kkr_overwrite.get_dict()
+                )
+            )
             builder.params_kkr_overwrite = self.inputs.host_gf.params_kkr_overwrite
 
         # find converged_host_remote input (converged potential of host system)
         gf_writeout_calc = None
         if self.ctx.imp1.process_class == KkrimpCalculation:
             #take gf_writeout directly from input to KkrimpCalculation
-            gf_writeout_calc = self.ctx.imp1.inputs.host_Greenfunction_folder.get_incoming(node_class=KkrCalculation).first().node
+            gf_writeout_calc = self.ctx.imp1.inputs.host_Greenfunction_folder.get_incoming(node_class=KkrCalculation
+                                                                                           ).first().node
         if self.ctx.imp1.process_class == kkr_imp_sub_wc:
             imp1_sub = self.ctx.imp1
         else:
@@ -321,8 +354,8 @@ If given then the writeout step of the host GF is omitted.""")
         # set label and description of the calc
         sub_label = 'GF writeout combined imps'
         sub_description = 'GF writeout sub workflow for combine_imps_wc '
-        builder.metadata.label = sub_label # pylint: disable=no-member
-        builder.metadata.description = sub_description # pylint: disable=no-member
+        builder.metadata.label = sub_label  # pylint: disable=no-member
+        builder.metadata.description = sub_description  # pylint: disable=no-member
 
         # now submit the workflow
         future = self.submit(builder)
@@ -331,14 +364,13 @@ If given then the writeout step of the host GF is omitted.""")
 
         return ToContext(gf_writeout=future)
 
-
     def check_host_gf(self):
         """
         Check if host gf is there
         """
         self.ctx.host_gf_ok = True
 
-        if self.need_gf_run(): # check only if the calculation was run
+        if self.need_gf_run():  # check only if the calculation was run
             if not self.ctx.gf_writeout.is_finished_ok:
                 self.ctx.host_gf_ok = False
 
@@ -347,8 +379,7 @@ If given then the writeout step of the host GF is omitted.""")
         if not self.ctx.host_gf_ok:
             return self.exit_codes.ERROR_HOST_GF_CALC_FAILED
 
-
-    def create_big_potential(self): # pylint: disable=inconsistent-return-statements
+    def create_big_potential(self):  # pylint: disable=inconsistent-return-statements
         """
         combine preconverged potentials to big one
         """
@@ -357,31 +388,32 @@ If given then the writeout step of the host GF is omitted.""")
         imp1 = self.ctx.imp1
         imp2 = self.ctx.imp2
         kickout_info = self.ctx.kickout_info
-        
+
         nspin1, pot_imp1 = get_nspin_and_pot(imp1)
         nspin2, pot_imp2 = get_nspin_and_pot(imp2)
-        
+
         # check consistency of nspin for the two calculations
         if nspin1 != nspin2:
-            return self.exit_codes.ERROR_INCONSISTENT_NSPIN_VALUES # pylint: disable=maybe-no-member
+            return self.exit_codes.ERROR_INCONSISTENT_NSPIN_VALUES  # pylint: disable=maybe-no-member
 
         # now combine potentials
         output_potential_sfd_node = combine_potentials_cf(kickout_info, pot_imp1, pot_imp2, Int(nspin1))
 
         self.ctx.combined_potentials = output_potential_sfd_node
 
-
     def run_kkrimp_scf(self):
         """
         run the kkrimp_sub workflow to converge the host-imp startpot
         """
 
-        self.report("run imp scf with combined potentials")
+        self.report('run imp scf with combined potentials')
 
         # construct process builder for kkrimp scf workflow
         builder = kkr_imp_sub_wc.get_builder()
-        builder.metadata.label = 'kkrimp scf combined imps' # pylint: disable=no-member
-        builder.metadata.description = 'scf workflow for combined impurities: {}, {}'.format(self.ctx.imp1.label, self.ctx.imp2.label) # pylint: disable=no-member
+        builder.metadata.label = 'kkrimp scf combined imps'  # pylint: disable=no-member
+        builder.metadata.description = 'scf workflow for combined impurities: {}, {}'.format(
+            self.ctx.imp1.label, self.ctx.imp2.label
+        )  # pylint: disable=no-member
 
         # add combined impurity-info and startpot
         builder.impurity_info = self.ctx.imp_info_combined
@@ -400,7 +432,7 @@ If given then the writeout step of the host GF is omitted.""")
             builder.options = self.inputs.scf.options
         if 'wf_parameters' in self.inputs.scf:
             builder.wf_parameters = self.inputs.scf.wf_parameters
-            
+
         # take care of LDA+U settings
         add_ldausettings, settings_LDAU_combined = self.get_ldau_combined()
         self.report(f'add LDA+U settings? {add_ldausettings}')
@@ -411,52 +443,60 @@ If given then the writeout step of the host GF is omitted.""")
         # now submit workflow
         future = self.submit(builder)
 
-        self.report("INFO: running kkrimp scf workflow for combined impts (uuid= {})".format(future.uuid))
+        self.report('INFO: running kkrimp scf workflow for combined impts (uuid= {})'.format(future.uuid))
 
         return ToContext(kkrimp_scf_sub=future)
-        
-        
+
     def get_ldau_combined(self):
         """
         check if impurity input calculations have LDA+U settings in input and add this here if needed
         """
-        
+
         imp1_has_ldau = 'settings_LDAU' in self.ctx.imp1.inputs
         if imp1_has_ldau:
-            settings_LDAU1 =  self.ctx.imp1.inputs.settings_LDAU
+            settings_LDAU1 = self.ctx.imp1.inputs.settings_LDAU
             self.report('found LDA+U settings for imp1')
-            
+
         imp2_has_ldau = 'settings_LDAU' in self.ctx.imp2.inputs
         if imp2_has_ldau:
-            settings_LDAU2 =  self.ctx.imp2.inputs.settings_LDAU
+            settings_LDAU2 = self.ctx.imp2.inputs.settings_LDAU
             self.report('found LDA+U settings for imp1')
-        
+
         if imp1_has_ldau and imp2_has_ldau:
             # combine LDA+U settings of the two imps
-            settings_LDAU_combined = combine_settings_ldau(settings_LDAU1=settings_LDAU1,
-                                                           retrieved1=self.ctx.imp1.outputs.retrieved,
-                                                           settings_LDAU2=settings_LDAU2,
-                                                           retrieved2=self.ctx.imp2.outputs.retrieved,
-                                                           kickout_info=self.ctx.kickout_info)
+            settings_LDAU_combined = combine_settings_ldau(
+                settings_LDAU1=settings_LDAU1,
+                retrieved1=self.ctx.imp1.outputs.retrieved,
+                settings_LDAU2=settings_LDAU2,
+                retrieved2=self.ctx.imp2.outputs.retrieved,
+                kickout_info=self.ctx.kickout_info
+            )
         elif imp1_has_ldau:
             # use only LDA+U settings of imp 1
-            settings_LDAU_combined = combine_settings_ldau(settings_LDAU1=settings_LDAU1,
-                                                           retrieved1=self.ctx.imp1.outputs.retrieved, 
-                                                           kickout_info=self.ctx.kickout_info)
+            settings_LDAU_combined = combine_settings_ldau(
+                settings_LDAU1=settings_LDAU1,
+                retrieved1=self.ctx.imp1.outputs.retrieved,
+                kickout_info=self.ctx.kickout_info
+            )
         elif imp2_has_ldau:
             # add offset to atom index for combined LDA+U settings
-            settings_LDAU_combined = combine_settings_ldau(settings_LDAU2=settings_LDAU2,
-                                                           retrieved2=self.ctx.imp2.outputs.retrieved,
-                                                           kickout_info=self.ctx.kickout_info)
+            settings_LDAU_combined = combine_settings_ldau(
+                settings_LDAU2=settings_LDAU2,
+                retrieved2=self.ctx.imp2.outputs.retrieved,
+                kickout_info=self.ctx.kickout_info
+            )
         else:
             # return builder unchanged if none of the impurt calculations has LDA+U settings
             return False, {}
-        
-        # now add settings_LDAU input to builder
-        self.report('add combined LDAU settings (uuid={}): {}'.format(settings_LDAU_combined.uuid, settings_LDAU_combined.get_dict()))
-        
-        return True, settings_LDAU_combined
 
+        # now add settings_LDAU input to builder
+        self.report(
+            'add combined LDAU settings (uuid={}): {}'.format(
+                settings_LDAU_combined.uuid, settings_LDAU_combined.get_dict()
+            )
+        )
+
+        return True, settings_LDAU_combined
 
     def return_results(self):
         """
@@ -476,7 +516,7 @@ If given then the writeout step of the host GF is omitted.""")
         out_dict['workflow_version'] = self._workflowversion
 
         # collect info of sub workflow
-        out_dict['sub_workflows'] = {'kkrimp_scf': {'pk': kkrimp_scf_sub.pk, 'uuid':kkrimp_scf_sub.uuid}}
+        out_dict['sub_workflows'] = {'kkrimp_scf': {'pk': kkrimp_scf_sub.pk, 'uuid': kkrimp_scf_sub.uuid}}
 
         # collect some results from scf sub-workflow
         for key in ['successful', 'convergence_value', 'convergence_reached', 'convergence_values_all_steps']:
@@ -492,7 +532,6 @@ If given then the writeout step of the host GF is omitted.""")
 
             # add info about sub-workflow to dict output
             out_dict['sub_workflows']['host_gf'] = {'pk': gf_writeout.pk, 'uuid': gf_writeout.uuid}
-        
 
         # add information on combined cluster and potential
         out_dict['imp_info_combined'] = self.ctx.imp_info_combined.get_dict()
@@ -510,4 +549,3 @@ If given then the writeout step of the host GF is omitted.""")
         self.out('last_potential', last_pot)
         self.out('last_calc_remote', last_remote)
         self.out('last_calc_output_parameters', last_output_params)
-
