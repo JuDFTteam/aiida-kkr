@@ -28,7 +28,6 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     from aiida.orm import Code, load_node, Dict, StructureData, Computer
     from aiida.plugins import DataFactory
     from aiida.orm.querybuilder import QueryBuilder
-    from aiida.tools.importexport import import_data
     from masci_tools.io.kkr_params import kkrparams
     from aiida_kkr.workflows.bs import kkr_bs_wc
     import numpy as np
@@ -71,7 +70,7 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     descr = 'testing bs workflow for Cu bulk'
 
     # import calculation which is used as parent calculation
-    import_data('files/db_dump_bs/db_dump_kkrcalc_bs.tar.gz', silent=True)
+    import_with_migration('files/db_dump_bs/db_dump_kkrcalc_bs.tar.gz')
     kkr_calc_remote = load_node('d5782162-8393-4212-9340-c8ee8b725474').outputs.remote_folder
 
     # now set up process builder

@@ -9,7 +9,6 @@ if __name__!='__main__':
     from ..conftest import kkrimp_local_code, kkrhost_local_code, test_dir, data_dir
 from aiida.orm import load_node, Dict
 from aiida_kkr.workflows import combine_imps_wc
-from aiida.tools.importexport import import_data
 
 
 def write_graph(node, label=''):
@@ -27,7 +26,7 @@ def write_graph(node, label=''):
 
 def get_single_imp_inputs():
     # import single imp calculations
-    imported_nodes = import_data(test_dir/'data_dir/kkr_imp_wc-nodes-1e7804d6388fea2ca1e492d2f1a148c8.tar.gz', silent=True)['Node']
+    imported_nodes = import_with_migration(test_dir/'data_dir/kkr_imp_wc-nodes-1e7804d6388fea2ca1e492d2f1a148c8.tar.gz')['Node']
     for _, pk in imported_nodes['new']+imported_nodes['existing']:
         node = load_node(pk)
         if node.label=='kkrimp_scf full Cu host_in_host':
@@ -118,7 +117,7 @@ def test_combine_imps_reuse_gf(clear_database_before_test, kkrhost_local_code, k
     """
 
     # import previous combine_imps workflow and reuse the host GF
-    imported_nodes = import_data(test_dir/'data_dir/combine_imps_wc-nodes-76b8a1118abf371e7948b7ef15bf6e55.tar.gz', silent=True)['Node']
+    imported_nodes = import_with_migration(test_dir/'data_dir/combine_imps_wc-nodes-76b8a1118abf371e7948b7ef15bf6e55.tar.gz')['Node']
     for _, pk in imported_nodes['new']+imported_nodes['existing']:
         node = load_node(pk)
         if node.label == 'test_combine_imps':

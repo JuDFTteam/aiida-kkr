@@ -100,7 +100,7 @@ else
 
   if [[ ! -z "$RUN_VORONOI" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run vorostart workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_vorostart_workflow $addopt
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k test_kkr_startpot_parent_KKR $addopt
   else
     echo "skipping vorostart workflow test"
   fi

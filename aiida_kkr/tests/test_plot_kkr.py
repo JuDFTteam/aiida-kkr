@@ -33,8 +33,7 @@ class Test_plot_kkr(object):
 
     @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='qdos.png', remove_text=True)
     def test_plot_qdos(self):
-        from aiida.tools.importexport import import_data
-        import_data('files/db_dump_kkrcalc_qdos.tar.gz', silent=True)
+        import_with_migration('files/db_dump_kkrcalc_qdos.tar.gz')
         basic_test('a0d0d29f-7b22-4ca4-ba55-6b97569d94af', strucplot=False, noshow=True)
         return gcf()
 
@@ -72,11 +71,10 @@ def basic_test(node_id, **kwargs):
             load_node(node_id)
     except NotExistent:
         print('Node not yet in database. Import test database')
-        from aiida.tools.importexport import import_data
-        import_data('files/export_kkr_eos.tar.gz', silent=True)
-        import_data('files/export_kkr_startpot.tar.gz', silent=True)
-        import_data('files/export_kkr_dos.tar.gz', silent=True)
-        import_data('files/export_kkr_scf.tar.gz', silent=True)
+        import_with_migration('files/export_kkr_eos.tar.gz')
+        import_with_migration('files/export_kkr_startpot.tar.gz')
+        import_with_migration('files/export_kkr_dos.tar.gz')
+        import_with_migration('files/export_kkr_scf.tar.gz')
 
     # now clear old figure and do plotting
     gcf().clear()

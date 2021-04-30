@@ -39,8 +39,7 @@ def test_kkrimp_full_wc(clear_database_before_test, voronoi_local_code, kkrhost_
     imp_info = Dict(dict={'Rcut':2.5533, 'ilayer_center': 0, 'Zimp':[30.]})
 
     # import parent calculation (converged host system)
-    from aiida.tools.importexport import import_data
-    import_data('files/db_dump_kkrflex_create.tar.gz', silent=True)
+    import_with_migration('files/db_dump_kkrflex_create.tar.gz')
     kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').outputs.remote_folder
 
     # give workflow label and description
@@ -105,8 +104,7 @@ def test_kkrimp_full_Ag_Cu_onsite(clear_database_before_test, voronoi_local_code
     imp_info = Dict(dict={'Rcut':3.5, 'ilayer_center': 0, 'Zimp':[47.]})
 
     # import parent calculation (converged host system)
-    from aiida.tools.importexport import import_data
-    imported_nodes = import_data('data_dir/kkr_scf_wc-nodes-54077494de2cea64907bd7e46c816247.tar.gz', silent=True)['Node']
+    imported_nodes = import_with_migration('data_dir/kkr_scf_wc-nodes-54077494de2cea64907bd7e46c816247.tar.gz')['Node']
     for _, pk in imported_nodes['new']+imported_nodes['existing']:
         node = load_node(pk)
         if node.label=='KKR-scf for Cu bulk':

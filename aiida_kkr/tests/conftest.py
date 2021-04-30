@@ -247,3 +247,34 @@ def generate_remote_data():
         return remote
 
     return _generate_remote_data
+
+
+def import_with_migration(archive_path):
+    """Import aiida export file and try migration if version is incompatible"""
+    from aiida.tools.importexport import (
+        detect_archive_type, EXPORT_VERSION, import_data, IncompatibleArchiveVersionError
+    )
+    from aiida.tools.importexport.archive.migrators import get_migrator
+    from aiida.common.folders import SandboxFolder
+    import_kwargs = dict(extras_mode_existing='nnl', silent=True)
+    try:
+        imported_nodes = import_data(archive_path, **import_kwargs)
+    except IncompatibleArchiveVersionError as exception:
+        print(f'incompatible version detected for import file, trying migration')
+        with SandboxFolder() as temp_folder:
+            try:
+                migrator = get_migrator(detect_archive_type(archive_path))(archive_path)
+                archive_path = migrator.migrate(
+                    EXPORT_VERSION, None, out_compression='none', work_dir=temp_folder.abspath
+                )
+            except Exception as exception:
+                print(f'an exception occurred while migrating the archive', exception)
+            
+            print('proceeding with import of migrated archive')
+            try:
+                imported_nodes = import_data(archive_path, **import_kwargs)
+            except Exception as exception:
+                print(
+                    f'an exception occurred while trying to import the migrated archive', exception
+                )
+    return imported_nodes

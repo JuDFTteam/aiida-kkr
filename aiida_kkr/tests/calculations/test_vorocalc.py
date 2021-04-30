@@ -5,7 +5,7 @@ from __future__ import division
 from __future__ import absolute_import
 from builtins import object
 from aiida_kkr.tests.dbsetup import *
-from ..conftest import voronoi_local_code, test_dir, data_dir
+from ..conftest import voronoi_local_code, test_dir, data_dir, import_with_migration
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 import pytest
@@ -118,8 +118,7 @@ def test_voronoi_after_kkr(aiida_profile, voronoi_local_code, run_with_cache, no
     from aiida_kkr.calculations.voro import VoronoiCalculation
 
     # load necessary files from db_dump files
-    from aiida.tools.importexport import import_data
-    import_data(test_dir/'files/db_dump_kkrcalc.tar.gz', silent=True)
+    import_with_migration(test_dir/'files/db_dump_kkrcalc.tar.gz')
 
     # first load parent voronoi calculation
     kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')

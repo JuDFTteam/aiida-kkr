@@ -32,8 +32,7 @@ def test_kkrimp_sub_wc(clear_database_before_test, kkrimp_local_code, run_with_c
     options = Dict(dict=options)
 
     # import previous GF writeout
-    from aiida.tools.importexport import import_data
-    import_data('files/db_dump_kkrflex_create.tar.gz', silent=True)
+    import_with_migration('files/db_dump_kkrflex_create.tar.gz')
     GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
 
     # now create a SingleFileData node containing the impurity starting potential

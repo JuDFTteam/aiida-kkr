@@ -9,6 +9,7 @@ import pytest
 from six.moves import range
 from numpy import sort
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
+from .conftest import import_with_migration
 
 
 @pytest.mark.usefixtures("aiida_profile")
@@ -30,7 +31,7 @@ class Test_common_workfunctions(object):
         generate_inputcard_from_structure(p, s, fhandle)
         txt = open('inputcard', 'r').readlines() # from path
         txt2 = open('inputcard2', 'r').readlines() # from fhandle
-        ref = ['ALATBASIS= 1.889726125458\n',
+        ref = ['ALATBASIS= 1.889726124626\n',
                'BRAVAIS\n',
                '0.500000000000 0.500000000000 0.000000000000\n',
                '1.000000000000 0.000000000000 0.000000000000\n',
@@ -144,11 +145,10 @@ class Test_common_workfunctions(object):
     def test_kick_out_corestates_wf(self):
         from aiida_kkr.tools.common_workfunctions import kick_out_corestates_wf
         from aiida.orm import load_node, Float
-        from aiida.tools.importexport import import_data
         from masci_tools.io.parsers.kkrparser_functions import get_corestates_from_potential
         import numpy as np
 
-        import_data('files/kick_out_corestates_input.tar.gz', silent=True)
+        import_with_migration('files/kick_out_corestates_input.tar.gz')
         sfd_potential_node = load_node('933ddebb-e72f-43b0-aca5-cd0a109da75f')
         emin_node = Float(-1.2)
         pot_removed_core = kick_out_corestates_wf(sfd_potential_node, emin_node)
