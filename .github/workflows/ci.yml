@@ -64,6 +64,13 @@ jobs:
 
     - name: Run pytest
       run: |
+        cd aiida_kkr/tests/
+        # fake installations of the JuKKR codes
+        mkdir -p jukkr/build_new_kkrhost/
+        touch jukkr/build_new_kkrhost/kkr.x && chmod +x jukkr/build_new_kkrhost/kkr.x
+        touch jukkr/voronoi.exe && chmod +x jukkr/voronoi.exe
+        touch jukkr/kkrflex.exe && chmod +x jukkr/kkrflex.exe
+        # run all (tools, calculations, workflows) tests using caching of the results
         export RUN_ALL='yes'
-        cd aiida_kkr/tests/ && ./run_all.sh
+        ./run_all.sh
 
