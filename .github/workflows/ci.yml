@@ -58,7 +58,7 @@ jobs:
 
     - name: Install aiida-kkr
       run: |
-        pip install .
+        pip install .[testing]
         reentry scan
         pip freeze
 

@@ -41,7 +41,10 @@
             "yapf==0.24.0",
             "prospector==0.12.11",
             "pylint==1.9.3"
-        ]
+        ],
+	"testing": [
+	    "aiida-testing @ git+https://github.com/broeder-j/aiida-testing.git@42510e11d404a78877b9925bf22a39e3936181e4"
+	]
     },
     "entry_points": {
         "aiida.calculations": [
