@@ -8,11 +8,7 @@ from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, l
 from ..conftest import voronoi_local_code, kkrhost_local_code
 from ..conftest import import_with_migration, data_dir
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
-
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
-
-# change kkr_condename for testing (on mac)
-kkr_codename = 'kkrhost_intel19'
 
 
 @pytest.mark.timeout(240, method='thread')
@@ -25,6 +21,7 @@ def test_dos_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cach
     from aiida.orm import Computer
     from aiida.orm.querybuilder import QueryBuilder
     from masci_tools.io.kkr_params import kkrparams
+    from aiida_kkr.calculations import KkrCalculation
     from aiida_kkr.workflows.dos import kkr_dos_wc
     from numpy import array
 
@@ -69,6 +66,8 @@ def test_dos_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cach
     out, node = run_with_cache(builder, data_dir=data_dir)
 
     # check outcome
+    print('check outputs', node.exit_status, out)
+    print(node.get_outgoing(node_class=KkrCalculation).first().node.outputs.retrieved.list_object_names())
     n = out['results_wf']
     n = n.get_dict()
     assert n.get('successful')

@@ -16,9 +16,6 @@ from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_l
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 from six.moves import range
 
-# change kkr_condename for testing (on mac)
-#kkr_codename = 'kkrhost_intel19'
-
 @pytest.mark.timeout(240, method='thread')
 def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache):
     """
@@ -47,22 +44,6 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     wfbs['tempr'] = 50.0
     params_bs = Dict(dict=wfbs)
 
-    # preparation for computer and code
-    #kkr_codename = 'kkr'
-    #computername = 'claix18_init'
-    #
-    # # for runing in cluster or remote computer and should be rewiten for diferent computer
-    # options1 = {'max_wallclock_seconds': 36000,'resources':
-    #             {'tot_num_mpiprocs': 48, 'num_machines': 1},
-    #             'custom_scheduler_commands':
-    #             '#SBATCH --account=jara0191\n\nulimit -s unlimited; export OMP_STACKSIZE=2g',
-    #             'withmpi':
-    #             True}
-    # options = Dict(dict=options1)
-
-    # # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
-    # KKRCode = Code.get_from_string(kkr_codename+'@'+computername)
-
     # for runing in local computer
     options2 = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'withmpi' : False, 'custom_scheduler_commands' : ''}
     options = Dict(dict=options2)
@@ -89,6 +70,7 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     out, _ = run_with_cache(builder, data_dir=data_dir)
 
     # check results
+    print('check results', out)
     n = out['results_wf']
     n = n.get_dict()
     assert n.get('successful')

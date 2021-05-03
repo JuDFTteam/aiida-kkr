@@ -71,7 +71,4 @@ jobs:
         touch jukkr/voronoi.exe && chmod +x jukkr/voronoi.exe
         touch jukkr/kkrflex.exe && chmod +x jukkr/kkrflex.exe
         # run all (tools, calculations, workflows) tests using caching of the results
-        # with run all tests except the workflows
-        ./run_all.sh
-        # then run the workflows
-        #SKIP_NOWORK='yes' RUN_VORONOI='yes' RUN_KKRHOST='yes' RUN_KKRIMP='yes' ./run_all
+        RUN_ALL='yes' ./run_all.sh

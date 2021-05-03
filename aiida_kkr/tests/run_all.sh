@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash -ex
 export AIIDA_PATH='.';
 mkdir -p '.aiida';
 
@@ -75,10 +75,9 @@ echo
 if [[ ! -z "$RUN_ALL" ]]; then
   echo "run all tests (first non-workflow tests, then workflow tests)"
   pytest --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr --mpl -p no:warnings $addopt --ignore=workflows
+
   # now workflow tests
   pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr workflows/ $addopt
-  #pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr workflows/ --ignore=workflows/test_kkrimp_full_wc.py $addopt
-  #pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr workflows/test_kkrimp_full_wc.py $addopt
 else
   # tests without running actual calculations
   if [[ -z "$SKIP_NOWORK" ]] && [[ -z "$NO_RMQ" ]]; then
@@ -100,7 +99,8 @@ else
 
   if [[ ! -z "$RUN_VORONOI" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run vorostart workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k test_kkr_startpot_parent_KKR $addopt
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr ./workflows/test_vorostart_wc.py -k test_kkr_startpot_parent_KKR $addopt
+
   else
     echo "skipping vorostart workflow test"
   fi
@@ -109,27 +109,23 @@ else
 
   if [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run kkr_dos workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_dos_workflow $addopt
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr ./workflows/test_dos_wc.py $addopt
   else
     echo "skipping kkr_dos workflow test"
   fi
   if [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run kkr_gf_writeout workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_gf_writeout_workflow $addopt
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr ./workflows/test_gf_writeout_wc.py $addopt
   else
     echo "skipping kkr_gf_writeout workflow test"
   fi
   if [[ ! -z "$RUN_VORONOI" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
-    echo "run kkr_scf workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_scf_workflow $addopt
+    echo "run voro_start, kkr_scf and eos workflow tests"
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr ./workflows/test_vorostart_wc.py -k test_kkr_startpot_wc_Cu $addopt
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr ./workflows/test_scf_wc_simple.py $addopt
+    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr ./workflows/test_eos.py $addopt
   else
-    echo "skipping kkr_scf workflow test"
-  fi
-  if [[ ! -z "$RUN_VORONOI" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
-    echo "run kkr_eos workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_eos_workflow $addopt
-  else
-    echo "skipping kkr_eos workflow test"
+    echo "skipping voro_start, kkr_scf and eos workflow tests"
   fi
 
   # tests using kkrimp (and kkrhost/voronoi)

@@ -194,7 +194,7 @@ def kkrhost_local_code(reuse_local_code):
     Create or load KKRhost code
     """
     executable = 'kkr.x' # name of the KKRhost executable
-    exec_rel_path = 'jukkr/build_new_kkrhost/'   # location where it is found
+    exec_rel_path = 'jukkr/'   # location where it is found
     entrypoint = 'kkr.kkr'  # entrypoint
     # prepend text to be added before execution
     prepend_text = """
