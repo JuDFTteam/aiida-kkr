@@ -620,7 +620,7 @@ class KkrCalculation(CalcJob):
                 if 'KKRFLEX' in stripped_run_opts:
                     retrieve_kkrflex_files = True
         if retrieve_kkrflex_files:
-            if self.inputs.retrieve_kkrflex.value:
+            if 'retrieve_kkrfilex' in self.inputs and self.inputs.retrieve_kkrflex.value:
                 # retrieve all kkrflex files
                 add_files = self._ALL_KKRFLEX_FILES
             else:

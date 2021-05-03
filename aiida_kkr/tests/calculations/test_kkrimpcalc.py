@@ -5,6 +5,7 @@ from builtins import object
 import pytest
 from aiida_kkr.tests.dbsetup import *
 from aiida.manage.tests.pytest_fixtures import aiida_profile, clear_database, clear_database_after_test
+from ..conftest import import_with_migration
 
 # tests
 class Test_kkrimp_calculation(object):

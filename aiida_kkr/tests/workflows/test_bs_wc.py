@@ -11,6 +11,7 @@ import pytest
 from aiida_kkr.tests.dbsetup import *
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
 from ..conftest import voronoi_local_code, kkrhost_local_code, data_dir
+from ..conftest import import_with_migration
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 from six.moves import range
@@ -38,7 +39,7 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     StructureData = DataFactory('structure')
 
     # create workflow parameters
-    wfbs = kkr_bs_wc.get_wf_default()
+    wfbs = kkr_bs_wc.get_wf_defaults()
     wfbs['nepts'] = 12
     wfbs['emax'] = 5
     wfbs['emin'] = -10

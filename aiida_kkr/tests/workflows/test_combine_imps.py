@@ -9,6 +9,7 @@ if __name__!='__main__':
     from ..conftest import kkrimp_local_code, kkrhost_local_code, test_dir, data_dir
 from aiida.orm import load_node, Dict
 from aiida_kkr.workflows import combine_imps_wc
+from ..conftest import import_with_migration
 
 
 def write_graph(node, label=''):

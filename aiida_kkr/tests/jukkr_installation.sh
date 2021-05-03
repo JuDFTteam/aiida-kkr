@@ -52,4 +52,4 @@ else
 fi
 
 # finally add dir where the executables (of fakes) are found to the PATH
-cd jukkr/ && export PATH="$PWD:$PATH" && ..
+cd jukkr && export PATH="$PWD:$PATH" && ..
