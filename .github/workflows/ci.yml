@@ -53,7 +53,7 @@ jobs:
     - name: Upgrade pip and setuptools
       # It is crucial to update `setuptools` or the installation of `pymatgen` can break
       run: |
-        pip install --upgrade pip setuptools
+        pip install --upgrade pip setuptools wheel
         pip --version
 
     - name: Install aiida-kkr
@@ -66,9 +66,12 @@ jobs:
       run: |
         cd aiida_kkr/tests/
         # fake installations of the JuKKR codes
-        ./jukkr_installation.sh
-        # make sure kkr.x etc is found in the PATH (even necessary for the fakes)
-        cd jukkr && export PATH="$PWD:$PATH" && cd ..
+        # and make sure kkr.x etc is found in the PATH (even necessary for the fakes)
+        mkdir -p jukkr
+        cd jukkr && export PATH="$PWD:$PATH"
+        touch kkr.x; touch voronoi.exe; touch kkrflex.exe
+        chmod +x kkr.x voronoi.exe kkrflex.exe
+        cd ..
         # run all (tools, calculations, workflows) tests using caching of the results
         #RUN_ALL='yes' ./run_all.sh
         # for now KKRimp calculations do not cache properly and eos tests needs fixing
