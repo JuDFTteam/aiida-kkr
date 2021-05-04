@@ -78,8 +78,8 @@ jobs:
         # for now run voronoi calculations only, the rest needs fixing
         RUN_VORONOI='t' ./run_all.sh
     
-    - name: Upload code coverage report
-      run: |
-        cd aiida_kkr/tests/
-        pip install codecov
-        codecov
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v1
+      with:
+        fail_ci_if_error: true
+        verbose: true
