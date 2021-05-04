@@ -66,8 +66,9 @@ jobs:
       run: |
         cd aiida_kkr/tests/
         # fake installations of the JuKKR codes
-        # needs sourcing to set kkr.x etc in the PATH
-        source jukkr_installation.sh
+        ./jukkr_installation.sh
+        # make sure kkr.x etc is found in the PATH (even necessary for the fakes)
+        cd jukkr && export PATH="$PWD:$PATH" && cd ..
         # run all (tools, calculations, workflows) tests using caching of the results
         #RUN_ALL='yes' ./run_all.sh
         # for now KKRimp calculations do not cache properly and eos tests needs fixing

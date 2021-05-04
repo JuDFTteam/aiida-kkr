@@ -54,5 +54,6 @@ else
     echo ""
 fi
 
-# finally add dir where the executables (of fakes) are found to the PATH
-cd jukkr && export PATH="$PWD:$PATH" && cd ..
+echo 'To complete the installation make sure the executables (or fakes) are found in the PATH'
+echo 'the following command should work:'
+echo 'cd jukkr && export PATH="$PWD:$PATH" && cd ..'
