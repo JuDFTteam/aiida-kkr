@@ -77,3 +77,8 @@ jobs:
         #RUN_ALL='yes' ./run_all.sh
         # for now run voronoi calculations only, the rest needs fixing
         RUN_VORONOI='t' ./run_all.sh
+    
+    - name: Upload code coverage report
+      run: |
+        pip install codecov
+        codecov
