@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9', '3.8', '3.7', '3.6']
+        python-version: ['3.9', '3.8', '3.7']
 
     services:
       postgres:
@@ -58,7 +58,8 @@ jobs:
 
     - name: Install aiida-kkr
       run: |
-        pip install --use-feature=2020-resolver .[testing]
+        # install aiida-kkr with aiida-core 1.5.2 (used in the generation of the test files, to use 1.6 we need to update the test files or caching won't work)
+        pip install --use-feature=2020-resolver .[testing] -r requirements_aiida-core_1.5.txt
         reentry scan
         pip freeze
 
