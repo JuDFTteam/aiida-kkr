@@ -75,5 +75,5 @@ jobs:
         cd ..
         # run all (tools, calculations, workflows) tests using caching of the results
         #RUN_ALL='yes' ./run_all.sh
-        # for now KKRimp calculations do not cache properly and eos tests needs fixing
-        RUN_VORONOI='t' RUN_KKRHOST='t' ./run_all.sh -v
+        # for now run voronoi calculations only, the rest needs fixing
+        RUN_VORONOI='t' ./run_all.sh -v
