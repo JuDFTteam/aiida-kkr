@@ -21,7 +21,8 @@ def test_kkrflex_writeout_wc(clear_database_before_test, kkrhost_local_code, run
     import os
 
     # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
-    wfd =kkr_flex_wc.get_wf_defaults()
+    wfd = kkr_flex_wc.get_wf_defaults()
+    print(wfd)
     options = {'queue_name' : queuename, 'resources': {"num_machines": 1},'max_wallclock_seconds' : 5*60, 'custom_scheduler_commands' : '', 'withmpi' : False}
     options = Dict(dict=options)
 

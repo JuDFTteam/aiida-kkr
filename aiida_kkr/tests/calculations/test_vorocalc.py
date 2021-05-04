@@ -144,6 +144,10 @@ def test_voronoi_after_kkr(aiida_profile, voronoi_local_code, run_with_cache, no
     # now run calculation (or use cached results)
     if not nopytest:
         out, node = run_with_cache(builder, data_dir=data_dir)
+        print('cache_source:', node.get_hash())
+        print('cache_source:', node.get_cache_source())
+        print('code objects to hash:', node._get_objects_to_hash())
+        print('ignored attributes:', node._hash_ignored_attributes)
     else:
         from aiida.engine import run_get_node
         out, node = run_get_node(builder)

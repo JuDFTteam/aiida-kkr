@@ -16,8 +16,8 @@ while getopts fh option; do
 done
 
 if [[ -z "$install_jukkr" ]]; then
-echo "skip compiling code and use caching instead (still create fake files)"
     # fake installations
+    echo "skip compiling code and use caching instead (still create fake files)"
     mkdir -p jukkr/build_new_kkrhost/
     touch jukkr/build_new_kkrhost/kkr.x && chmod +x jukkr/build_new_kkrhost/kkr.x
     touch jukkr/voronoi.exe && chmod +x jukkr/voronoi.exe
@@ -26,6 +26,9 @@ else
     # clone jukkr repository
     git clone --depth 1 -b develop --single-branch gitlab@iffgit.fz-juelich.de:kkr/jukkr.git
     cd jukkr/
+
+    # select gcc8 environment
+    source compiler-select gcc8
    
     # now codes are build using gfortran and in serial
     # code executables will be placed inside the jukkr directory
@@ -47,9 +50,9 @@ else
     echo "build kkrimp"
     ./install.py --program=kkrimp --compiler=gfortran --parallelization=serial
     cd build/ && make -j4 && cp kkrflex.exe ../
-    cd ..
+    cd ../..
     echo ""
 fi
 
 # finally add dir where the executables (of fakes) are found to the PATH
-cd jukkr && export PATH="$PWD:$PATH" && ..
+cd jukkr && export PATH="$PWD:$PATH" && cd ..

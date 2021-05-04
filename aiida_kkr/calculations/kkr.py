@@ -214,6 +214,16 @@ class KkrCalculation(CalcJob):
             required=False,
             help="""KkrCalculation RemoteData folder from deci-out calculation"""
         )
+        spec.input(
+            'retrieve_kkrflex',
+            valid_type=Bool,
+            required=False,
+            default= lambda: Bool(True),
+            help="""For a GF writeout calculation, determine whether or not
+            the kkrflex_* files are copied to the retrieved (can clutter the
+            database) or are ony left in the remote folder."""
+        )
+
 
         # define outputs
         spec.output(
@@ -620,7 +630,7 @@ class KkrCalculation(CalcJob):
                 if 'KKRFLEX' in stripped_run_opts:
                     retrieve_kkrflex_files = True
         if retrieve_kkrflex_files:
-            if 'retrieve_kkrfilex' in self.inputs and self.inputs.retrieve_kkrflex.value:
+            if 'retrieve_kkrflex' in self.inputs and self.inputs.retrieve_kkrflex.value:
                 # retrieve all kkrflex files
                 add_files = self._ALL_KKRFLEX_FILES
             else:

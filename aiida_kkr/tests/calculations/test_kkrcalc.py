@@ -191,33 +191,17 @@ class Test_kkr_calculation(object):
         print(out)
 
 
-    '''
     def test_kkr_increased_lmax(self, clear_database_before_test, kkrhost_local_code, run_with_cache):
         """
         run kkr calculation from output of previous calculation but with increased lmax
         (done with auxiliary voronoi calculation which is imported here).
         """
-        from aiida.orm import load_node, CalcJobNode
+        from aiida.orm import load_node, CalcJobNode, Dict
         from aiida_kkr.calculations import KkrCalculation, VoronoiCalculation
 
         # import previous voronoi calc (ran with parent_KKR mode and increased LMAX in input params)
-        from aiida.tools.importexport import import_data
-        imported_nodes = import_data('data_dir/VoronoiCalculation-nodes-50d7a3deb099f6fe7b9874bc84058f7c.tar.gz')['Node']
-        imported_nodes = imported_nodes['new'] + imported_nodes['existing']
-        """
-        # find voronoi calculation with larges (imported) pk from imported nodes
-        voro_calc_pks = (0,0)
-        for node_pk, node_pk_import in imported_nodes:
-            node = load_node(node_pk_import)
-            node_pk = int(node_pk)
-            if isinstance(node, CalcJobNode):
-                if node.process_class == VoronoiCalculation:
-                    if voro_calc_pks[0]==0 or node_pk>voro_calc_pks[0]:
-                        voro_calc_pks = (node_pk, node_pk_import) 
-        # load voro calc
-        voro_with_kkr_input = load_node(voro_calc_pks[1])
-        """
-        voro_with_kkr_input = load_node('a7086813-929e-40b2-930f-a9c95d936985')
+        import_with_migration('files/export_kkr_lmax_change.tar.gz')
+        voro_with_kkr_input = load_node('4d92dc05-041f-422c-945d-dec1fb10301e')
 
         # extract KKR parameter from imported voronoi calc
         params_node = voro_with_kkr_input.inputs.parameters
@@ -227,7 +211,7 @@ class Test_kkr_calculation(object):
         builder = KkrCalculation.get_builder()
         builder.code = kkrhost_local_code
         builder.metadata.options = options
-        builder.parameters = params_node
+        builder.parameters = Dict(dict=params_node.get_dict())
         builder.parent_folder = voro_with_kkr_input.outputs.remote_folder
 
         # now run or load from cached data
@@ -263,7 +247,6 @@ class Test_kkr_calculation(object):
         input_remote = node.get_incoming(node_class=RemoteData).first().node
         v = input_remote.get_incoming().first().node
         assert 'parent_KKR' in [i.link_label for i in v.get_incoming()]
-    '''
 
 
     def test_kkr_gf_writeout_full_impcls(self, kkrhost_local_code, run_with_cache):

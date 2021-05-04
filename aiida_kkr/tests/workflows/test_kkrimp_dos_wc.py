@@ -26,8 +26,9 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
     
 
-    wfd =kkr_imp_dos_wc.get_wf_defaults()
+    wfd = kkr_imp_dos_wc.get_wf_defaults()
     wfd['clean_impcalc_retrieved'] = False # deactivate cleaning of unused data to regain cachability
+    print(wfd)
 
     options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'withmpi' : False, 'custom_scheduler_commands' : ''}
     options = Dict(dict=options)
@@ -66,6 +67,10 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     out, node = run_with_cache(builder, data_dir=data_dir)
     print(node)
     print(out)
+    from aiida.orm import WorkChainNode
+    for i in node.get_outgoing(node_class=WorkChainNode).all():
+        print(i.node, list(i.node.outputs))
+        
 
     assert 'last_calc_info' in list(out.keys())
     assert 'last_calc_output_parameters' in list(out.keys())

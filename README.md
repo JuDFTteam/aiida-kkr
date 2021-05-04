@@ -39,12 +39,18 @@ $ verdi quicksetup  # better to set up a new profile
 $ verdi calculation plugins  # should now show kkr.* entrypoints
 ```
 
-for developer version download the repository and install the downloaded version
+To install the developer version download the repository and install the downloaded version (see `setup.json` for a list of optional packages that are installed with the extras given in `[]`)
+
 ```shell
 $ git clone https://github.com/JuDFTteam/aiida-kkr.git
-$ pip install -e aiida-kkr
+$ pip install -e aiida-kkr[testing,devtools,docs]
 $ reentry scan -r aiida
 ```
+
+## Remarks about dependencies
+
+- for `aiida-core>=1.5,<1.6` make sure to use the requirements specified in `requirements_aiida-core_1.5.txt` (use `pip install -r requirements_aiida-core_1.5.txt aiida-kkr` for the installation to overwrite the aiida-core dependency)
+
 
 # Usage and Documentation
 

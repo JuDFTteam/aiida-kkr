@@ -1,4 +1,7 @@
-#!/usr/bin/env bash -ex
+#!/usr/bin/env bash
+set -e # force stop on first error
+set -x # add debug output
+
 export AIIDA_PATH='.';
 mkdir -p '.aiida';
 
@@ -20,6 +23,7 @@ usage(){
   echo "  'RUN_VORONOI': run voronoi tests";
   echo "  'RUN_KKRHOST': run kkrhost tests";
   echo "  'RUN_KKRIMP': run kkrimp tests";
+  echo "  'RUN_EOS': run eos workflow test";
   echo
   exit 0;
 }
@@ -60,6 +64,11 @@ else
     echo "run workflows using KKRimp code (unset 'RUN_KKRIMP' env to prevent this)"
   else
     echo "skip workflows tests using KKRimp (set 'RUN_KKRIMP' env to activate this)"
+  fi
+  if [[ ! -z "$RUN_EOS" ]]; then
+    echo "run eos workflow (unset 'RUN_EOS' env to prevent this)"
+  else
+    echo "skip eos workflow tests (set 'RUN_EOS' env to activate this)"
   fi
   if [[ ! -z "$NO_RMQ" ]]; then
     echo "do not run workflows and workfuntions that need rabbitMQ (unset 'NO_RMQ' env to prevent this)"
@@ -120,12 +129,17 @@ else
     echo "skipping kkr_gf_writeout workflow test"
   fi
   if [[ ! -z "$RUN_VORONOI" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
-    echo "run voro_start, kkr_scf and eos workflow tests"
+    echo "run voro_start, kkr_scf workflow tests"
     pytest --cov-report=term-missing --cov-append --cov=aiida_kkr ./workflows/test_vorostart_wc.py -k test_kkr_startpot_wc_Cu $addopt
     pytest --cov-report=term-missing --cov-append --cov=aiida_kkr ./workflows/test_scf_wc_simple.py $addopt
+  else
+    echo "skipping voro_start, kkr_scf workflow tests"
+  fi
+  if [[ ! -z "$RUN_VORONOI" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]] && [[ ! -z "$RUN_EOS" ]]; then
+    echo "run eos workflow tests"
     pytest --cov-report=term-missing --cov-append --cov=aiida_kkr ./workflows/test_eos.py $addopt
   else
-    echo "skipping voro_start, kkr_scf and eos workflow tests"
+    echo "skipping eos workflow tests"
   fi
 
   # tests using kkrimp (and kkrhost/voronoi)

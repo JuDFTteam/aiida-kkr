@@ -79,11 +79,15 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     kpts = d.get_array('Kpts')
     eng_points = d.get_array('energy_points')
     BlochSpectral = d.get_array('BlochSpectralFunction')
+    # if files need to be recreated, uncomment this
+    #np.save('files/db_dump_bs/test_spectral_new',      BlochSpectral)
+    #np.save('files/db_dump_bs/test_Kpts_new',          kpts)
+    #np.save('files/db_dump_bs/test_energy_points_new', eng_points)
 
     # Loading the data from the previous calc (run manually) with the same config
-    test_BSF = np.loadtxt('files/db_dump_bs/test_spectral')
-    test_Kpts = np.loadtxt('files/db_dump_bs/test_Kpts')
-    test_eng = np.loadtxt('files/db_dump_bs/test_energy_points')
+    test_BSF = np.load('files/db_dump_bs/test_spectral')
+    test_Kpts = np.load('files/db_dump_bs/test_Kpts')
+    test_eng = np.load('files/db_dump_bs/test_energy_points')
     # Define the error boundary
     dos_limt = abs(np.amin(BlochSpectral)*1E-2)
     eng_min = abs(np.amin(eng_points)*1E-7)
@@ -92,7 +96,7 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     shape_differ_BSF = np.shape(differ_BSF)
     # shape(differ_BSF) =~ (kpts*eng) =~ (y*x)
     for i in range(shape_differ_BSF[0]):
-        assert sum(abs(kpts[i,:] - test_Kpts[i,:] )) < 10**-7
+        assert sum(abs(kpts[i,:] - test_Kpts[i,:] )) < 1e-7
         for j in range(shape_differ_BSF[1]):
             # here to inspect the density validity
             assert dos_limt > abs(differ_BSF[i,j])

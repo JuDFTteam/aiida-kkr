@@ -65,7 +65,7 @@ class kkr_flex_wc(WorkChain):
         'ef_shift': 0.,  # set costum absolute E_F (in eV)
         'dos_run': False,  # activate a DOS run with the parameters given in the dos_params input
         'retrieve_kkrflex':
-        True,  # retrieve the DOS files or only keep them on the computer (move to KkrimpCalculation._DIRNAME_GF_UPLOAD on the remote computer's working dir), needs to use the same computer for GF writeout as for the KKRimp calculation!
+        True,  # retrieve the kkrflex_* files or only keep them on the computer (move to KkrimpCalculation._DIRNAME_GF_UPLOAD on the remote computer's working dir), needs to use the same computer for GF writeout as for the KKRimp calculation!
     }
     # add defaults of dos_params since they are passed onto that workflow
     _wf_default['dos_params'] = kkr_dos_wc.get_wf_defaults(silent=True)
