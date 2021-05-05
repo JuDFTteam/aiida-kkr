@@ -346,7 +346,7 @@ class plot_kkr(object):
             node_groups = self.group_nodes(nodes)
             for groupname in list(node_groups.keys()):
                 print('\n==================================================================')
-                print('Group of nodes: {}\n'.format(groupname))
+                print(f'Group of nodes: {groupname}\n')
                 # some settings for groups
                 if 'noshow' in list(kwargs.keys()):
                     _ = kwargs.pop('noshow')  # this is now removed from kwargs
@@ -402,13 +402,13 @@ class plot_kkr(object):
                 figure()
             if groupname in ['kkr', 'scf']:
                 subplot(2, 1, 1)
-                self.plot_kkr_single_node(node, only='rms', label='pk= {}'.format(node.pk), **kwargs)
+                self.plot_kkr_single_node(node, only='rms', label=f'pk= {node.pk}', **kwargs)
                 xlabel('')  # remove overlapping x label in upper plot
                 if not nolegend:
                     legend(fontsize='x-small')
                 title('')
                 subplot(2, 1, 2)
-                self.plot_kkr_single_node(node, only='neutr', label='pk= {}'.format(node.pk), **kwargs)
+                self.plot_kkr_single_node(node, only='neutr', label=f'pk= {node.pk}', **kwargs)
                 title('')  # remove duplicated plot title of lower plot
                 if not nolegend:
                     legend(fontsize='x-small')
@@ -524,9 +524,7 @@ class plot_kkr(object):
             self.plot_kkrimp_wc(node, **kwargs)
         else:
             raise TypeError(
-                'input node neither a `Calculation` nor a `WorkChainNode` (i.e. workflow): {} {}'.format(
-                    type(node), node
-                )
+                f'input node neither a `Calculation` nor a `WorkChainNode` (i.e. workflow): {type(node)} {node}'
             )
 
     ### helper functions (structure plot, rms plot, dos plot, data extraction ...) ###
@@ -569,7 +567,7 @@ class plot_kkr(object):
         outputs = outputs.all_nodes()
 
         # now print information about node
-        print('pk, uuid: {} {}'.format(node.pk, node.uuid))
+        print(f'pk, uuid: {node.pk} {node.uuid}')
         print('type:', type(node))
         print('label:', node.label)
         print('description:', node.description)
@@ -584,7 +582,7 @@ class plot_kkr(object):
         print('\noutputs:')
         pprint(outputs)
         try:
-            print('\nexit status: {} ({})'.format(node.exit_status, node.exit_message))
+            print(f'\nexit status: {node.exit_status} ({node.exit_message})')
         except:
             pass
         print()  # empty line at the end
@@ -634,7 +632,7 @@ class plot_kkr(object):
             ]:
                 if key in kwargs:
                     _ = kwargs.pop(key)
-            print("plotting structure using ase's `view` with kwargs={}".format(kwargs))
+            print(f"plotting structure using ase's `view` with kwargs={kwargs}")
 
             self.sview = view(ase_atoms, **kwargs)
 
@@ -830,7 +828,7 @@ class plot_kkr(object):
                 if logscale:
                     ax1.set_yscale('log')
             else:
-                raise ValueError('`only` can only be `rms or `neutr` but got {}'.format(only))
+                raise ValueError(f'`only` can only be `rms or `neutr` but got {only}')
         title(ptitle)
 
     def get_rms_kkrcalc(self, node, title=None):
@@ -987,7 +985,7 @@ class plot_kkr(object):
             if 'ptitle' in list(kwargs.keys()):
                 ptitle = kwargs.pop('ptitle')
             else:
-                ptitle = 'pk= {}'.format(node.pk)
+                ptitle = f'pk= {node.pk}'
             if 'newfig' in list(kwargs.keys()):
                 kwargs.pop('newfig')
 
@@ -1050,7 +1048,7 @@ class plot_kkr(object):
                             save_fig_to_file(kwargs, 'plot_kkr_out_bs.png')
                         else:
                             ef = check_output(
-                                'grep "Fermi energy" {}'.format(f.name.replace('qvec.dat', 'output.0.txt')),
+                                f"grep \"Fermi energy\" {f.name.replace('qvec.dat', 'output.0.txt')}",
                                 shell=True,
                                 text=True
                             )
@@ -1127,7 +1125,7 @@ class plot_kkr(object):
             if 'ptitle' in list(kwargs.keys()):
                 ptitle = kwargs.pop('ptitle')
             else:
-                ptitle = 'pk= {}'.format(node.pk)
+                ptitle = f'pk= {node.pk}'
 
             self.make_kkrimp_rmsplot([rms], [stot], [0], rms_goal, ptitle, **kwargs)
 
@@ -1187,7 +1185,7 @@ class plot_kkr(object):
         if 'ptitle' in list(kwargs.keys()):
             ptitle = kwargs.pop('ptitle')
         else:
-            ptitle = 'pk= {}'.format(node.pk)
+            ptitle = f'pk= {node.pk}'
 
         self.make_kkrimp_rmsplot(rms_all, stot_all, pks_all, rms_goal, ptitle, **kwargs)
 
@@ -1333,7 +1331,7 @@ class plot_kkr(object):
                     **kwargs
                 )
                 if ptitle is None:
-                    title('pk= {}'.format(node.pk))
+                    title(f'pk= {node.pk}')
                 else:
                     title(ptitle)
                 # maybe save as file
@@ -1379,7 +1377,7 @@ class plot_kkr(object):
             if 'ptitle' in list(kwargs.keys()):
                 ptitle = kwargs.pop('ptitle')
             else:
-                ptitle = 'pk= {}'.format(node.pk)
+                ptitle = f'pk= {node.pk}'
             self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
             title(ptitle)
             # maybe save as file
@@ -1434,7 +1432,7 @@ class plot_kkr(object):
             if show_cbar:
                 plt.colorbar()
 
-            plt.title('band structure from kkr_bs_wc (pk= {})'.format(node.pk))
+            plt.title(f'band structure from kkr_bs_wc (pk= {node.pk})')
 
             plt.xticks(ixlbl, sxlbl)
             plt.axhline(0, color='red', ls=':', lw=2)
@@ -1540,7 +1538,7 @@ class plot_kkr(object):
                 if abs((ecore_max[0] - ef_Ry) * get_Ry2eV() - emin) < 20:
                     axvline((ecore_max[0] - ef_Ry) * get_Ry2eV(), color='b', ls='--', label='ecore_max')
                 else:
-                    tit_add = '; E_core<=%.2feV' % ((ecore_max[0] - ef_Ry) * get_Ry2eV())
+                    tit_add = f'; E_core<={(ecore_max[0] - ef_Ry) * get_Ry2eV():.2f}eV'
                 if len(ecore_max) > 1:
                     [
                         axvline((i - ef_Ry) * get_Ry2eV(), color='b', ls='--')
@@ -1683,7 +1681,7 @@ class plot_kkr(object):
             if 'ptitle' in list(kwargs.keys()):
                 ptitle = kwargs.pop('ptitle')
             else:
-                ptitle = 'pk= {}'.format(node.pk)
+                ptitle = f'pk= {node.pk}'
             self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
             title(ptitle)
             # maybe save as file
@@ -1758,7 +1756,7 @@ class plot_kkr(object):
                         nofig=fig_open,
                         only='rms',
                         noshow=True,
-                        label='pk={}'.format(tmpnode.pk),
+                        label=f'pk={tmpnode.pk}',
                         subplot=(2, 1, 1),
                         **kwargs
                     )  # scf workflow, rms only
@@ -1776,7 +1774,7 @@ class plot_kkr(object):
                         nofig=True,
                         only='neutr',
                         noshow=True,
-                        label='pk={}'.format(tmpnode.pk),
+                        label=f'pk={tmpnode.pk}',
                         subplot=(2, 1, 2),
                         **kwargs
                     )  # scf workflow, rms only
@@ -1823,7 +1821,7 @@ class plot_kkr(object):
                 ie = e[m][0]
                 iv = v[m][0]
                 if not nolegend:
-                    annotate(s='pk={}'.format(pk), xy=(iv, ie))
+                    annotate(s=f'pk={pk}', xy=(iv, ie))
 
             # investigate fit quality by fitting without first/last datapoint
             if len(e) > 4:
@@ -1836,7 +1834,7 @@ class plot_kkr(object):
                 v01, e01, B1 = eos.fit()
 
                 print('# relative differences to full fit: V0, E0, B (without smallest volume)')
-                print('{} {} {}'.format(abs(1 - v01 / v0), abs(1 - e01 / e0), abs(1 - B1 / B)))
+                print(f'{abs(1 - v01 / v0)} {abs(1 - e01 / e0)} {abs(1 - B1 / B)}')
 
                 if len(e) > 5:
                     # also take out largest volume
@@ -1844,6 +1842,6 @@ class plot_kkr(object):
                     v02, e02, B2 = eos.fit()
 
                     print('\n# V0, E0, B (without smallest and largest volume)')
-                    print('{} {} {}'.format(abs(1 - v02 / v0), abs(1 - e02 / e0), abs(1 - B2 / B)))
+                    print(f'{abs(1 - v02 / v0)} {abs(1 - e02 / e0)} {abs(1 - B2 / B)}')
         except:
             pass  # do nothing if no eos data there

@@ -104,7 +104,7 @@ class kkr_decimation_wc(WorkChain):
         returns _wf_defaults
         """
         if not silent:
-            print('Version of workflow: {}'.format(self._workflowversion))
+            print(f'Version of workflow: {self._workflowversion}')
         return self._wf_default
 
     @classmethod
@@ -222,7 +222,7 @@ class kkr_decimation_wc(WorkChain):
         """
         init context and some parameters
         """
-        self.report('INFO: started KKR decimation workflow version {}' ''.format(self._workflowversion))
+        self.report(f'INFO: started KKR decimation workflow version {self._workflowversion}')
 
         ####### init    #######
 
@@ -234,11 +234,11 @@ class kkr_decimation_wc(WorkChain):
         for k, v in self._wf_default.items():
             if k not in wf_dict:
                 wf_dict[k] = v
-                self.report('INFO: using default parameter {}:{}'.format(k, v))
+                self.report(f'INFO: using default parameter {k}:{v}')
         for k, v in self._options_default.items():
             if k not in options_dict:
                 options_dict[k] = v
-                self.report('INFO: using default option {}:{}'.format(k, v))
+                self.report(f'INFO: using default option {k}:{v}')
 
         # get basic input parameters for setup of calculation
         self.ctx.nprinc = wf_dict.get('nprinc', self._wf_default['nprinc'])
@@ -388,7 +388,7 @@ class kkr_decimation_wc(WorkChain):
 
             # submit voroaux for substrate calculation
             future_substrate = self.submit(builder)
-            self.report('INFO: running voroaux for substrate (pk: {})'.format(future_substrate.pk))
+            self.report(f'INFO: running voroaux for substrate (pk: {future_substrate.pk})')
 
             # set up voronoi calculation for decimation
             builder = VoronoiCalculation.get_builder()
@@ -402,7 +402,7 @@ class kkr_decimation_wc(WorkChain):
 
             # submit voroaux for substrate calculation
             future_decimation = self.submit(builder)
-            self.report('INFO: running voroaux for decimation region (pk: {})'.format(future_decimation.pk))
+            self.report(f'INFO: running voroaux for decimation region (pk: {future_decimation.pk})')
 
             return ToContext(voroaux_substrate=future_substrate, voroaux_decimation=future_decimation)
 
@@ -425,7 +425,7 @@ class kkr_decimation_wc(WorkChain):
             builder.initial_noco_angles = self.ctx.noco_angles_substrate
 
         future = self.submit(builder)
-        self.report('INFO: running deci-out step (pk: {})'.format(future.pk))
+        self.report(f'INFO: running deci-out step (pk: {future.pk})')
 
         return ToContext(deciout_calc=future)
 
@@ -448,7 +448,7 @@ class kkr_decimation_wc(WorkChain):
             builder.initial_noco_angles = self.ctx.noco_angles_decimation
 
         future = self.submit(builder)
-        self.report('INFO: running deci-out step (pk: {})'.format(future.pk))
+        self.report(f'INFO: running deci-out step (pk: {future.pk})')
 
         return ToContext(decimation_calc=future)
 

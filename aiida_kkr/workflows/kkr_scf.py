@@ -1542,7 +1542,7 @@ class kkr_scf_wc(WorkChain):
                     KKR_steps_stats.get('last_neutr')[irun]
                 )
             )
-            message += ' {} | {}\n'.format(KKR_steps_stats.get('pk')[irun], KKR_steps_stats.get('uuid')[irun])
+            message += f" {KKR_steps_stats.get('pk')[irun]} | {KKR_steps_stats.get('uuid')[irun]}\n"
             """
             message += "#|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|\n".format(irun+1,
                           KKR_steps_stats.get('success')[irun], KKR_steps_stats.get('isteps')[irun],

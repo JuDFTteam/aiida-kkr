@@ -447,7 +447,7 @@ class kkr_dos_wc(WorkChain):
             has_dosrun = True
         except AttributeError as _error:
             self.report('ERROR: no dos calc retrieved node found')
-            self.report('Caught AttributeError {}'.format(_error))
+            self.report(f'Caught AttributeError {_error}')
             has_dosrun = False
 
         # interpol dos file and store to XyData nodes
@@ -501,7 +501,7 @@ def parse_dosfiles(dos_retrieved):
     ylists = [[], [], []]
     for line, _name in enumerate(name):
         ylists[0].append(dos[:, :, 1 + line])
-        ylists[1].append('dos {}'.format(_name))
+        ylists[1].append(f'dos {_name}')
         ylists[2].append('states/eV')
     dosnode.set_y(ylists[0], ylists[1], ylists[2])
     dosnode.label = 'dos_data'
@@ -513,7 +513,7 @@ def parse_dosfiles(dos_retrieved):
     ylists = [[], [], []]
     for line, _name in enumerate(name):
         ylists[0].append(dos_int[:, :, 1 + line])
-        ylists[1].append('interpolated dos {}'.format(_name))
+        ylists[1].append(f'interpolated dos {_name}')
         ylists[2].append('states/eV')
     dosnode2.set_y(ylists[0], ylists[1], ylists[2])
     dosnode2.label = 'dos_interpol_data'

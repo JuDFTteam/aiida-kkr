@@ -702,7 +702,7 @@ The Dict node should be of the form
         Rimp_rel_list = imp_info_dict.get(u'Rimp_rel', [[0, 0, 0]])
         for iatom in range(len(Zimp_list)):
             rtmp = array(Rimp_rel_list[iatom])[:3]
-            self.report('INFO: Rimp_rel {}, {}'.format(iatom, rtmp))
+            self.report(f'INFO: Rimp_rel {iatom}, {rtmp}')
             diff = sqrt(sum((rtmp - scoef)**2, axis=1))
             Zimp = Zimp_list[iatom]
             ipos_replace = where(diff == diff.min())[0][0]
@@ -750,7 +750,7 @@ The Dict node should be of the form
         else:
             # this means the full imp cluster is given in the input
 
-            self.report('Write scoef from imp_cls input! {}'.format(len(imp_info_dict.get('imp_cls'))))
+            self.report(f"Write scoef from imp_cls input! {len(imp_info_dict.get('imp_cls'))}")
             with tempfolder.open(KkrCalculation._SCOEF, 'w') as scoef_file:
                 write_scoef_full_imp_cls(imp_info, scoef_file)
 
@@ -771,14 +771,11 @@ The Dict node should be of the form
             potfile_name, potfile_folder = impurity_potential.filename, impurity_potential
         elif parent_calc_folder is not None:
             self.report(
-                'parent_calc_folder {} {}'.format(
-                    parent_calc_folder,
-                    parent_calc_folder.get_incoming().all_link_labels()
-                )
+                f'parent_calc_folder {parent_calc_folder} {parent_calc_folder.get_incoming().all_link_labels()}'
             )
             retrieved = parent_calc_folder.get_incoming(node_class=CalcJobNode
                                                         ).first().node.get_outgoing().get_node_by_label('retrieved')
-            self.report('potfile {} {}'.format(retrieved, self._OUT_POTENTIAL))
+            self.report(f'potfile {retrieved} {self._OUT_POTENTIAL}')
 
             # extract file from host's tarball (extract to tempfolder and use from there, this way the unnessesary files are deleted once submission is done)
             tar_filenames = []
@@ -789,7 +786,7 @@ The Dict node should be of the form
                 # extract file from tarfile of retrieved to tempfolder
                 with tarfile.open(tfpath) as tf:
                     tar_filenames = [ifile.name for ifile in tf.getmembers()]
-                    self.report('extract potfile from tarball {}'.format(tar_filenames))
+                    self.report(f'extract potfile from tarball {tar_filenames}')
                     filename = self._OUT_POTENTIAL
                     if filename in tar_filenames:
                         tf.extract(filename, tempfolder_path)  # extract to tempfolder
@@ -828,9 +825,7 @@ The Dict node should be of the form
         #TODO implement checks
 
         if not param_ok:
-            raise ValueError(
-                'Trying to set key "{}" with value "{}" which is in conflict to previous settings!'.format(key, val)
-            )
+            raise ValueError(f'Trying to set key "{key}" with value "{val}" which is in conflict to previous settings!')
 
     def get_run_test_opts(self, parameters):
         """Extract run and test options from input parameters"""
@@ -1034,7 +1029,7 @@ The Dict node should be of the form
         workdir = comp.get_workdir().format(username=remote_user)
         GFpath_remote = os.path.join(workdir, self._DIRNAME_GF_UPLOAD)
 
-        self.report('local_copy_list: {}'.format(local_copy_list))
+        self.report(f'local_copy_list: {local_copy_list}')
 
         # extract GF information from retrieved folder of host GF calc
         uuid_GF_calc = local_copy_list[0][0]
@@ -1072,8 +1067,8 @@ The Dict node should be of the form
                 remote_symlink_list.append((comp.uuid, TM_remote_path, filename))
 
         # print symlink and local copy list (for debugging purposes)
-        self.report('local_copy_list: {}'.format(local_copy_list))
-        self.report('symlink_list: {}'.format(remote_symlink_list))
+        self.report(f'local_copy_list: {local_copy_list}')
+        self.report(f'symlink_list: {remote_symlink_list}')
 
         # now return updated remote_symlink and local_copy lists
         return remote_symlink_list, local_copy_list

@@ -184,7 +184,7 @@ class VoronoiCalculation(CalcJob):
                     use_input_alat=use_alat_input,
                 )
             except ValueError as e:
-                raise InputValidationError('Input Dict not consistent: {}'.format(e))
+                raise InputValidationError(f'Input Dict not consistent: {e}')
 
         # Decide what files to copy
         local_copy_list = []

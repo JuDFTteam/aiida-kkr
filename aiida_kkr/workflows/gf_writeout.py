@@ -77,7 +77,7 @@ class kkr_flex_wc(WorkChain):
         returns _wf_defaults
         """
 
-        print('Version of workflow: {}'.format(self._workflowversion))
+        print(f'Version of workflow: {self._workflowversion}')
         return self._wf_default
 
     @classmethod
@@ -146,7 +146,7 @@ class kkr_flex_wc(WorkChain):
         init context and some parameters
         """
 
-        self.report('INFO: started KKR flex workflow version {}' ''.format(self._workflowversion))
+        self.report(f'INFO: started KKR flex workflow version {self._workflowversion}')
 
         ####### init #######
         # internal para / control para
@@ -302,11 +302,11 @@ class kkr_flex_wc(WorkChain):
                     kkrdefaults_updated.append(key_default)
                     missing_list.remove(key_default)
             if len(missing_list) > 0:
-                self.report('ERROR: calc_parameters misses keys: {}'.format(missing_list))
+                self.report(f'ERROR: calc_parameters misses keys: {missing_list}')
                 return self.exit_codes.ERROR_CALC_PARAMETERS_INCOMPLETE
 
             else:
-                self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
+                self.report(f'updated KKR parameter node with default values: {kkrdefaults_updated}')
                 label = 'add_defaults_'
                 descr = 'added missing default keys, '
 
@@ -324,9 +324,7 @@ class kkr_flex_wc(WorkChain):
                     updatedict[key] = val
                 else:
                     runopt = val
-                self.report(
-                    'INFO: overwriting KKR parameter: {} with {} from params_kkr_overwrite input node'.format(key, val)
-                )
+                self.report(f'INFO: overwriting KKR parameter: {key} with {val} from params_kkr_overwrite input node')
             input_links['params_kkr_overwrite'] = self.inputs.params_kkr_overwrite
 
         runopt = [i.strip() for i in runopt]
@@ -335,7 +333,7 @@ class kkr_flex_wc(WorkChain):
 
         updatedict['RUNOPT'] = runopt
 
-        self.report('INFO: RUNOPT set to: {}'.format(runopt))
+        self.report(f'INFO: RUNOPT set to: {runopt}')
 
         if 'wf_parameters' in self.inputs:
             # extract Fermi energy in Ry
@@ -380,7 +378,7 @@ class kkr_flex_wc(WorkChain):
         self.ctx.flex_kkrparams = paranode_flex
         self.ctx.flex_runopt = runopt
 
-        self.report('INFO: Updated params= {}'.format(paranode_flex.get_dict()))
+        self.report(f'INFO: Updated params= {paranode_flex.get_dict()}')
 
     def get_flex(self):
         """

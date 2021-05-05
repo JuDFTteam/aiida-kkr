@@ -133,4 +133,4 @@ class base_restart_calc(WorkChain):
                         pass
 
             if cleaned_calcs:
-                self.report('cleaned remote folders of calculations: {}'.format(' '.join(map(str, cleaned_calcs))))
+                self.report(f"cleaned remote folders of calculations: {' '.join(map(str, cleaned_calcs))}")

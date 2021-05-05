@@ -306,7 +306,7 @@ class KkrCalculation(CalcJob):
         try:
             parent_inp_dict = parent_calc.inputs.parameters.get_dict()
         except:
-            self.logger.error('Failed trying to find input parameter of parent {}'.format(parent_calc))
+            self.logger.error(f'Failed trying to find input parameter of parent {parent_calc}')
             raise InputValidationError('No parameter node found of parent calculation.')
 
         # check if no keys are illegally overwritten (i.e. compare with keys in self._do_never_modify)
@@ -480,7 +480,7 @@ class KkrCalculation(CalcJob):
         else:
             # extract shapes from input parameters node constructed by kkrimporter calculation
             shapes = voro_parent.inputs.parameters.get_dict().get('<SHAPE>')
-        self.logger.info('Extracted shapes: {}'.format(shapes))
+        self.logger.info(f'Extracted shapes: {shapes}')
 
         # qdos option, ensure low T, E-contour, qdos run option and write qvec.dat file
         if found_kpath:
@@ -574,8 +574,8 @@ class KkrCalculation(CalcJob):
                 local_copy_list = self._set_ef_value_potential(ef_set, local_copy_list, tempfolder)
 
             # TODO different copy lists, depending on the keywors input
-            print('local copy list: {}'.format(local_copy_list))
-            self.report('local copy list: {}'.format(local_copy_list))
+            print(f'local copy list: {local_copy_list}')
+            self.report(f'local copy list: {local_copy_list}')
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()
@@ -713,7 +713,7 @@ class KkrCalculation(CalcJob):
         """
         Set EF value ef_set in the potential file.
         """
-        self.report('local copy list before change: {}'.format(local_copy_list))
+        self.report(f'local copy list before change: {local_copy_list}')
         self.report("found 'ef_set' in parameters: change EF of potential to this value")
 
         # first read old potential
@@ -836,7 +836,7 @@ class KkrCalculation(CalcJob):
         kpath_array = kpath_array * (alat_input / alat) / get_Ang2aBohr() / (2 * np.pi / alat)
         # now write file
         qvec = ['%i\n' % len(kpath_array)]
-        qvec += ['%e %e %e\n' % (kpt[0], kpt[1], kpt[2]) for kpt in kpath_array]
+        qvec += [f'{kpt[0]:e} {kpt[1]:e} {kpt[2]:e}\n' for kpt in kpath_array]
         with tempfolder.open(self._QVEC, 'w') as qvecfile:
             qvecfile.writelines(qvec)
 

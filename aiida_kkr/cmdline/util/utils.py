@@ -19,23 +19,23 @@ def echo_process_results(node):
     outputs = node.get_outgoing(link_type=(LinkType.CREATE, LinkType.RETURN)).all()
 
     if node.is_finished and node.exit_message:
-        state = '{} [{}] `{}`'.format(node.process_state.value, node.exit_status, node.exit_message)
+        state = f'{node.process_state.value} [{node.exit_status}] `{node.exit_message}`'
     elif node.is_finished:
-        state = '{} [{}]'.format(node.process_state.value, node.exit_status)
+        state = f'{node.process_state.value} [{node.exit_status}]'
     else:
         state = node.process_state.value
 
-    click.echo('{}<{}> terminated with state: {}'.format(class_name, node.pk, state))
+    click.echo(f'{class_name}<{node.pk}> terminated with state: {state}')
 
     if not outputs:
-        click.echo('{}<{}> registered no outputs'.format(class_name, node.pk))
+        click.echo(f'{class_name}<{node.pk}> registered no outputs')
         return
 
-    click.echo('\n{link:25s} {node}'.format(link='Output link', node='Node pk and type'))
-    click.echo('{s}'.format(s='-' * 60))
+    click.echo(f"\n{'Output link':25s} Node pk and type")
+    click.echo(f"{'-' * 60}")
 
     for triple in sorted(outputs, key=lambda triple: triple.link_label):
-        click.echo('{:25s} {}<{}> '.format(triple.link_label, triple.node.__class__.__name__, triple.node.pk))
+        click.echo(f'{triple.link_label:25s} {triple.node.__class__.__name__}<{triple.node.pk}> ')
 
 
 def launch_process(process, daemon, **inputs):
@@ -54,12 +54,12 @@ def launch_process(process, daemon, **inputs):
     elif issubclass(process, Process):
         process_name = process.__name__
     else:
-        raise TypeError('invalid type for process: {}'.format(process))
+        raise TypeError(f'invalid type for process: {process}')
 
     if daemon:
         node = launch.submit(process, **inputs)
-        click.echo('Submitted {}<{}> to the daemon'.format(process_name, node.pk))
+        click.echo(f'Submitted {process_name}<{node.pk}> to the daemon')
     else:
-        click.echo('Running a {}...'.format(process_name))
+        click.echo(f'Running a {process_name}...')
         _, node = launch.run_get_node(process, **inputs)
         echo_process_results(node)

@@ -76,7 +76,7 @@ class kkr_bs_wc(WorkChain):
         Return the default values of the workflow parameters (wf_parameters input node)
         """
         if not silent:
-            print(('Version of the kkr_bs_wc workflow: {}'.format(self._wf_version)))
+            print(f'Version of the kkr_bs_wc workflow: {self._wf_version}')
         return self._wf_default
 
     @classmethod
@@ -155,12 +155,12 @@ class kkr_bs_wc(WorkChain):
         """
         set up context of the workflow
         """
-        self.report('INFO: started KKR Band Structure workflow version {}'.format(self._wf_version))
+        self.report(f'INFO: started KKR Band Structure workflow version {self._wf_version}')
         wf_dict = self.inputs.wf_parameters.get_dict()
         # add missing default values
         for key, val in self._wf_default.items():
             if key not in wf_dict and val is not None:
-                self.report('INFO: Using default wf parameter {}: {}'.format(key, val))
+                self.report(f'INFO: Using default wf parameter {key}: {val}')
                 wf_dict[key] = val
         options_dict = self.inputs.options.get_dict()
         if options_dict == {}:
@@ -251,12 +251,12 @@ class kkr_bs_wc(WorkChain):
             maxdiff_cell = sum(abs(np.array(primitive_struc.cell) - np.array(saux.cell))).max()
 
             if maxdiff_cell > 3 * 10**-9:
-                self.report('Error in cell : {}'.format(maxdiff_cell))
+                self.report(f'Error in cell : {maxdiff_cell}')
                 self.report(
                     'WARNING : The structure data from the voronoi calc is not the primitive structure type and in come cases it is medatory'
                 )
-                self.report('prim: {} {}'.format(primitive_struc.cell, primitive_struc.sites))
-                self.report('conv: {} {}'.format(conventional_struc.cell, conventional_struc.sites))
+                self.report(f'prim: {primitive_struc.cell} {primitive_struc.sites}')
+                self.report(f'conv: {conventional_struc.cell} {conventional_struc.sites}')
                 self.ctx.structure_data = 'conventional_unit_cell '
             else:
                 self.ctx.structure_data = 'primitive_unit_cell'
@@ -283,7 +283,7 @@ class kkr_bs_wc(WorkChain):
 
         # set self.ctx.input_params_KKR
         self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
-        self.report('The validation input_ok {}'.format(input_ok))
+        self.report(f'The validation input_ok {input_ok}')
 
     def set_params_BS(self):
         """
@@ -299,7 +299,7 @@ class kkr_bs_wc(WorkChain):
         except:
             return self.exit_codes.ERROR_CALC_PARAMETERS_INVALID
         label = ''
-        descr = '(pk - {}, and uuid - {})'.format(self.inputs.remote_data.pk, self.inputs.remote_data.uuid)
+        descr = f'(pk - {self.inputs.remote_data.pk}, and uuid - {self.inputs.remote_data.uuid})'
 
         missing_list = para_check.get_missing_keys(use_aiida=True)
 
@@ -312,10 +312,10 @@ class kkr_bs_wc(WorkChain):
                     kkrdefaults_updated.append(key_default)
                     missing_list.remove(key_default)
             if len(missing_list) > 0:
-                self.report('ERROR: calc_parameters misses keys: {}'.format(missing_list))
+                self.report(f'ERROR: calc_parameters misses keys: {missing_list}')
                 return self.exit_codes.ERROR_CALC_PARAMETERS_INCOMPLETE
             else:
-                self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
+                self.report(f'updated KKR parameter node with default values: {kkrdefaults_updated}')
                 label = 'add_defaults_'
                 descr = 'added missing default keys, '
         ##+++ Starts to add the NTP2, EMAX and EMIN from the
@@ -351,7 +351,7 @@ class kkr_bs_wc(WorkChain):
         key_list = list(BS_dict)
         description = 'User defined BandStructure parameters '
         for key in key_list:
-            description += '{}= {} ,'.format(key, BS_dict[key])
+            description += f'{key}= {BS_dict[key]} ,'
 
         code = self.inputs.kkr
         remote = self.inputs.remote_data
@@ -381,12 +381,12 @@ class kkr_bs_wc(WorkChain):
         Collect results, parse BS_calc output and link output nodes to workflow node
         """
 
-        caching_info = 'INFO: cache_source of BS calc node: {}'.format(self.ctx.BS_run.get_cache_source)
+        caching_info = f'INFO: cache_source of BS calc node: {self.ctx.BS_run.get_cache_source}'
         self.report(caching_info)
 
         if not self.ctx.BS_run.is_finished_ok:
             self.ctx.successful = False
-            error = ('ERROR BS calculation failed somehow it is ' 'in state {}'.format(self.ctx.BS_run.process_state))
+            error = f'ERROR BS calculation failed somehow it is in state {self.ctx.BS_run.process_state}'
             self.report(error)
             self.ctx.errors.append(error)
             return self.exit_codes.ERROR_BS_CALC_FAILED
@@ -422,14 +422,12 @@ class kkr_bs_wc(WorkChain):
         self.report('INFO: create Banstructure results nodes')
         try:
             self.report(
-                'INFO: create Bandstructure results nodes. BS calc retrieved node={}'.format(
-                    self.ctx.BS_run.outputs.retrieved
-                )
+                f'INFO: create Bandstructure results nodes. BS calc retrieved node={self.ctx.BS_run.outputs.retrieved}'
             )
             has_BS_run = True
         except AttributeError as e:
             self.report('ERROR: No Bandstructure calc retrieved node found')
-            self.report('Caught AttributeError {}'.format(e))
+            self.report(f'Caught AttributeError {e}')
             return self.exit_codes.ERROR_BS_CALC_FAILED
 
         if has_BS_run:
