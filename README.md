@@ -25,6 +25,9 @@
 ## How to cite
 
 If you use this plugin please cite:
+> [Rüßmann, P., Bertoldo, F. & Blügel, S. The AiiDA-KKR plugin and its application to high-throughput impurity embedding into a topological insulator. *npj Comput Mater* **7**, 13 (2021). https://doi.org/10.1038/s41524-020-00482-5](https://doi.org/10.1038/s41524-020-00482-5)
+
+The ArXiv preprint can be found here:
 > [Philipp Rüßmann, Fabian Bertoldo and Stefan Blügel, *The AiiDA-KKR plugin and its application to high-throughput impurity embedding into a topological insulator*, arXiv:2003.08315 [cond-mat.mtrl-sci] (2020)](https://arxiv.org/abs/2003.08315)
 
 
