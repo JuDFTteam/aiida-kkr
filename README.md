@@ -47,9 +47,15 @@ $ pip install -e aiida-kkr[testing,devtools,docs]
 $ reentry scan -r aiida
 ```
 
-## Remarks about dependencies
+## Remarks about dependencies and extras
 
-- for `aiida-core>=1.5,<1.6` make sure to use the requirements specified in `requirements_aiida-core_1.5.txt` (use `pip install -r requirements_aiida-core_1.5.txt aiida-kkr` for the installation to overwrite the aiida-core dependency)
+- The `aiida-kkr` plugin uses the `ase` and `pymatgen` packages for structure conversions.
+- For `aiida-core>=1.5,<1.6` make sure to use the requirements specified in `requirements_aiida-core_1.5.txt` (use `pip install -r requirements_aiida-core_1.5.txt aiida-kkr` for the installation to overwrite the aiida-core dependency).
+- Other extras that can be optionally installed with `aiida-kkr` are
+  * `pre-commit` which installes the pre-commit hooks that allow style (`yapf`) and static code checking (`pylint`)
+  * `testing` which installs `pytest` and all extension used in the tests
+  * `docs` which installs `Sphinx` to build the documentation
+  * `devtools` which installs tools that might be helpful during development
 
 
 # Usage and Documentation

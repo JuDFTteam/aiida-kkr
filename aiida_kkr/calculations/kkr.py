@@ -218,12 +218,11 @@ class KkrCalculation(CalcJob):
             'retrieve_kkrflex',
             valid_type=Bool,
             required=False,
-            default= lambda: Bool(True),
+            default=lambda: Bool(True),
             help="""For a GF writeout calculation, determine whether or not
             the kkrflex_* files are copied to the retrieved (can clutter the
             database) or are ony left in the remote folder."""
         )
-
 
         # define outputs
         spec.output(

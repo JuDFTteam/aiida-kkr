@@ -340,7 +340,7 @@ class kkr_dos_wc(WorkChain):
             voro_out_para = parent_calc.outputs.output_parameters.get_dict()
             ef = voro_out_para['emin'] - voro_out_para['emin_minus_efermi_Ry']
         else:
-            ef = parent_calc.outputs.output_parameters.get_dict()['fermi_energy'] # unit in Ry
+            ef = parent_calc.outputs.output_parameters.get_dict()['fermi_energy']  # unit in Ry
         try:
             para_check = set_energy_params(econt_new, ef, para_check)
         except:

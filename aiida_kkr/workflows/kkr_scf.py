@@ -1606,7 +1606,7 @@ class kkr_scf_wc(WorkChain):
                     f'emin ({emin} Ry) of voronoi output. '
                     f'Setting automatically to {emin_cont - self.ctx.delta_e * eV2Ry}Ry'
                 )
-            with self.ctx.last_calc.outputs.retrieved.open("out_potential") as _file:
+            with self.ctx.last_calc.outputs.retrieved.open('out_potential') as _file:
                 self.ctx.efermi = get_ef_from_potfile(_file)
             emax = self.ctx.dos_params['emax']
             if emax < self.ctx.efermi + self.ctx.delta_e * eV2Ry:
