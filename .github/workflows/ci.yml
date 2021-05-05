@@ -72,6 +72,12 @@ jobs:
       run: |
         pre-commit run --all-files || (git status --short; git diff ; exit 1)
 
+    # pylint in pre-commit only checks for errors, here we check for refactoring potential, warnings etc.
+    - name: Run pylint strict
+      continue-on-error: true
+      run: |
+        pylint
+
 
   tests:
 
