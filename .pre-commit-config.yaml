@@ -30,3 +30,16 @@ repos:
           (?x)(
           ^examples/
           )
+
+      - id: version-number
+        name: Check version numbers
+        entry: python ./utils/validate_version_consistency.py
+        language: system
+        files: >-
+          (?x)^(
+            setup.py|
+            utils/validate_version_consistency.py|
+            aiida_kkr/__init__.py|
+            .bumpversion.cfg
+          )$
+        pass_filenames: false
