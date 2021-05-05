@@ -79,7 +79,7 @@ def strucplot_ase_notebook(struc, **kwargs):
     """
     plotting function for aiida structure using ase_notebook visulaization
     """
-    from ase_notebook import ViewConfig, AseView
+    from ase_notebook import ViewConfig, AseView  # pylint: disable=import-error
 
     # extract some setting if given as kwargs
     repeat_uc = kwargs.get('repeat_uc', (1, 1, 1))
@@ -171,7 +171,7 @@ def plot_imp_cluster(kkrimp_calc_node, **kwargs):
     """
     from aiida.orm import StructureData
     from aiida.common.constants import elements
-    from ase_notebook import ViewConfig, AseView
+    from ase_notebook import ViewConfig, AseView  # pylint: disable=import-error
     from aiida_kkr.calculations import VoronoiCalculation
     from aiida_kkr.tools.tools_kkrimp import create_scoef_array
     from masci_tools.io.common_functions import get_alat_from_bravais
@@ -1416,7 +1416,7 @@ class plot_kkr(object):
             nofig = kwargs.get('nofig', False)
             if not nofig:
                 fig = plt.figure(figsize=(5, 5))
-            plt.pcolormesh(x, y, np.log(abs(BSF.T)), cmap=plt.cm.viridis, edgecolor='face', rasterized=True)
+            plt.pcolormesh(x, y, np.log(abs(BSF.T)), cmap=plt.cm.viridis, edgecolor='face', rasterized=True)  # pylint: disable=no-member
             plt.ylabel('E-E_F (eV)')
             plt.xlabel('')
 
@@ -1821,7 +1821,7 @@ class plot_kkr(object):
                 ie = e[m][0]
                 iv = v[m][0]
                 if not nolegend:
-                    annotate(s=f'pk={pk}', xy=(iv, ie))
+                    annotate(text=f'pk={pk}', xy=(iv, ie))
 
             # investigate fit quality by fitting without first/last datapoint
             if len(e) > 4:

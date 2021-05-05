@@ -269,7 +269,7 @@ class kkr_decimation_wc(WorkChain):
         parents = input_remote.get_incoming(node_class=KkrCalculation)
         nparents = len(parents.all_link_labels())
         if nparents != 1:
-            return self.exit_codes.ERROR_INVALID_INPUT_REMOTE_DATA
+            return self.exit_codes.ERROR_INVALID_INPUT_REMOTE_DATA  # pylint: disable=no-member
         parent_calc = parents.first().node
         # check if parent_calc is decimation calculation
         self.ctx.parent_params = parent_calc.inputs.parameters.get_dict()
@@ -286,12 +286,12 @@ class kkr_decimation_wc(WorkChain):
         try:
             test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
         except ValueError:
-            return self.exit_codes.ERROR_KKRCODE_NOT_CORRECT
+            return self.exit_codes.ERROR_KKRCODE_NOT_CORRECT  # pylint: disable=no-member
         if 'voronoi' in inputs:
             try:
                 test_and_get_codenode(inputs.voronoi, 'kkr.voro', use_exceptions=True)
             except ValueError:
-                return self.exit_codes.ERROR_VORONOICODE_NOT_CORRECT
+                return self.exit_codes.ERROR_VORONOICODE_NOT_CORRECT  # pylint: disable=no-member
 
     def prepare_deci_from_slab(self):
         """

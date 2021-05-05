@@ -430,7 +430,7 @@ class kkr_imp_sub_wc(WorkChain):
         if self.ctx.loop_count > 1 and not self.ctx.last_calc.is_finished_ok:
             message = 'ERROR: last calc not finished_ok'
             self.report(message)
-            return self.exit_codes.ERROR_SUB_FAILURE
+            return self.exit_codes.ERROR_SUB_FAILURE  # pylint: disable=no-member
 
         # next check only needed if another iteration should be done after validating convergence etc. (previous checks)
         if do_kkr_step:
@@ -502,7 +502,7 @@ class kkr_imp_sub_wc(WorkChain):
                 if self.ctx.last_remote is None:
                     messager = 'ERROR: last remote not found'
                     self.report(message)
-                    return self.exit_codes.ERROR_SETTING_LAST_REMOTE
+                    return self.exit_codes.ERROR_SETTING_LAST_REMOTE  # pylint: disable=no-member
 
             # check if mixing strategy should be changed
             last_mixing_scheme = self.ctx.last_params.get_dict()['IMIX']
@@ -568,7 +568,7 @@ class kkr_imp_sub_wc(WorkChain):
                 if len(kkrdefaults_updated) > 0:
                     message = 'ERROR: no default param found'
                     self.report(message)
-                    return self.exit_codes.ERROR_MISSING_PARAMS
+                    return self.exit_codes.ERROR_MISSING_PARAMS  # pylint: disable=no-member
                 else:
                     message = f'updated KKR parameter node with default values: {kkrdefaults_updated}'
                     self.report(message)
@@ -707,7 +707,7 @@ class kkr_imp_sub_wc(WorkChain):
             except:
                 message = 'ERROR: failed to set some parameters'
                 self.report(message)
-                return self.exit_codes.ERROR_PARAMETER_UPDATE
+                return self.exit_codes.ERROR_PARAMETER_UPDATE  # pylint: disable=no-member
 
             # step 3:
             message = f'INFO: update parameters to: {para_check.get_set_values()}'
@@ -883,7 +883,7 @@ class kkr_imp_sub_wc(WorkChain):
             self.ctx.kkrimp_step_success = False
             message = 'ERROR: last calc not finished_ok'
             self.report(message)
-            return self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED_OK
+            return self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED_OK  # pylint: disable=no-member
 
         message = f'INFO: kkrimp_step_success: {self.ctx.kkrimp_step_success}'
         self.report(message)
@@ -898,7 +898,7 @@ class kkr_imp_sub_wc(WorkChain):
         except:
             message = 'ERROR: no output potential found'
             self.report(message)
-            return self.exit_codes.ERROR_NO_OUTPUT_POT_FROM_LAST_CALC
+            return self.exit_codes.ERROR_NO_OUTPUT_POT_FROM_LAST_CALC  # pylint: disable=no-member
 
         # extract convergence info about rms etc. (used to determine convergence behavior)
         try:

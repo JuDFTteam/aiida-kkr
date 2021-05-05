@@ -33,4 +33,4 @@ class KkrImporterParser(KkrParser):
 
         #reuse init of base class but select icrit=1 (determines how missing files are interpreted)
         self.icrit = 1
-        super(KkrParser, self).__init__(calc)
+        super(KkrImporterParser, self).__init__(calc)

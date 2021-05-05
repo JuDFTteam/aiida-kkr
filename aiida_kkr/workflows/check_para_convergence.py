@@ -6,6 +6,7 @@ some helper methods to do so with AiiDA
 """
 
 from __future__ import absolute_import
+from aiida.engine import WorkChain
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'

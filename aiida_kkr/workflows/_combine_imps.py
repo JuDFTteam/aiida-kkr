@@ -377,7 +377,7 @@ If given then the writeout step of the host GF is omitted."""
         #TODO check if input host gf remote is consistent
 
         if not self.ctx.host_gf_ok:
-            return self.exit_codes.ERROR_HOST_GF_CALC_FAILED
+            return self.exit_codes.ERROR_HOST_GF_CALC_FAILED  # pylint: disable=no-member
 
     def create_big_potential(self):  # pylint: disable=inconsistent-return-statements
         """

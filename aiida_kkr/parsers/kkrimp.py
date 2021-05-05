@@ -11,7 +11,7 @@ import os
 from aiida.parsers.parser import Parser
 from aiida.orm import Dict
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
-from aiida.common.exceptions import InputValidationError
+from aiida.common.exceptions import InputValidationError, NotExistent
 from masci_tools.io.parsers.kkrparser_functions import check_error_category
 from masci_tools.io.common_functions import open_general
 from masci_tools.io.parsers.kkrimp_parser_functions import KkrimpParserFunctions
@@ -54,7 +54,7 @@ class KkrimpParser(Parser):
         # Check that the retrieved folder is there
         try:
             out_folder = self.retrieved
-        except exceptions.NotExistent:
+        except NotExistent:
             return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
 
         # check what is inside the folder

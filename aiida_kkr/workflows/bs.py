@@ -206,7 +206,7 @@ class kkr_bs_wc(WorkChain):
             input_ok = True
         else:
             input_ok = False
-            return self.exit_codes.ERROR_NO_INPUT_REMOTE_DATA
+            return self.exit_codes.ERROR_NO_INPUT_REMOTE_DATA  # pylint: disable=no-member
         input_remote = self.inputs.remote_data
         parents = input_remote.get_incoming(node_class=CalcJobNode)
         nparents = len(parents.all_link_labels())
@@ -215,7 +215,7 @@ class kkr_bs_wc(WorkChain):
             # extract parent workflow and get uuid of last calc from output node
             parent_workflow = input_remote.inputs.last_RemoteData
             if not isinstance(parent_workflow, WorkChainNode):
-                return self.exit_codes.ERROR_INVALID_REMOTE_DATA_TPYE
+                return self.exit_codes.ERROR_INVALID_REMOTE_DATA_TPYE  # pylint: disable=no-member
 
             parent_workflow_out = parent_workflow.outputs.output_kkr_scf_wc_ParameterResults
             uuid_last_calc = parent_workflow_out.get_dict().get('last_calc_nodeinfo').get('uuid')
@@ -262,7 +262,7 @@ class kkr_bs_wc(WorkChain):
                 self.ctx.structure_data = 'primitive_unit_cell'
 
             if not kpoints_ok:
-                return self.exit_codes.ERROR_INCORRECT_KPOINTS_EXTRACTED
+                return self.exit_codes.ERROR_INCORRECT_KPOINTS_EXTRACTED  # pylint: disable=no-member
             else:
                 kpts = get_explicit_kpoints_path(struc_kkr).get('explicit_kpoints')
 
@@ -271,7 +271,7 @@ class kkr_bs_wc(WorkChain):
                 input_ok = True
             else:
                 input_ok = False
-                return self.exit_codes.ERROR_NO_KPOINTS_EXTRACTED
+                return self.exit_codes.ERROR_NO_KPOINTS_EXTRACTED  # pylint: disable=no-member
 
         # To validate for kkr
         if 'kkr' in inputs:
@@ -279,7 +279,7 @@ class kkr_bs_wc(WorkChain):
                 test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
                 input_ok = False
-                return self.exit_codes.ERROR_KKRCODE_NOT_CORRECT
+                return self.exit_codes.ERROR_KKRCODE_NOT_CORRECT  # pylint: disable=no-member
 
         # set self.ctx.input_params_KKR
         self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
@@ -297,7 +297,7 @@ class kkr_bs_wc(WorkChain):
             for key, val in input_dict.items():
                 para_check.set_value(key, val, silent=True)
         except:
-            return self.exit_codes.ERROR_CALC_PARAMETERS_INVALID
+            return self.exit_codes.ERROR_CALC_PARAMETERS_INVALID  # pylint: disable=no-member
         label = ''
         descr = f'(pk - {self.inputs.remote_data.pk}, and uuid - {self.inputs.remote_data.uuid})'
 
@@ -313,7 +313,7 @@ class kkr_bs_wc(WorkChain):
                     missing_list.remove(key_default)
             if len(missing_list) > 0:
                 self.report(f'ERROR: calc_parameters misses keys: {missing_list}')
-                return self.exit_codes.ERROR_CALC_PARAMETERS_INCOMPLETE
+                return self.exit_codes.ERROR_CALC_PARAMETERS_INCOMPLETE  # pylint: disable=no-member
             else:
                 self.report(f'updated KKR parameter node with default values: {kkrdefaults_updated}')
                 label = 'add_defaults_'
@@ -328,7 +328,7 @@ class kkr_bs_wc(WorkChain):
         try:
             para_check = set_energy_params(econt_new, ef, para_check)
         except:
-            return self.exit_codes.ERROR_CALC_PARAMETERS_INVALID
+            return self.exit_codes.ERROR_CALC_PARAMETERS_INVALID  # pylint: disable=no-member
         para_check.set_multiple_values(
             NPT1=0,
             NPT3=0,
@@ -389,7 +389,7 @@ class kkr_bs_wc(WorkChain):
             error = f'ERROR BS calculation failed somehow it is in state {self.ctx.BS_run.process_state}'
             self.report(error)
             self.ctx.errors.append(error)
-            return self.exit_codes.ERROR_BS_CALC_FAILED
+            return self.exit_codes.ERROR_BS_CALC_FAILED  # pylint: disable=no-member
 
         # create dict to store results of workflow output
         outputnode_dict = {}
@@ -428,7 +428,7 @@ class kkr_bs_wc(WorkChain):
         except AttributeError as e:
             self.report('ERROR: No Bandstructure calc retrieved node found')
             self.report(f'Caught AttributeError {e}')
-            return self.exit_codes.ERROR_BS_CALC_FAILED
+            return self.exit_codes.ERROR_BS_CALC_FAILED  # pylint: disable=no-member
 
         if has_BS_run:
             BS_retrieved = self.ctx.BS_run.outputs.retrieved

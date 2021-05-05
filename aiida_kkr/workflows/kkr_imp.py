@@ -385,15 +385,15 @@ class kkr_imp_wc(WorkChain):
                 test_and_get_codenode(inputs.voronoi, 'kkr.voro', use_exceptions=True)
             except ValueError:
                 inputs_ok = False
-                self.report(self.exit_codes.ERROR_INVALID_INPUT_CODE)
-                return self.exit_codes.ERROR_INVALID_INPUT_CODE
+                self.report(self.exit_codes.ERROR_INVALID_INPUT_CODE)  # pylint: disable=no-member
+                return self.exit_codes.ERROR_INVALID_INPUT_CODE  # pylint: disable=no-member
         elif 'kkr' in inputs:
             try:
                 test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
                 inputs_ok = False
-                self.report(self.exit_codes.ERROR_INVALID_INPUT_CODE)
-                return self.exit_codes.ERROR_INVALID_INPUT_CODE
+                self.report(self.exit_codes.ERROR_INVALID_INPUT_CODE)  # pylint: disable=no-member
+                return self.exit_codes.ERROR_INVALID_INPUT_CODE  # pylint: disable=no-member
 
         if 'impurity_info' in inputs:
             self.report(f'INFO: found the following impurity info node in input: {inputs.impurity_info.get_dict()}')
@@ -416,8 +416,8 @@ class kkr_imp_wc(WorkChain):
                 do_gf_calc = True
             else:
                 inputs_ok = False
-                self.report(self.exit_codes.ERROR_MISSING_KKRCODE)
-                return self.exit_codes.ERROR_MISSING_KKRCODE
+                self.report(self.exit_codes.ERROR_MISSING_KKRCODE)  # pylint: disable=no-member
+                return self.exit_codes.ERROR_MISSING_KKRCODE  # pylint: disable=no-member
         elif 'remote_data_gf' in inputs:
             remote_data_gf_node = load_node(inputs.remote_data_gf.pk)
             pk_kkrflex_writeoutcalc = remote_data_gf_node.get_incoming(link_label_filter=u'remote_folder'
@@ -438,8 +438,8 @@ class kkr_imp_wc(WorkChain):
                 )
         else:
             inputs_ok = False
-            self.report(self.exit_codes.ERROR_MISSING_REMOTE)
-            return self.exit_codes.ERROR_MISSING_REMOTE
+            self.report(self.exit_codes.ERROR_MISSING_REMOTE)  # pylint: disable=no-member
+            return self.exit_codes.ERROR_MISSING_REMOTE  # pylint: disable=no-member
 
         self.ctx.do_gf_calc = do_gf_calc
         self.report(f'INFO: validated input successfully: {inputs_ok}. Do GF writeout calc: {self.ctx.do_gf_calc}.')
@@ -622,8 +622,8 @@ class kkr_imp_wc(WorkChain):
         """
 
         if not self.ctx.last_voro_calc.is_finished_ok:
-            self.report(self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE)
-            return self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE
+            self.report(self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE)  # pylint: disable=no-member
+            return self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE  # pylint: disable=no-member
 
         # collect all nodes necessary to construct the startpotential
         if self.ctx.do_gf_calc:
@@ -822,8 +822,8 @@ class kkr_imp_wc(WorkChain):
                 '|------------------------------------------------------------------------------------------------------------------|'
             )
         else:
-            self.report(self.exit_codes.ERROR_KKRIMP_SUB_WORKFLOW_FAILURE)
-            return self.exit_codes.ERROR_KKRIMP_SUB_WORKFLOW_FAILURE
+            self.report(self.exit_codes.ERROR_KKRIMP_SUB_WORKFLOW_FAILURE)  # pylint: disable=no-member
+            return self.exit_codes.ERROR_KKRIMP_SUB_WORKFLOW_FAILURE  # pylint: disable=no-member
 
     def final_cleanup(self):
         """

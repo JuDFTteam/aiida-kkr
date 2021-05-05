@@ -16,6 +16,7 @@ import numpy as np
 from masci_tools.io.common_functions import get_alat_from_bravais
 from masci_tools.io.common_functions import vec_to_angles
 from aiida.common.constants import elements as PeriodicTableElements
+from aiida.common.exceptions import InputValidationError
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH,' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
@@ -337,8 +338,8 @@ def rotate_onto_z(structure, structure_array, vector):
 
     #get angles, from vector
     angles = vec_to_angles(vector)
-    theta = angles[1]
-    phi = angles[2]
+    theta = np.array(angles[1])
+    phi = np.array(angles[2])
 
     #initialize needed arrays
     x_res = np.delete(structure_array, np.s_[3:6], 1)

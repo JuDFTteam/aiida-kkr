@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from aiida.parsers.parser import Parser
 from aiida.orm import Dict
 from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida.common.exceptions import InputValidationError
+from aiida.common.exceptions import InputValidationError, NotExistent
 from masci_tools.io.parsers.voroparser_functions import parse_voronoi_output
 import os
 
@@ -51,7 +51,7 @@ class VoronoiParser(Parser):
         # Get retrieved folders
         try:
             out_folder = self.retrieved
-        except exceptions.NotExistent:
+        except NotExistent:
             return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
 
         # check what is inside the folder

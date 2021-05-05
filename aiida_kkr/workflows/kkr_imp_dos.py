@@ -429,7 +429,7 @@ label: {self.ctx.label_wf}
         if not self.ctx.skip_gfstep:
             # use computed gf_writeout
             if not self.ctx.gf_writeout.is_finished_ok:
-                return self.exit_codes.ERROR_GF_WRITEOUT_UNSUCCESFUL
+                return self.exit_codes.ERROR_GF_WRITEOUT_UNSUCCESFUL  # pylint: disable=no-member
             gf_writeout_wf = self.ctx.gf_writeout
             gf_writeout_calc = load_node(self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc'))
             gf_writeout_remote = gf_writeout_wf.outputs.GF_host_remote
@@ -510,15 +510,15 @@ label: {self.ctx.label_wf}
 
         if self.ctx.errors != []:
             if 1 in self.ctx.errors:
-                return self.exit_codes.ERROR_NO_PARENT_FOUND
+                return self.exit_codes.ERROR_NO_PARENT_FOUND  # pylint: disable=no-member
             elif 2 in self.ctx.errors:
-                return self.exit_codes.ERROR_IMP_POT_AND_REMOTE
+                return self.exit_codes.ERROR_IMP_POT_AND_REMOTE  # pylint: disable=no-member
             elif 3 in self.ctx.errors:
-                return self.exit_codes.ERROR_KKR_CODE_MISSING
+                return self.exit_codes.ERROR_KKR_CODE_MISSING  # pylint: disable=no-member
             elif 4 in self.ctx.errors:
-                return self.exit_codes.ERROR_HOST_REMOTE_MISSING
+                return self.exit_codes.ERROR_HOST_REMOTE_MISSING  # pylint: disable=no-member
             else:
-                return self.exit_codes.ERROR_UNKNOWN_PROBLEM
+                return self.exit_codes.ERROR_UNKNOWN_PROBLEM  # pylint: disable=no-member
 
         message = 'INFO: creating output nodes for the KKR imp DOS workflow ...'
         print(message)
@@ -528,7 +528,7 @@ label: {self.ctx.label_wf}
             message = 'ERROR: sub workflow for impurity calculation failed'
             print(message)
             self.report(message)
-            return self.exit_codes.ERROR_IMP_SUB_WORKFLOW_FAILURE
+            return self.exit_codes.ERROR_IMP_SUB_WORKFLOW_FAILURE  # pylint: disable=no-member
         else:
             last_calc_pk = self.ctx.kkrimp_dos.outputs.workflow_info.get_dict().get('last_calc_nodeinfo')['pk']
             last_calc = load_node(last_calc_pk)

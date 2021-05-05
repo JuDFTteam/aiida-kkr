@@ -308,7 +308,8 @@ class kkr_scf_wc(WorkChain):
                 # update parameters for kkr step using previous output(s)
                 cls.update_kkr_params,
                 # run kkr step
-                # TODO: encapsulate this in restarting mechanism (should be a base class of workflows that start calculations)
+                # TODO: encapsulate this in restarting mechanism
+                # (should be a base class of workflows that start calculations)
                 # i.e. use base_restart_calc workchain as parent
                 cls.run_kkr,
                 # check results for convergence and collect some intermediate results
@@ -1066,7 +1067,7 @@ class kkr_scf_wc(WorkChain):
                     else:
                         struc, voro_parent = VoronoiCalculation.find_parent_structure(self.ctx.last_remote)
                     natom = len(get_site_symbols(struc))
-                    xinipol = ones(natom)
+                    xinipol = np.ones(natom)
                 new_params['LINIPOL'] = True
                 new_params['HFIELD'] = self.ctx.hfield
                 new_params['XINIPOL'] = xinipol

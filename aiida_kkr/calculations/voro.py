@@ -355,4 +355,4 @@ class VoronoiCalculation(CalcJob):
             struc = self._get_struc(parent_folder_tmp)
             return struc, parent_folder_tmp
         else:
-            raise ValueError('structure not found'.format(parent_folder_tmp))
+            raise ValueError('structure not found')

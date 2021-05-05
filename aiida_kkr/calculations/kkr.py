@@ -556,7 +556,7 @@ class KkrCalculation(CalcJob):
                     try:
                         struc, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
                     except ValueError:
-                        return self.exit_codes.ERROR_NO_SHAPEFUN_FOUND
+                        return self.exit_codes.ERROR_NO_SHAPEFUN_FOUND  # pylint: disable=no-member
                     # copy shapefun from retrieved of voro calc
                     voro_retrieved = voro_parent.outputs.retrieved
                     local_copy_list.append((voro_retrieved.uuid, VoronoiCalculation._SHAPEFUN, self._SHAPEFUN))

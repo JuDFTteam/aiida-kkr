@@ -49,6 +49,9 @@
         ],
         "devtools": [
             "bump2version >= 0.5.10"
+        ],
+        "widgets": [
+            "ase_notebook"
         ]
     },
     "entry_points": {
