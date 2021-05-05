@@ -76,7 +76,7 @@ jobs:
     - name: Run pylint strict
       continue-on-error: true
       run: |
-        pylint
+        pylint aiida_kkr/
 
 
   tests:
