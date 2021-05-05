@@ -381,9 +381,9 @@ class kkr_decimation_wc(WorkChain):
             builder.code = self.inputs.voronoi
             builder.parameters = self.ctx.dsubstrate
             builder.structure = self.ctx.struc_substrate
-            builder.metadata.label = 'auxiliary_voronoi_substrate'
-            builder.metadata.options = self.ctx.options
-            builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}
+            builder.metadata.label = 'auxiliary_voronoi_substrate'  # pylint: disable=no-member
+            builder.metadata.options = self.ctx.options  # pylint: disable=no-member
+            builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
             builder.potential_overwrite = self.ctx.startpot_substrate
 
             # submit voroaux for substrate calculation
@@ -395,9 +395,9 @@ class kkr_decimation_wc(WorkChain):
             builder.code = self.inputs.voronoi
             builder.parameters = self.ctx.ddecimation
             builder.structure = self.ctx.struc_decimation
-            builder.metadata.label = 'auxiliary_voronoi_decimation'
-            builder.metadata.options = self.ctx.options
-            builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}
+            builder.metadata.label = 'auxiliary_voronoi_decimation'  # pylint: disable=no-member
+            builder.metadata.options = self.ctx.options  # pylint: disable=no-member
+            builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
             builder.potential_overwrite = self.ctx.startpot_decimation
 
             # submit voroaux for substrate calculation
@@ -416,9 +416,10 @@ class kkr_decimation_wc(WorkChain):
         builder = KkrCalculation.get_builder()
         builder.code = self.inputs.kkr
         builder.parameters = self.ctx.dsubstrate
-        builder.metadata.options = self.ctx.options
-        builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # force serial run
-        builder.metadata.label = 'deci-out'
+        builder.metadata.options = self.ctx.options  # pylint: disable=no-member
+        # force serial run:
+        builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
+        builder.metadata.label = 'deci-out'  # pylint: disable=no-member
         builder.parent_folder = self.ctx.voroaux_substrate.outputs.remote_folder
         # create and set initial nonco_angles if needed
         if 'initial_noco_angles' in self.ctx.slab_calc.inputs:
@@ -436,8 +437,8 @@ class kkr_decimation_wc(WorkChain):
         builder = KkrCalculation.get_builder()
         builder.code = self.inputs.kkr
         builder.parameters = self.ctx.ddecimation
-        builder.metadata.options = self.ctx.options
-        builder.metadata.label = 'decimation'
+        builder.metadata.options = self.ctx.options  # pylint: disable=no-member
+        builder.metadata.label = 'decimation'  # pylint: disable=no-member
         builder.parent_folder = self.ctx.voroaux_decimation.outputs.remote_folder
         builder.deciout_parent = self.ctx.deciout_calc.outputs.remote_folder
         if 'kpoints' in self.inputs:

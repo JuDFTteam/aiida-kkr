@@ -411,9 +411,7 @@ If given then the writeout step of the host GF is omitted."""
         # construct process builder for kkrimp scf workflow
         builder = kkr_imp_sub_wc.get_builder()
         builder.metadata.label = 'kkrimp scf combined imps'  # pylint: disable=no-member
-        builder.metadata.description = 'scf workflow for combined impurities: {}, {}'.format(
-            self.ctx.imp1.label, self.ctx.imp2.label
-        )  # pylint: disable=no-member
+        builder.metadata.description = f'scf workflow for combined impurities: {self.ctx.imp1.label}, {self.ctx.imp2.label}'  # pylint: disable=no-member
 
         # add combined impurity-info and startpot
         builder.impurity_info = self.ctx.imp_info_combined

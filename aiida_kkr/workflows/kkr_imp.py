@@ -466,8 +466,8 @@ class kkr_imp_wc(WorkChain):
 
         builder = kkr_flex_wc.get_builder()
 
-        builder.metadata.label = sub_label
-        builder.metadata.description = sub_description
+        builder.metadata.label = sub_label  # pylint: disable=no-member
+        builder.metadata.description = sub_description  # pylint: disable=no-member
         builder.kkr = kkrcode
         builder.options = options
         builder.remote_data = converged_host_remote
@@ -577,8 +577,8 @@ class kkr_imp_wc(WorkChain):
         )
 
         builder = kkr_startpot_wc.get_builder()
-        builder.metadata.label = sub_label
-        builder.metadata.description = sub_description
+        builder.metadata.label = sub_label  # pylint: disable=no-member
+        builder.metadata.description = sub_description  # pylint: disable=no-member
         builder.structure = inter_struc
         builder.voronoi = vorocode
         builder.kkr = kkrcode
@@ -741,8 +741,8 @@ class kkr_imp_wc(WorkChain):
         )
 
         builder = kkr_imp_sub_wc.get_builder()
-        builder.metadata.label = sub_label
-        builder.metadata.description = sub_description
+        builder.metadata.label = sub_label  # pylint: disable=no-member
+        builder.metadata.description = sub_description  # pylint: disable=no-member
         builder.kkrimp = kkrimpcode
         builder.options = options
         builder.impurity_info = imp_info

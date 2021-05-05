@@ -772,8 +772,8 @@ class kkr_scf_wc(WorkChain):
         builder.calc_parameters = params
         builder.wf_parameters = sub_wf_params
         builder.structure = structure
-        builder.metadata.label = wf_label
-        builder.metadata.description = wf_desc
+        builder.metadata.label = wf_label  # pylint: disable=no-member
+        builder.metadata.description = wf_desc  # pylint: disable=no-member
         builder.options = self.ctx.options_params_dict
         if 'startpot_overwrite' in self.inputs:
             builder.startpot_overwrite = self.inputs.startpot_overwrite
@@ -1629,8 +1629,8 @@ class kkr_scf_wc(WorkChain):
             wf_desc = ' subworkflow of a DOS calculation'
 
             builder = kkr_dos_wc.get_builder()
-            builder.metadata.description = wf_desc
-            builder.metadata.label = wf_label
+            builder.metadata.description = wf_desc  # pylint: disable=no-member
+            builder.metadata.label = wf_label  # pylint: disable=no-member
             builder.kkr = code
             builder.wf_parameters = wfdospara_node
             builder.options = self.ctx.options_params_dict

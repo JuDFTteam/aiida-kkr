@@ -780,8 +780,8 @@ class kkr_startpot_wc(WorkChain):
             wf_desc = 'subworkflow of a DOS calculation that perform a singe-shot KKR calc.'
 
             builder = kkr_dos_wc.get_builder()
-            builder.metadata.description = wf_desc
-            builder.metadata.label = wf_label
+            builder.metadata.description = wf_desc  # pylint: disable=no-member
+            builder.metadata.label = wf_label  # pylint: disable=no-member
             builder.kkr = code
             builder.wf_parameters = wfdospara_node
             builder.options = options_node

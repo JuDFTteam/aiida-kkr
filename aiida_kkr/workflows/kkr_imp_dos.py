@@ -404,8 +404,8 @@ label: {self.ctx.label_wf}
             description_gf = 'GF writeout step with energy contour for impurity DOS'
 
             builder = kkr_flex_wc.get_builder()
-            builder.metadata.label = label_gf
-            builder.metadata.description = description_gf
+            builder.metadata.label = label_gf  # pylint: disable=no-member
+            builder.metadata.description = description_gf  # pylint: disable=no-member
             builder.kkr = kkrcode
             builder.options = options
             builder.wf_parameters = wf_params_gf
@@ -477,8 +477,8 @@ label: {self.ctx.label_wf}
         )
 
         builder = kkr_imp_sub_wc.get_builder()
-        builder.metadata.label = label_imp
-        builder.metadata.description = description_imp
+        builder.metadata.label = label_imp  # pylint: disable=no-member
+        builder.metadata.description = description_imp  # pylint: disable=no-member
         builder.kkrimp = kkrimpcode
         builder.options = options
         builder.wf_parameters = kkrimp_params
