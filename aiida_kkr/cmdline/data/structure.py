@@ -44,10 +44,10 @@ def cmd_import(filename, kkrpara, verbose, dry_run):
 
     kkr_para = kkrparams()
     if verbose:
-        print('start reading from file: {}'.format(filename))
+        print(f'start reading from file: {filename}')
     kkr_para.read_keywords_from_inputcard(filename)
     if verbose:
-        print('read kkr params: {}'.format(kkr_para.get_set_values()))
+        print(f'read kkr params: {kkr_para.get_set_values()}')
 
     # extract kkr params
     missing = kkr_para.get_missing_keys(use_aiida=True)
@@ -55,9 +55,9 @@ def cmd_import(filename, kkrpara, verbose, dry_run):
         if len(missing) > 0:
             # TODO replace by click echo
             echo.echo_warning(
-                """inputcard did not contain all necessary keys to run a kkr calculation!
+                f"""inputcard did not contain all necessary keys to run a kkr calculation!
 The following keys are missing:
-{}""".format(missing)
+{missing}"""
             )
 
         struc_keys = ['BRAVAIS', '<RBASIS>', '<ZATOM>', 'ALATBASIS', 'NAEZ', 'NATYP']
@@ -70,7 +70,7 @@ The following keys are missing:
                 echo.echo_success('parsed kkr params from input file')
             else:
                 param_node.store()
-                message = 'stored kkr params Dict node <{}>'.format(param_node.pk)
+                message = f'stored kkr params Dict node <{param_node.pk}>'
                 echo.echo_success(message)
 
     # extract structure

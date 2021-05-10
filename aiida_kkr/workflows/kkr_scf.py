@@ -32,7 +32,7 @@ from aiida_kkr.workflows.dos import kkr_dos_wc
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.10.4'
+__version__ = '0.10.6'
 __contributors__ = (u'Jens Broeder', u'Philipp Rüßmann')
 
 # TODO: magnetism (init and converge magnetic state)
@@ -309,7 +309,8 @@ class kkr_scf_wc(WorkChain):
                 # update parameters for kkr step using previous output(s)
                 cls.update_kkr_params,
                 # run kkr step
-                # TODO: encapsulate this in restarting mechanism (should be a base class of workflows that start calculations)
+                # TODO: encapsulate this in restarting mechanism
+                # (should be a base class of workflows that start calculations)
                 # i.e. use base_restart_calc workchain as parent
                 cls.run_kkr,
                 # check results for convergence and collect some intermediate results
@@ -772,8 +773,8 @@ class kkr_scf_wc(WorkChain):
         builder.calc_parameters = params
         builder.wf_parameters = sub_wf_params
         builder.structure = structure
-        builder.metadata.label = wf_label
-        builder.metadata.description = wf_desc
+        builder.metadata.label = wf_label  # pylint: disable=no-member
+        builder.metadata.description = wf_desc  # pylint: disable=no-member
         builder.options = self.ctx.options_params_dict
         if 'startpot_overwrite' in self.inputs:
             builder.startpot_overwrite = self.inputs.startpot_overwrite
@@ -1067,7 +1068,7 @@ class kkr_scf_wc(WorkChain):
                     else:
                         struc, voro_parent = VoronoiCalculation.find_parent_structure(self.ctx.last_remote)
                     natom = len(get_site_symbols(struc))
-                    xinipol = ones(natom)
+                    xinipol = np.ones(natom)
                 new_params['LINIPOL'] = True
                 new_params['HFIELD'] = self.ctx.hfield
                 new_params['XINIPOL'] = xinipol
@@ -1543,7 +1544,7 @@ class kkr_scf_wc(WorkChain):
                     KKR_steps_stats.get('last_neutr')[irun]
                 )
             )
-            message += ' {} | {}\n'.format(KKR_steps_stats.get('pk')[irun], KKR_steps_stats.get('uuid')[irun])
+            message += f" {KKR_steps_stats.get('pk')[irun]} | {KKR_steps_stats.get('uuid')[irun]}\n"
             """
             message += "#|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|\n".format(irun+1,
                           KKR_steps_stats.get('success')[irun], KKR_steps_stats.get('isteps')[irun],
@@ -1607,8 +1608,8 @@ class kkr_scf_wc(WorkChain):
                     f'emin ({emin} Ry) of voronoi output. '
                     f'Setting automatically to {emin_cont - self.ctx.delta_e * eV2Ry}Ry'
                 )
-            with self.ctx.last_calc.outputs.retrieved.open('out_potential') as f:
-                self.ctx.efermi = get_ef_from_potfile(f)
+            with self.ctx.last_calc.outputs.retrieved.open('out_potential') as _file:
+                self.ctx.efermi = get_ef_from_potfile(_file)
             emax = self.ctx.dos_params['emax']
             if emax < self.ctx.efermi + self.ctx.delta_e * eV2Ry:
                 self.ctx.dos_params['emax'] = self.ctx.efermi + self.ctx.delta_e * eV2Ry
@@ -1619,16 +1620,7 @@ class kkr_scf_wc(WorkChain):
                     f'{self.ctx.efermi + self.ctx.delta_e * eV2Ry}Ry'
                 )
 
-            # take subset of input and prepare parameter node for dos workflow
-            wfdospara_dict = {
-                'queue_name': self.ctx.queue,
-                'resources': self.ctx.resources,
-                'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
-                'withmpi': self.ctx.withmpi,
-                'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
-                'dos_params': self.ctx.dos_params
-            }
-            wfdospara_node = orm.Dict(dict=wfdospara_dict)
+            wfdospara_node = orm.Dict(dict=self.ctx.dos_params)
             wfdospara_node.label = 'DOS params'
             wfdospara_node.description = 'DOS parameter set for final DOS calculation of kkr_scf_wc'
 
@@ -1638,8 +1630,8 @@ class kkr_scf_wc(WorkChain):
             wf_desc = ' subworkflow of a DOS calculation'
 
             builder = kkr_dos_wc.get_builder()
-            builder.metadata.description = wf_desc
-            builder.metadata.label = wf_label
+            builder.metadata.description = wf_desc  # pylint: disable=no-member
+            builder.metadata.label = wf_label  # pylint: disable=no-member
             builder.kkr = code
             builder.wf_parameters = wfdospara_node
             builder.options = self.ctx.options_params_dict

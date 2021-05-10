@@ -9,6 +9,7 @@ import pytest
 from six.moves import range
 from numpy import sort
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
+from .conftest import import_with_migration
 
 
 @pytest.mark.usefixtures("aiida_profile")
@@ -62,8 +63,7 @@ class Test_common_workfunctions_rmq(object):
         from numpy import loadtxt
         from aiida.orm import load_node, Dict
         from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
-        from aiida.tools.importexport import import_data
-        import_data('files/db_dump_kkrflex_create.tar.gz', silent=True)
+        import_with_migration('files/db_dump_kkrflex_create.tar.gz')
         GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6').outputs
         neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.retrieved.open('scoef'), skiprows=1)[:,3]-1]
         settings_dict = {'pot1': 'out_potential',  'out_pot': 'potential_imp', 'neworder': neworder_pot1}

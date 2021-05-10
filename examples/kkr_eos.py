@@ -143,7 +143,7 @@ def main():
 
     # Submit the calculation to the daemon
     submission = submit(builder)
-    print('EOS workchain calculation submitted with pk {}'.format(submission.pk))
+    print(f'EOS workchain calculation submitted with pk {submission.pk}')
 
 
 if __name__ == '__main__':

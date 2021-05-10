@@ -76,7 +76,7 @@ class kkr_imp_dos_wc(WorkChain):
         returns _wf_defaults
         """
 
-        print('Version of workflow: {}'.format(self._workflowversion))
+        print(f'Version of workflow: {self._workflowversion}')
         return self._wf_default
 
     @classmethod
@@ -201,7 +201,7 @@ class kkr_imp_dos_wc(WorkChain):
         Initialise context and some parameters
         """
 
-        self.report('INFO: started KKR impurity DOS workflow version {}' ''.format(self._workflowversion))
+        self.report(f'INFO: started KKR impurity DOS workflow version {self._workflowversion}')
 
         # input both wf and options parameters
         if 'wf_parameters' in self.inputs:
@@ -261,19 +261,16 @@ class kkr_imp_dos_wc(WorkChain):
         # whether or not to compute the GF writeout step
         self.ctx.skip_gfstep = False
 
-        message = """
+        message = f"""
 INFO: use the following parameter:
-withmpi: {}
-Resources: {}
-Walltime (s): {}
-queue name: {}
-scheduler command: {}
-description: {}
-label: {}
-                  """.format(
-            self.ctx.withmpi, self.ctx.resources, self.ctx.max_wallclock_seconds, self.ctx.queue,
-            self.ctx.custom_scheduler_commands, self.ctx.description_wf, self.ctx.label_wf
-        )
+withmpi: {self.ctx.withmpi}
+Resources: {self.ctx.resources}
+Walltime (s): {self.ctx.max_wallclock_seconds}
+queue name: {self.ctx.queue}
+scheduler command: {self.ctx.custom_scheduler_commands}
+description: {self.ctx.description_wf}
+label: {self.ctx.label_wf}
+                  """
         print(message)
         self.report(message)
 
@@ -320,11 +317,11 @@ label: {}
                 print(message)
                 self.report(message)
                 self.ctx.kkr_imp_wf = inputs.imp_pot_sfd.get_incoming(node_class=kkr_imp_sub_wc).first().node
-                message = 'INFO: found underlying kkr impurity workflow (pk: {})'.format(self.ctx.kkr_imp_wf.pk)
+                message = f'INFO: found underlying kkr impurity workflow (pk: {self.ctx.kkr_imp_wf.pk})'
                 print(message)
                 self.report(message)
                 self.ctx.imp_info = self.ctx.kkr_imp_wf.inputs.impurity_info
-                message = 'INFO: found impurity_info node (pk: {})'.format(self.ctx.imp_info.pk)
+                message = f'INFO: found impurity_info node (pk: {self.ctx.imp_info.pk})'
                 print(message)
                 self.report(message)
                 if 'remote_data' in self.ctx.kkr_imp_wf.inputs:
@@ -376,7 +373,7 @@ label: {}
             inputs_ok = False
             self.ctx.errors.append(1)  # raises ERROR_NO_PARENT_FOUND
 
-        message = 'INFO: validated input successfully: {}'.format(inputs_ok)
+        message = f'INFO: validated input successfully: {inputs_ok}'
         self.report(message)
 
         return inputs_ok
@@ -407,8 +404,8 @@ label: {}
             description_gf = 'GF writeout step with energy contour for impurity DOS'
 
             builder = kkr_flex_wc.get_builder()
-            builder.metadata.label = label_gf
-            builder.metadata.description = description_gf
+            builder.metadata.label = label_gf  # pylint: disable=no-member
+            builder.metadata.description = description_gf  # pylint: disable=no-member
             builder.kkr = kkrcode
             builder.options = options
             builder.wf_parameters = wf_params_gf
@@ -419,7 +416,7 @@ label: {}
 
             future = self.submit(builder)
 
-            message = 'INFO: running GF writeout (pid: {})'.format(future.pk)
+            message = f'INFO: running GF writeout (pid: {future.pk})'
             self.report(message)
 
             return ToContext(gf_writeout=future)
@@ -432,7 +429,7 @@ label: {}
         if not self.ctx.skip_gfstep:
             # use computed gf_writeout
             if not self.ctx.gf_writeout.is_finished_ok:
-                return self.exit_codes.ERROR_GF_WRITEOUT_UNSUCCESFUL
+                return self.exit_codes.ERROR_GF_WRITEOUT_UNSUCCESFUL  # pylint: disable=no-member
             gf_writeout_wf = self.ctx.gf_writeout
             gf_writeout_calc = load_node(self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc'))
             gf_writeout_remote = gf_writeout_wf.outputs.GF_host_remote
@@ -454,7 +451,7 @@ label: {}
         imps = self.ctx.imp_info
         nspin = gf_writeout_calc.outputs.output_parameters.get_dict().get('nspin')
         self.ctx.nspin = nspin
-        self.report('nspin: {}'.format(nspin))
+        self.report(f'nspin: {nspin}')
         self.ctx.kkrimp_params_dict = Dict(
             dict={
                 'nspin': nspin,
@@ -480,8 +477,8 @@ label: {}
         )
 
         builder = kkr_imp_sub_wc.get_builder()
-        builder.metadata.label = label_imp
-        builder.metadata.description = description_imp
+        builder.metadata.label = label_imp  # pylint: disable=no-member
+        builder.metadata.description = description_imp  # pylint: disable=no-member
         builder.kkrimp = kkrimpcode
         builder.options = options
         builder.wf_parameters = kkrimp_params
@@ -500,7 +497,7 @@ label: {}
 
         future = self.submit(builder)
 
-        message = 'INFO: running DOS step for impurity system (pk: {})'.format(future.pk)
+        message = f'INFO: running DOS step for impurity system (pk: {future.pk})'
         print(message)
         self.report(message)
 
@@ -513,15 +510,15 @@ label: {}
 
         if self.ctx.errors != []:
             if 1 in self.ctx.errors:
-                return self.exit_codes.ERROR_NO_PARENT_FOUND
+                return self.exit_codes.ERROR_NO_PARENT_FOUND  # pylint: disable=no-member
             elif 2 in self.ctx.errors:
-                return self.exit_codes.ERROR_IMP_POT_AND_REMOTE
+                return self.exit_codes.ERROR_IMP_POT_AND_REMOTE  # pylint: disable=no-member
             elif 3 in self.ctx.errors:
-                return self.exit_codes.ERROR_KKR_CODE_MISSING
+                return self.exit_codes.ERROR_KKR_CODE_MISSING  # pylint: disable=no-member
             elif 4 in self.ctx.errors:
-                return self.exit_codes.ERROR_HOST_REMOTE_MISSING
+                return self.exit_codes.ERROR_HOST_REMOTE_MISSING  # pylint: disable=no-member
             else:
-                return self.exit_codes.ERROR_UNKNOWN_PROBLEM
+                return self.exit_codes.ERROR_UNKNOWN_PROBLEM  # pylint: disable=no-member
 
         message = 'INFO: creating output nodes for the KKR imp DOS workflow ...'
         print(message)
@@ -531,7 +528,7 @@ label: {}
             message = 'ERROR: sub workflow for impurity calculation failed'
             print(message)
             self.report(message)
-            return self.exit_codes.ERROR_IMP_SUB_WORKFLOW_FAILURE
+            return self.exit_codes.ERROR_IMP_SUB_WORKFLOW_FAILURE  # pylint: disable=no-member
         else:
             last_calc_pk = self.ctx.kkrimp_dos.outputs.workflow_info.get_dict().get('last_calc_nodeinfo')['pk']
             last_calc = load_node(last_calc_pk)
@@ -550,7 +547,7 @@ label: {}
 
             # interpol dos file and store to XyData nodes
             dos_extracted, dosXyDatas = self.extract_dos_data(last_calc)
-            message = 'INFO: extracted DOS data? {}'.format(dos_extracted)
+            message = f'INFO: extracted DOS data? {dos_extracted}'
             print(message)
             self.report(message)
 
@@ -573,7 +570,7 @@ label: {}
                     pk_impcalc = self.ctx.kkrimp_dos.outputs.workflow_info['pks_all_calcs'][0]
                     cleanup_kkrimp_retrieved(pk_impcalc)
 
-            message = 'INFO: workflow_info node: {}'.format(outputnode_t.uuid)
+            message = f'INFO: workflow_info node: {outputnode_t.uuid}'
             print(message)
             self.report(message)
 

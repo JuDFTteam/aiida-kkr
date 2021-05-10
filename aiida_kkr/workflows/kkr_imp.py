@@ -80,7 +80,7 @@ class kkr_imp_wc(WorkChain):
         returns _wf_defaults
         """
         if not silent:
-            print('Version of workflow: {}'.format(self._workflowversion))
+            print(f'Version of workflow: {self._workflowversion}')
         return self._options_default, self._wf_default, self._voro_aux_default
 
     @classmethod
@@ -218,7 +218,7 @@ class kkr_imp_wc(WorkChain):
         Init context and some parameters
         """
 
-        self.report('INFO: started KKR impurity workflow version {}' ''.format(self._workflowversion))
+        self.report(f'INFO: started KKR impurity workflow version {self._workflowversion}')
 
         # get input parameters
         if 'options' in self.inputs:
@@ -264,9 +264,7 @@ class kkr_imp_wc(WorkChain):
         )
         if 'options_voronoi' in self.inputs:
             self.ctx.options_params_dict_voronoi = self.inputs.options_voronoi.get_dict()
-            self.report(
-                'INFO: Use different options for voronoi code ({})'.format(self.ctx.options_params_dict_voronoi)
-            )
+            self.report(f'INFO: Use different options for voronoi code ({self.ctx.options_params_dict_voronoi})')
         else:
             self.ctx.options_params_dict_voronoi = self.ctx.options_params_dict.get_dict()
 
@@ -387,20 +385,18 @@ class kkr_imp_wc(WorkChain):
                 test_and_get_codenode(inputs.voronoi, 'kkr.voro', use_exceptions=True)
             except ValueError:
                 inputs_ok = False
-                self.report(self.exit_codes.ERROR_INVALID_INPUT_CODE)
-                return self.exit_codes.ERROR_INVALID_INPUT_CODE
+                self.report(self.exit_codes.ERROR_INVALID_INPUT_CODE)  # pylint: disable=no-member
+                return self.exit_codes.ERROR_INVALID_INPUT_CODE  # pylint: disable=no-member
         elif 'kkr' in inputs:
             try:
                 test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
                 inputs_ok = False
-                self.report(self.exit_codes.ERROR_INVALID_INPUT_CODE)
-                return self.exit_codes.ERROR_INVALID_INPUT_CODE
+                self.report(self.exit_codes.ERROR_INVALID_INPUT_CODE)  # pylint: disable=no-member
+                return self.exit_codes.ERROR_INVALID_INPUT_CODE  # pylint: disable=no-member
 
         if 'impurity_info' in inputs:
-            self.report(
-                'INFO: found the following impurity info node in input: {}'.format(inputs.impurity_info.get_dict())
-            )
+            self.report(f'INFO: found the following impurity info node in input: {inputs.impurity_info.get_dict()}')
 
         if 'remote_data_gf' in inputs and 'remote_data_host' in inputs:
             self.report(
@@ -420,8 +416,8 @@ class kkr_imp_wc(WorkChain):
                 do_gf_calc = True
             else:
                 inputs_ok = False
-                self.report(self.exit_codes.ERROR_MISSING_KKRCODE)
-                return self.exit_codes.ERROR_MISSING_KKRCODE
+                self.report(self.exit_codes.ERROR_MISSING_KKRCODE)  # pylint: disable=no-member
+                return self.exit_codes.ERROR_MISSING_KKRCODE  # pylint: disable=no-member
         elif 'remote_data_gf' in inputs:
             remote_data_gf_node = load_node(inputs.remote_data_gf.pk)
             pk_kkrflex_writeoutcalc = remote_data_gf_node.get_incoming(link_label_filter=u'remote_folder'
@@ -442,13 +438,11 @@ class kkr_imp_wc(WorkChain):
                 )
         else:
             inputs_ok = False
-            self.report(self.exit_codes.ERROR_MISSING_REMOTE)
-            return self.exit_codes.ERROR_MISSING_REMOTE
+            self.report(self.exit_codes.ERROR_MISSING_REMOTE)  # pylint: disable=no-member
+            return self.exit_codes.ERROR_MISSING_REMOTE  # pylint: disable=no-member
 
         self.ctx.do_gf_calc = do_gf_calc
-        self.report(
-            'INFO: validated input successfully: {}. Do GF writeout calc: {}.'.format(inputs_ok, self.ctx.do_gf_calc)
-        )
+        self.report(f'INFO: validated input successfully: {inputs_ok}. Do GF writeout calc: {self.ctx.do_gf_calc}.')
 
         return do_gf_calc
 
@@ -465,15 +459,15 @@ class kkr_imp_wc(WorkChain):
         options = self.ctx.options_params_dict
 
         # set label and description of the calc
-        sub_label = 'GF writeout (conv. host pid: {}, imp_info pid: {})'.format(converged_host_remote.pk, imp_info.pk)
+        sub_label = f'GF writeout (conv. host pid: {converged_host_remote.pk}, imp_info pid: {imp_info.pk})'
         sub_description = 'GF writeout sub workflow for kkrimp_wc using converged host remote data (pid: {}) and impurity_info node (pid: {})'.format(
             converged_host_remote.pk, imp_info.pk
         )
 
         builder = kkr_flex_wc.get_builder()
 
-        builder.metadata.label = sub_label
-        builder.metadata.description = sub_description
+        builder.metadata.label = sub_label  # pylint: disable=no-member
+        builder.metadata.description = sub_description  # pylint: disable=no-member
         builder.kkr = kkrcode
         builder.options = options
         builder.remote_data = converged_host_remote
@@ -491,7 +485,7 @@ class kkr_imp_wc(WorkChain):
 
         future = self.submit(builder)
 
-        self.report('INFO: running GF writeout (pk: {})'.format(future.pk))
+        self.report(f'INFO: running GF writeout (pk: {future.pk})')
 
         return ToContext(gf_writeout=future, last_calc_gf=future)
 
@@ -541,7 +535,7 @@ class kkr_imp_wc(WorkChain):
 
         # set Fermi level for auxiliary impurity potential correctly (extract from EF that is used in impurity calc)
         set_efermi = self.get_ef_from_parent()
-        self.report('INFO: set Fermi level in jellium starting potential to {}'.format(set_efermi))
+        self.report(f'INFO: set Fermi level in jellium starting potential to {set_efermi}')
         # change voronoi parameters
         updatenode = Dict(dict={'ef_set': set_efermi, 'add_direct': True})
         updatenode.label = 'Added Fermi energy'
@@ -565,7 +559,7 @@ class kkr_imp_wc(WorkChain):
             changed_params = True
         if changed_params:
             updatenode = Dict(dict=calc_params_dict)
-            updatenode.label = 'Changed params for voroaux: {}'.format(list(self.ctx.change_voro_params.keys()))
+            updatenode.label = f'Changed params for voroaux: {list(self.ctx.change_voro_params.keys())}'
             updatenode.description = 'Overwritten voronoi input parameter from kkr_imp_wc input.'
             calc_params = update_params_wf(calc_params, updatenode)
 
@@ -576,15 +570,15 @@ class kkr_imp_wc(WorkChain):
         # to get the auxiliary impurity startpotentials
         self.ctx.voro_calcs = {}
         inter_struc = change_struc_imp_aux_wf(structure_host, imp_info)
-        sub_label = 'voroaux calc for Zimp: {} in host-struc'.format(imp_info.get_dict().get('Zimp'))
+        sub_label = f"voroaux calc for Zimp: {imp_info.get_dict().get('Zimp')} in host-struc"
         sub_description = 'Auxiliary voronoi calculation for an impurity with charge '
         sub_description += '{} in the host structure from pid: {}'.format(
             imp_info.get_dict().get('Zimp'), converged_host_remote.pk
         )
 
         builder = kkr_startpot_wc.get_builder()
-        builder.metadata.label = sub_label
-        builder.metadata.description = sub_description
+        builder.metadata.label = sub_label  # pylint: disable=no-member
+        builder.metadata.description = sub_description  # pylint: disable=no-member
         builder.structure = inter_struc
         builder.voronoi = vorocode
         builder.kkr = kkrcode
@@ -593,9 +587,9 @@ class kkr_imp_wc(WorkChain):
         builder.options = Dict(dict=self.ctx.options_params_dict_voronoi)
         future = self.submit(builder)
 
-        tmp_calcname = 'voro_aux_{}'.format(1)
+        tmp_calcname = f'voro_aux_{1}'
         self.ctx.voro_calcs[tmp_calcname] = future
-        self.report('INFO: running voro aux (Zimp= {}, pid: {})'.format(imp_info.get_dict().get('Zimp'), future.pk))
+        self.report(f"INFO: running voro aux (Zimp= {imp_info.get_dict().get('Zimp')}, pid: {future.pk})")
 
         return ToContext(last_voro_calc=future)
 
@@ -628,19 +622,19 @@ class kkr_imp_wc(WorkChain):
         """
 
         if not self.ctx.last_voro_calc.is_finished_ok:
-            self.report(self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE)
-            return self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE
+            self.report(self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE)  # pylint: disable=no-member
+            return self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE  # pylint: disable=no-member
 
         # collect all nodes necessary to construct the startpotential
         if self.ctx.do_gf_calc:
             GF_host_calc_pk = self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc')
-            self.report('GF_host_calc_pk: {}'.format(GF_host_calc_pk))
+            self.report(f'GF_host_calc_pk: {GF_host_calc_pk}')
             GF_host_calc = load_node(GF_host_calc_pk)
             converged_host_remote = self.inputs.remote_data_host
         else:
             remote_data_gf_node = load_node(self.inputs.remote_data_gf.pk)
             GF_host_calc = remote_data_gf_node.get_incoming(link_label_filter=u'remote_folder').first().node
-            self.report('GF_host_calc_pk: {}'.format(GF_host_calc.pk))
+            self.report(f'GF_host_calc_pk: {GF_host_calc.pk}')
             # follow parent_folder link up to get remote folder
             converged_host_remote = GF_host_calc.get_incoming(link_label_filter='parent_folder').first().node
 
@@ -658,10 +652,10 @@ class kkr_imp_wc(WorkChain):
         print(GF_host_calc.outputs.retrieved.list_object_names())
 
         # check wether or not calculation was taked from cached node
-        caching_info = 'INFO: cache_source of GF_host_calc node: {}'.format(GF_host_calc.get_cache_source())
+        caching_info = f'INFO: cache_source of GF_host_calc node: {GF_host_calc.get_cache_source()}'
         print(caching_info)
         self.report(caching_info)
-        caching_info = 'INFO: cache_source of voronoi node: {}'.format(load_node(pk_last_voronoi).get_cache_source())
+        caching_info = f'INFO: cache_source of voronoi node: {load_node(pk_last_voronoi).get_cache_source()}'
         print(caching_info)
         self.report(caching_info)
 
@@ -686,8 +680,8 @@ class kkr_imp_wc(WorkChain):
         except:
             neworder_pot1 = [int(np.loadtxt(GF_host_calc.outputs.retrieved.open('scoef'), skiprows=1)[3] - 1)]
 
-        settings_label = 'startpot_KKRimp for imp_info node {}'.format(imp_info.pk)
-        settings_description = 'starting potential for impurity info: {}'.format(imp_info)
+        settings_label = f'startpot_KKRimp for imp_info node {imp_info.pk}'
+        settings_description = f'starting potential for impurity info: {imp_info}'
         settings = Dict(
             dict={
                 'pot1': potname_converged,
@@ -732,25 +726,23 @@ class kkr_imp_wc(WorkChain):
         options = self.ctx.options_params_dict
         imp_info = self.inputs.impurity_info
         if self.ctx.do_gf_calc:
-            self.report('INFO: get GF remote from gf_writeout sub wf (pid: {})'.format(self.ctx.gf_writeout.pk))
+            self.report(f'INFO: get GF remote from gf_writeout sub wf (pid: {self.ctx.gf_writeout.pk})')
             gf_remote = self.ctx.gf_writeout.outputs.GF_host_remote
         else:
-            self.report('INFO: get GF remote from input node (pid: {})'.format(self.inputs.remote_data_gf.pk))
+            self.report(f'INFO: get GF remote from input node (pid: {self.inputs.remote_data_gf.pk})')
             gf_remote = self.inputs.remote_data_gf
         # save in context to return as output node
         self.ctx.gf_remote = gf_remote
 
         # set label and description
-        sub_label = 'kkrimp_sub scf wf (GF host remote: {}, imp_info: {})'.format(
-            gf_remote.pk, self.inputs.impurity_info.pk
-        )
+        sub_label = f'kkrimp_sub scf wf (GF host remote: {gf_remote.pk}, imp_info: {self.inputs.impurity_info.pk})'
         sub_description = 'convergence of the host-impurity potential (pk: {}) using GF remote (pk: {})'.format(
             startpot.pk, gf_remote.pk
         )
 
         builder = kkr_imp_sub_wc.get_builder()
-        builder.metadata.label = sub_label
-        builder.metadata.description = sub_description
+        builder.metadata.label = sub_label  # pylint: disable=no-member
+        builder.metadata.description = sub_description  # pylint: disable=no-member
         builder.kkrimp = kkrimpcode
         builder.options = options
         builder.impurity_info = imp_info
@@ -762,9 +754,7 @@ class kkr_imp_wc(WorkChain):
         future = self.submit(builder)
 
         self.report(
-            'INFO: running kkrimp_sub_wf (startpot: {}, GF_remote: {}, wf pid: {})'.format(
-                startpot.pk, gf_remote.pk, future.pk
-            )
+            f'INFO: running kkrimp_sub_wf (startpot: {startpot.pk}, GF_remote: {gf_remote.pk}, wf pid: {future.pk})'
         )
 
         return ToContext(kkrimp_scf_sub=future)
@@ -812,7 +802,7 @@ class kkr_imp_wc(WorkChain):
             outputnode_t = create_out_dict_node(Dict(dict=outputnode_dict), **link_nodes)
             outputnode_t.label = 'kkrimp_wc_inform'
             outputnode_t.description = 'Contains information for workflow'
-            self.report('INFO: workflow_info node: {}'.format(outputnode_t.uuid))
+            self.report(f'INFO: workflow_info node: {outputnode_t.uuid}')
 
             self.out('workflow_info', outputnode_t)
             self.out('last_calc_output_parameters', last_calc_output_params)
@@ -832,8 +822,8 @@ class kkr_imp_wc(WorkChain):
                 '|------------------------------------------------------------------------------------------------------------------|'
             )
         else:
-            self.report(self.exit_codes.ERROR_KKRIMP_SUB_WORKFLOW_FAILURE)
-            return self.exit_codes.ERROR_KKRIMP_SUB_WORKFLOW_FAILURE
+            self.report(self.exit_codes.ERROR_KKRIMP_SUB_WORKFLOW_FAILURE)  # pylint: disable=no-member
+            return self.exit_codes.ERROR_KKRIMP_SUB_WORKFLOW_FAILURE  # pylint: disable=no-member
 
     def final_cleanup(self):
         """

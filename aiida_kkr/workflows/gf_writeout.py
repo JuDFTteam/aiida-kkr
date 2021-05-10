@@ -65,7 +65,7 @@ class kkr_flex_wc(WorkChain):
         'ef_shift': 0.,  # set costum absolute E_F (in eV)
         'dos_run': False,  # activate a DOS run with the parameters given in the dos_params input
         'retrieve_kkrflex':
-        True,  # retrieve the DOS files or only keep them on the computer (move to KkrimpCalculation._DIRNAME_GF_UPLOAD on the remote computer's working dir), needs to use the same computer for GF writeout as for the KKRimp calculation!
+        True,  # retrieve the kkrflex_* files or only keep them on the computer (move to KkrimpCalculation._DIRNAME_GF_UPLOAD on the remote computer's working dir), needs to use the same computer for GF writeout as for the KKRimp calculation!
     }
     # add defaults of dos_params since they are passed onto that workflow
     _wf_default['dos_params'] = kkr_dos_wc.get_wf_defaults(silent=True)
@@ -77,7 +77,7 @@ class kkr_flex_wc(WorkChain):
         returns _wf_defaults
         """
 
-        print('Version of workflow: {}'.format(self._workflowversion))
+        print(f'Version of workflow: {self._workflowversion}')
         return self._wf_default
 
     @classmethod
@@ -146,7 +146,7 @@ class kkr_flex_wc(WorkChain):
         init context and some parameters
         """
 
-        self.report('INFO: started KKR flex workflow version {}' ''.format(self._workflowversion))
+        self.report(f'INFO: started KKR flex workflow version {self._workflowversion}')
 
         ####### init #######
         # internal para / control para
@@ -221,13 +221,13 @@ class kkr_flex_wc(WorkChain):
 
         if not 'impurity_info' in inputs:
             input_ok = False
-            return self.exit_codes.ERROR_INVALID_INPUT_IMP_INFO
+            return self.exit_codes.ERROR_INVALID_INPUT_IMP_INFO  # pylint: disable=no-member
 
         if 'remote_data' in inputs:
             input_ok = True
         else:
             input_ok = False
-            return self.exit_codes.ERROR_INVALID_REMOTE_DATA
+            return self.exit_codes.ERROR_INVALID_REMOTE_DATA  # pylint: disable=no-member
 
         # extract correct remote folder of last calculation if input remote_folder node
         # is not from KKRCalculation but kkr_scf_wc workflow
@@ -260,7 +260,7 @@ class kkr_flex_wc(WorkChain):
                 error = ('The code you provided for kkr does not ' 'use the plugin kkr.kkr')
                 self.ctx.errors.append(error)
                 input_ok = False
-                return self.exit_codes.ERROR_INVALID_INPUT_KKR
+                return self.exit_codes.ERROR_INVALID_INPUT_KKR  # pylint: disable=no-member
 
         # set self.ctx.input_params_KKR
         self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
@@ -287,7 +287,7 @@ class kkr_flex_wc(WorkChain):
             for key, val in input_dict.items():
                 para_check.set_value(key, val, silent=True)
         except:
-            return self.exit_codes.ERROR_INVALID_CALC_PARAMETERS
+            return self.exit_codes.ERROR_INVALID_CALC_PARAMETERS  # pylint: disable=no-member
 
         # step 2: check if all mandatory keys are there
         label = ''
@@ -302,11 +302,11 @@ class kkr_flex_wc(WorkChain):
                     kkrdefaults_updated.append(key_default)
                     missing_list.remove(key_default)
             if len(missing_list) > 0:
-                self.report('ERROR: calc_parameters misses keys: {}'.format(missing_list))
-                return self.exit_codes.ERROR_CALC_PARAMETERS_INCOMPLETE
+                self.report(f'ERROR: calc_parameters misses keys: {missing_list}')
+                return self.exit_codes.ERROR_CALC_PARAMETERS_INCOMPLETE  # pylint: disable=no-member
 
             else:
-                self.report('updated KKR parameter node with default values: {}'.format(kkrdefaults_updated))
+                self.report(f'updated KKR parameter node with default values: {kkrdefaults_updated}')
                 label = 'add_defaults_'
                 descr = 'added missing default keys, '
 
@@ -324,9 +324,7 @@ class kkr_flex_wc(WorkChain):
                     updatedict[key] = val
                 else:
                     runopt = val
-                self.report(
-                    'INFO: overwriting KKR parameter: {} with {} from params_kkr_overwrite input node'.format(key, val)
-                )
+                self.report(f'INFO: overwriting KKR parameter: {key} with {val} from params_kkr_overwrite input node')
             input_links['params_kkr_overwrite'] = self.inputs.params_kkr_overwrite
 
         runopt = [i.strip() for i in runopt]
@@ -335,7 +333,7 @@ class kkr_flex_wc(WorkChain):
 
         updatedict['RUNOPT'] = runopt
 
-        self.report('INFO: RUNOPT set to: {}'.format(runopt))
+        self.report(f'INFO: RUNOPT set to: {runopt}')
 
         if 'wf_parameters' in self.inputs:
             # extract Fermi energy in Ry
@@ -380,7 +378,7 @@ class kkr_flex_wc(WorkChain):
         self.ctx.flex_kkrparams = paranode_flex
         self.ctx.flex_runopt = runopt
 
-        self.report('INFO: Updated params= {}'.format(paranode_flex.get_dict()))
+        self.report(f'INFO: Updated params= {paranode_flex.get_dict()}')
 
     def get_flex(self):
         """
@@ -484,7 +482,7 @@ class kkr_flex_wc(WorkChain):
         # capture error of unsuccessful flexrun
         if not self.ctx.flexrun.is_finished_ok:
             self.ctx.successful = False
-            return self.exit_codes.ERROR_KKR_CALCULATION_FAILED
+            return self.exit_codes.ERROR_KKR_CALCULATION_FAILED  # pylint: disable=no-member
 
         # create dict to store results of workflow output
         outputnode_dict = {}

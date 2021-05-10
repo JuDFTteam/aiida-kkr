@@ -55,7 +55,7 @@ class combine_imps_wc(WorkChain):
         returns _wf_defaults
         """
         if not silent:
-            print(('Version of workflow: {}'.format(cls._workflowversion)))
+            print(f'Version of workflow: {cls._workflowversion}')
         return cls._wf_default
 
     @classmethod
@@ -179,7 +179,7 @@ If given then the writeout step of the host GF is omitted."""
         """
         prepare context and do some consistency checks
         """
-        message = 'INFO: started combine_imps_wc workflow version {}'.format(self._workflowversion)
+        message = f'INFO: started combine_imps_wc workflow version {self._workflowversion}'
         self.report(message)
 
         self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
@@ -238,11 +238,11 @@ If given then the writeout step of the host GF is omitted."""
         else:
             # imp_calc_or_wf should be kkr_imp_wc or kkr_imp_sub_wc workflow
             if not isinstance(imp_calc_or_wf, WorkChainNode):
-                self.report('impurity_workflow not a WorkChainNode: {}'.format(imp_calc_or_wf))
+                self.report(f'impurity_workflow not a WorkChainNode: {imp_calc_or_wf}')
                 return False
 
             if not (imp_calc_or_wf.process_class == kkr_imp_wc or imp_calc_or_wf.process_class == kkr_imp_sub_wc):
-                self.report('impurity_workflow class is wrong: {}'.format(imp_calc_or_wf))
+                self.report(f'impurity_workflow class is wrong: {imp_calc_or_wf}')
                 return False
 
             # calculation should be converged
@@ -268,9 +268,9 @@ If given then the writeout step of the host GF is omitted."""
         host_structure = self.ctx.host_structure
 
         self.report('create combined imp_info:')
-        self.report('host structure: {}'.format(host_structure))
-        self.report('imp info 1: {}'.format(impinfo1))
-        self.report('imp info 2: {}'.format(impinfo2))
+        self.report(f'host structure: {host_structure}')
+        self.report(f'imp info 1: {impinfo1}')
+        self.report(f'imp info 2: {impinfo2}')
 
         if self.inputs.offset_imp2['index'] < 0:
             return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL  # pylint: disable=maybe-no-member
@@ -360,7 +360,7 @@ If given then the writeout step of the host GF is omitted."""
         # now submit the workflow
         future = self.submit(builder)
 
-        self.report('INFO: running GF writeout (pk: {})'.format(future.pk))
+        self.report(f'INFO: running GF writeout (pk: {future.pk})')
 
         return ToContext(gf_writeout=future)
 
@@ -377,7 +377,7 @@ If given then the writeout step of the host GF is omitted."""
         #TODO check if input host gf remote is consistent
 
         if not self.ctx.host_gf_ok:
-            return self.exit_codes.ERROR_HOST_GF_CALC_FAILED
+            return self.exit_codes.ERROR_HOST_GF_CALC_FAILED  # pylint: disable=no-member
 
     def create_big_potential(self):  # pylint: disable=inconsistent-return-statements
         """
@@ -411,9 +411,7 @@ If given then the writeout step of the host GF is omitted."""
         # construct process builder for kkrimp scf workflow
         builder = kkr_imp_sub_wc.get_builder()
         builder.metadata.label = 'kkrimp scf combined imps'  # pylint: disable=no-member
-        builder.metadata.description = 'scf workflow for combined impurities: {}, {}'.format(
-            self.ctx.imp1.label, self.ctx.imp2.label
-        )  # pylint: disable=no-member
+        builder.metadata.description = f'scf workflow for combined impurities: {self.ctx.imp1.label}, {self.ctx.imp2.label}'  # pylint: disable=no-member
 
         # add combined impurity-info and startpot
         builder.impurity_info = self.ctx.imp_info_combined
@@ -443,7 +441,7 @@ If given then the writeout step of the host GF is omitted."""
         # now submit workflow
         future = self.submit(builder)
 
-        self.report('INFO: running kkrimp scf workflow for combined impts (uuid= {})'.format(future.uuid))
+        self.report(f'INFO: running kkrimp scf workflow for combined impts (uuid= {future.uuid})')
 
         return ToContext(kkrimp_scf_sub=future)
 
@@ -491,9 +489,7 @@ If given then the writeout step of the host GF is omitted."""
 
         # now add settings_LDAU input to builder
         self.report(
-            'add combined LDAU settings (uuid={}): {}'.format(
-                settings_LDAU_combined.uuid, settings_LDAU_combined.get_dict()
-            )
+            f'add combined LDAU settings (uuid={settings_LDAU_combined.uuid}): {settings_LDAU_combined.get_dict()}'
         )
 
         return True, settings_LDAU_combined

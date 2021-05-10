@@ -24,7 +24,7 @@ from aiida_kkr.workflows.bs import set_energy_params
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.8.0'
+__version__ = '0.8.1'
 __contributors__ = u'Philipp Rüßmann'
 
 
@@ -105,7 +105,7 @@ class kkr_dos_wc(WorkChain):
         spec.input('kkr', valid_type=orm.Code, required=True, help='KKRhost Code node used to run the DOS calculation.')
         spec.input(
             'initial_noco_angles',
-            valid_type=Dict,
+            valid_type=orm.Dict,
             required=False,
             help="""Initial non-collinear angles for the magnetic moments. See KkrCalculation for details.
             If this is found in the input potentially extracted nonco angles from the parent calulation are overwritten!"""
@@ -331,8 +331,13 @@ class kkr_dos_wc(WorkChain):
         econt_new['NPOL'] = 0
         econt_new['NPT1'] = 0
         econt_new['NPT3'] = 0
-        kkr_calc = self.inputs.remote_data.get_incoming().first().node
-        ef = kkr_calc.outputs.output_parameters.get_dict()['fermi_energy']  # unit in Ry
+        parent_calc = self.inputs.remote_data.get_incoming().first().node
+        if parent_calc.process_label == 'VoronoiCalculation':
+            # for the voronoi calculation we need to calculate the Fermi level since it is not in the output parameters directly
+            voro_out_para = parent_calc.outputs.output_parameters.get_dict()
+            ef = voro_out_para['emin'] - voro_out_para['emin_minus_efermi_Ry']
+        else:
+            ef = parent_calc.outputs.output_parameters.get_dict()['fermi_energy']  # unit in Ry
         try:
             para_check = set_energy_params(econt_new, ef, para_check)
         except:
@@ -381,7 +386,7 @@ class kkr_dos_wc(WorkChain):
             parent_calc = remote.get_incoming(node_class=KkrCalculation).first().node
             if 'initial_noco_angles' in parent_calc.inputs:
                 noco_angles = extract_noco_angles(
-                    fix_dir_threshold=Float(1e-6),  # make small enough
+                    fix_dir_threshold=orm.Float(1e-6),  # make small enough
                     old_noco_angles=parent_calc.inputs.initial_noco_angles,
                     last_retrieved=parent_calc.outputs.retrieved
                 )
@@ -455,7 +460,7 @@ class kkr_dos_wc(WorkChain):
             has_dosrun = True
         except AttributeError as _error:
             self.report('ERROR: no dos calc retrieved node found')
-            self.report('Caught AttributeError {}'.format(_error))
+            self.report(f'Caught AttributeError {_error}')
             has_dosrun = False
 
         # interpol dos file and store to XyData nodes
@@ -509,7 +514,7 @@ def parse_dosfiles(dos_retrieved):
     ylists = [[], [], []]
     for line, _name in enumerate(name):
         ylists[0].append(dos[:, :, 1 + line])
-        ylists[1].append('dos {}'.format(_name))
+        ylists[1].append(f'dos {_name}')
         ylists[2].append('states/eV')
     dosnode.set_y(ylists[0], ylists[1], ylists[2])
     dosnode.label = 'dos_data'
@@ -521,7 +526,7 @@ def parse_dosfiles(dos_retrieved):
     ylists = [[], [], []]
     for line, _name in enumerate(name):
         ylists[0].append(dos_int[:, :, 1 + line])
-        ylists[1].append('interpolated dos {}'.format(_name))
+        ylists[1].append(f'interpolated dos {_name}')
         ylists[2].append('states/eV')
     dosnode2.set_y(ylists[0], ylists[1], ylists[2])
     dosnode2.label = 'dos_interpol_data'

@@ -16,6 +16,7 @@ import numpy as np
 from masci_tools.io.common_functions import get_alat_from_bravais
 from masci_tools.io.common_functions import vec_to_angles
 from aiida.common.constants import elements as PeriodicTableElements
+from aiida.common.exceptions import InputValidationError
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH,' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
@@ -144,7 +145,7 @@ class modify_potential(object):
 
         # read potfile
         if debug:
-            print('potfile: {}'.format(potfile_in))
+            print(f'potfile: {potfile_in}')
         index1, index2, data = self._read_input(potfile_in)
         if debug:
             print(index1, index2)
@@ -160,7 +161,7 @@ class modify_potential(object):
         # read potfile2
         if potfile_2 is not None:
             if debug:
-                print('potfile2: {}'.format(potfile_2))
+                print(f'potfile2: {potfile_2}')
             index12, index22, data2 = self._read_input(potfile_2)
             if debug:
                 print(index12, index22)
@@ -337,8 +338,8 @@ def rotate_onto_z(structure, structure_array, vector):
 
     #get angles, from vector
     angles = vec_to_angles(vector)
-    theta = angles[1]
-    phi = angles[2]
+    theta = np.array(angles[1])
+    phi = np.array(angles[2])
 
     #initialize needed arrays
     x_res = np.delete(structure_array, np.s_[3:6], 1)
@@ -487,20 +488,20 @@ def write_scoef(x_res, path):
 
     #write data of x_res into the 'scoef'-file
     with open_general(path, 'w') as file:
-        file.write(str('{0:4d}'.format(len(x_res))))
+        file.write(str(f'{len(x_res):4d}'))
         file.write('\n')
         for i in range(len(x_res)):
-            file.write(str('{0:26.19e}'.format(x_res[i][0])))
+            file.write(str(f'{x_res[i][0]:26.19e}'))
             file.write(' ')
-            file.write(str('{0:26.19e}'.format(x_res[i][1])))
+            file.write(str(f'{x_res[i][1]:26.19e}'))
             file.write(' ')
-            file.write(str('{0:26.19e}'.format(x_res[i][2])))
+            file.write(str(f'{x_res[i][2]:26.19e}'))
             file.write(' ')
-            file.write(str('{0:4d}'.format(int(x_res[i][3]))))
+            file.write(str(f'{int(x_res[i][3]):4d}'))
             file.write(' ')
-            file.write(str('{0:4.1f}'.format(x_res[i][4])))
+            file.write(str(f'{x_res[i][4]:4.1f}'))
             file.write(' ')
-            file.write(str('{0:26.19e}'.format(x_res[i][5])))
+            file.write(str(f'{x_res[i][5]:26.19e}'))
             file.write('\n')
 
 

@@ -66,9 +66,7 @@ class KkrParser(Parser):
 
         # we need at least the output file name as defined in calcs.py
         if KkrCalculation._DEFAULT_OUTPUT_FILE not in list_of_files:
-            msg = "Output file '{}' not found in list of files: {}".format(
-                KkrCalculation._DEFAULT_OUTPUT_FILE, list_of_files
-            )
+            msg = f"Output file '{KkrCalculation._DEFAULT_OUTPUT_FILE}' not found in list of files: {list_of_files}"
             if self.icrit == 0:  # this check turns this off for the KKRimporter calculation
                 self.logger.error(msg)
                 return self.exit_codes.ERROR_NO_OUTPUT_FILE
@@ -107,14 +105,14 @@ class KkrParser(Parser):
             with out_folder.open(fname) as fhandle:
                 outfile_0init = fhandle.name
         else:
-            file_errors.append((1 + self.icrit, 'Critical error! OUTPUT_0_INIT not found {}'.format(fname)))
+            file_errors.append((1 + self.icrit, f'Critical error! OUTPUT_0_INIT not found {fname}'))
             outfile_0init = None
         fname = KkrCalculation._OUTPUT_000
         if fname in out_folder.list_object_names():
             with out_folder.open(fname) as fhandle:
                 outfile_000 = fhandle.name
         else:
-            file_errors.append((1 + self.icrit, 'Critical error! OUTPUT_000 not found {}'.format(fname)))
+            file_errors.append((1 + self.icrit, f'Critical error! OUTPUT_000 not found {fname}'))
             outfile_000 = None
         fname = KkrCalculation._OUTPUT_2
         if fname in out_folder.list_object_names():
@@ -122,7 +120,7 @@ class KkrParser(Parser):
                 outfile_2 = fhandle.name
         else:
             if not only_000_present:
-                file_errors.append((1 + self.icrit, 'Critical error! OUTPUT_2 not found {}'.format(fname)))
+                file_errors.append((1 + self.icrit, f'Critical error! OUTPUT_2 not found {fname}'))
                 outfile_2 = None
             else:
                 outfile_2 = outfile_000
@@ -131,21 +129,21 @@ class KkrParser(Parser):
             with out_folder.open(fname) as fhandle:
                 potfile_out = fhandle.name
         else:
-            file_errors.append((1 + self.icrit, 'Critical error! OUT_POTENTIAL not found {}'.format(fname)))
+            file_errors.append((1 + self.icrit, f'Critical error! OUT_POTENTIAL not found {fname}'))
             potfile_out = None
         fname = KkrCalculation._OUT_TIMING_000
         if fname in out_folder.list_object_names():
             with out_folder.open(fname) as fhandle:
                 timing_file = fhandle.name
         else:
-            file_errors.append((1 + self.icrit, 'Critical error! OUT_TIMING_000  not found {}'.format(fname)))
+            file_errors.append((1 + self.icrit, f'Critical error! OUT_TIMING_000  not found {fname}'))
             timing_file = None
         fname = KkrCalculation._NONCO_ANGLES_OUT
         if fname in out_folder.list_object_names():
             with out_folder.open(fname) as fhandle:
                 nonco_out_file = fhandle.name
         else:
-            file_errors.append((2, 'Error! NONCO_ANGLES_OUT not found {}'.format(fname)))
+            file_errors.append((2, f'Error! NONCO_ANGLES_OUT not found {fname}'))
             nonco_out_file = None
 
         out_dict = {
@@ -170,7 +168,7 @@ class KkrParser(Parser):
 
         # try to parse with other combinations of files to minimize parser errors
         if self.icrit != 0:
-            self.logger.info('msg_list0: {}'.format(msg_list))
+            self.logger.info(f'msg_list0: {msg_list}')
             # try second combination of files
             out_dict2 = out_dict.copy()
             success2, msg_list2, out_dict2 = parse_kkr_outputfile(
@@ -184,7 +182,7 @@ class KkrParser(Parser):
                 outfile_2,
                 skip_readin=skip_mode
             )
-            self.logger.info('msg_list1: {}'.format(msg_list2))
+            self.logger.info(f'msg_list1: {msg_list2}')
             if len(msg_list2) < len(msg_list):  # overwrite parser outputs if fewer errors
                 self.logger.info('take output of parser run 1')
                 success, msg_list, out_dict = success2, msg_list2, out_dict2
@@ -201,7 +199,7 @@ class KkrParser(Parser):
                 outfile_2,
                 skip_readin=skip_mode
             )
-            self.logger.info('msg_list2: {}'.format(msg_list2))
+            self.logger.info(f'msg_list2: {msg_list2}')
             if len(msg_list2) < len(msg_list):  # overwrite parser outputs if fewer errors
                 self.logger.info('take output of parser run 2')
                 success, msg_list, out_dict = success2, msg_list2, out_dict2

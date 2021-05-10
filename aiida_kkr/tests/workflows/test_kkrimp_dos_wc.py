@@ -7,8 +7,8 @@ from aiida_kkr.tests.dbsetup import *
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
 from aiida_kkr.tests.conftest import voronoi_local_code, kkrhost_local_code, data_dir
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
-
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
+from ..conftest import import_with_migration
 
 @pytest.mark.timeout(300, method='thread')
 def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_local_code, run_with_cache):
@@ -22,13 +22,13 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     from numpy import array
 
     # import precomputed GF host writeout
-    from aiida.tools.importexport import import_data
-    import_data('files/db_dump_kkrflex_create.tar.gz', silent=True)
+    import_with_migration('files/db_dump_kkrflex_create.tar.gz')
     GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
     
 
-    wfd =kkr_imp_dos_wc.get_wf_defaults()
+    wfd = kkr_imp_dos_wc.get_wf_defaults()
     wfd['clean_impcalc_retrieved'] = False # deactivate cleaning of unused data to regain cachability
+    print(wfd)
 
     options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'withmpi' : False, 'custom_scheduler_commands' : ''}
     options = Dict(dict=options)
@@ -67,6 +67,10 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     out, node = run_with_cache(builder, data_dir=data_dir)
     print(node)
     print(out)
+    from aiida.orm import WorkChainNode
+    for i in node.get_outgoing(node_class=WorkChainNode).all():
+        print(i.node, list(i.node.outputs))
+        
 
     assert 'last_calc_info' in list(out.keys())
     assert 'last_calc_output_parameters' in list(out.keys())
