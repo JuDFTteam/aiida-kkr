@@ -15,6 +15,7 @@ from aiida_kkr.calculations.voro import VoronoiCalculation
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import (test_and_get_codenode, get_inputs_kkr,
                                                   get_parent_paranode, update_params_wf)
+from aiida_kkr.tools.extract_kkrhost_noco_angles import extract_noco_angles
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.dos import kkr_dos_wc
 from masci_tools.io.common_functions import get_Ry2eV, get_ef_from_potfile
@@ -180,7 +181,7 @@ Can be skipped if a previous KkrCalculation is given with the `remote_data` inpu
  This can be used to construct a better starting potential from a preconverged calculation (e.g. in a smaller unit cell)."""
                    )
         spec.input("initial_noco_angles", valid_type=Dict, required=False,
-                   help="Initial non-collinear angles for the magnetic moments of the impurities. See KkrCalculation for details."
+                   help="Initial non-collinear angles for the magnetic moments. See KkrCalculation for details."
                    )
 
         # define output nodes
@@ -1544,8 +1545,9 @@ Can be skipped if a previous KkrCalculation is given with the `remote_data` inpu
                         emin_cont-self.ctx.delta_e*eV2Ry
                     )
                 )
-            self.ctx.efermi = get_ef_from_potfile(
-                self.ctx.last_calc.outputs.retrieved.open("out_potential"))
+
+            with self.ctx.last_calc.outputs.retrieved.open("out_potential") as f:
+                self.ctx.efermi = get_ef_from_potfile(f)
             emax = self.ctx.dos_params["emax"]
             if emax < self.ctx.efermi + self.ctx.delta_e*eV2Ry:
                 self.ctx.dos_params["emax"] = self.ctx.efermi + \
@@ -1692,47 +1694,8 @@ Can be skipped if a previous KkrCalculation is given with the `remote_data` inpu
             old_noco_angles=self.ctx.initial_noco_angles,
             last_retrieved=self.ctx.last_calc.outputs.retrieved
         )
-
-
-@calcfunction
-def extract_noco_angles(**kwargs):
-    """
-    Extract noco angles from retrieved nonco_angles_out.dat files and save as Dict node which can be used as initial values for the next KkrCalculation.
-    New angles are compared to old angles and if they are closer thanfix_dir_threshold they are not allowed to change anymore
-    """
-    # for comparison read previous theta and phi values and the threshold after which the moments are kept fixed
-    noco_angles_old = kwargs["old_noco_angles"].get_dict()
-    natom = len(noco_angles_old["phi"])
-    noco_angles_old = [
-        [
-            noco_angles_old["theta"][i],
-            noco_angles_old["phi"][i],
-            noco_angles_old["fix_dir"][i]
-        ] for i in range(natom)
-    ]
-    fix_dir_threshold = kwargs["fix_dir_threshold"].value
-
-    last_retrieved = kwargs["last_retrieved"]
-    noco_out_name = KkrCalculation._NONCO_ANGLES_OUT
-    if noco_out_name in last_retrieved.list_object_names():
-        with last_retrieved.open(noco_out_name) as noco_file:
-            noco_angles_new = loadtxt(noco_file, usecols=[0, 1])
-            # check if theta and phi change less than fix_dir_threshold
-            fix_dir = [
-                sqrt(
-                    (noco_angles_new[i][0]-noco_angles_old[i][0])**2
-                    + (noco_angles_new[i][1]-noco_angles_old[i][1])**2
-                ) < fix_dir_threshold for i in range(natom)
-            ]
-            new_initial_noco_angles = Dict(
-                dict={
-                    "theta": list(noco_angles_new[:, 0]),
-                    "phi": list(noco_angles_new[:, 1]),
-                    # convert from numpy.bool_ to standard python bool, otherwise this is not json serializable and cannot be stored
-                    "fix_dir": [bool(i) for i in fix_dir]
-                }
-            )
-        return new_initial_noco_angles
+        if self.ctx.initial_noco_angles == {}:
+            self.ctx.initial_noco_angles = self.ctx.initial_noco_angles
 
 
 @workfunction

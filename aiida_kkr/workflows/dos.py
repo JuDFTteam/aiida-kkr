@@ -8,7 +8,7 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 from six.moves import range
-from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, WorkChainNode
+from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, WorkChainNode, Float
 from aiida.engine import WorkChain, if_, ToContext
 from aiida.engine import submit
 from masci_tools.io.kkr_params import kkrparams
@@ -18,6 +18,7 @@ from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.engine import CalcJob, calcfunction
 from aiida.common.exceptions import InputValidationError
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
+from aiida_kkr.tools.extract_kkrhost_noco_angles import extract_noco_angles
 from aiida_kkr.workflows.bs import set_energy_params
 
 
@@ -82,16 +83,34 @@ class kkr_dos_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_dos_wc, cls).define(spec)
         spec.input("wf_parameters", valid_type=Dict, required=False,
-                   default=lambda: Dict(dict=cls._wf_default))
+                   default=lambda: Dict(dict=cls._wf_default),
+                   help="Workflow parameter (see `kkr_dos_wc.get_wf_defaults()`)."
+                  )
         spec.input("options", valid_type=Dict, required=False,
-                   default=lambda: Dict(dict=cls._wf_default))
-        spec.input("remote_data", valid_type=RemoteData, required=True)
-        spec.input("kkr", valid_type=Code, required=True)
+                   default=lambda: Dict(dict=cls._wf_default),
+                   help="Computer options used by the workflow."
+                  )
+        spec.input("remote_data", valid_type=RemoteData, required=True,
+                   help="RemoteData node of the parent calculation."
+                  )
+        spec.input("kkr", valid_type=Code, required=True, 
+                   help="KKRhost Code node used to run the DOS calculation."
+                  )
+        spec.input("initial_noco_angles", valid_type=Dict, required=False,
+                   help="""Initial non-collinear angles for the magnetic moments. See KkrCalculation for details.
+                   If this is found in the input potentially extracted nonco angles from the parent calulation are overwritten!"""
+                   )
 
         # define outputs
-        spec.output("results_wf", valid_type=Dict, required=True)
-        spec.output("dos_data", valid_type=XyData, required=False)
-        spec.output("dos_data_interpol", valid_type=XyData, required=False)
+        spec.output("results_wf", valid_type=Dict, required=True,
+                    help="Results collected by the workflow."
+                   )
+        spec.output("dos_data", valid_type=XyData, required=False,
+                    help="XyData node of the parsed DOS output."
+                   )
+        spec.output("dos_data_interpol", valid_type=XyData, required=False,
+                    help="XyData node of the parsed DOS output, interpolated onto the real axis."
+                   )
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -293,11 +312,7 @@ class kkr_dos_wc(WorkChain):
         # overwrite energy contour to DOS contour no matter what is in input parameter node.
         # Contour parameter given as input to workflow.
         econt_new = self.ctx.dos_params_dict
-        # always overwrite NPOL, N1, N3, thus add these to econt_new
-        econt_new["NPOL"] = 0
-        econt_new["NPT1"] = 0
-        econt_new["NPT3"] = 0
-        kkr_calc = self.inputs.remote_data.get_incoming().first().node
+        kkr_calc = self.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node
         ef = kkr_calc.outputs.output_parameters.get_dict()['fermi_energy'] # unit in Ry
         try:
             para_check = set_energy_params(econt_new, ef, para_check)
@@ -328,11 +343,33 @@ class kkr_dos_wc(WorkChain):
             "max_wallclock_seconds": self.ctx.max_wallclock_seconds,
             "resources": self.ctx.resources,
             "queue_name": self.ctx.queue
-        }  # ,
+        }
         if self.ctx.custom_scheduler_commands:
             options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
+
         inputs = get_inputs_kkr(code, remote, options, label, description,
                                 parameters=params, serial=(not self.ctx.withmpi))
+
+        # add nonco angles if found in the parent calculation or in the input
+        if 'initial_noco_angles' in self.inputs:
+            # overwrite nonco_angles from the input if given
+            inputs['initial_noco_angles'] = self.inputs.initial_noco_angles
+            self.report('used nonco angles from input to workflow')
+        else:
+            # extract from the parent calculation
+            parent_calc = remote.get_incoming(node_class=KkrCalculation).first().node
+            if 'initial_noco_angles' in parent_calc.inputs:
+                noco_angles = extract_noco_angles(
+                    fix_dir_threshold=Float(1e-6), # make small enough
+                    old_noco_angles=parent_calc.inputs.initial_noco_angles,
+                    last_retrieved=parent_calc.outputs.retrieved
+                )
+                # set nonco angles (either from input or from output if it was updated)
+                self.report(noco_angles)
+                if noco_angles == {}:
+                    noco_angles = parent_calc.inputs.initial_noco_angles
+                inputs['initial_noco_angles'] = noco_angles
+                self.report(f'extract nonco angles and use from parent ({noco_angles})')
 
         # run the DOS calculation
         self.report("INFO: doing calculation")

@@ -751,7 +751,7 @@ The Dict node should be of the form
             runopt.append('FIXMOM')
             change_values.append(['RUNOPT', runopt])
         elif not all(fix_dir) and 'FIXMOM' in runopt:
-            runopt.pop('FIXMOM')
+            runopt = [i for i in runopt if 'FIXMOM' not in i.upper()]
             change_values.append(['RUNOPT', runopt])
         parameters = _update_params(parameters, change_values)
 
@@ -826,6 +826,7 @@ The Dict node should be of the form
 
         # add 'den-lm_ir' files to input
         for BdG_pot in BDG_POT_FILES:
+            self.report(f'Copy BdG potential {BdG_pot}')
             with retrieved.open(BdG_pot, 'r') as file_handle:
                 file_txt = file_handle.readlines()
             with tempfolder.open(BdG_pot, 'w') as file_handle:

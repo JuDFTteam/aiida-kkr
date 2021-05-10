@@ -5,6 +5,8 @@ contains plot_kkr class for node visualization
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
+import numpy as np
+import matplotlib.pyplot as plt
 from builtins import object, str
 from six.moves import range
 __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
@@ -12,6 +14,27 @@ __copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
 __license__ = "MIT license, see LICENSE.txt file"
 __version__ = "0.6.2"
 __contributors__ = ("Philipp Rüßmann")
+
+
+def remove_empty_atoms(show_empty_atoms, structure, silent=False):
+    # check if empty sphere need to be removed for plotting (ase structgure cannot be constructed for alloys or vacancies)
+    #print('in remove empty atoms:', structure.has_vacancies, ('X' in [i.kind_name for i in structure.sites]) )
+    if structure.has_vacancies or ('X' in [i.kind_name for i in structure.sites]):
+        #print("structure has vacancies, need to remove empty sites for plotting")
+        from aiida.orm import StructureData
+        stmp = StructureData(cell=structure.cell)
+        for site in structure.sites:
+            k = structure.get_kind(site.kind_name)
+            pos = site.position
+            if not (k.has_vacancies or 'X' in site.kind_name):
+                stmp.append_atom(position=pos, symbols=k.symbol)
+            elif show_empty_atoms:
+                stmp.append_atom(position=pos, symbols='X')
+            elif not silent:
+                print("removing atom", site)
+        stmp.set_pbc(structure.pbc)
+        structure = stmp
+    return structure
 
 
 def _in_notebook():
@@ -84,6 +107,12 @@ def strucplot_ase_notebook(struc, **kwargs):
     atom_opacity = kwargs.get('atom_opacity', 0.95)
     static = kwargs.get('static', False)
     rotations = kwargs.get('rotations', "-80x,-20y,-5z")
+    
+    if 'show_empty_atoms' in kwargs:
+        show_empty_atoms = kwargs.pop('show_empty_atoms')
+    else:
+        show_empty_atoms = False
+    struc = remove_empty_atoms(show_empty_atoms, struc, kwargs.get('silent', False))
 
     # check if static needs to be enforced
     static = _check_tk_gui(static)
@@ -550,21 +579,7 @@ class plot_kkr(object):
             show_empty_atoms = kwargs.pop('show_empty_atoms')
         else:
             show_empty_atoms = False
-        # check if empty sphere need to be removed for plotting (ase structgure cannot be constructed for alloys or vacancies)
-        if structure.has_vacancies:
-            print("structure has vacancies, need to remove empty sites for plotting")
-            stmp = StructureData(cell=structure.cell)
-            for site in structure.sites:
-                k = structure.get_kind(site.kind_name)
-                pos = site.position
-                if not k.has_vacancies:
-                    stmp.append_atom(position=pos, symbols=k.symbol)
-                elif show_empty_atoms:
-                    stmp.append_atom(position=pos, symbols='X')
-                else:
-                    print("removing atom", site)
-            stmp.set_pbc(structure.pbc)
-            structure = stmp
+        structure = remove_empty_atoms(show_empty_atoms, structure, kwargs.get('silent', False))
             
         if _has_ase_notebook() and 'viewer' not in kwargs:
             # by default use ase_notebook if it is available
@@ -1504,7 +1519,7 @@ class plot_kkr(object):
             else:
                 ptitle = 'pk= {}'.format(node.pk)
             self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
-            title(ptitle)
+            plt.title(ptitle)
             # maybe save as file
             save_fig_to_file(kwargs, 'plot_kkr_out_dos.png')
 
