@@ -41,6 +41,7 @@
             "pytest-cov >= 2.5.0",
             "pytest-mpl >= 0.10",
             "pytest-timeout >= 1.3.3",
+            "pytest-regressions>=1.0",
 	    "aiida-testing @ git+https://github.com/broeder-j/aiida-testing.git@42510e11d404a78877b9925bf22a39e3936181e4"
 	],
         "docs": [

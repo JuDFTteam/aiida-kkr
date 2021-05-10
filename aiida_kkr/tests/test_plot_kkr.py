@@ -17,7 +17,7 @@ class Test_plot_kkr(object):
     Tests for the plot_kkr tool
     """
 
-    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='kkr.png', tolerance=6)
+    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='kkr.png', tolerance=8)
     def test_plot_kkr_calc(self):
         basic_test('1792144e-746c-4575-a1e1-40125a26778c', strucplot=False, noshow=True)
         return gcf()
@@ -45,10 +45,10 @@ class Test_plot_kkr(object):
 
     @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='scf.png')
     def test_plot_scf_wc(self):
-        basic_test('224e0f00-6f81-4e63-a142-d45e83ec33e8', strucplot=False, noshow=True)
+        basic_test('224e0f00-6f81-4e63-a142-d45e83ec33e8', strucplot=False, noshow=True, tolerance=8)
         return gcf()
 
-    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='scf_grouped.png')
+    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='scf_grouped.png', tolerance=8)
     def test_plot_scf_wc_grouped(self):
         basic_test(['bf644c1a-10a8-4b35-96e2-e8d1a3a97d9f', '1d04ac8b-9b84-4cbf-94ce-8761eef2d05c', 'e3d206ef-4ffc-40aa-9fbb-79e93fab56a0'], strucplot=False, nolegend=True, noshow=True)
         return gcf()
