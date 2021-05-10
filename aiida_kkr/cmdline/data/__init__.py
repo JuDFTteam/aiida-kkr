@@ -8,15 +8,16 @@
 ###############################################################################
 # pylint: disable=cyclic-import
 # ,reimported,unused-import,wrong-import-position
-
 """
 Module with CLI commands for various data types.
 """
 import click
 
+
 @click.group('data')
 def cmd_data():
     """Commands to create and inspect data nodes."""
+
 
 # Import the sub commands to register them with the CLI
 from .structure import cmd_structure
@@ -29,8 +30,7 @@ from .parameters import cmd_parameter
 # aiida-kkr data create kpoints: create k-points for bandstructure claculations
 # aiida-kkr data create noco_angles: create k-points for bandstructure claculations
 #also corresponding list and show commands needed
-# for list and show we should have additionally imp pot, maybe something else 
-
+# for list and show we should have additionally imp pot, maybe something else
 '''
 @cmd_data.command('list')
 def cmd_list_kkrstructures():

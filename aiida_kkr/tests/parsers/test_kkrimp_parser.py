@@ -5,6 +5,7 @@ from __future__ import print_function
 from builtins import object
 import pytest
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, aiida_profile
+from ..conftest import import_with_migration
 
 
 # tests
@@ -15,8 +16,7 @@ def test_parse_kkrimp_calc(aiida_profile):
     """
     from aiida.orm import load_node
     from aiida_kkr.parsers.kkrimp import KkrimpParser
-    from aiida.tools.importexport import import_data
-    import_data('files/db_dump_kkrimp_out.tar.gz', silent=True)
+    import_with_migration('files/db_dump_kkrimp_out.tar.gz')
     kkrimp_calc = load_node('eab8db1b-2cc7-4b85-a524-0df4ff2b7da6')
     parser = KkrimpParser(kkrimp_calc)
     out = parser.parse(debug=False)
@@ -31,8 +31,7 @@ def test_parse_kkrimp_calc_complex(aiida_profile):
     """
     from aiida.orm import load_node
     from aiida_kkr.parsers.kkrimp import KkrimpParser
-    from aiida.tools.importexport import import_data
-    import_data('files/export_kkrimp_calc.tar.gz', silent=True)
+    import_with_migration('files/export_kkrimp_calc.tar.gz')
     kkrimp_calc = load_node('7547303b-69b7-4380-b0c0-7440e6c4f2a1')
     parser = KkrimpParser(kkrimp_calc)
     out = parser.parse(debug=False)

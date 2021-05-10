@@ -11,19 +11,17 @@ import os
 from aiida.parsers.parser import Parser
 from aiida.orm import Dict
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
-from aiida.common.exceptions import InputValidationError
+from aiida.common.exceptions import InputValidationError, NotExistent
 from masci_tools.io.parsers.kkrparser_functions import check_error_category
 from masci_tools.io.common_functions import open_general
 from masci_tools.io.parsers.kkrimp_parser_functions import KkrimpParserFunctions
 from six.moves import range
 from pprint import pprint
 
-
-__copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
-                 "IAS-1/PGI-1, Germany. All rights reserved.")
-__license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.4.2"
-__contributors__ = ("Philipp Rüßmann")
+__copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__license__ = 'MIT license, see LICENSE.txt file'
+__version__ = '0.4.2'
+__contributors__ = ('Philipp Rüßmann')
 
 
 class KkrimpParser(Parser):
@@ -56,7 +54,7 @@ class KkrimpParser(Parser):
         # Check that the retrieved folder is there
         try:
             out_folder = self.retrieved
-        except exceptions.NotExistent:
+        except NotExistent:
             return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
 
         # check what is inside the folder
@@ -74,8 +72,7 @@ class KkrimpParser(Parser):
         #    out_dict values (e.g. nspin, newsosol, ...)
 
         if KkrimpCalculation._DEFAULT_OUTPUT_FILE not in list_of_files:
-            msg = "Output file '{}' not found in list of files: {}".format(
-                KkrimpCalculation._DEFAULT_OUTPUT_FILE, list_of_files)
+            msg = f"Output file '{KkrimpCalculation._DEFAULT_OUTPUT_FILE}' not found in list of files: {list_of_files}"
 
         if KkrimpCalculation._DEFAULT_OUTPUT_FILE in out_folder.list_object_names():
             with out_folder.open(KkrimpCalculation._DEFAULT_OUTPUT_FILE) as fhandle:
@@ -91,8 +88,7 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['out_log'] = filepath
         else:
-            file_errors.append(
-                (1, "Critical error! file '{}' not found ".format(fname)))
+            file_errors.append((1, f"Critical error! file '{fname}' not found "))
             files['out_log'] = None
         fname = KkrimpCalculation._OUT_POTENTIAL
         if fname in out_folder.list_object_names():
@@ -100,8 +96,7 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['out_pot'] = filepath
         else:
-            file_errors.append(
-                (1, "Critical error! file '{}' not found ".format(fname)))
+            file_errors.append((1, f"Critical error! file '{fname}' not found "))
             files['out_pot'] = None
         fname = KkrimpCalculation._OUT_TIMING_000
         if fname in out_folder.list_object_names():
@@ -109,8 +104,7 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['out_timing'] = filepath
         else:
-            file_errors.append(
-                (1, "Critical error! file '{}' not found ".format(fname)))
+            file_errors.append((1, f"Critical error! file '{fname}' not found "))
             files['out_timing'] = None
         fname = KkrimpCalculation._OUT_ENERGYSP_PER_ATOM
         if fname in out_folder.list_object_names():
@@ -118,8 +112,7 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['out_enersp_at'] = filepath
         else:
-            file_errors.append(
-                (1, "Critical error! file '{}' not found ".format(fname)))
+            file_errors.append((1, f"Critical error! file '{fname}' not found "))
             files['out_enersp_at'] = None
         fname = KkrimpCalculation._OUT_ENERGYTOT_PER_ATOM
         if fname in out_folder.list_object_names():
@@ -127,8 +120,7 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['out_enertot_at'] = filepath
         else:
-            file_errors.append(
-                (1, "Critical error! file '{}' not found ".format(fname)))
+            file_errors.append((1, f"Critical error! file '{fname}' not found "))
             files['out_enertot_at'] = None
         fname = KkrimpCalculation._KKRFLEX_LLYFAC
         if fname in out_folder.list_object_names():
@@ -136,8 +128,7 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['kkrflex_llyfac'] = filepath
         else:
-            file_errors.append(
-                (2, "Warning! file '{}' not found ".format(fname)))
+            file_errors.append((2, f"Warning! file '{fname}' not found "))
             files['kkrflex_llyfac'] = None
         fname = KkrimpCalculation._KKRFLEX_ANGLE
         if fname in out_folder.list_object_names():
@@ -145,8 +136,7 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['kkrflex_angles'] = filepath
         else:
-            file_errors.append(
-                (2, "Warning! file '{}' not found ".format(fname)))
+            file_errors.append((2, f"Warning! file '{fname}' not found "))
             files['kkrflex_angles'] = None
         fname = KkrimpCalculation._OUT_MAGNETICMOMENTS
         if fname in out_folder.list_object_names():
@@ -154,8 +144,7 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['out_spinmoms'] = filepath
         else:
-            file_errors.append(
-                (2, "Warning! file '{}' not found ".format(fname)))
+            file_errors.append((2, f"Warning! file '{fname}' not found "))
             files['out_spinmoms'] = None
         fname = KkrimpCalculation._OUT_ORBITALMOMENTS
         if fname in out_folder.list_object_names():
@@ -163,19 +152,19 @@ class KkrimpParser(Parser):
                 filepath = fhandle.name
             files['out_orbmoms'] = filepath
         else:
-            file_errors.append(
-                (2, "Warning! file '{}' not found ".format(fname)))
+            file_errors.append((2, f"Warning! file '{fname}' not found "))
             files['out_orbmoms'] = None
 
         if debug:
             pprint(files)
 
         # now parse file output
-        out_dict = {'parser_version': self._ParserVersion,
-                    'calculation_plugin_version': KkrimpCalculation._CALCULATION_PLUGIN_VERSION}
+        out_dict = {
+            'parser_version': self._ParserVersion,
+            'calculation_plugin_version': KkrimpCalculation._CALCULATION_PLUGIN_VERSION
+        }
 
-        success, msg_list, out_dict = KkrimpParserFunctions(
-        ).parse_kkrimp_outputfile(out_dict, files, debug=debug)
+        success, msg_list, out_dict = KkrimpParserFunctions().parse_kkrimp_outputfile(out_dict, files, debug=debug)
 
         out_dict['parser_errors'] = msg_list
         # add file open errors to parser output of error messages
@@ -187,8 +176,7 @@ class KkrimpParser(Parser):
             else:
                 if 'parser_warnings' not in list(out_dict.keys()):
                     out_dict['parser_warnings'] = []
-                out_dict['parser_warnings'].append(
-                    f_err.replace('Error', 'Warning'))
+                out_dict['parser_warnings'].append(f_err.replace('Error', 'Warning'))
         out_dict['parser_errors'] = msg_list
 
         # create output node and link
@@ -197,8 +185,7 @@ class KkrimpParser(Parser):
         # cleanup after parsing (only if parsing was successful)
         if success:
             # reduce size of timing file
-            self.cleanup_outfiles(files['out_timing'], [
-                                  'Iteration number', 'time until scf starts'])
+            self.cleanup_outfiles(files['out_timing'], ['Iteration number', 'time until scf starts'])
             # reduce size of out_log file
             self.cleanup_outfiles(files['out_log'], ['Iteration Number'])
             # delete completely parsed output files and create a tar ball to reduce size
@@ -227,13 +214,14 @@ class KkrimpParser(Parser):
     def remove_unnecessary_files(self):
         """
         Remove files that are not needed anymore after parsing
-        The information is completely parsed (i.e. in outdict of calculation) 
+        The information is completely parsed (i.e. in outdict of calculation)
         and keeping the file would just be a duplication.
         """
         # first delete unused files (completely in parsed output)
-        files_to_delete = [KkrimpCalculation._OUT_ENERGYSP_PER_ATOM,
-                           KkrimpCalculation._OUT_ENERGYTOT_PER_ATOM,
-                           KkrimpCalculation._SHAPEFUN]
+        files_to_delete = [
+            KkrimpCalculation._OUT_ENERGYSP_PER_ATOM, KkrimpCalculation._OUT_ENERGYTOT_PER_ATOM,
+            KkrimpCalculation._SHAPEFUN
+        ]
         for fileid in files_to_delete:
             if fileid in self.retrieved.list_object_names():
                 self.retrieved.delete_object(fileid, force=True)
@@ -261,8 +249,8 @@ class KkrimpParser(Parser):
                         filesize = os.stat(ftest.name).st_size
                         ffull = ftest.name
                     if (
-                        f != KkrimpCalculation._FILENAME_TAR    # ignore tar file
-                        and filesize > 0                        # ignore empty files
+                        f != KkrimpCalculation._FILENAME_TAR  # ignore tar file
+                        and filesize > 0  # ignore empty files
                         # ignore files starting with '.' like '.nfs...'
                         and f[0] != '.'
                     ):

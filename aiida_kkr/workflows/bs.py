@@ -237,7 +237,6 @@ class kkr_bs_wc(WorkChain):
 
             self.inputs.remote_data = output_remote
         # To validate for kpoints
-
         if "kpoints" in inputs:
             self.ctx.BS_kpoints = inputs.kpoints
            input_ok = True
@@ -488,6 +487,7 @@ def set_energy_params(econt_new, ef, para_check):
         elif key in ['tempr' 'TEMPR']:
             key = 'TEMPR'
         elif key in ['RCLUSTZ', 'rclustz']:
+
             key = 'RCLUSTZ'
         para_check.set_value(key, val, silent=True)
 

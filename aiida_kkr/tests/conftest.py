@@ -182,7 +182,7 @@ def voronoi_local_code(reuse_local_code):
     prepend_text = """
 ulimit -s hard
 ln -s {}/ElementDataBase .
-source compiler-select intel""".format(os.path.abspath(exec_rel_path))
+source compiler-select gcc8""".format(os.path.abspath(exec_rel_path))
     voro_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text, use_export_file=False)
     
     return voro_code
@@ -194,13 +194,13 @@ def kkrhost_local_code(reuse_local_code):
     Create or load KKRhost code
     """
     executable = 'kkr.x' # name of the KKRhost executable
-    exec_rel_path = 'jukkr/build_new_kkrhost/'   # location where it is found
+    exec_rel_path = 'jukkr/'   # location where it is found
     entrypoint = 'kkr.kkr'  # entrypoint
     # prepend text to be added before execution
     prepend_text = """
 ulimit -s hard
 export OMP_STACKSIZE=2G
-source compiler-select intel"""
+source compiler-select gcc8"""
     kkrhost_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text, use_export_file=False)
     
     return kkrhost_code
@@ -218,7 +218,7 @@ def kkrimp_local_code(reuse_local_code):
     prepend_text = """
 ulimit -s hard
 export OMP_STACKSIZE=2G
-source compiler-select intel"""
+source compiler-select gcc8"""
     kkrimp_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text, use_export_file=False)
     
     return kkrimp_code
@@ -247,3 +247,34 @@ def generate_remote_data():
         return remote
 
     return _generate_remote_data
+
+
+def import_with_migration(archive_path):
+    """Import aiida export file and try migration if version is incompatible"""
+    from aiida.tools.importexport import (
+        detect_archive_type, EXPORT_VERSION, import_data, IncompatibleArchiveVersionError
+    )
+    from aiida.tools.importexport.archive.migrators import get_migrator
+    from aiida.common.folders import SandboxFolder
+    import_kwargs = dict(extras_mode_existing='nnl', silent=True)
+    try:
+        imported_nodes = import_data(archive_path, **import_kwargs)
+    except IncompatibleArchiveVersionError as exception:
+        print('incompatible version detected for import file, trying migration')
+        with SandboxFolder() as temp_folder:
+            try:
+                migrator = get_migrator(detect_archive_type(archive_path))(archive_path)
+                archive_path = migrator.migrate(
+                    EXPORT_VERSION, None, out_compression='none', work_dir=temp_folder.abspath
+                )
+            except Exception as exception:
+                print('an exception occurred while migrating the archive', exception)
+            
+            print('proceeding with import of migrated archive')
+            try:
+                imported_nodes = import_data(archive_path, **import_kwargs)
+            except Exception as exception:
+                print(
+                    'an exception occurred while trying to import the migrated archive', exception
+                )
+    return imported_nodes

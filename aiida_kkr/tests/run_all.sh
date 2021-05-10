@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+set -e # force stop on first error
+set -x # add debug output
+
 export AIIDA_PATH='.';
 mkdir -p '.aiida';
 
@@ -20,6 +23,7 @@ usage(){
   echo "  'RUN_VORONOI': run voronoi tests";
   echo "  'RUN_KKRHOST': run kkrhost tests";
   echo "  'RUN_KKRIMP': run kkrimp tests";
+  echo "  'RUN_EOS': run eos workflow test";
   echo
   exit 0;
 }
@@ -61,6 +65,11 @@ else
   else
     echo "skip workflows tests using KKRimp (set 'RUN_KKRIMP' env to activate this)"
   fi
+  if [[ ! -z "$RUN_EOS" ]]; then
+    echo "run eos workflow (unset 'RUN_EOS' env to prevent this)"
+  else
+    echo "skip eos workflow tests (set 'RUN_EOS' env to activate this)"
+  fi
   if [[ ! -z "$NO_RMQ" ]]; then
     echo "do not run workflows and workfuntions that need rabbitMQ (unset 'NO_RMQ' env to prevent this)"
   else
@@ -74,21 +83,20 @@ echo
 
 if [[ ! -z "$RUN_ALL" ]]; then
   echo "run all tests (first non-workflow tests, then workflow tests)"
-  pytest --cov-report=term-missing --cov=aiida_kkr --ignore=jukkr --mpl -p no:warnings $addopt --ignore=workflows
+  pytest --cov-report=xml --cov=./.. --ignore=jukkr --mpl -p no:warnings $addopt --ignore=workflows
+
   # now workflow tests
-  pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr workflows/ $addopt
-  #pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr workflows/ --ignore=workflows/test_kkrimp_full_wc.py $addopt
-  #pytest --cov-report=term-missing --cov=aiida_kkr --cov-append --ignore=jukkr workflows/test_kkrimp_full_wc.py $addopt
+  pytest --cov-report=xml --cov=./.. --cov-append --ignore=jukkr workflows/ $addopt
 else
   # tests without running actual calculations
   if [[ -z "$SKIP_NOWORK" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run non-workflow tests"
-    pytest --cov-report=term-missing --cov=aiida_kkr --ignore=workflows --ignore=jukkr --mpl -p no:warnings $addopt
+    pytest --cov-report=xml --cov=./.. --ignore=workflows --ignore=jukkr --mpl -p no:warnings $addopt
   else
     # skip things that need rabbitMQ
     if [[ -z "$SKIP_NOWORK" ]] && [[ ! -z "$NO_RMQ" ]]; then
       echo "run non-workflow tests"
-      pytest --cov-report=term-missing --cov=aiida_kkr --ignore=workflows --ignore=jukkr --ignore=calculations --ignore=test_common_workfunctions_with_rmq.py --ignore=test_plot_kkr.py --mpl -p no:warnings $addopt
+      pytest --cov-report=xml --cov=./.. --ignore=workflows --ignore=jukkr --ignore=calculations --ignore=test_common_workfunctions_with_rmq.py --ignore=test_plot_kkr.py --mpl -p no:warnings $addopt
     else
       echo "skipping tests that are not workflows"
     fi
@@ -100,7 +108,8 @@ else
 
   if [[ ! -z "$RUN_VORONOI" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run vorostart workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_vorostart_workflow $addopt
+    pytest --cov-report=xml --cov-append --cov=./.. ./workflows/test_vorostart_wc.py -k test_kkr_startpot_parent_KKR $addopt
+
   else
     echo "skipping vorostart workflow test"
   fi
@@ -109,46 +118,47 @@ else
 
   if [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run kkr_dos workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_dos_workflow $addopt
+    pytest --cov-report=xml --cov-append --cov=./.. ./workflows/test_dos_wc.py $addopt
   else
     echo "skipping kkr_dos workflow test"
   fi
   if [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run kkr_gf_writeout workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_gf_writeout_workflow $addopt
+    pytest --cov-report=xml --cov-append --cov=./.. ./workflows/test_gf_writeout_wc.py $addopt
   else
     echo "skipping kkr_gf_writeout workflow test"
   fi
   if [[ ! -z "$RUN_VORONOI" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
-    echo "run kkr_scf workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_scf_workflow $addopt
+    echo "run voro_start, kkr_scf workflow tests"
+    pytest --cov-report=xml --cov-append --cov=./.. ./workflows/test_vorostart_wc.py -k test_kkr_startpot_wc_Cu $addopt
+    pytest --cov-report=xml --cov-append --cov=./.. ./workflows/test_scf_wc_simple.py $addopt
   else
-    echo "skipping kkr_scf workflow test"
+    echo "skipping voro_start, kkr_scf workflow tests"
   fi
-  if [[ ! -z "$RUN_VORONOI" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
-    echo "run kkr_eos workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_eos_workflow $addopt
+  if [[ ! -z "$RUN_VORONOI" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]] && [[ ! -z "$RUN_EOS" ]]; then
+    echo "run eos workflow tests"
+    pytest --cov-report=xml --cov-append --cov=./.. ./workflows/test_eos.py $addopt
   else
-    echo "skipping kkr_eos workflow test"
+    echo "skipping eos workflow tests"
   fi
 
   # tests using kkrimp (and kkrhost/voronoi)
 
   if [[ ! -z "$RUN_KKRIMP" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run kkrimp_scf workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_scf_workflow $addopt
+    pytest --cov-report=xml --cov-append --cov=./.. --ignore=jukkr -k Test_kkrimp_scf_workflow $addopt
   else
     echo "skipping kkrimp_scf workflow test"
   fi
   if [[ ! -z "$RUN_KKRIMP" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ ! -z "$RUN_VORONOI" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run kkrimp_full workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_full_workflow $addopt
+    pytest --cov-report=xml --cov-append --cov=./.. --ignore=jukkr -k Test_kkrimp_full_workflow $addopt
   else
     echo "skipping kkrimp_full workflow test"
   fi
   if [[ ! -z "$RUN_KKRIMP" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run kkrimp_dos workflow test"
-    pytest --cov-report=term-missing --cov-append --cov=aiida_kkr --ignore=jukkr -k Test_kkrimp_dos_workflow $addopt
+    pytest --cov-report=xml --cov-append --cov=./.. --ignore=jukkr -k Test_kkrimp_dos_workflow $addopt
   else
     echo "skipping kkrimp_dos workflow test"
   fi

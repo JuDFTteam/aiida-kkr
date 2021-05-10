@@ -51,6 +51,7 @@ aiida_kkr/tests/inputcard
 aiida_kkr/tests/input.temp_unsorted.txt
 aiida_kkr/tests/input.temp.txt
 aiida_kkr/tests/config.cfg
+aiida_kkr/tests/plot_kkr_*.png
 
 
 # Translations
@@ -93,6 +94,7 @@ celerybeat-schedule
 .venv
 venv/
 ENV/
+venv*/
 
 # Spyder project settings
 .spyderproject
@@ -137,4 +139,3 @@ pip-wheel-metadata/
 poetry.lock
 publish_to_pypi.sh
 secrets.tar.gz
-

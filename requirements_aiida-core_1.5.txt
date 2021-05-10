@@ -1,0 +1,4 @@
+# change the following dependencies for an installation in aiida-core<1.5
+aiida-core < 1.6.0
+SQLAlchemy < 1.4.0
+frozendict < 2.0
