@@ -28,8 +28,10 @@ class StructureNodeOrFileParamType(click.ParamType):
         try:
             structure = types.DataParamType(sub_classes=('aiida.data:structure',)).convert(value, param, ctx)
         except (NotExistent, click.exceptions.BadParameter) as er:
-            echo.echo(f'Tried to load node, could not fine one for {value}. '
-                      'I will further check if it is a filepath.')
+            echo.echo(
+                f'Tried to load node, could not fine one for {value}. '
+                'I will further check if it is a filepath.'
+            )
             is_path = True
 
         if is_path:

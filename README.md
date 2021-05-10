@@ -25,6 +25,9 @@
 ## How to cite
 
 If you use this plugin please cite:
+> [Rüßmann, P., Bertoldo, F. & Blügel, S. The AiiDA-KKR plugin and its application to high-throughput impurity embedding into a topological insulator. *npj Comput Mater* **7**, 13 (2021). https://doi.org/10.1038/s41524-020-00482-5](https://doi.org/10.1038/s41524-020-00482-5)
+
+The ArXiv preprint can be found here:
 > [Philipp Rüßmann, Fabian Bertoldo and Stefan Blügel, *The AiiDA-KKR plugin and its application to high-throughput impurity embedding into a topological insulator*, arXiv:2003.08315 [cond-mat.mtrl-sci] (2020)](https://arxiv.org/abs/2003.08315)
 
 
@@ -39,12 +42,24 @@ $ verdi quicksetup  # better to set up a new profile
 $ verdi calculation plugins  # should now show kkr.* entrypoints
 ```
 
-for developer version download the repository and install the downloaded version
+To install the developer version download the repository and install the downloaded version (see `setup.json` for a list of optional packages that are installed with the extras given in `[]`)
+
 ```shell
 $ git clone https://github.com/JuDFTteam/aiida-kkr.git
-$ pip install -e aiida-kkr
+$ pip install -e aiida-kkr[testing,devtools,docs]
 $ reentry scan -r aiida
 ```
+
+## Remarks about dependencies and extras
+
+- The `aiida-kkr` plugin uses the `ase` and `pymatgen` packages for structure conversions.
+- For `aiida-core>=1.5,<1.6` make sure to use the requirements specified in `requirements_aiida-core_1.5.txt` (use `pip install -r requirements_aiida-core_1.5.txt aiida-kkr` for the installation to overwrite the aiida-core dependency).
+- Other extras that can be optionally installed with `aiida-kkr` are
+  * `pre-commit` which installes the pre-commit hooks that allow style (`yapf`) and static code checking (`pylint`)
+  * `testing` which installs `pytest` and all extension used in the tests
+  * `docs` which installs `Sphinx` to build the documentation
+  * `devtools` which installs tools that might be helpful during development
+
 
 # Usage and Documentation
 
@@ -53,6 +68,5 @@ $ reentry scan -r aiida
 
 # Contributing
 
-Thank you for your interest in contributing to aiida-kkr. 
+Thank you for your interest in contributing to aiida-kkr.
 Check out our [contributing guide](CONTRIBUTING.md) for some information.
-

@@ -11,12 +11,10 @@ import pytest
 from aiida_kkr.tests.dbsetup import *
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
 from ..conftest import voronoi_local_code, kkrhost_local_code, data_dir
+from ..conftest import import_with_migration
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 from six.moves import range
-
-# change kkr_condename for testing (on mac)
-#kkr_codename = 'kkrhost_intel19'
 
 @pytest.mark.timeout(240, method='thread')
 def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache):
@@ -28,7 +26,6 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     from aiida.orm import Code, load_node, Dict, StructureData, Computer
     from aiida.plugins import DataFactory
     from aiida.orm.querybuilder import QueryBuilder
-    from aiida.tools.importexport import import_data
     from masci_tools.io.kkr_params import kkrparams
     from aiida_kkr.workflows.bs import kkr_bs_wc
     import numpy as np
@@ -39,29 +36,13 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     StructureData = DataFactory('structure')
 
     # create workflow parameters
-    wfbs = kkr_bs_wc.get_wf_default()
+    wfbs = kkr_bs_wc.get_wf_defaults()
     wfbs['nepts'] = 12
     wfbs['emax'] = 5
     wfbs['emin'] = -10
     wfbs['RCLUSTZ'] = 2.3
     wfbs['tempr'] = 50.0
     params_bs = Dict(dict=wfbs)
-
-    # preparation for computer and code
-    #kkr_codename = 'kkr'
-    #computername = 'claix18_init'
-    #
-    # # for runing in cluster or remote computer and should be rewiten for diferent computer
-    # options1 = {'max_wallclock_seconds': 36000,'resources':
-    #             {'tot_num_mpiprocs': 48, 'num_machines': 1},
-    #             'custom_scheduler_commands':
-    #             '#SBATCH --account=jara0191\n\nulimit -s unlimited; export OMP_STACKSIZE=2g',
-    #             'withmpi':
-    #             True}
-    # options = Dict(dict=options1)
-
-    # # The scf-workflow needs also the voronoi and KKR codes to be able to run the calulations
-    # KKRCode = Code.get_from_string(kkr_codename+'@'+computername)
 
     # for runing in local computer
     options2 = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'withmpi' : False, 'custom_scheduler_commands' : ''}
@@ -71,7 +52,7 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     descr = 'testing bs workflow for Cu bulk'
 
     # import calculation which is used as parent calculation
-    import_data('files/db_dump_bs/db_dump_kkrcalc_bs.tar.gz', silent=True)
+    import_with_migration('files/db_dump_bs/db_dump_kkrcalc_bs.tar.gz')
     kkr_calc_remote = load_node('d5782162-8393-4212-9340-c8ee8b725474').outputs.remote_folder
 
     # now set up process builder
@@ -89,6 +70,7 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     out, _ = run_with_cache(builder, data_dir=data_dir)
 
     # check results
+    print('check results', out)
     n = out['results_wf']
     n = n.get_dict()
     assert n.get('successful')
@@ -97,11 +79,15 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     kpts = d.get_array('Kpts')
     eng_points = d.get_array('energy_points')
     BlochSpectral = d.get_array('BlochSpectralFunction')
+    # if files need to be recreated, uncomment this
+    #np.save('files/db_dump_bs/test_spectral_new',      BlochSpectral)
+    #np.save('files/db_dump_bs/test_Kpts_new',          kpts)
+    #np.save('files/db_dump_bs/test_energy_points_new', eng_points)
 
     # Loading the data from the previous calc (run manually) with the same config
-    test_BSF = np.loadtxt('files/db_dump_bs/test_spectral')
-    test_Kpts = np.loadtxt('files/db_dump_bs/test_Kpts')
-    test_eng = np.loadtxt('files/db_dump_bs/test_energy_points')
+    test_BSF = np.load('files/db_dump_bs/test_spectral')
+    test_Kpts = np.load('files/db_dump_bs/test_Kpts')
+    test_eng = np.load('files/db_dump_bs/test_energy_points')
     # Define the error boundary
     dos_limt = abs(np.amin(BlochSpectral)*1E-2)
     eng_min = abs(np.amin(eng_points)*1E-7)
@@ -110,7 +96,7 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     shape_differ_BSF = np.shape(differ_BSF)
     # shape(differ_BSF) =~ (kpts*eng) =~ (y*x)
     for i in range(shape_differ_BSF[0]):
-        assert sum(abs(kpts[i,:] - test_Kpts[i,:] )) < 10**-7
+        assert sum(abs(kpts[i,:] - test_Kpts[i,:] )) < 1e-7
         for j in range(shape_differ_BSF[1]):
             # here to inspect the density validity
             assert dos_limt > abs(differ_BSF[i,j])

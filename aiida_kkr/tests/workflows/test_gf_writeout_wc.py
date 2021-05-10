@@ -5,9 +5,8 @@ from __future__ import print_function
 import pytest
 from aiida_kkr.tests.dbsetup import *
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
-from ..conftest import voronoi_local_code, kkrhost_local_code, data_dir
+from ..conftest import voronoi_local_code, kkrhost_local_code, data_dir, import_with_migration
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
-
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 
 @pytest.mark.timeout(240, method='thread')
@@ -22,7 +21,8 @@ def test_kkrflex_writeout_wc(clear_database_before_test, kkrhost_local_code, run
     import os
 
     # here we create a parameter node for the workflow input (workflow specific parameter) and adjust the convergence criterion.
-    wfd =kkr_flex_wc.get_wf_defaults()
+    wfd = kkr_flex_wc.get_wf_defaults()
+    print(wfd)
     options = {'queue_name' : queuename, 'resources': {"num_machines": 1},'max_wallclock_seconds' : 5*60, 'custom_scheduler_commands' : '', 'withmpi' : False}
     options = Dict(dict=options)
 
@@ -31,8 +31,7 @@ def test_kkrflex_writeout_wc(clear_database_before_test, kkrhost_local_code, run
     label = 'GF_writeout Cu bulk'
     descr = 'GF_writeout workflow for Cu bulk'
 
-    from aiida.tools.importexport import import_data
-    import_data('files/db_dump_kkrcalc.tar.gz', silent=True)
+    import_with_migration('files/db_dump_kkrcalc.tar.gz')
     kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').outputs.remote_folder
 
     # create process builder to set parameters

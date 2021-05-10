@@ -6,6 +6,7 @@ import pytest
 from aiida_kkr.tests.dbsetup import *
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint, with_export_cache
 from ..conftest import kkrimp_local_code, data_dir
+from ..conftest import import_with_migration
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 
@@ -32,8 +33,7 @@ def test_kkrimp_sub_wc(clear_database_before_test, kkrimp_local_code, run_with_c
     options = Dict(dict=options)
 
     # import previous GF writeout
-    from aiida.tools.importexport import import_data
-    import_data('files/db_dump_kkrflex_create.tar.gz', silent=True)
+    import_with_migration('files/db_dump_kkrflex_create.tar.gz')
     GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
 
     # now create a SingleFileData node containing the impurity starting potential

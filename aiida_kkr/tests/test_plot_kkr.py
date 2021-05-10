@@ -5,9 +5,10 @@ from __future__ import absolute_import
 from builtins import object
 import pytest
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg') # needs to be done before pyplot is imported
 from matplotlib.pyplot import gcf, title
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
+from .conftest import import_with_migration
 
 
 @pytest.mark.usefixtures("aiida_profile")
@@ -26,15 +27,14 @@ class Test_plot_kkr(object):
         basic_test('cd88cad8-16a0-4eb4-b3fb-8887a857c376', strucplot=False)
         return gcf()
 
-    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='dos.png')
+    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='dos.png', remove_text=True)
     def test_plot_dos(self):
         basic_test('d96d2db2-8276-4fec-836e-789e8710c487', strucplot=False, noshow=True)
         return gcf()
 
     @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='qdos.png', remove_text=True)
     def test_plot_qdos(self):
-        from aiida.tools.importexport import import_data
-        import_data('files/db_dump_kkrcalc_qdos.tar.gz', silent=True)
+        import_with_migration('files/db_dump_kkrcalc_qdos.tar.gz')
         basic_test('a0d0d29f-7b22-4ca4-ba55-6b97569d94af', strucplot=False, noshow=True)
         return gcf()
 
@@ -53,7 +53,7 @@ class Test_plot_kkr(object):
         basic_test(['bf644c1a-10a8-4b35-96e2-e8d1a3a97d9f', '1d04ac8b-9b84-4cbf-94ce-8761eef2d05c', 'e3d206ef-4ffc-40aa-9fbb-79e93fab56a0'], strucplot=False, nolegend=True, noshow=True)
         return gcf()
 
-    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='eos.png')
+    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='eos.png', remove_text=True)
     def test_plot_eos_wc(self):
         basic_test('1419fe6f-cdff-4fb8-b1c1-d8d2c06e33f4', strucplot=False, nolegend=True, noshow=True)
         return gcf()
@@ -72,11 +72,10 @@ def basic_test(node_id, **kwargs):
             load_node(node_id)
     except NotExistent:
         print('Node not yet in database. Import test database')
-        from aiida.tools.importexport import import_data
-        import_data('files/export_kkr_eos.tar.gz', silent=True)
-        import_data('files/export_kkr_startpot.tar.gz', silent=True)
-        import_data('files/export_kkr_dos.tar.gz', silent=True)
-        import_data('files/export_kkr_scf.tar.gz', silent=True)
+        import_with_migration('files/export_kkr_eos.tar.gz')
+        import_with_migration('files/export_kkr_startpot.tar.gz')
+        import_with_migration('files/export_kkr_dos.tar.gz')
+        import_with_migration('files/export_kkr_scf.tar.gz')
 
     # now clear old figure and do plotting
     gcf().clear()
