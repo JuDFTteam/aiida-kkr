@@ -15,7 +15,7 @@ from masci_tools.io.common_functions import search_string
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.6'
+__version__ = '0.6.7'
 __contributors__ = ('Jens Broeder', u'Philipp Rüßmann')
 
 
