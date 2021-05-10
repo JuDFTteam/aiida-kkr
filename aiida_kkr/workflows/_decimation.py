@@ -104,7 +104,7 @@ class kkr_decimation_wc(WorkChain):
         returns _wf_defaults
         """
         if not silent:
-            print('Version of workflow: {}'.format(self._workflowversion))
+            print(f'Version of workflow: {self._workflowversion}')
         return self._wf_default
 
     @classmethod
@@ -222,7 +222,7 @@ class kkr_decimation_wc(WorkChain):
         """
         init context and some parameters
         """
-        self.report('INFO: started KKR decimation workflow version {}' ''.format(self._workflowversion))
+        self.report(f'INFO: started KKR decimation workflow version {self._workflowversion}')
 
         ####### init    #######
 
@@ -234,11 +234,11 @@ class kkr_decimation_wc(WorkChain):
         for k, v in self._wf_default.items():
             if k not in wf_dict:
                 wf_dict[k] = v
-                self.report('INFO: using default parameter {}:{}'.format(k, v))
+                self.report(f'INFO: using default parameter {k}:{v}')
         for k, v in self._options_default.items():
             if k not in options_dict:
                 options_dict[k] = v
-                self.report('INFO: using default option {}:{}'.format(k, v))
+                self.report(f'INFO: using default option {k}:{v}')
 
         # get basic input parameters for setup of calculation
         self.ctx.nprinc = wf_dict.get('nprinc', self._wf_default['nprinc'])
@@ -269,7 +269,7 @@ class kkr_decimation_wc(WorkChain):
         parents = input_remote.get_incoming(node_class=KkrCalculation)
         nparents = len(parents.all_link_labels())
         if nparents != 1:
-            return self.exit_codes.ERROR_INVALID_INPUT_REMOTE_DATA
+            return self.exit_codes.ERROR_INVALID_INPUT_REMOTE_DATA  # pylint: disable=no-member
         parent_calc = parents.first().node
         # check if parent_calc is decimation calculation
         self.ctx.parent_params = parent_calc.inputs.parameters.get_dict()
@@ -286,12 +286,12 @@ class kkr_decimation_wc(WorkChain):
         try:
             test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
         except ValueError:
-            return self.exit_codes.ERROR_KKRCODE_NOT_CORRECT
+            return self.exit_codes.ERROR_KKRCODE_NOT_CORRECT  # pylint: disable=no-member
         if 'voronoi' in inputs:
             try:
                 test_and_get_codenode(inputs.voronoi, 'kkr.voro', use_exceptions=True)
             except ValueError:
-                return self.exit_codes.ERROR_VORONOICODE_NOT_CORRECT
+                return self.exit_codes.ERROR_VORONOICODE_NOT_CORRECT  # pylint: disable=no-member
 
     def prepare_deci_from_slab(self):
         """
@@ -381,28 +381,28 @@ class kkr_decimation_wc(WorkChain):
             builder.code = self.inputs.voronoi
             builder.parameters = self.ctx.dsubstrate
             builder.structure = self.ctx.struc_substrate
-            builder.metadata.label = 'auxiliary_voronoi_substrate'
-            builder.metadata.options = self.ctx.options
-            builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}
+            builder.metadata.label = 'auxiliary_voronoi_substrate'  # pylint: disable=no-member
+            builder.metadata.options = self.ctx.options  # pylint: disable=no-member
+            builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
             builder.potential_overwrite = self.ctx.startpot_substrate
 
             # submit voroaux for substrate calculation
             future_substrate = self.submit(builder)
-            self.report('INFO: running voroaux for substrate (pk: {})'.format(future_substrate.pk))
+            self.report(f'INFO: running voroaux for substrate (pk: {future_substrate.pk})')
 
             # set up voronoi calculation for decimation
             builder = VoronoiCalculation.get_builder()
             builder.code = self.inputs.voronoi
             builder.parameters = self.ctx.ddecimation
             builder.structure = self.ctx.struc_decimation
-            builder.metadata.label = 'auxiliary_voronoi_decimation'
-            builder.metadata.options = self.ctx.options
-            builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}
+            builder.metadata.label = 'auxiliary_voronoi_decimation'  # pylint: disable=no-member
+            builder.metadata.options = self.ctx.options  # pylint: disable=no-member
+            builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
             builder.potential_overwrite = self.ctx.startpot_decimation
 
             # submit voroaux for substrate calculation
             future_decimation = self.submit(builder)
-            self.report('INFO: running voroaux for decimation region (pk: {})'.format(future_decimation.pk))
+            self.report(f'INFO: running voroaux for decimation region (pk: {future_decimation.pk})')
 
             return ToContext(voroaux_substrate=future_substrate, voroaux_decimation=future_decimation)
 
@@ -416,16 +416,17 @@ class kkr_decimation_wc(WorkChain):
         builder = KkrCalculation.get_builder()
         builder.code = self.inputs.kkr
         builder.parameters = self.ctx.dsubstrate
-        builder.metadata.options = self.ctx.options
-        builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # force serial run
-        builder.metadata.label = 'deci-out'
+        builder.metadata.options = self.ctx.options  # pylint: disable=no-member
+        # force serial run:
+        builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
+        builder.metadata.label = 'deci-out'  # pylint: disable=no-member
         builder.parent_folder = self.ctx.voroaux_substrate.outputs.remote_folder
         # create and set initial nonco_angles if needed
         if 'initial_noco_angles' in self.ctx.slab_calc.inputs:
             builder.initial_noco_angles = self.ctx.noco_angles_substrate
 
         future = self.submit(builder)
-        self.report('INFO: running deci-out step (pk: {})'.format(future.pk))
+        self.report(f'INFO: running deci-out step (pk: {future.pk})')
 
         return ToContext(deciout_calc=future)
 
@@ -436,8 +437,8 @@ class kkr_decimation_wc(WorkChain):
         builder = KkrCalculation.get_builder()
         builder.code = self.inputs.kkr
         builder.parameters = self.ctx.ddecimation
-        builder.metadata.options = self.ctx.options
-        builder.metadata.label = 'decimation'
+        builder.metadata.options = self.ctx.options  # pylint: disable=no-member
+        builder.metadata.label = 'decimation'  # pylint: disable=no-member
         builder.parent_folder = self.ctx.voroaux_decimation.outputs.remote_folder
         builder.deciout_parent = self.ctx.deciout_calc.outputs.remote_folder
         if 'kpoints' in self.inputs:
@@ -448,7 +449,7 @@ class kkr_decimation_wc(WorkChain):
             builder.initial_noco_angles = self.ctx.noco_angles_decimation
 
         future = self.submit(builder)
-        self.report('INFO: running deci-out step (pk: {})'.format(future.pk))
+        self.report(f'INFO: running deci-out step (pk: {future.pk})')
 
         return ToContext(decimation_calc=future)
 

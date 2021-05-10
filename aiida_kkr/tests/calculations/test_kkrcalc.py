@@ -6,7 +6,7 @@ from builtins import object
 import pytest
 from aiida.engine import run, run_get_node
 from aiida_kkr.tests.dbsetup import *
-from ..conftest import kkrhost_local_code, test_dir, data_dir
+from ..conftest import kkrhost_local_code, test_dir, data_dir, import_with_migration
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
 from aiida.manage.tests.pytest_fixtures import (aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile, 
                                                 clear_database, clear_database_after_test, clear_database_before_test)
@@ -35,8 +35,7 @@ class Test_kkr_calculation(object):
         from aiida_kkr.calculations.kkr import KkrCalculation
 
         # load necessary files from db_dump files
-        from aiida.tools.importexport import import_data
-        import_data('files/db_dump_vorocalc.tar.gz', extras_mode_existing='nnl', silent=True)
+        import_with_migration('files/db_dump_vorocalc.tar.gz')
 
         # first load parent voronoi calculation
         voro_calc = load_node('559b9d9b-3525-402e-9b24-ecd8b801853c')
@@ -65,8 +64,7 @@ class Test_kkr_calculation(object):
         from aiida_kkr.calculations.kkr import KkrCalculation
 
         # load necessary files from db_dump files
-        from aiida.tools.importexport import import_data
-        import_data('files/db_dump_vorocalc.tar.gz', extras_mode_existing='nnl', silent=True)
+        import_with_migration('files/db_dump_vorocalc.tar.gz')
 
         # first load parent voronoi calculation
         voro_calc = load_node('559b9d9b-3525-402e-9b24-ecd8b801853c')
@@ -106,8 +104,7 @@ class Test_kkr_calculation(object):
         from aiida_kkr.calculations.kkr import KkrCalculation
 
         # load necessary files from db_dump files
-        from aiida.tools.importexport import import_data
-        import_data('files/db_dump_kkrcalc.tar.gz', silent=True)
+        import_with_migration('files/db_dump_kkrcalc.tar.gz')
         kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
 
         # extract KKR parameter (add missing values)
@@ -133,8 +130,7 @@ class Test_kkr_calculation(object):
         from aiida_kkr.calculations.kkr import KkrCalculation
 
         # load necessary files from db_dump files
-        from aiida.tools.importexport import import_data
-        import_data('files/db_dump_kkrcalc.tar.gz', silent=True)
+        import_with_migration('files/db_dump_kkrcalc.tar.gz')
 
         # first load parent voronoi calculation
         kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
@@ -174,8 +170,7 @@ class Test_kkr_calculation(object):
         kpoints.set_cell([[1.0,0,0],[0,1.0,0],[0,0,1.0]])
 
         # load necessary files from db_dump files
-        from aiida.tools.importexport import import_data
-        import_data('files/db_dump_kkrcalc.tar.gz', silent=True)
+        import_with_migration('files/db_dump_kkrcalc.tar.gz')
 
         # first load parent voronoi calculation
         kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')
@@ -201,24 +196,12 @@ class Test_kkr_calculation(object):
         run kkr calculation from output of previous calculation but with increased lmax
         (done with auxiliary voronoi calculation which is imported here).
         """
-        from aiida.orm import load_node, CalcJobNode
+        from aiida.orm import load_node, CalcJobNode, Dict
         from aiida_kkr.calculations import KkrCalculation, VoronoiCalculation
 
         # import previous voronoi calc (ran with parent_KKR mode and increased LMAX in input params)
-        from aiida.tools.importexport import import_data
-        imported_nodes = import_data('data_dir/VoronoiCalculation-nodes-8c7aed435f2140768f52c78b0b1b0629.tar.gz')['Node']
-        imported_nodes = imported_nodes['new'] + imported_nodes['existing']
-        # find voronoi calculation with larges (imported) pk from imported nodes
-        voro_calc_pks = (0,0)
-        for node_pk, node_pk_import in imported_nodes:
-            node = load_node(node_pk_import)
-            node_pk = int(node_pk)
-            if isinstance(node, CalcJobNode):
-                if node.process_class == VoronoiCalculation:
-                    if voro_calc_pks[0]==0 or node_pk>voro_calc_pks[0]:
-                        voro_calc_pks = (node_pk, node_pk_import) 
-        # load voro calc
-        voro_with_kkr_input = load_node(voro_calc_pks[1])
+        import_with_migration('files/export_kkr_lmax_change.tar.gz')
+        voro_with_kkr_input = load_node('4d92dc05-041f-422c-945d-dec1fb10301e')
 
         # extract KKR parameter from imported voronoi calc
         params_node = voro_with_kkr_input.inputs.parameters
@@ -228,7 +211,7 @@ class Test_kkr_calculation(object):
         builder = KkrCalculation.get_builder()
         builder.code = kkrhost_local_code
         builder.metadata.options = options
-        builder.parameters = params_node
+        builder.parameters = Dict(dict=params_node.get_dict())
         builder.parent_folder = voro_with_kkr_input.outputs.remote_folder
 
         # now run or load from cached data
@@ -237,6 +220,23 @@ class Test_kkr_calculation(object):
         print('cache_source:', node.get_cache_source())
         print('code objects to hash:', node._get_objects_to_hash())
         print('ignored attributes:', node._hash_ignored_attributes)
+
+        print('output files', node.outputs.retrieved.list_object_names())
+        print('std.out')
+        with node.outputs.retrieved.open('_scheduler-stdout.txt') as f:
+            print(f.readlines())
+        print('std.err')
+        with node.outputs.retrieved.open('_scheduler-stderr.txt') as f:
+            print(f.readlines())
+        print('inputcard')
+        with node.outputs.retrieved.open('inputcard') as f:
+            print(f.readlines())
+        print('out_kkr')
+        with node.outputs.retrieved.open('out_kkr') as f:
+            print(f.readlines())
+        print('output.000.txt')
+        with node.outputs.retrieved.open('output.000.txt') as f:
+            print(f.readlines())
 
         # inspect result
         out_dict = node.outputs.output_parameters.get_dict()
@@ -259,8 +259,7 @@ class Test_kkr_calculation(object):
         from aiida_kkr.calculations.kkr import KkrCalculation
 
         # load necessary files from db_dump files
-        from aiida.tools.importexport import import_data
-        import_data('files/db_dump_kkrcalc.tar.gz', silent=True)
+        import_with_migration('files/db_dump_kkrcalc.tar.gz')
 
         # first load parent voronoi calculation
         kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')

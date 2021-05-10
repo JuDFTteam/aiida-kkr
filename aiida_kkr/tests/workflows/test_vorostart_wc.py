@@ -5,7 +5,7 @@ from __future__ import print_function
 import pytest
 from aiida_kkr.tests.dbsetup import *
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
-from ..conftest import voronoi_local_code, kkrhost_local_code, test_dir, data_dir
+from ..conftest import voronoi_local_code, kkrhost_local_code, test_dir, data_dir, import_with_migration
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 
 from aiida.manage.tests.pytest_fixtures import clear_database_before_test, clear_database, clear_database_after_test
@@ -116,8 +116,7 @@ def test_kkr_startpot_parent_KKR(clear_database_before_test, voronoi_local_code,
     options = {'queue_name' : queuename, 'resources': {"num_machines": 1}, 'max_wallclock_seconds' : 5*60, 'withmpi' : False, 'custom_scheduler_commands' : ''}
 
     # load necessary files from db_dump files
-    from aiida.tools.importexport import import_data
-    import_data('files/db_dump_kkrcalc.tar.gz', silent=True)
+    import_with_migration('files/db_dump_kkrcalc.tar.gz')
 
     # first load parent voronoi calculation
     kkr_calc = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566')

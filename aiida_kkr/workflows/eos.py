@@ -511,7 +511,7 @@ class kkr_eos_wc(WorkChain):
 
         # collect calculation outcome
         etot = np.array(etot)
-        self.report('INFO: collected data from calculations= {}'.format(etot))
+        self.report(f'INFO: collected data from calculations= {etot}')
 
         # check if at least 3 points were successful (otherwise fit does not work)
         if len(etot) < 3:

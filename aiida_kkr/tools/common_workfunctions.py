@@ -100,8 +100,8 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
     if not add_direct:
         for key in inp_params:
             if key not in list(params.values.keys()) and key not in _ignored_keys:
-                print('Input node contains invalid key "{}"'.format(key))
-                raise InputValidationError('invalid key "{}" in input parameter node'.format(key))
+                print(f'Input node contains invalid key "{key}"')
+                raise InputValidationError(f'invalid key "{key}" in input parameter node')
 
     # copy values from input node
     for key in inp_params:
@@ -141,7 +141,7 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
     if nodename is None or not isinstance(nodename, str):
         nodename = 'updated KKR parameters'
     if nodedesc is None or not isinstance(nodedesc, str):
-        nodedesc = 'changed parameters: {}'.format(changed_params)
+        nodedesc = f'changed parameters: {changed_params}'
 
     # create new node
     if not add_direct:
@@ -219,7 +219,7 @@ def test_and_get_codenode(codenode, expected_code_type, use_exceptions=False):
         qb = QueryBuilder()
         qb.append(Code, filters={'attributes.input_plugin': {'==': expected_code_type}}, project='*')
 
-        valid_code_labels = ['{}@{}'.format(c.label, c.get_computer().name) for [c] in qb.all()]
+        valid_code_labels = [f'{c.label}@{c.get_computer().name}' for [c] in qb.all()]
 
         if valid_code_labels:
             msg = (
@@ -501,7 +501,7 @@ def generate_inputcard_from_structure(
     if use_input_alat and alat_input is not None:
         alat = alat_input
         wmess = 'found alat in input parameters, this will trigger scaling of RMAX, GMAX and RCLUSTZ!'
-        print('WARNING: {}'.format(wmess))
+        print(f'WARNING: {wmess}')
         warnings.append(wmess)
     else:
         alat = get_alat_from_bravais(bravais, is3D=structure.pbc[2])
@@ -564,7 +564,7 @@ def generate_inputcard_from_structure(
         if len(mask_replace_Bi_Pb[0]) > 0:
             charges[mask_replace_Bi_Pb] = 82
             wmess = 'Bi potential not available, using Pb instead!!!'
-            print('WARNING: {}'.format(wmess))
+            print(f'WARNING: {wmess}')
             warnings.append(wmess)
 
     ######################################
@@ -576,7 +576,7 @@ def generate_inputcard_from_structure(
     # remove special keys that are used for special cases but are not part of the KKR parameter set
     for key in _ignored_keys:
         if input_dict.get(key) is not None:
-            wmess = 'automatically removing value of key {}'.format(key)
+            wmess = f'automatically removing value of key {key}'
             print('WARNING: ' + wmess)
             warnings.append(wmess)
             input_dict.pop(key)
@@ -584,7 +584,7 @@ def generate_inputcard_from_structure(
     # get rid of structure related inputs that are overwritten from structure input
     for key in ['BRAVAIS', 'ALATBASIS', 'NAEZ', '<ZATOM>', '<RBASIS>', 'CARTESIAN']:
         if input_dict.get(key) is not None:
-            wmess = 'automatically removing value of key {}'.format(key)
+            wmess = f'automatically removing value of key {key}'
             print('WARNING: ' + wmess)
             warnings.append(wmess)
             input_dict.pop(key)
@@ -592,22 +592,22 @@ def generate_inputcard_from_structure(
     # automatically rescale RMAX, GMAX, RCLUSTZ, RCLUSTXY which are scaled with the lattice constant
     if alat_input is not None:
         if input_dict.get('RMAX') is not None:
-            wmess = 'rescale RMAX: {}'.format(alat_input / alat)
+            wmess = f'rescale RMAX: {alat_input / alat}'
             print('WARNING: ' + wmess)
             warnings.append(wmess)
             input_dict['RMAX'] = input_dict['RMAX'] * alat_input / alat
         if input_dict.get('GMAX') is not None:
-            wmess = 'rescale GMAX: {}'.format(1 / (alat_input / alat))
+            wmess = f'rescale GMAX: {1 / (alat_input / alat)}'
             print('WARNING: ' + wmess)
             warnings.append(wmess)
             input_dict['GMAX'] = input_dict['GMAX'] * 1 / (alat_input / alat)
         if input_dict.get('RCLUSTZ') is not None:
-            wmess = 'rescale RCLUSTZ: {}'.format(alat_input / alat)
+            wmess = f'rescale RCLUSTZ: {alat_input / alat}'
             print('WARNING: ' + wmess)
             warnings.append(wmess)
             input_dict['RCLUSTZ'] = input_dict['RCLUSTZ'] * alat_input / alat
         if input_dict.get('RCLUSTXY') is not None:
-            wmess = 'rescale RCLUSTXY: {}'.format(alat_input / alat)
+            wmess = f'rescale RCLUSTXY: {alat_input / alat}'
             print('WARNING: ' + wmess)
             warnings.append(wmess)
             input_dict['RCLUSTXY'] = input_dict['RCLUSTXY'] * alat_input / alat
@@ -620,7 +620,7 @@ def generate_inputcard_from_structure(
 
     # for KKR calculation set EMIN automatically from parent_calc (always in res.emin of voronoi and kkr) if not provided in input node
     if (('EMIN' not in list(input_dict.keys()) or input_dict['EMIN'] is None) and parent_calc is not None):
-        wmess = 'Overwriting EMIN with value from parent calculation {}'.format(parent_calc)
+        wmess = f'Overwriting EMIN with value from parent calculation {parent_calc}'
         print('WARNING: ' + wmess)
         warnings.append(wmess)
         if parent_calc.process_class == VoronoiCalculation:

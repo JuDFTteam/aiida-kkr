@@ -184,7 +184,7 @@ class VoronoiCalculation(CalcJob):
                     use_input_alat=use_alat_input,
                 )
             except ValueError as e:
-                raise InputValidationError('Input Dict not consistent: {}'.format(e))
+                raise InputValidationError(f'Input Dict not consistent: {e}')
 
         # Decide what files to copy
         local_copy_list = []
@@ -355,4 +355,4 @@ class VoronoiCalculation(CalcJob):
             struc = self._get_struc(parent_folder_tmp)
             return struc, parent_folder_tmp
         else:
-            raise ValueError('structure not found'.format(parent_folder_tmp))
+            raise ValueError('structure not found')

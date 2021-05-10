@@ -8,6 +8,8 @@ caclulation functionality.
 from __future__ import absolute_import
 from aiida_kkr.calculations import KkrimpCalculation, VoronoiCalculation, KkrCalculation
 from six.moves import map
+from aiida.engine import WorkChain
+from aiida.orm import CalcJobNode
 
 __copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
@@ -95,7 +97,7 @@ class base_restart_calc(WorkChain):
             last_calculation = self.ctx.last_calc
         except:
             self.report('')
-            return self.exit_codes.ERROR_ITERATION_RETURNED_NO_CALCULATION
+            return self.exit_codes.ERROR_ITERATION_RETURNED_NO_CALCULATION  # pylint: disable=no-member
 
         # now inspect last calculation
         if last_calculation.is_finished_ok:
@@ -133,4 +135,4 @@ class base_restart_calc(WorkChain):
                         pass
 
             if cleaned_calcs:
-                self.report('cleaned remote folders of calculations: {}'.format(' '.join(map(str, cleaned_calcs))))
+                self.report(f"cleaned remote folders of calculations: {' '.join(map(str, cleaned_calcs))}")

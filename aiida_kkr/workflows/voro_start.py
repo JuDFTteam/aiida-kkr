@@ -24,7 +24,7 @@ __copyright__ = (
     'IAS-1/PGI-1, Germany. All rights reserved.'
 )
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.12.1'
+__version__ = '0.12.2'
 __contributors__ = u'Philipp Rüßmann'
 
 
@@ -708,16 +708,15 @@ class kkr_startpot_wc(WorkChain):
         ret = self.ctx.voro_calc.outputs.retrieved
         if 'potential_overwrite' in self.ctx.voro_calc.inputs:
             potfile_overwrite = self.ctx.voro_calc.inputs.potential_overwrite
-            with potfile_overwrite.open(potfile_overwrite.filename) as f:
-                potfile_path = f.name
+            with potfile_overwrite.open(potfile_overwrite.filename) as _file:
+                self.ctx.efermi = get_ef_from_potfile(_file)
         else:
             potfile_name = VoronoiCalculation._OUT_POTENTIAL_voronoi
             if 'parent_KKR' in self.ctx.voro_calc.inputs:
                 potfile_name = VoronoiCalculation._POTENTIAL_IN_OVERWRITE
             print(ret.list_object_names(), potfile_name)
             with ret.open(potfile_name) as _file:
-                potfile_path = _file.name
-        self.ctx.efermi = get_ef_from_potfile(potfile_path)
+                self.ctx.efermi = get_ef_from_potfile(_file)
         emax = self.ctx.dos_params_dict['emax']
         self.report(f'INFO: emax dos input: {emax}, efermi voronoi output: {self.ctx.efermi}')
         if emax < self.ctx.efermi + self.ctx.delta_e * eV2Ry:
@@ -768,7 +767,7 @@ class kkr_startpot_wc(WorkChain):
             }
             options_node = orm.Dict(dict=options_dict)
             options_node.label = 'options'
-            wfdospara_node = Dict(dict=self.ctx.dos_params_dict)
+            wfdospara_node = orm.Dict(dict=self.ctx.dos_params_dict)
             wfdospara_node.label = 'DOS params'
             wfdospara_node.description = 'DOS parameters passed from kkr_startpot_wc input to DOS sub-workflow'
 
@@ -781,8 +780,8 @@ class kkr_startpot_wc(WorkChain):
             wf_desc = 'subworkflow of a DOS calculation that perform a singe-shot KKR calc.'
 
             builder = kkr_dos_wc.get_builder()
-            builder.metadata.description = wf_desc
-            builder.metadata.label = wf_label
+            builder.metadata.description = wf_desc  # pylint: disable=no-member
+            builder.metadata.label = wf_label  # pylint: disable=no-member
             builder.kkr = code
             builder.wf_parameters = wfdospara_node
             builder.options = options_node

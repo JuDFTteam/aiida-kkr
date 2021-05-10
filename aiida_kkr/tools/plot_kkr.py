@@ -10,7 +10,7 @@ from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.1'
+__version__ = '0.6.2'
 __contributors__ = ('Philipp Rüßmann')
 
 
@@ -79,7 +79,7 @@ def strucplot_ase_notebook(struc, **kwargs):
     """
     plotting function for aiida structure using ase_notebook visulaization
     """
-    from ase_notebook import ViewConfig, AseView
+    from ase_notebook import ViewConfig, AseView  # pylint: disable=import-error
 
     # extract some setting if given as kwargs
     repeat_uc = kwargs.get('repeat_uc', (1, 1, 1))
@@ -171,7 +171,7 @@ def plot_imp_cluster(kkrimp_calc_node, **kwargs):
     """
     from aiida.orm import StructureData
     from aiida.common.constants import elements
-    from ase_notebook import ViewConfig, AseView
+    from ase_notebook import ViewConfig, AseView  # pylint: disable=import-error
     from aiida_kkr.calculations import VoronoiCalculation
     from aiida_kkr.tools.tools_kkrimp import create_scoef_array
     from masci_tools.io.common_functions import get_alat_from_bravais
@@ -346,7 +346,7 @@ class plot_kkr(object):
             node_groups = self.group_nodes(nodes)
             for groupname in list(node_groups.keys()):
                 print('\n==================================================================')
-                print('Group of nodes: {}\n'.format(groupname))
+                print(f'Group of nodes: {groupname}\n')
                 # some settings for groups
                 if 'noshow' in list(kwargs.keys()):
                     _ = kwargs.pop('noshow')  # this is now removed from kwargs
@@ -402,13 +402,13 @@ class plot_kkr(object):
                 figure()
             if groupname in ['kkr', 'scf']:
                 subplot(2, 1, 1)
-                self.plot_kkr_single_node(node, only='rms', label='pk= {}'.format(node.pk), **kwargs)
+                self.plot_kkr_single_node(node, only='rms', label=f'pk= {node.pk}', **kwargs)
                 xlabel('')  # remove overlapping x label in upper plot
                 if not nolegend:
                     legend(fontsize='x-small')
                 title('')
                 subplot(2, 1, 2)
-                self.plot_kkr_single_node(node, only='neutr', label='pk= {}'.format(node.pk), **kwargs)
+                self.plot_kkr_single_node(node, only='neutr', label=f'pk= {node.pk}', **kwargs)
                 title('')  # remove duplicated plot title of lower plot
                 if not nolegend:
                     legend(fontsize='x-small')
@@ -524,9 +524,7 @@ class plot_kkr(object):
             self.plot_kkrimp_wc(node, **kwargs)
         else:
             raise TypeError(
-                'input node neither a `Calculation` nor a `WorkChainNode` (i.e. workflow): {} {}'.format(
-                    type(node), node
-                )
+                f'input node neither a `Calculation` nor a `WorkChainNode` (i.e. workflow): {type(node)} {node}'
             )
 
     ### helper functions (structure plot, rms plot, dos plot, data extraction ...) ###
@@ -569,7 +567,7 @@ class plot_kkr(object):
         outputs = outputs.all_nodes()
 
         # now print information about node
-        print('pk, uuid: {} {}'.format(node.pk, node.uuid))
+        print(f'pk, uuid: {node.pk} {node.uuid}')
         print('type:', type(node))
         print('label:', node.label)
         print('description:', node.description)
@@ -584,7 +582,7 @@ class plot_kkr(object):
         print('\noutputs:')
         pprint(outputs)
         try:
-            print('\nexit status: {} ({})'.format(node.exit_status, node.exit_message))
+            print(f'\nexit status: {node.exit_status} ({node.exit_message})')
         except:
             pass
         print()  # empty line at the end
@@ -634,7 +632,7 @@ class plot_kkr(object):
             ]:
                 if key in kwargs:
                     _ = kwargs.pop(key)
-            print("plotting structure using ase's `view` with kwargs={}".format(kwargs))
+            print(f"plotting structure using ase's `view` with kwargs={kwargs}")
 
             self.sview = view(ase_atoms, **kwargs)
 
@@ -830,7 +828,7 @@ class plot_kkr(object):
                 if logscale:
                     ax1.set_yscale('log')
             else:
-                raise ValueError('`only` can only be `rms or `neutr` but got {}'.format(only))
+                raise ValueError(f'`only` can only be `rms or `neutr` but got {only}')
         title(ptitle)
 
     def get_rms_kkrcalc(self, node, title=None):
@@ -987,7 +985,7 @@ class plot_kkr(object):
             if 'ptitle' in list(kwargs.keys()):
                 ptitle = kwargs.pop('ptitle')
             else:
-                ptitle = 'pk= {}'.format(node.pk)
+                ptitle = f'pk= {node.pk}'
             if 'newfig' in list(kwargs.keys()):
                 kwargs.pop('newfig')
 
@@ -1050,7 +1048,7 @@ class plot_kkr(object):
                             save_fig_to_file(kwargs, 'plot_kkr_out_bs.png')
                         else:
                             ef = check_output(
-                                'grep "Fermi energy" {}'.format(f.name.replace('qvec.dat', 'output.0.txt')),
+                                f"grep \"Fermi energy\" {f.name.replace('qvec.dat', 'output.0.txt')}",
                                 shell=True,
                                 text=True
                             )
@@ -1127,7 +1125,7 @@ class plot_kkr(object):
             if 'ptitle' in list(kwargs.keys()):
                 ptitle = kwargs.pop('ptitle')
             else:
-                ptitle = 'pk= {}'.format(node.pk)
+                ptitle = f'pk= {node.pk}'
 
             self.make_kkrimp_rmsplot([rms], [stot], [0], rms_goal, ptitle, **kwargs)
 
@@ -1187,7 +1185,7 @@ class plot_kkr(object):
         if 'ptitle' in list(kwargs.keys()):
             ptitle = kwargs.pop('ptitle')
         else:
-            ptitle = 'pk= {}'.format(node.pk)
+            ptitle = f'pk= {node.pk}'
 
         self.make_kkrimp_rmsplot(rms_all, stot_all, pks_all, rms_goal, ptitle, **kwargs)
 
@@ -1333,7 +1331,7 @@ class plot_kkr(object):
                     **kwargs
                 )
                 if ptitle is None:
-                    title('pk= {}'.format(node.pk))
+                    title(f'pk= {node.pk}')
                 else:
                     title(ptitle)
                 # maybe save as file
@@ -1379,7 +1377,7 @@ class plot_kkr(object):
             if 'ptitle' in list(kwargs.keys()):
                 ptitle = kwargs.pop('ptitle')
             else:
-                ptitle = 'pk= {}'.format(node.pk)
+                ptitle = f'pk= {node.pk}'
             self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
             title(ptitle)
             # maybe save as file
@@ -1418,7 +1416,7 @@ class plot_kkr(object):
             nofig = kwargs.get('nofig', False)
             if not nofig:
                 fig = plt.figure(figsize=(5, 5))
-            plt.pcolormesh(x, y, np.log(abs(BSF.T)), cmap=plt.cm.viridis, edgecolor='face', rasterized=True)
+            plt.pcolormesh(x, y, np.log(abs(BSF.T)), cmap=plt.cm.viridis, edgecolor='face', rasterized=True)  # pylint: disable=no-member
             plt.ylabel('E-E_F (eV)')
             plt.xlabel('')
 
@@ -1434,7 +1432,7 @@ class plot_kkr(object):
             if show_cbar:
                 plt.colorbar()
 
-            plt.title('band structure from kkr_bs_wc (pk= {})'.format(node.pk))
+            plt.title(f'band structure from kkr_bs_wc (pk= {node.pk})')
 
             plt.xticks(ixlbl, sxlbl)
             plt.axhline(0, color='red', ls=':', lw=2)
@@ -1540,7 +1538,7 @@ class plot_kkr(object):
                 if abs((ecore_max[0] - ef_Ry) * get_Ry2eV() - emin) < 20:
                     axvline((ecore_max[0] - ef_Ry) * get_Ry2eV(), color='b', ls='--', label='ecore_max')
                 else:
-                    tit_add = '; E_core<=%.2feV' % ((ecore_max[0] - ef_Ry) * get_Ry2eV())
+                    tit_add = f'; E_core<={(ecore_max[0] - ef_Ry) * get_Ry2eV():.2f}eV'
                 if len(ecore_max) > 1:
                     [
                         axvline((i - ef_Ry) * get_Ry2eV(), color='b', ls='--')
@@ -1556,20 +1554,25 @@ class plot_kkr(object):
         """plot outputs of a kkr_scf_wc workflow"""
         from aiida.orm import CalcJobNode, load_node
         from aiida_kkr.calculations.kkr import KkrCalculation
+        from aiida_kkr.tools import find_parent_structure
         from numpy import sort
-        from matplotlib.pyplot import axvline, axhline, subplot, figure
+        from matplotlib.pyplot import axvline, axhline, subplot, figure, title
 
         # structure plot only if structure is in inputs
-        try:
+        if 'structure' in node.inputs:
             struc = node.inputs.structure
-            strucplot = False
+        else:
+            struc = find_parent_structure(node.inputs.remote_data)
+
+        try:
             ptitle = struc.get_formula()
         except:
-            strucplot = False
             ptitle = ''
 
+        strucplot = False
         if 'strucplot' in list(kwargs.keys()):
             strucplot = kwargs.pop('strucplot')
+
         # plot structure
         if strucplot:
             self.plot_struc(struc, **kwargs)
@@ -1678,7 +1681,7 @@ class plot_kkr(object):
             if 'ptitle' in list(kwargs.keys()):
                 ptitle = kwargs.pop('ptitle')
             else:
-                ptitle = 'pk= {}'.format(node.pk)
+                ptitle = f'pk= {node.pk}'
             self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
             title(ptitle)
             # maybe save as file
@@ -1753,7 +1756,7 @@ class plot_kkr(object):
                         nofig=fig_open,
                         only='rms',
                         noshow=True,
-                        label='pk={}'.format(tmpnode.pk),
+                        label=f'pk={tmpnode.pk}',
                         subplot=(2, 1, 1),
                         **kwargs
                     )  # scf workflow, rms only
@@ -1771,7 +1774,7 @@ class plot_kkr(object):
                         nofig=True,
                         only='neutr',
                         noshow=True,
-                        label='pk={}'.format(tmpnode.pk),
+                        label=f'pk={tmpnode.pk}',
                         subplot=(2, 1, 2),
                         **kwargs
                     )  # scf workflow, rms only
@@ -1818,7 +1821,7 @@ class plot_kkr(object):
                 ie = e[m][0]
                 iv = v[m][0]
                 if not nolegend:
-                    annotate(s='pk={}'.format(pk), xy=(iv, ie))
+                    annotate(text=f'pk={pk}', xy=(iv, ie))
 
             # investigate fit quality by fitting without first/last datapoint
             if len(e) > 4:
@@ -1831,7 +1834,7 @@ class plot_kkr(object):
                 v01, e01, B1 = eos.fit()
 
                 print('# relative differences to full fit: V0, E0, B (without smallest volume)')
-                print('{} {} {}'.format(abs(1 - v01 / v0), abs(1 - e01 / e0), abs(1 - B1 / B)))
+                print(f'{abs(1 - v01 / v0)} {abs(1 - e01 / e0)} {abs(1 - B1 / B)}')
 
                 if len(e) > 5:
                     # also take out largest volume
@@ -1839,6 +1842,6 @@ class plot_kkr(object):
                     v02, e02, B2 = eos.fit()
 
                     print('\n# V0, E0, B (without smallest and largest volume)')
-                    print('{} {} {}'.format(abs(1 - v02 / v0), abs(1 - e02 / e0), abs(1 - B2 / B)))
+                    print(f'{abs(1 - v02 / v0)} {abs(1 - e02 / e0)} {abs(1 - B2 / B)}')
         except:
             pass  # do nothing if no eos data there
