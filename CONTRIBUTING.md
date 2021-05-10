@@ -16,7 +16,7 @@ We are always looking for helping hands. There are many ways you can contribute 
 
 ## Branch structure of aiida-kkr
 
-We try to follow the gitflow model of branching where the latest stable version is on the `master` branch. 
+We try to follow the gitflow model of branching where the latest stable version is on the `master` branch.
 This is the branch from where releases are created.
 
 In addition we have a `develop` branch where current developments are collected / done. For developing a new feature that might take some time to implement please consider creating a new branch.
@@ -38,4 +38,3 @@ When filing an issue, make sure to answer these five questions:
 3. What did you do?
 4. What did you expect to see?
 5. What did you see instead?
-

@@ -22,13 +22,13 @@ from aiida_kkr.tools.common_workfunctions import get_username
 from aiida_kkr.workflows.dos import kkr_dos_wc
 import os
 
-__copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
-                 "IAS-1/PGI-1, Germany. All rights reserved.")
-__license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.5.5"
-__contributors__ = (u"Fabian Bertoldo", u"Philipp Rüßmann")
+__copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__license__ = 'MIT license, see LICENSE.txt file'
+__version__ = '0.5.5'
+__contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 
 # ToDo: add more default values to wf_parameters
+
 
 class kkr_flex_wc(WorkChain):
     """
@@ -51,17 +51,22 @@ class kkr_flex_wc(WorkChain):
     _wf_label = 'kkr_flex_wc'
     _wf_description = 'Workflow for a KKR flex calculation starting from RemoteData node of previous converged KKR calculation'
 
+    _options_default = {
+        'queue_name': '',  # Queue name to submit jobs too
+        'resources': {
+            'num_machines': 1
+        },  # resources to allowcate for the job
+        'max_wallclock_seconds': 60 * 60,  # walltime after which the job gets killed (gets parsed to KKR)}
+        'custom_scheduler_commands': '',  # some additional scheduler commands
+        'withmpi': True
+    }  # execute KKR with mpi or without
 
-    _options_default = {'queue_name' : '',                # Queue name to submit jobs too
-                        'resources': {"num_machines": 1}, # resources to allowcate for the job
-                        'max_wallclock_seconds' : 60*60,  # walltime after which the job gets killed (gets parsed to KKR)}
-                        'custom_scheduler_commands' : '', # some additional scheduler commands
-                        'withmpi' : True}                 # execute KKR with mpi or without
-
-    _wf_default = {'ef_shift': 0. ,                       # set costum absolute E_F (in eV)
-                   'dos_run': False,                      # activate a DOS run with the parameters given in the dos_params input
-                   'retrieve_kkrflex': True,              # retrieve the DOS files or only keep them on the computer (move to KkrimpCalculation._DIRNAME_GF_UPLOAD on the remote computer's working dir), needs to use the same computer for GF writeout as for the KKRimp calculation!
-                   }
+    _wf_default = {
+        'ef_shift': 0.,  # set costum absolute E_F (in eV)
+        'dos_run': False,  # activate a DOS run with the parameters given in the dos_params input
+        'retrieve_kkrflex':
+        True,  # retrieve the DOS files or only keep them on the computer (move to KkrimpCalculation._DIRNAME_GF_UPLOAD on the remote computer's working dir), needs to use the same computer for GF writeout as for the KKRimp calculation!
+    }
     # add defaults of dos_params since they are passed onto that workflow
     _wf_default['dos_params'] = kkr_dos_wc.get_wf_defaults(silent=True)
 
@@ -84,14 +89,17 @@ class kkr_flex_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_flex_wc, cls).define(spec)
 
-        spec.input("kkr", valid_type=Code, required=True)
-        spec.input("options", valid_type=Dict, required=False,
-                       default=lambda: Dict(dict=cls._options_default))
-        spec.input("wf_parameters", valid_type=Dict, required=False)
-        spec.input("remote_data", valid_type=RemoteData, required=True)
-        spec.input("impurity_info", valid_type=Dict, required=True)
-        spec.input("params_kkr_overwrite", valid_type=Dict, required=False,
-                   help="Set some input parameters of the KKR calculation.")
+        spec.input('kkr', valid_type=Code, required=True)
+        spec.input('options', valid_type=Dict, required=False, default=lambda: Dict(dict=cls._options_default))
+        spec.input('wf_parameters', valid_type=Dict, required=False)
+        spec.input('remote_data', valid_type=RemoteData, required=True)
+        spec.input('impurity_info', valid_type=Dict, required=True)
+        spec.input(
+            'params_kkr_overwrite',
+            valid_type=Dict,
+            required=False,
+            help='Set some input parameters of the KKR calculation.'
+        )
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -100,38 +108,45 @@ class kkr_flex_wc(WorkChain):
                 cls.set_params_flex,
                 # TODO: encapsulate this in restarting mechanism (should be a base class of workflows that start calculations)
                 # i.e. use base_restart_calc workchain as parent
-                cls.get_flex, # calculate host GF and kkr-flexfiles
+                cls.get_flex,  # calculate host GF and kkr-flexfiles
                 cls.move_kkrflex_files,  # maybe move them on the remote folder to some other directory
             ),
-            cls.return_results)
+            cls.return_results
+        )
 
         # ToDo: improve error codes
-        spec.exit_code(101, 'ERROR_INVALID_INPUT_IMP_INFO',
-            message="ERROR: the 'impurity_info' input Dict node could not be used")
-        spec.exit_code(102, 'ERROR_INVALID_INPUT_KKR',
-            message="ERROR: the code you provided for kkr does not use the plugin kkr.kkr")
-        spec.exit_code(103, 'ERROR_INVALID_INPUT_REMOTE_DATA',
-            message="ERROR: No remote_data was provided as Input")
-        spec.exit_code(104, 'ERROR_INVALID_CALC_PARAMETERS',
-            message='ERROR: calc_parameters given are not consistent! Hint: did you give an unknown keyword?')
-        spec.exit_code(105, 'ERROR_CALC_PARAMETERS_INCOMPLETE',
-            message='ERROR: calc_parameters misses keys')
-        spec.exit_code(106, 'ERROR_KKR_CALCULATION_FAILED',
-            message='ERROR: KKR calculation to write out kkrflex files unsuccessful')
+        spec.exit_code(
+            101, 'ERROR_INVALID_INPUT_IMP_INFO', message="ERROR: the 'impurity_info' input Dict node could not be used"
+        )
+        spec.exit_code(
+            102,
+            'ERROR_INVALID_INPUT_KKR',
+            message='ERROR: the code you provided for kkr does not use the plugin kkr.kkr'
+        )
+        spec.exit_code(103, 'ERROR_INVALID_INPUT_REMOTE_DATA', message='ERROR: No remote_data was provided as Input')
+        spec.exit_code(
+            104,
+            'ERROR_INVALID_CALC_PARAMETERS',
+            message='ERROR: calc_parameters given are not consistent! Hint: did you give an unknown keyword?'
+        )
+        spec.exit_code(105, 'ERROR_CALC_PARAMETERS_INCOMPLETE', message='ERROR: calc_parameters misses keys')
+        spec.exit_code(
+            106,
+            'ERROR_KKR_CALCULATION_FAILED',
+            message='ERROR: KKR calculation to write out kkrflex files unsuccessful'
+        )
 
         # specify the outputs
         #spec.output('remote_folder', valid_type=RemoteData)
         spec.output('workflow_info', valid_type=Dict)
         spec.output('GF_host_remote', valid_type=RemoteData)
 
-
     def start(self):
         """
         init context and some parameters
         """
 
-        self.report('INFO: started KKR flex workflow version {}'
-                    ''.format(self._workflowversion))
+        self.report('INFO: started KKR flex workflow version {}' ''.format(self._workflowversion))
 
         ####### init #######
         # internal para / control para
@@ -152,20 +167,23 @@ class kkr_flex_wc(WorkChain):
             options_dict = self._options_default
             self.report('INFO: using default options parameters')
 
-
         # set values, or defaults
         # ToDo: arrange option assignment differently (look at scf.py from aiida-fleur)
         self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
-        self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
+        self.ctx.max_wallclock_seconds = options_dict.get(
+            'max_wallclock_seconds', self._options_default['max_wallclock_seconds']
+        )
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
-        self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
+        self.ctx.custom_scheduler_commands = options_dict.get(
+            'custom_scheduler_commands', self._options_default['custom_scheduler_commands']
+        )
 
         self.ctx.ef_shift = wf_dict.get('ef_shift', self._wf_default['ef_shift'])
         self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
         self.ctx.dos_params_dict = wf_dict.get('dos_params', self._wf_default['dos_params'])
         # fill missing key, value pairs with defaults
-        for k,v in self._wf_default['dos_params'].items():
+        for k, v in self._wf_default['dos_params'].items():
             if k not in self.ctx.dos_params_dict.keys():
                 self.ctx.dos_params_dict[k] = v
 
@@ -174,23 +192,24 @@ class kkr_flex_wc(WorkChain):
 
         self.ctx.retrieve_kkrflex = wf_dict.get('retrieve_kkrflex', self._wf_default['retrieve_kkrflex'])
 
-        self.report('INFO: use the following parameter:\n'
-                    'withmpi: {}\n'
-                    'Resources: {}\n'
-                    'Walltime (s): {}\n'
-                    'queue name: {}\n'
-                    'scheduler command: {}\n'
-                    'description: {}\n'
-                    'label: {}\n'.format(self.ctx.withmpi, self.ctx.resources, self.ctx.max_wallclock_seconds,
-                                         self.ctx.queue, self.ctx.custom_scheduler_commands,
-                                         self.ctx.description_wf, self.ctx.label_wf))
+        self.report(
+            'INFO: use the following parameter:\n'
+            'withmpi: {}\n'
+            'Resources: {}\n'
+            'Walltime (s): {}\n'
+            'queue name: {}\n'
+            'scheduler command: {}\n'
+            'description: {}\n'
+            'label: {}\n'.format(
+                self.ctx.withmpi, self.ctx.resources, self.ctx.max_wallclock_seconds, self.ctx.queue,
+                self.ctx.custom_scheduler_commands, self.ctx.description_wf, self.ctx.label_wf
+            )
+        )
 
         # return para/vars
         self.ctx.successful = True
         self.ctx.errors = []
         self.ctx.formula = ''
-
-
 
     def validate_input(self):
         """
@@ -216,16 +235,20 @@ class kkr_flex_wc(WorkChain):
         # check if input_remote has single KKRCalculation parent
         parents = input_remote.get_incoming(node_class=CalcJobNode)
         nparents = len(parents.all_link_labels())
-        if nparents!=1:
+        if nparents != 1:
             # extract parent workflow and get uuid of last calc from output node
             parent_workflow = input_remote.inputs.last_RemoteData
             if not isinstance(parent_workflow, WorkChainNode):
-                raise InputValidationError("Input remote_data node neither output of a KKR calculation nor of kkr_scf_wc workflow")
+                raise InputValidationError(
+                    'Input remote_data node neither output of a KKR calculation nor of kkr_scf_wc workflow'
+                )
                 parent_workflow_out = parent_workflow.outputs.output_kkr_scf_wc_ParameterResults
                 uuid_last_calc = parent_workflow_out.get_dict().get('last_calc_nodeinfo').get('uuid')
                 last_calc = load_node(uuid_last_calc)
                 if not isinstance(last_calc, KkrCalculation):
-                    raise InputValidationError("Extracted last_calc node not of type KkrCalculation: check remote_data input node")
+                    raise InputValidationError(
+                        'Extracted last_calc node not of type KkrCalculation: check remote_data input node'
+                    )
                 # overwrite remote_data node with extracted remote folder
                 output_remote = last_calc.outputs.remote_folder
                 self.inputs.remote_data = output_remote
@@ -234,8 +257,7 @@ class kkr_flex_wc(WorkChain):
             try:
                 test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
-                error = ("The code you provided for kkr does not "
-                         "use the plugin kkr.kkr")
+                error = ('The code you provided for kkr does not ' 'use the plugin kkr.kkr')
                 self.ctx.errors.append(error)
                 input_ok = False
                 return self.exit_codes.ERROR_INVALID_INPUT_KKR
@@ -247,8 +269,6 @@ class kkr_flex_wc(WorkChain):
             self.report('INFO: checking inputs successful')
 
         return input_ok
-
-
 
     def set_params_flex(self):
         """
@@ -281,7 +301,7 @@ class kkr_flex_wc(WorkChain):
                     para_check.set_value(key_default, kkrdefaults.get(key_default), silent=True)
                     kkrdefaults_updated.append(key_default)
                     missing_list.remove(key_default)
-            if len(missing_list)>0:
+            if len(missing_list) > 0:
                 self.report('ERROR: calc_parameters misses keys: {}'.format(missing_list))
                 return self.exit_codes.ERROR_CALC_PARAMETERS_INCOMPLETE
 
@@ -298,13 +318,15 @@ class kkr_flex_wc(WorkChain):
             runopt = []
 
         # overwrite some parameters of the KKR calculation by hand before setting mandatory keys
-        if "params_kkr_overwrite" in self.inputs:
+        if 'params_kkr_overwrite' in self.inputs:
             for key, val in self.inputs.params_kkr_overwrite.get_dict().items():
                 if key != runopt:
                     updatedict[key] = val
                 else:
                     runopt = val
-                self.report('INFO: overwriting KKR parameter: {} with {} from params_kkr_overwrite input node'.format(key, val))
+                self.report(
+                    'INFO: overwriting KKR parameter: {} with {} from params_kkr_overwrite input node'.format(key, val)
+                )
             input_links['params_kkr_overwrite'] = self.inputs.params_kkr_overwrite
 
         runopt = [i.strip() for i in runopt]
@@ -323,32 +345,42 @@ class kkr_flex_wc(WorkChain):
 
             if self.ctx.dos_run:
                 # convert emin, emax to Ry units
-                emin = ef + self.ctx.dos_params_dict['emin']/get_Ry2eV()
-                emax = ef + self.ctx.dos_params_dict['emax']/get_Ry2eV()
+                emin = ef + self.ctx.dos_params_dict['emin'] / get_Ry2eV()
+                emax = ef + self.ctx.dos_params_dict['emax'] / get_Ry2eV()
                 # set dos params
-                for key, val in {'EMIN': emin, 'EMAX': emax,
-                                 'NPT2': self.ctx.dos_params_dict['nepts'], 'NPOL': 0, 'NPT1': 0, 'NPT3': 0,
-                                 'BZDIVIDE': self.ctx.dos_params_dict['kmesh'], 'IEMXD': self.ctx.dos_params_dict['nepts'],
-                                 'TEMPR': self.ctx.dos_params_dict['tempr']}.items():
+                for key, val in {
+                    'EMIN': emin,
+                    'EMAX': emax,
+                    'NPT2': self.ctx.dos_params_dict['nepts'],
+                    'NPOL': 0,
+                    'NPT1': 0,
+                    'NPT3': 0,
+                    'BZDIVIDE': self.ctx.dos_params_dict['kmesh'],
+                    'IEMXD': self.ctx.dos_params_dict['nepts'],
+                    'TEMPR': self.ctx.dos_params_dict['tempr']
+                }.items():
                     updatedict[key] = val
             elif self.ctx.ef_shift != 0:
                 # get Fermi energy shift in eV
-                ef_shift = self.ctx.ef_shift #set new E_F in eV
+                ef_shift = self.ctx.ef_shift  #set new E_F in eV
                 # calculate new Fermi energy in Ry
                 ef_new = (ef + ef_shift)
-                self.report('INFO: ef_old + ef_shift = ef_new: {} eV + {} eV = {} eV'.format(ef*get_Ry2eV(), ef_shift, ef_new*get_Ry2eV()))
+                self.report(
+                    'INFO: ef_old + ef_shift = ef_new: {} eV + {} eV = {} eV'.format(
+                        ef * get_Ry2eV(), ef_shift, ef_new * get_Ry2eV()
+                    )
+                )
                 updatedict['ef_set'] = ef_new
 
         #construct the final param node containing all of the params
         updatenode = Dict(dict=updatedict)
-        updatenode.label = label+'KKRparam_flex'
-        updatenode.description = descr+'KKR parameter node extracted from parent parameters and wf_parameter and options input node.'
+        updatenode.label = label + 'KKRparam_flex'
+        updatenode.description = descr + 'KKR parameter node extracted from parent parameters and wf_parameter and options input node.'
         paranode_flex = update_params_wf(self.ctx.input_params_KKR, updatenode, **input_links)
         self.ctx.flex_kkrparams = paranode_flex
         self.ctx.flex_runopt = runopt
 
         self.report('INFO: Updated params= {}'.format(paranode_flex.get_dict()))
-
 
     def get_flex(self):
         """
@@ -361,25 +393,35 @@ class kkr_flex_wc(WorkChain):
         remote = self.inputs.remote_data
         params = self.ctx.flex_kkrparams
         imp_info = self.inputs.impurity_info
-        options = {"max_wallclock_seconds": self.ctx.max_wallclock_seconds,
-                   "resources": self.ctx.resources,
-                   "queue_name": self.ctx.queue}
+        options = {
+            'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
+            'resources': self.ctx.resources,
+            'queue_name': self.ctx.queue
+        }
         if self.ctx.custom_scheduler_commands:
-            options["custom_scheduler_commands"] = self.ctx.custom_scheduler_commands
-        inputs = get_inputs_kkr(code, remote, options, label, description, parameters=params, serial=(not self.ctx.withmpi), imp_info=imp_info)
+            options['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
+        inputs = get_inputs_kkr(
+            code,
+            remote,
+            options,
+            label,
+            description,
+            parameters=params,
+            serial=(not self.ctx.withmpi),
+            imp_info=imp_info
+        )
         # add retrieve_kkrflex to inputs
         inputs.retrieve_kkrflex = Bool(self.ctx.retrieve_kkrflex)
-        
+
         # run the KKRFLEX calculation
         self.report('INFO: doing calculation')
         flexrun = self.submit(KkrCalculation, **inputs)
 
         return ToContext(flexrun=flexrun)
 
-
     def move_kkrflex_files(self):
         """
-        Move the kkrflex files from the remote folder to KkrimpCalculation._DIRNAME_GF_UPLOAD 
+        Move the kkrflex files from the remote folder to KkrimpCalculation._DIRNAME_GF_UPLOAD
         on the remote computer's working dir. This skips retrieval to the file repository and
         reduces cluttering the database.
         """
@@ -397,7 +439,7 @@ class kkr_flex_wc(WorkChain):
             workdir = computer.get_workdir().format(username=remote_user)
             gf_upload_path = os.path.join(workdir, gf_upload_path)
 
-            self.report('move kkrflex files to: '+ computername)
+            self.report('move kkrflex files to: ' + computername)
 
             # extract absolute filepath of retrieved dir, used as source to upload kkrflex_* files from
             abspath_remote = self.ctx.flexrun.outputs.remote_folder.get_remote_path()
@@ -428,8 +470,9 @@ class kkr_flex_wc(WorkChain):
                     connection.symlink(abspath_tmat_new, abspath_tmat)
                     connection.symlink(abspath_gmat_new, abspath_gmat)
                 else:
-                    self.report('dir exsists already, skip moving the kkrflex_tmat and green files to: ' + gf_upload_path)
-
+                    self.report(
+                        'dir exsists already, skip moving the kkrflex_tmat and green files to: ' + gf_upload_path
+                    )
 
     def return_results(self):
         """
@@ -457,10 +500,11 @@ class kkr_flex_wc(WorkChain):
         outputnode_dict['list_of_errors'] = self.ctx.errors
 
         # create results node with calcfuntion for data provenance
-        outputnode = create_out_dict_node(Dict(dict=outputnode_dict), GF_host_remote=self.ctx.flexrun.outputs.remote_folder)
+        outputnode = create_out_dict_node(
+            Dict(dict=outputnode_dict), GF_host_remote=self.ctx.flexrun.outputs.remote_folder
+        )
         outputnode.label = 'kkr_flex_wc_results'
         outputnode.description = ''
-        
 
         # return Dict node containing information about previous calculation
         self.out('workflow_info', outputnode)
@@ -469,5 +513,7 @@ class kkr_flex_wc(WorkChain):
 
         self.report('INFO: created GF writeout result nodes')
 
-        self.report("INFO: done with KKRFLEX GF writeout workflow!\n")
+        self.report('INFO: done with KKRFLEX GF writeout workflow!\n')
+
+
 #        self.report("Successful run: {}".format(has_flexrun))

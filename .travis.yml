@@ -74,8 +74,8 @@ script:
   #- ./verify_rmq_check.py
   #- verdi status # no profile set up
   # choose tests to run via environment variables:
-  #- export RUN_VORONOI='yes' 
-  #- export RUN_KKRHOST='yes' 
+  #- export RUN_VORONOI='yes'
+  #- export RUN_KKRHOST='yes'
   - export RUN_ALL='yes'
   # Then run all tests
   - bash ./run_all.sh
