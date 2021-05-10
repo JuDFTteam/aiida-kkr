@@ -43,9 +43,9 @@ class Test_plot_kkr(object):
         basic_test('0c52eff5-3c5a-4623-a278-8febab698d30', strucplot=False, noshow=True)
         return gcf()
 
-    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='scf.png')
+    @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='scf.png', tolerance=8)
     def test_plot_scf_wc(self):
-        basic_test('224e0f00-6f81-4e63-a142-d45e83ec33e8', strucplot=False, noshow=True, tolerance=8)
+        basic_test('224e0f00-6f81-4e63-a142-d45e83ec33e8', strucplot=False, noshow=True)
         return gcf()
 
     @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='scf_grouped.png', tolerance=8)
