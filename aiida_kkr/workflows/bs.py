@@ -38,9 +38,9 @@ class kkr_bs_wc(WorkChain):
                                    but not mendatory as it can be extracted from structure internaly from the remote data
     :param remote_data: (RemoteData)(mendaory); From the previous kkr-converged calculation.
     :param kkr: (Code)(mendaory); KKR code specifiaction
-    :param label: (Str) (optional) ; label for WC but will be found in the "result_wf" output
+    :param label: (Str) (optional) ; label for WC but will be found in the 'result_wf' output
                                      Dict as 'BS_wf_label' key
-    :param description: (Str) (optional) : description for WC but will be found in the "result_wf" output
+    :param description: (Str) (optional) : description for WC but will be found in the 'result_wf' output
                                      Dict as 'BS_wf_description' key
 
 
@@ -157,11 +157,17 @@ class kkr_bs_wc(WorkChain):
         """
         self.report(f'INFO: started KKR Band Structure workflow version {self._wf_version}')
         wf_dict = self.inputs.wf_parameters.get_dict()
-        # add missing default values
+        # Count energy points only once
+        if 'NPT2' in wf_dict.keys():
+            npt2 = wf_dict.pop('NPT2', None)
+            wf_dict['nepts'] = npt2
+        # add missing default valuesi
         for key, val in self._wf_default.items():
-            if key not in wf_dict and val is not None:
+            if ((key not in wf_dict.keys()) and (key.swapcase() not in wf_dict.keys()) and (val is not None)):
+
                 self.report(f'INFO: Using default wf parameter {key}: {val}')
                 wf_dict[key] = val
+
         options_dict = self.inputs.options.get_dict()
         if options_dict == {}:
             self.report('INFO: Using default wf Options')
@@ -230,7 +236,7 @@ class kkr_bs_wc(WorkChain):
             self.inputs.remote_data = output_remote
         # To validate for kpoints
         if 'kpoints' in inputs:
-            self.ctx.BS_kpoints = 'kpoints'
+            self.ctx.BS_kpoints = inputs.kpoints
             input_ok = True
         else:
             struc_kkr, remote_voro = VoronoiCalculation.find_parent_structure(self.inputs.remote_data)
@@ -401,7 +407,8 @@ class kkr_bs_wc(WorkChain):
         outputnode_dict['queue_name'] = self.ctx.queue
         outputnode_dict['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
         outputnode_dict['BS_params'] = self.ctx.BS_params_dict
-        outputnode_dict['structure_type'] = self.ctx.structure_data
+        if 'kpoints' not in self.inputs:
+            outputnode_dict['structure_type'] = self.ctx.structure_data
         outputnode_dict['BS_wf_description'] = self.ctx.description_wf
         outputnode_dict['BS_wf_label'] = self.ctx.label_wf
         try:
@@ -463,21 +470,21 @@ def set_energy_params(econt_new, ef, para_check):
     evscal = get_Ry2eV()
 
     for key, val in econt_new.items():
-        if key == 'kmesh':
+        if key in ['kmesh', 'BZDIVIDE', 'KMESH', 'bzdivide']:
             key = 'BZDIVIDE'
-        elif key == 'nepts' or key == 'NPT2':
+        elif key in ['nepts', 'NPT2']:
             key = 'NPT2'
             # also add IEMXD which has to be big enough
             para_check.set_value('IEMXD', val, silent=True)
-        elif key == 'emin' or key == 'EMIN':
+        elif key in ['emin', 'EMIN']:
             key = 'EMIN'
             val = (ef + val / evscal)  # converting the Energy value to Ry while the fermi_energy in Ry
-        elif key == 'emax' or key == 'EMAX':
+        elif key in ['emax', 'EMAX']:
             key = 'EMAX'
             val = (ef + val / evscal)  # Converting to the Ry (unit of the energy)
-        elif key == 'tempr' or key == 'TEMPR':
+        elif key in ['tempr' 'TEMPR']:
             key = 'TEMPR'
-        elif key == 'RCLUSTZ' or key == 'rclustz':
+        elif key in ['RCLUSTZ', 'rclustz']:
             key = 'RCLUSTZ'
         para_check.set_value(key, val, silent=True)
 
