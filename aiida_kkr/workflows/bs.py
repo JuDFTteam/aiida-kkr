@@ -38,9 +38,9 @@ class kkr_bs_wc(WorkChain):
                                    but not mendatory as it can be extracted from structure internaly from the remote data
     :param remote_data: (RemoteData)(mendaory); From the previous kkr-converged calculation.
     :param kkr: (Code)(mendaory); KKR code specifiaction
-    :param label: (Str) (optional) ; label for WC but will be found in the "result_wf" output
+    :param label: (Str) (optional) ; label for WC but will be found in the 'result_wf' output
                                      Dict as 'BS_wf_label' key
-    :param description: (Str) (optional) : description for WC but will be found in the "result_wf" output
+    :param description: (Str) (optional) : description for WC but will be found in the 'result_wf' output
                                      Dict as 'BS_wf_description' key
 
 
@@ -159,15 +159,13 @@ class kkr_bs_wc(WorkChain):
         wf_dict = self.inputs.wf_parameters.get_dict()
         # Count energy points only once
         if 'NPT2' in wf_dict.keys():
-            npt2= wf_dict.pop('NPT2', None)
-            wf_dict['nepts']= npt2       
+            npt2 = wf_dict.pop('NPT2', None)
+            wf_dict['nepts'] = npt2
         # add missing default valuesi
         for key, val in self._wf_default.items():
-            if ((key not in wf_dict.keys()) 
-                 and (key.swapcase() not in wf_dict.keys()) 
-                 and (val is not None)) :
-                 
-                self.report('INFO: Using default wf parameter {}: {}'.format(key, val))
+            if ((key not in wf_dict.keys()) and (key.swapcase() not in wf_dict.keys()) and (val is not None)):
+
+                self.report(f'INFO: Using default wf parameter {key}: {val}')
                 wf_dict[key] = val
 
         options_dict = self.inputs.options.get_dict()
@@ -237,9 +235,9 @@ class kkr_bs_wc(WorkChain):
 
             self.inputs.remote_data = output_remote
         # To validate for kpoints
-        if "kpoints" in inputs:
+        if 'kpoints' in inputs:
             self.ctx.BS_kpoints = inputs.kpoints
-           input_ok = True
+            input_ok = True
         else:
             struc_kkr, remote_voro = VoronoiCalculation.find_parent_structure(self.inputs.remote_data)
             #create an auxiliary structure with unique kind_names, this leads to using the input structure in the seekpath method instead of finding the primitive one
@@ -472,18 +470,18 @@ def set_energy_params(econt_new, ef, para_check):
     evscal = get_Ry2eV()
 
     for key, val in econt_new.items():
-        if key in ['kmesh', 'BZDIVIDE', 'KMESH', 'bzdivide'] :
-            key = "BZDIVIDE"
+        if key in ['kmesh', 'BZDIVIDE', 'KMESH', 'bzdivide']:
+            key = 'BZDIVIDE'
         elif key in ['nepts', 'NPT2']:
             key = 'NPT2'
             # also add IEMXD which has to be big enough
             para_check.set_value('IEMXD', val, silent=True)
-        elif key in ['emin','EMIN']:
+        elif key in ['emin', 'EMIN']:
             key = 'EMIN'
-            val = (ef + val/evscal)# converting the Energy value to Ry while the fermi_energy in Ry
+            val = (ef + val / evscal)  # converting the Energy value to Ry while the fermi_energy in Ry
         elif key in ['emax', 'EMAX']:
             key = 'EMAX'
-            val = (ef + val/evscal) # Converting to the Ry (unit of the energy)
+            val = (ef + val / evscal)  # Converting to the Ry (unit of the energy)
         elif key in ['tempr' 'TEMPR']:
             key = 'TEMPR'
         elif key in ['RCLUSTZ', 'rclustz']:
