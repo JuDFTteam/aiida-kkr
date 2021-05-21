@@ -621,12 +621,7 @@ class KkrCalculation(CalcJob):
                     retrieve_dos_files = True
         if retrieve_dos_files:
             print('adding files for dos output', self._COMPLEXDOS, self._DOS_ATOM, self._LMDOS)
-            add_files = [self._COMPLEXDOS]
-            for iatom in range(natom):
-                add_files.append(self._DOS_ATOM % (iatom + 1))
-                for ispin in range(nspin):
-                    add_files.append((self._LMDOS % (iatom + 1, ispin + 1)).replace(' ', '0'))
-            calcinfo.retrieve_list += add_files
+            calcinfo.retrieve_list += self._get_dos_filelist(natom, nspin)
 
         # 2. KKRFLEX calculation
         retrieve_kkrflex_files = False
@@ -708,6 +703,10 @@ class KkrCalculation(CalcJob):
                 for ispin in range(nspin):
                     print('adding files for BdG mode')
                     calcinfo.retrieve_list += [self._BDG_POT % (iatom + 1, ispin + 1)]
+            #also retrieve BdG DOS files for anomalous density and hole part
+            if retrieve_dos_files:
+                for BdGadd in ['_eh', '_he', '_hole']:
+                    calcinfo.retrieve_list += self._get_dos_filelist(natom, nspin, BdGadd)
 
         # now set calcinfo and return
         codeinfo = CodeInfo()
@@ -717,6 +716,15 @@ class KkrCalculation(CalcJob):
         calcinfo.codes_info = [codeinfo]
 
         return calcinfo
+
+    def _get_dos_filelist(self, natom, nspin, addition=''):
+        """return file list of DOS output files to add to retrieve list """
+        add_files = [self._COMPLEXDOS + addition]
+        for iatom in range(natom):
+            add_files.append(self._DOS_ATOM % (iatom + 1) + addition)
+            for ispin in range(nspin):
+                add_files.append((self._LMDOS % (iatom + 1, ispin + 1)).replace(' ', '0') + addition)
+        return add_files
 
     def _set_parent_remotedata(self, remotedata):
         """
