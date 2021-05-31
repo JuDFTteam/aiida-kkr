@@ -39,6 +39,7 @@ def get_host_structure(impurity_workflow_or_calc):
     print(f'impurity_workflow_or_calc: {impurity_workflow_or_calc}')
     if impurity_workflow_or_calc.process_class == KkrimpCalculation:
         host_parent = impurity_workflow_or_calc.inputs.host_Greenfunction_folder
+        # Here 'impurity_workflow_or_calc.process_class== combine_imps_wc' occurs circular import with this present module
     elif impurity_workflow_or_calc.process_class.__name__ == 'combine_imps_wc':
         imp_sub_wc= impurity_workflow_or_calc.get_outgoing(node_class=kkr_imp_sub_wc).first().node
         kkr_imp_calc= imp_sub_wc.get_outgoing(node_class=KkrimpCalculation).all()[-1].node
