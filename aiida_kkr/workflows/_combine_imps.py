@@ -267,7 +267,7 @@ If given then the writeout step of the host GF is omitted.""")
 
             if not (imp_calc_or_wf.process_class == kkr_imp_wc or 
                     imp_calc_or_wf.process_class == kkr_imp_sub_wc or
-                     imp_calc_or_wf.process_class == self.__name__
+                     imp_calc_or_wf.process_class == self
                     ):
                 self.report("impurity_workflow class is wrong: {}".format(imp_calc_or_wf))
                 return False
@@ -281,7 +281,7 @@ If given then the writeout step of the host GF is omitted.""")
                 if not imp_calc_or_wf.outputs.workflow_info.get_dict().get('convergence_reached'):
                     self.report("impurity_workflow not converged")
                     return False
-            elif imp_calc_or_wf.process_class==self.__name__:
+            elif imp_calc_or_wf.process_class==self:
                 if not imp_calc_or_wf.outputs.workflow_info.get_dict().get('convergence_reached'):
                     self.report("impurity_workflow not converged")
                     return False
