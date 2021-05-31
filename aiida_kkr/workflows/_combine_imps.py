@@ -260,12 +260,15 @@ If given then the writeout step of the host GF is omitted.""")
             if not imp_calc_or_wf.outputs.output_parameters['convergence_group']['calculation_converged']:
                 return False
         else:
-            # imp_calc_or_wf should be kkr_imp_wc or kkr_imp_sub_wc workflow
+            # imp_calc_or_wf should be kkr_imp_wc or kkr_imp_sub_wc or combine_imps_wc workflow
             if not isinstance(imp_calc_or_wf, WorkChainNode):
                 self.report("impurity_workflow not a WorkChainNode: {}".format(imp_calc_or_wf))
                 return False
 
-            if not (imp_calc_or_wf.process_class==kkr_imp_wc or imp_calc_or_wf.process_class==kkr_imp_sub_wc):
+            if not (imp_calc_or_wf.process_class == kkr_imp_wc or 
+                    imp_calc_or_wf.process_class == kkr_imp_sub_wc or
+                     imp_calc_or_wf.process_class == self
+                    ):
                 self.report("impurity_workflow class is wrong: {}".format(imp_calc_or_wf))
                 return False
 
@@ -278,6 +281,11 @@ If given then the writeout step of the host GF is omitted.""")
                 if not imp_calc_or_wf.outputs.workflow_info.get_dict().get('convergence_reached'):
                     self.report("impurity_workflow not converged")
                     return False
+            elif imp_calc_or_wf.process_class==self:
+                if not imp_calc_or_wf.outputs.workflow_info.get_dict().get('convergence_reached'):
+                    self.report("impurity_workflow not converged")
+                    return False
+
 
         # all checks passed
         return True
