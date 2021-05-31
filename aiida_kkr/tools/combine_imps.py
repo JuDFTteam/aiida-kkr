@@ -12,6 +12,7 @@ from aiida.common import InputValidationError
 from aiida.common.folders import SandboxFolder
 from aiida_kkr.tools.tools_kkrimp import modify_potential, create_scoef_array
 from aiida_kkr.calculations import VoronoiCalculation, KkrimpCalculation
+from aiida_kkr.workflows import combine_imps_wc
 from masci_tools.io.common_functions import get_alat_from_bravais
 from six.moves import range
 
@@ -34,9 +35,17 @@ def get_host_structure(impurity_workflow_or_calc):
     extract host structure from impurity
     """
     #TODO extract host parent no from input but take into account calculation of host GF from inside kkrimp full workflow
-
+    print(f'This is line in the combine impurity tool files at:: {./} for deburging the line', end= ' ')
+    print(f'impurity_workflow_or_calc: {impurity_workflow_or_calc}')
     if impurity_workflow_or_calc.process_class == KkrimpCalculation:
         host_parent = impurity_workflow_or_calc.inputs.host_Greenfunction_folder
+    elif impurity_workflow_or_calc == combine_imps_wc:
+        imp_sub_wc= impurity_workflow_or_calc.get_outgoing(node_class=kkr_imp_sub_wc).first().node
+        kkr_imp_calc= imp_sub_wc.get_outgoing(node_class=KkrimpCalculation).all()[-1].node
+        host_parent = kkr_imp_calc.inputs.host_Greenfunction_folder
+    elif impurity_workflow_or_calc == kkr_imp_sub_wc:
+        kkr_imp_calc= impurity_workflow_or_calc.get_outgoing(node_class=KkrimpCalculation).all()[-1].node
+        host_parent = kkr_imp_calc.inputs.host_Greenfunction_folder
     elif 'remote_data' in impurity_workflow_or_calc.inputs:
         # this is the case if impurity_workflow_or_calc workflow is kkr_imp_sub
         host_parent = impurity_workflow_or_calc.inputs.remote_data
