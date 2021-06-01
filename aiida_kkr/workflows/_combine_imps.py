@@ -260,9 +260,17 @@ If given then the writeout step of the host GF is omitted.""")
         elif imp_2.process_class == combine_imps_wc:
             single_imp_2 = False
 
+        if not (single_imp_1 and single_imp_2):
+            single_single = False
+            if single_imp_2 == False:
+                if single_imp_1 == False:
+                    self.report(f"ERROR: Both 'impurity1_output_node' {self.inputs.impurity1_output_node} and 'impurity2_output_node {self.inputs.impurity2_output_node} are from combine_imps_wc."
+                    return self.exit_codes.ERROR_SOMETHING_WENT_WRONG
+                else:
+                    self.ctx.imp1 = imp_2
+                    self.ctx.imp2 = imp_1
             
-            
-
+        return single_single
 
 
     def get_imp_node_from_input(self, iimp=1):
