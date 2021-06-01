@@ -198,7 +198,8 @@ If given then the writeout step of the host GF is omitted.""")
         self.ctx.run_options = {'jij_run': False }
         self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
         self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
-        
+        self.ctx.single_vs_single = True # It is assumed
+
         # find and compare host structures for the two imps to make sure the impurities are consistent
         host_structure1 = get_host_structure(self.ctx.imp1)
         host_structure2 = get_host_structure(self.ctx.imp2)
@@ -262,6 +263,7 @@ If given then the writeout step of the host GF is omitted.""")
 
         if not (single_imp_1 and single_imp_2):
             single_single = False
+            self.ctx.single_vs_single = single_single
             if single_imp_2 == False:
                 if single_imp_1 == False:
                     self.report(f"ERROR: Both 'impurity1_output_node' {self.inputs.impurity1_output_node} and 'impurity2_output_node {self.inputs.impurity2_output_node} are from combine_imps_wc."
@@ -269,8 +271,55 @@ If given then the writeout step of the host GF is omitted.""")
                 else:
                     self.ctx.imp1 = imp_2
                     self.ctx.imp2 = imp_1
-            
-        return single_single
+        # TODO: Delete this print line for created for deguging
+        print(f"Dedug: The self.combine_single_single() is successfully done")
+        return self.ctx.single_vs_single
+
+
+    def extract_imps_info_exact_cluster(self):
+        if self.ctx.single_vs_single:
+        #TODO what is self.ctx.imp1 i.e self.ctx.imp1==combine_imps_wc for single
+            imps_info_in_exact_cluster = create_imps_info_exact_cluster(self.ctx.imp1, self.ctx.imp2, self.inputs.offset_imp2)
+            return imps_info_in_exact_cluster
+        else:
+            imp1_input = self.inputs.impurity1_output_node
+            try:
+                combine_wc = imp1_input.get_incoming(node_class= combine_imps_wc).all()[0].node
+                out_workflow_info = imp1_input
+            except:
+                kkrcal = imp1_input.get_incoming(node_class= KkrimpCalculation).all()
+                if len(kkrcal)>0:
+                    kkrcal = kkrcal[0]
+                    kkrimp_sub = kkrcal.get_incoming(node_class= kkr_imp_sub_wc).all()[0].node
+                    combine_wc= kkrimp_sub.get_incoming(node_class=combine_imps_wc).all()[0].node
+                else:
+                    kkrimp_sub = imp1_input.get_incoming(node_class= kkr_imp_sub_wc).all()
+                    if len(kkrimp_sub) >0:
+                        kkrimp_sub = kkrimp_sub[0].node
+                        combine_wc= kkrimp_sub.get_incoming(node_class=combine_imps_wc).all()[0].node
+                out_workflow_info = combine_wc.outputs.workflow_info
+
+            try:
+                imps_info_in_exact_cluster = out_workflow_info.get_dict().get('imps_info_in_exact_cluster')
+            except:
+                impinfo1 = self.
+
+    def create_imps_info_exact_cluster(single_imp1_wc, single_imp2_wc, offset_imp2):
+        impinfo1 = single_imp1_wc.inputs.impurity_info
+        impinfo2 = single_imp2_wc.inputs.impurity_info
+        # imp_info_in_exact_cluster keeps the exact data before creating the cluster will help to add more imps later.
+        imps_info_in_exact_cluster = {Zimps:[], ilayers:[], offset_imps: []} 
+        #offset_imp contains offset_index for imps 2nd, 3rd so on 
+        imps_info_in_exact_cluster['Zimps'].append(impinfo1.get_dict().get('Zimp'))
+        imps_info_in_exact_cluster['Zimps'].append(impinfo2.get_dict().get('Zimp'))
+
+        imps_info_in_exact_cluster['ilayers'].append(impinfo1.get_dict().get('ilayer_center'))
+        imps_info_in_exact_cluster['ilayers'].append(impinfo2.get_dict().get('ilayer_center'))
+        imps_info_in_exact_cluster['offset_imps'].append(offset_imp2.get_dict().get('index'))
+        
+        return imps_info_in_exact_cluster
+
+
 
 
     def get_imp_node_from_input(self, iimp=1):
@@ -346,13 +395,16 @@ If given then the writeout step of the host GF is omitted.""")
         impinfo1 = self.ctx.imp1.inputs.impurity_info
         impinfo2 = self.ctx.imp2.inputs.impurity_info
         host_structure = self.ctx.host_structure
+        offset_imp2 = self.inputs.offset_imp2
 
         self.report("create combined imp_info:")
         self.report("host structure: {}".format(host_structure))
         self.report("imp info 1: {}".format(impinfo1))
         self.report("imp info 2: {}".format(impinfo2))
 
-        if self.inputs.offset_imp2['index']<0:
+        imps_info_in_exact_cluster = self.extract_imps_info_exact_cluster()
+        
+        if offset_imp2['index']<0:
             return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
         if impinfo1['ilayer_center'] == impinfo2['ilayer_center'] and self.inputs.offset_imp2['index']<1:
             return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
@@ -368,10 +420,13 @@ If given then the writeout step of the host GF is omitted.""")
             return self.exit_codes.ERROR_INPUT_NOT_SINGLE_IMP_CALC # pylint: disable=maybe-no-member
 
         # create combined cluster, offset of second imp is extracted from i_neighbor_inplane
-        out_dict = create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, self.inputs.offset_imp2)
+        out_dict = create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2)
 
         self.ctx.imp_info_combined = out_dict['imp_info_combined']
         self.ctx.kickout_info = out_dict['kickout_info']
+        self.ctx.imps_info_in_exact_cluster = imps_info_in_exact_cluster
+
+
 
 
     def get_and_check_zimp_list(self, impurity_info):
@@ -715,6 +770,7 @@ If given then the writeout step of the host GF is omitted.""")
         # add information on combined cluster and potential
         out_dict['imp_info_combined'] = self.ctx.imp_info_combined.get_dict()
         out_dict['potential_kickout_info'] = self.ctx.kickout_info.get_dict()
+        out_dict['imps_info_in_exact_cluster'] = self.ctx.imps_info_in_exact_cluster
      
         # create results node with input links
         # TODO: Add the imp_scf_combined_jij to link the run_jij_step output on provanace graph 
