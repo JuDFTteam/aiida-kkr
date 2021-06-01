@@ -140,16 +140,19 @@ If given then the writeout step of the host GF is omitted.""")
         # structure of the workflow
         spec.outline(
             cls.start,                      # initialize workflow (set things in context and some consistency checks)
-            cls.create_big_cluster,         # combine imp clusters of the two imps
-            cls.update_params,              # update wf_parameters of kkr_imp_sub_wc, kkr_flex_wc and run_options
-            if_(cls.need_gf_run)(           # check if GF was given in input and can be reused
-                cls.run_gf_writeout),       # write out the host GF
-            cls.check_host_gf,              # update the host GF
-            cls.create_big_potential,       # combine preconverged potentials to big one
-            cls.run_kkrimp_scf,             # run the kkrimp_sub workflow to converge the host-imp startpot
-            if_(cls.run_jij)(               # Check Jij step should run or not
-            cls.run_jij_step),              # run jij step
-            cls.return_results              # check if the calculation was successful and return the result nodes
+            if_(cls.combine_sigle_sigle)(           # combine imp cluster from the two imp calculation
+                cls.create_big_cluster).            # cluster for two imps
+            else_(
+                cls.create_big_cluster_multi_imp),  # combine imp clusters for more than two imps
+            cls.update_params,                      # update wf_parameters of kkr_imp_sub_wc, kkr_flex_wc and run_options
+            if_(cls.need_gf_run)(                   # check if GF was given in input and can be reused
+                cls.run_gf_writeout),               # write out the host GF
+            cls.check_host_gf,                      # update the host GF
+            cls.create_big_potential,               # combine preconverged potentials to big one
+            cls.run_kkrimp_scf,                     # run the kkrimp_sub workflow to converge the host-imp startpot
+            if_(cls.run_jij)(                       # Check Jij step should run or not
+            cls.run_jij_step),                      # run jij step
+            cls.return_results                      # check if the calculation was successful and return the result nodes
             )
 
         # define the possible exit codes
@@ -220,8 +223,12 @@ If given then the writeout step of the host GF is omitted.""")
 
         # TODO: PRESERVE THE INPUTS FROM host_gf NAMESPACE TO CONTEXT
         # TODO: ALSO EDIT THE RUN_GF_WRITEOUT() FOR THIS CORRESPONDING CHANGES
-
     
+    # To check the inputs both impurity1_output_node impurity2_output_node from the single kkrimp calc or wf, or combine and single calc or wf.  
+    def combine_single_single(self):
+        imp1= self.ctx.imp
+
+
     def get_imp_node_from_input(self, iimp=1):
         """
         extract impurty calculation from impurity output node of inputs
