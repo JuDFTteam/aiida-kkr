@@ -16,6 +16,7 @@ import tarfile
 import numpy as np
 from masci_tools.io.common_functions import get_Ry2eV
 from aiida.orm import ArrayData
+from six.moves import range
 
 
 
@@ -226,7 +227,42 @@ If given then the writeout step of the host GF is omitted.""")
     
     # To check the inputs both impurity1_output_node impurity2_output_node from the single kkrimp calc or wf, or combine and single calc or wf.  
     def combine_single_single(self):
-        imp1= self.ctx.imp
+        single_single = True
+        
+        single_imp_1 = True
+        single_imp_2 = True
+
+        imp_1 = self.ctx.imp1
+        imp_2 = self.ctx.imp2
+        # check for the impurity1
+        if imp_1.process_class == KkrCalculation:
+            Zimp_num_1 = imp_1.inputs.impurity_info.get_dict().get('Zimp')
+            if isinstance(Zimp_num_1, list):
+                if len(Zimp_num_1) > 1:
+                    single_imp_1 = Flase
+        elif imp_1.process_class == kkr_imp_sub_wc:
+            combine_wc = imp_1.get_incoming(node_class=combine_imps_wc).all()
+            if len(combine_wc) != 0:
+                single_imp_1= False
+        elif imp_1.process_class == combine_imps_wc:
+            single_imp_1= False
+
+         # check for the impurity2
+        if imp_2.process_class == KkrCalculation:
+            Zimp_num_2 = imp_2.inputs.impurity_info.get_dict().get('Zimp')
+            if isinstance(Zimp_num_2, list):
+                if len(Zimp_num_2) > 1:
+                    single_imp_2 = Flase
+        elif imp_2.process_class == kkr_imp_sub_wc:
+            combine_wc = imp_2.get_incoming(node_class=combine_imps_wc).all()
+            if len(combine_wc) != 0:
+                single_imp_2 = False
+        elif imp_2.process_class == combine_imps_wc:
+            single_imp_2 = False
+
+            
+            
+
 
 
     def get_imp_node_from_input(self, iimp=1):
@@ -455,7 +491,7 @@ If given then the writeout step of the host GF is omitted.""")
             
             for key, val in wf_parameters_overwrite.items():
                # Update the scf_wf_parameters from wf_parameters_overwrite
-                if key in scf_wf_parameters.keys():
+                if key in list(scf_wf_parameters.keys()):
                     if wf_parameters_overwrite[key] != scf_wf_parameters[key]:
                         scf_old_val = scf_wf_parameters[key]
                         scf_wf_parameters[key] = val
@@ -467,13 +503,13 @@ If given then the writeout step of the host GF is omitted.""")
         # Update the wf_parameters_flex and run_options from the scf_wf_parameters            
         key_list = []
         for key, val in scf_wf_parameters.items():
-            if key in wf_parameters_flex.keys() or  key in run_options.keys():
+            if key in list(wf_parameters_flex.keys()) or  key in list(run_options.keys()):
                 # Here preparing the wf parameters for kkr_flex_wc
-                if key in wf_parameters_flex.keys():
+                if key in list(wf_parameters_flex.keys()):
                     deflt_val = wf_parameters_flex[key]
                     wf_parameters_flex[key] = scf_wf_parameters.get(key,deflt_val)
                 # Here preparing the some run option
-                if key in run_options.keys():
+                if key in list(run_options.keys()):
                     deflt_val = run_options[key]
                     run_options[key] = scf_wf_parameters.get(key, deflt_val)
                     self.report('INFO: Probable run option <{}> is updated here as <{}>'.format(key,run_options[key]))
@@ -535,7 +571,7 @@ If given then the writeout step of the host GF is omitted.""")
             return False       
         # TODO : work here from the RUNOPT instead of scf_wf_parameters, because all the RUNOPT and wf_parameters_flex are updated in the update parameter funcion.
         run_options = self.ctx.run_options
-        if 'jij_run' in run_options.keys():
+        if 'jij_run' in list(run_options.keys()):
             self.ctx.jij_option = run_options['jij_run']
         
         return self.ctx.jij_option
