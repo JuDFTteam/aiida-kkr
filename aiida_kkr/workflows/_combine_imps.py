@@ -330,7 +330,7 @@ If given then the writeout step of the host GF is omitted.""")
         impinfo1 = single_imp1_wc.inputs.impurity_info
         impinfo2 = single_imp2_wc.inputs.impurity_info
         # imp_info_in_exact_cluster keeps the exact data before creating the cluster will help to add more imps later.
-        imps_info_in_exact_cluster = {'Zimps':[], 'ilayers':[], 'offset_imps': []} 
+        imps_info_in_exact_cluster = {'Zimps':[], 'ilayers':[], 'offset_imps': [0]} # This number is taking the first imp. 
         #offset_imp contains offset_index for imps 2nd, 3rd so on 
         imps_info_in_exact_cluster['Zimps'].append(impinfo1.get_dict().get('Zimp'))
         imps_info_in_exact_cluster['Zimps'].append(impinfo2.get_dict().get('Zimp'))
@@ -413,9 +413,17 @@ If given then the writeout step of the host GF is omitted.""")
         """
         combine imp clusters of the two imps
         """
-
-        impinfo1 = self.ctx.imp1.inputs.impurity_info
-        impinfo2 = self.ctx.imp2.inputs.impurity_info
+        imp1 = self.ctx.imp1
+        imp2 = self.ctx.imp2
+        
+        if self.single_single:
+            impinfo1 = imp1.inputs.impurity_info
+        else:
+            if imp1.process_class == self.__class__:
+                imp1 = imp1.get_outgoing(node_class=kkr_imp_sub_wc).all()[0].node
+            impinfo1 = imp1.inputs.impurity_info
+        impinfo2 = imp2.inputs.impurity_info
+        
         host_structure = self.ctx.host_structure
         offset_imp2 = self.inputs.offset_imp2
 
@@ -426,15 +434,24 @@ If given then the writeout step of the host GF is omitted.""")
 
         self.ctx.imps_info_in_exact_cluster = self.extract_imps_info_exact_cluster()
         
-        if offset_imp2['index']<0:
-            return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
-        if impinfo1['ilayer_center'] == impinfo2['ilayer_center'] and self.inputs.offset_imp2['index']<1:
-            return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
+        if self.single_single:
+            if offset_imp2.get_dict()['index']<0:
+                return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
+            if impinfo1['ilayer_center'] == impinfo2['ilayer_center'] and self.inputs.offset_imp2['index']<1:
+                return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
+        else:
+            imp_offset_index = offset_imp2['offset_index']
+            imp_ilayer = impinfo2['ilayer_center']
+            if imp_offset_index in iter(imps_info_in_exact_cluster['offset_imps']):
+                if imp_ilayer in iter(imps_info_in_exact_cluster['ilayers']):
+                    self.report(f"ERROR: The new impurity is overlaping with the existing impurities. Change the 'ilayer_certer' or 'offset_index'.")
+                    return  self.exit_codes.ERROR_SOMETHING_WENT_WRONG
 
         # get zimp of imp1
-        _, is_single_imp = self.get_and_check_zimp_list(impinfo1)
-        if not is_single_imp:
-            return self.exit_codes.ERROR_INPUT_NOT_SINGLE_IMP_CALC # pylint: disable=maybe-no-member
+        if self.single_single:
+            _, is_single_imp = self.get_and_check_zimp_list(impinfo1)
+            if not is_single_imp:
+                return self.exit_codes.ERROR_INPUT_NOT_SINGLE_IMP_CALC # pylint: disable=maybe-no-member
 
         # do the same for imp2
         _, is_single_imp = self.get_and_check_zimp_list(impinfo2)
@@ -442,24 +459,12 @@ If given then the writeout step of the host GF is omitted.""")
             return self.exit_codes.ERROR_INPUT_NOT_SINGLE_IMP_CALC # pylint: disable=maybe-no-member
 
         # create combined cluster, offset of second imp is extracted from i_neighbor_inplane
-        out_dict = create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2)
+        out_dict = create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2, single_single)
 
         self.ctx.imp_info_combined = out_dict['imp_info_combined']
         self.ctx.kickout_info = out_dict['kickout_info']
 
-    def create_big_cluster_multi_imp(self):
-        """
-            This function will add the single imp in the cluster containing the more than one imp. 
-        """
-        imp1 = self.ctx.imp1
-        imp2 = self.ctx.imp2
-
-        if imp1.process_class == self.__class__:
-            imp1 = imp1.get_outgoing(node_class=kkr_imp_sub_wc).all()[0].node
-        impinfo1= imp1.inputs.impurity_info
-        impinfo2 = imp2.inputs.impurity_info 
-
-
+    
     def get_and_check_zimp_list(self, impurity_info):
         """
         extract zimp from impurity_info node and check if it is consistent (needs to be single impurity calculation)
