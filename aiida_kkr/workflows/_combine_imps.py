@@ -457,7 +457,7 @@ If given then the writeout step of the host GF is omitted.""")
             return self.exit_codes.ERROR_INPUT_NOT_SINGLE_IMP_CALC # pylint: disable=maybe-no-member
 
         # create combined cluster, offset of second imp is extracted from i_neighbor_inplane
-        out_dict = create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2, single_single)
+        out_dict = create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2, simps_info_in_exact_cluste, single_single)
 
         self.ctx.imp_info_combined = out_dict['imp_info_combined']
         self.ctx.kickout_info = out_dict['kickout_info']

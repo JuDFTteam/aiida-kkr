@@ -246,7 +246,7 @@ def pos_exists_already(pos_list_old, pos_new, debug=False):
     else:
         return False, None
 
-def combine_clusters(clust1, clust2_offset, debug=False):
+def combine_clusters(clust1, clust2_offset, single_single, debug=False):
     """
     combine impurity clusters and remove doubles in there
 
@@ -282,13 +282,15 @@ def combine_clusters(clust1, clust2_offset, debug=False):
     cluster_combined[:,-1] = np.sqrt(np.sum(cluster_combined[:,:3]**2, axis=1))
 
     # construct Rimp_rel list
-    rimp_rel_combined = [clust1[0,:3]] + [clust2_offset[0,:3]]
-
+    if single_single:
+        rimp_rel_combined = [clust1[0,:3]] + [clust2_offset[0,:3]]
+    else:
+        rimp_rel_combined = [clust2_offset[clust2_offset[0:3]
     return cluster_combined, rimp_rel_combined, kickout_list, i_removed_from_1
 
 
 
-def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, debug=False):
+def create_combined_imp_info___(host_structure, impinfo1, impinfo2, offset_imp2, imps_info_in_exact_cluster, single_single, debug=False):
     """
     create impurity clusters from impinfo nodes and combine these putting the second
     impurity to the i_neighbor_inplane-th in-plane neighbor
@@ -358,14 +360,85 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, de
 
     return {'imp_info_combined': imp_info_combined, 'kickout_info': kickout_info}
 
+
+def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, imps_info_in_exact_cluster, single_single, debug=False):
+    """
+    create impurity clusters from impinfo nodes and combine these putting the second
+    impurity to the i_neighbor_inplane-th in-plane neighbor
+    """
+    if single_single:
+        zimp1 = imps_info_in_exact_cluster['Zimps'][0]
+    zimp2 = imps_info_in_exact_cluster['Zimps'][-1]
+
+
+    if 'imp_cls' in impinfo1.get_dict():
+        clust1 = impinfo1['imp_cls']
+    else:
+        # create cluster of imp1
+        clust1 = get_scoef_single_imp(host_structure, impinfo1)
+
+    # do the same for imp2
+    clust2 = get_scoef_single_imp(host_structure, impinfo2)
+
+    # set zimp in scoef file (not used by the code but makes it easier to read the files / debug)
+    if single_single:
+        clust1[0][4] = zimp1[0]
+    clust2[0][4] = zimp2[0]
+    #if debug:
+    #    print('cls1:', clust1)
+    #    print('cls2:', clust2)
+
+        
+    if 'r_offset' in offset_imp2.get_dict():
+        # use offset given in input
+        r_offset = imps_info_in_exact_cluster['offset_imps'][-1]
+    else:
+        # find offset taking into account the possible out-of-plane vector if the imps are in different layers
+        r_out_of_plane = np.array([0,0,0])
+        center_imp = imps_info_in_exact_cluster['ilayers'][0]
+        layer2 = imps_info_in_exact_cluster['ilayers'][-1]
+        if center_imp != layer2:
+            pos1 = np.array(host_structure.sites[center_imp].position)
+            pos2 = np.array(host_structure.sites[layer2].position)
+            r_out_of_plane = pos2-pos1
+        i_neighbor_inplane = imps_info_in_exact_cluster['offset_imps'][-1]
+        r_offset = get_inplane_neighbor(host_structure, i_neighbor_inplane, r_out_of_plane)
+    if debug: print('r_offset:', r_offset)
+
+    # add offset to cluster 2
+    clust2_offset = clust2.copy()
+    clust2_offset[:, :3] += r_offset
+
+    cluster_combined, rimp_rel_combined, kickout_list, i_removed_from_1 = combine_clusters(clust1, clust2_offset, single_single, debug)
+    
+    if 'Rimp_rel' in impinfo1.get_dict():
+        rimp_rel_combined = list(impinfo1['Rimp_rel']) + rimp_rel_combined[1:]
+    
+    if debug:
+        #print('cls_combined:', cluster_combined)
+        print('rimp_rel_combined:', rimp_rel_combined)
+        print('kickout_list:', kickout_list)
+        print('i_removed_from_1:', i_removed_from_1)
+
+    # create new imp_info node with imp_cls, Rimp_rel and Zimp definig the cluster and impurity location
+    imp_info_combined = Dict(dict={'imp_cls': cluster_combined, 'Zimp': zimp_combined, 'Rimp_rel': rimp_rel_combined})
+    
+    # kickout info (used later in cfreation of combined potential)
+    kickout_info = Dict(dict={'i_removed_from_1': i_removed_from_1, 'kickout_list': kickout_list, 
+                              'Ncls1': len(clust1), 'Ncls2': len(clust2), 'Ncls_combined': len(cluster_combined)}
+                        )
+
+    return {'imp_info_combined': imp_info_combined, 'kickout_info': kickout_info}
+
+
 @calcfunction
-def create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2):
+def create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, imps_info_in_exact_cluster, offset_imp2, single_single):
     """
     create impurity clusters from impinfo nodes and combine these putting the second
     impurity to the i_neighbor_inplane-th in-plane neighbor
     """
 
-    return create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2)
+    return create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, imps_info_in_exact_cluster, single_single)
 
 
 
