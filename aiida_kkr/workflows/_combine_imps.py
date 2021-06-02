@@ -282,27 +282,26 @@ If given then the writeout step of the host GF is omitted.""")
             imps_info_in_exact_cluster = create_imps_info_exact_cluster(self.ctx.imp1, self.ctx.imp2, self.inputs.offset_imp2)
             return imps_info_in_exact_cluster
         else:
-            imp1_input = self.inputs.impurity1_output_node
-            try:
-                combine_wc = imp1_input.get_incoming(node_class= combine_imps_wc).all()[0].node
-                out_workflow_info = imp1_input
-            except:
-                kkrcal = imp1_input.get_incoming(node_class= KkrimpCalculation).all()
-                if len(kkrcal)>0:
-                    kkrcal = kkrcal[0]
-                    kkrimp_sub = kkrcal.get_incoming(node_class= kkr_imp_sub_wc).all()[0].node
-                    combine_wc= kkrimp_sub.get_incoming(node_class=combine_imps_wc).all()[0].node
-                else:
-                    kkrimp_sub = imp1_input.get_incoming(node_class= kkr_imp_sub_wc).all()
-                    if len(kkrimp_sub) >0:
-                        kkrimp_sub = kkrimp_sub[0].node
-                        combine_wc= kkrimp_sub.get_incoming(node_class=combine_imps_wc).all()[0].node
-                out_workflow_info = combine_wc.outputs.workflow_info
+            imp1_input = self.ctx.imp1
+            if imp1_input.process_class == combine_imps_wc:
+                combine_wc = imp1_input
+                out_workflow_info = combine_wc.get_outgoing(link_label_filter='workflow_info').all()[0].node
+                print('first')
+            elif imp1_input.process_class == KkrimpCalculation:
+                kkrimp_sub = imp1_input.get_incoming(node_class= kkr_imp_sub_wc).all()[0].node
+                combine_wc= kkrimp_sub.get_incoming(node_class= combine_imps_wc).all()[0].node
+                print('second')
+            elif imp1_input.process_class == kkr_imp_sub_wc:
+                combine_wc= imp1_input.get_incoming(node_class=combine_imps_wc).all()[0].node
+                print('third')
+            out_workflow_info = combine_wc.outputs.workflow_info
 
             try:
-                imps_info_in_exact_cluster = out_workflow_info.get_dict().get('imps_info_in_exact_cluster')
-            except:
-                impinfo1 = self.
+                imps_info_in_exact_cluster = out_workflow_info.get_dict()['imps_info_in_exact_cluster']
+            except KeyError:
+                parent_imp1_info = combine_wc.inputs.impurity1_output_node
+                parent_imp2_info = combine_wc.inputs.impurity2_output_node
+ 
 
     def create_imps_info_exact_cluster(single_imp1_wc, single_imp2_wc, offset_imp2):
         impinfo1 = single_imp1_wc.inputs.impurity_info
