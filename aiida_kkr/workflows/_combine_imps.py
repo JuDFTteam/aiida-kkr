@@ -228,8 +228,8 @@ If given then the writeout step of the host GF is omitted.""")
     
     # To check the inputs both impurity1_output_node impurity2_output_node from the single kkrimp calc or wf, or combine and single calc or wf.  
     def combine_single_single(self):
-        " This function checks whether the impurity1_output_node and the impurity2_output_node are from (kkr_imp_wc, kkr_imp_wc) or (combine_imps_wc, kkr_imp_wc), and always keeps the combine_imps_wc as the first impurity node for combine cluster.
-        "
+        """ This function checks whether the impurity1_output_node and the impurity2_output_node are from (kkr_imp_wc, kkr_imp_wc) or (combine_imps_wc, kkr_imp_wc), and always keeps the combine_imps_wc as the first impurity node for combine cluster.
+        """
         single_single = True
         
         single_imp_1 = True
@@ -279,9 +279,9 @@ If given then the writeout step of the host GF is omitted.""")
    
 
     def extract_imps_info_exact_cluster(self):
-    "
+    """
         This function collects the all exist impurity info as in the exact crystal rather than in the crystal centering the first impurity at (0,0,0) position. Returns the imps_info_in_exact_cluster dict.
-    "
+    """
         if self.ctx.single_vs_single:
         #TODO what is self.ctx.imp1 i.e self.ctx.imp1==combine_imps_wc for single
             imps_info_in_exact_cluster = create_imps_info_exact_cluster(self.ctx.imp1, self.ctx.imp2, self.inputs.offset_imp2)
