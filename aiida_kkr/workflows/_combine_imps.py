@@ -141,7 +141,7 @@ If given then the writeout step of the host GF is omitted.""")
         # structure of the workflow
         spec.outline(
             cls.start,                      # initialize workflow (set things in context and some consistency checks)
-            if_(cls.combine_sigle_sigle)(           # combine imp cluster from the two imp calculation
+            if_(cls.combine_single_single)(           # combine imp cluster from the two imp calculation
                 cls.create_big_cluster).            # cluster for two imps
             else_(
                 cls.create_big_cluster_multi_imp),  # combine imp clusters for more than two imps
@@ -228,7 +228,8 @@ If given then the writeout step of the host GF is omitted.""")
     
     # To check the inputs both impurity1_output_node impurity2_output_node from the single kkrimp calc or wf, or combine and single calc or wf.  
     def combine_single_single(self):
-        """ This function checks whether the impurity1_output_node and the impurity2_output_node are from (kkr_imp_wc, kkr_imp_wc) or (combine_imps_wc, kkr_imp_wc), and always keeps the combine_imps_wc as the first impurity node for combine cluster.
+        """ 
+            This function checks whether the impurity1_output_node and the impurity2_output_node are from (kkr_imp_wc, kkr_imp_wc) or (combine_imps_wc, kkr_imp_wc), and always keeps the combine_imps_wc as the first impurity node for combine cluster.
         """
         single_single = True
         
@@ -268,7 +269,7 @@ If given then the writeout step of the host GF is omitted.""")
             self.ctx.single_vs_single = single_single
             if single_imp_2 == False:
                 if single_imp_1 == False:
-                    self.report(f"ERROR: Both 'impurity1_output_node' {self.inputs.impurity1_output_node} and 'impurity2_output_node {self.inputs.impurity2_output_node} are from combine_imps_wc."
+                    self.report(f"ERROR: Both 'impurity1_output_node' {self.inputs.impurity1_output_node} and 'impurity2_output_node {self.inputs.impurity2_output_node} are from combine_imps_wc.")
                     return self.exit_codes.ERROR_SOMETHING_WENT_WRONG
                 else:
                     self.ctx.imp1 = imp_2
@@ -279,12 +280,12 @@ If given then the writeout step of the host GF is omitted.""")
    
 
     def extract_imps_info_exact_cluster(self):
-    """
-        This function collects the all exist impurity info as in the exact crystal rather than in the crystal centering the first impurity at (0,0,0) position. Returns the imps_info_in_exact_cluster dict.
-    """
+        """
+                This function collects the all exist impurity info as in the exact crystal rather than in the crystal centering the first impurity at (0,0,0) position. Returns the imps_info_in_exact_cluster dict.
+        """
         if self.ctx.single_vs_single:
         #TODO what is self.ctx.imp1 i.e self.ctx.imp1==combine_imps_wc for single
-            imps_info_in_exact_cluster = create_imps_info_exact_cluster(self.ctx.imp1, self.ctx.imp2, self.inputs.offset_imp2)
+            imps_info_in_exact_cluster = self.create_imps_info_exact_cluster(self.ctx.imp1, self.ctx.imp2, self.inputs.offset_imp2)
             return imps_info_in_exact_cluster
         else:
             imp1_input = self.ctx.imp1
@@ -314,7 +315,7 @@ If given then the writeout step of the host GF is omitted.""")
                 parent_imp1_wc_or_calc = get_imp_node_from_input(parent_input_imp1)
                 parent_imp2_wc_or_calc = get_imp_node_from_input(parent_input_imp2)
                 # Here the below imps_info_in_exact_cluster if from the inputs impurity1_output_node, and impurity2_output_node as it is not calculated in the old version attempt of the combine_imps_wc.
-                imps_info_in_exact_cluster = create_imps_info_exact_cluster(parent_imp1_wc_or_calc, parent_imp2_wc_or_calc, parent_input_offset)
+                imps_info_in_exact_cluster = self.create_imps_info_exact_cluster(parent_imp1_wc_or_calc, parent_imp2_wc_or_calc, parent_input_offset)
             # Now to add the input impurity info and off set of the present combine_imps_wc
             imps_info_in_exact_cluster['offset_imps'].append(self.inputs.offset_imp2.get_dict()['index'])
             imps_info_in_exact_cluster['Zimps'].append(imp2_impurity_info.get_dict()['Zimp'])
@@ -324,7 +325,7 @@ If given then the writeout step of the host GF is omitted.""")
             return imps_info_in_exact_cluster
                 
 
-    def create_imps_info_exact_cluster(single_imp1_wc, single_imp2_wc, offset_imp2):
+    def create_imps_info_exact_cluster(self, single_imp1_wc, single_imp2_wc, offset_imp2):
         impinfo1 = single_imp1_wc.inputs.impurity_info
         impinfo2 = single_imp2_wc.inputs.impurity_info
         # imp_info_in_exact_cluster keeps the exact data before creating the cluster will help to add more imps later.
@@ -446,7 +447,8 @@ If given then the writeout step of the host GF is omitted.""")
         self.ctx.imp_info_combined = out_dict['imp_info_combined']
         self.ctx.kickout_info = out_dict['kickout_info']
 
-
+    def create_big_cluster_multi_imp(self):
+        pass
 
 
     def get_and_check_zimp_list(self, impurity_info):
