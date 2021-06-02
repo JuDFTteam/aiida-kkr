@@ -760,8 +760,11 @@ If given then the writeout step of the host GF is omitted.""")
         for key in ['successful', 'convergence_value', 'convergence_reached', 'convergence_values_all_steps']:
             out_dict[key] = results_kkrimp_sub[key]
 
-        magmom_all = np.array(output_parameters['magnetism_group']['spin_moment_per_atom'], dtype=float)[:,-1]
-        out_dict['magmoms'] = magmom_all
+        try:
+            magmom_all = np.array(output_parameters['magnetism_group']['spin_moment_per_atom'], dtype=float)[:,-1]
+            out_dict['magmoms'] = magmom_all
+        except KeyError:
+            self.report("No 'magmons' available in 'workflow_info'. Probably, 'mag_init' set to False in the settings.")
         
         # Parse_jij and collect some info
         is_jij_exist = self.ctx.jij_option 
