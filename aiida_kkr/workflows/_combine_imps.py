@@ -275,7 +275,7 @@ If given then the writeout step of the host GF is omitted.""")
                     self.ctx.imp1 = imp_2
                     self.ctx.imp2 = imp_1
         # TODO: Delete this print line for created for deguging
-        print(f"Dedug: The self.combine_single_single() is successfully done")
+        self.report(f"DEBUG: The self.combine_single_single() is successfully done")
         return self.ctx.single_vs_single
    
 
@@ -287,30 +287,31 @@ If given then the writeout step of the host GF is omitted.""")
         #TODO what is self.ctx.imp1 i.e self.ctx.imp1==combine_imps_wc for single
             imps_info_in_exact_cluster = self.create_imps_info_exact_cluster(self.ctx.imp1, self.ctx.imp2, self.inputs.offset_imp2)
             return imps_info_in_exact_cluster
+            self.report(f"DEBUG: The is the imps_info_in_exact_cluster dict: {imps_info_in_exact_cluster}\n")
         else:
             imp1_input = self.ctx.imp1
             # This 'if clause' to extract the imps_info_in_exact_cluster from  workflow_info of the input impurity node
             if imp1_input.process_class == combine_imps_wc:
-                combine_wc = imp1_input
-                out_workflow_info = combine_wc.get_outgoing(link_label_filter='workflow_info').all()[0].node
+                parent_combine_wc = imp1_input
+                out_workflow_info = parent_combine_wc.get_outgoing(link_label_filter='workflow_info').all()[0].node
                 print('first')
             elif imp1_input.process_class == KkrimpCalculation:
                 kkrimp_sub = imp1_input.get_incoming(node_class= kkr_imp_sub_wc).all()[0].node
-                combine_wc= kkrimp_sub.get_incoming(node_class= combine_imps_wc).all()[0].node
+                parent_combine_wc= kkrimp_sub.get_incoming(node_class= combine_imps_wc).all()[0].node
                 print('second')
             elif imp1_input.process_class == kkr_imp_sub_wc:
-                combine_wc= imp1_input.get_incoming(node_class=combine_imps_wc).all()[0].node
+                parent_combine_wc= imp1_input.get_incoming(node_class=combine_imps_wc).all()[0].node
                 print('third')
-            out_workflow_info = combine_wc.outputs.workflow_info
+            out_workflow_info = parent_combine_wc.outputs.workflow_info
 
             imp2_impurity_info = self.ctx.imp2.inputs.impurity_info
 
             try:
                 imps_info_in_exact_cluster = out_workflow_info.get_dict()['imps_info_in_exact_cluster']
             except KeyError:
-                parent_input_imp1 = combine_wc.inputs.impurity1_output_node# TODO: rename combine_wc to the parent_combine_wc
-                parent_input_imp2 = combine_wc.inputs.impurity2_output_node
-                parent_input_offset = combine_wc.inputs.offset_imp2
+                parent_input_imp1 = parent_combine_wc.inputs.impurity1_output_node# TODO: rename combine_wc to the parent_combine_wc
+                parent_input_imp2 = parent_combine_wc.inputs.impurity2_output_node
+                parent_input_offset = parent_combine_wc.inputs.offset_imp2
                 
                 parent_imp1_wc_or_calc = get_imp_node_from_input(parent_input_imp1)
                 parent_imp2_wc_or_calc = get_imp_node_from_input(parent_input_imp2)
@@ -321,7 +322,7 @@ If given then the writeout step of the host GF is omitted.""")
             imps_info_in_exact_cluster['Zimps'].append(imp2_impurity_info.get_dict()['Zimp'])
             imps_info_in_exact_cluster['ilayers'].appendd(imp2_impurity_info.get_dict()['ilayer_center'])
             # TODO: Delete the below print line as it is for deburging
-            self.report(f"The is the imps_info_in_exact_cluster dict: {imps_info_in_exact_cluster}\n")
+            self.report(f"DEBUG: The is the imps_info_in_exact_cluster dict: {imps_info_in_exact_cluster}\n")
             return imps_info_in_exact_cluster
                 
 
@@ -329,7 +330,7 @@ If given then the writeout step of the host GF is omitted.""")
         impinfo1 = single_imp1_wc.inputs.impurity_info
         impinfo2 = single_imp2_wc.inputs.impurity_info
         # imp_info_in_exact_cluster keeps the exact data before creating the cluster will help to add more imps later.
-        imps_info_in_exact_cluster = {Zimps:[], ilayers:[], offset_imps: []} 
+        imps_info_in_exact_cluster = {'Zimps':[], 'ilayers':[], 'offset_imps': []} 
         #offset_imp contains offset_index for imps 2nd, 3rd so on 
         imps_info_in_exact_cluster['Zimps'].append(impinfo1.get_dict().get('Zimp'))
         imps_info_in_exact_cluster['Zimps'].append(impinfo2.get_dict().get('Zimp'))
