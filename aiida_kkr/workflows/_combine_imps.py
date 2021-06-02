@@ -274,7 +274,7 @@ If given then the writeout step of the host GF is omitted.""")
         # TODO: Delete this print line for created for deguging
         print(f"Dedug: The self.combine_single_single() is successfully done")
         return self.ctx.single_vs_single
-
+   
 
     def extract_imps_info_exact_cluster(self):
         if self.ctx.single_vs_single:
@@ -283,6 +283,7 @@ If given then the writeout step of the host GF is omitted.""")
             return imps_info_in_exact_cluster
         else:
             imp1_input = self.ctx.imp1
+            # This 'if clause' to extract the imps_info_in_exact_cluster from  workflow_info of the input impurity node
             if imp1_input.process_class == combine_imps_wc:
                 combine_wc = imp1_input
                 out_workflow_info = combine_wc.get_outgoing(link_label_filter='workflow_info').all()[0].node
@@ -296,12 +297,27 @@ If given then the writeout step of the host GF is omitted.""")
                 print('third')
             out_workflow_info = combine_wc.outputs.workflow_info
 
+            imp2_impurity_info = self.ctx.imp2.inputs.impurity_info
+
             try:
                 imps_info_in_exact_cluster = out_workflow_info.get_dict()['imps_info_in_exact_cluster']
             except KeyError:
-                parent_imp1_info = combine_wc.inputs.impurity1_output_node
-                parent_imp2_info = combine_wc.inputs.impurity2_output_node
- 
+                parent_input_imp1 = combine_wc.inputs.impurity1_output_node# TODO: rename combine_wc to the parent_combine_wc
+                parent_input_imp2 = combine_wc.inputs.impurity2_output_node
+                parent_input_offset = combine_wc.inputs.offset_imp2
+                
+                parent_imp1_wc_or_calc = get_imp_node_from_input(parent_input_imp1)
+                parent_imp2_wc_or_calc = get_imp_node_from_input(parent_input_imp2)
+                # Here the below imps_info_in_exact_cluster if from the inputs impurity1_output_node, and impurity2_output_node as it is not calculated in the old version attempt of the combine_imps_wc.
+                imps_info_in_exact_cluster = create_imps_info_exact_cluster(parent_imp1_wc_or_calc, parent_imp2_wc_or_calc, parent_input_offset)
+            # Now to add the input impurity info and off set of the present combine_imps_wc
+            imps_info_in_exact_cluster['offset_imps'].append(self.inputs.offset_imp2.get_dict()['index'])
+            imps_info_in_exact_cluster['Zimps'].append(imp2_impurity_info.get_dict()['Zimp'])
+            imps_info_in_exact_cluster['ilayers'].appendd(imp2_impurity_info.get_dict()['ilayer_center'])
+            # TODO: Delete the below print line as it is for deburging
+            self.report(f"The is the imps_info_in_exact_cluster dict: {imps_info_in_exact_cluster}\n")
+            return imps_info_in_exact_cluster
+                
 
     def create_imps_info_exact_cluster(single_imp1_wc, single_imp2_wc, offset_imp2):
         impinfo1 = single_imp1_wc.inputs.impurity_info
