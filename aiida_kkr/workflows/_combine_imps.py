@@ -424,7 +424,7 @@ If given then the writeout step of the host GF is omitted.""")
         self.report("imp info 1: {}".format(impinfo1))
         self.report("imp info 2: {}".format(impinfo2))
 
-        imps_info_in_exact_cluster = self.extract_imps_info_exact_cluster()
+        self.ctx.imps_info_in_exact_cluster = self.extract_imps_info_exact_cluster()
         
         if offset_imp2['index']<0:
             return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
@@ -444,12 +444,20 @@ If given then the writeout step of the host GF is omitted.""")
         # create combined cluster, offset of second imp is extracted from i_neighbor_inplane
         out_dict = create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2)
 
-        self.ctx.imps_info_in_exact_cluster = self.extract_imps_info_exact_cluster()
         self.ctx.imp_info_combined = out_dict['imp_info_combined']
         self.ctx.kickout_info = out_dict['kickout_info']
 
     def create_big_cluster_multi_imp(self):
-        pass
+        """
+            This function will add the single imp in the cluster containing the more than one imp. 
+        """
+        imp1 = self.ctx.imp1
+        imp2 = self.ctx.imp2
+
+        if imp1.process_class == self.__class__:
+            imp1 = imp1.get_outgoing(node_class=kkr_imp_sub_wc).all()[0].node
+        impinfo1= imp1.inputs.impurity_info
+        impinfo2 = imp2.inputs.impurity_info 
 
 
     def get_and_check_zimp_list(self, impurity_info):
