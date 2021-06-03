@@ -264,7 +264,6 @@ If given then the writeout step of the host GF is omitted.""")
 
         if not (single_imp_1 and single_imp_2):
             single_single = False
-            self.ctx.single_vs_single = single_single
             if single_imp_2 == False:
                 if single_imp_1 == False:
                     self.report(f"ERROR: Both 'impurity1_output_node' {self.inputs.impurity1_output_node} and 'impurity2_output_node {self.inputs.impurity2_output_node} are from combine_imps_wc.")
@@ -273,8 +272,8 @@ If given then the writeout step of the host GF is omitted.""")
                     self.ctx.imp1 = imp_2
                     self.ctx.imp2 = imp_1
         # TODO: Delete this print line for created for deguging
+        self.ctx.single_vs_single = single_single
         self.report(f"DEBUG: The self.combine_single_single() is successfully done")
-        return self.ctx.single_vs_single
    
 
     def extract_imps_info_exact_cluster(self):
@@ -413,8 +412,8 @@ If given then the writeout step of the host GF is omitted.""")
         """
         imp1 = self.ctx.imp1
         imp2 = self.ctx.imp2
-        
-        if self.single_single:
+        single_single = self.ctx.single_vs_single
+        if single_single:
             impinfo1 = imp1.inputs.impurity_info
         else:
             if imp1.process_class == self.__class__:
@@ -432,7 +431,7 @@ If given then the writeout step of the host GF is omitted.""")
 
         self.ctx.imps_info_in_exact_cluster = self.extract_imps_info_exact_cluster()
         
-        if self.single_single:
+        if single_single:
             if offset_imp2.get_dict()['index']<0:
                 return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
             if impinfo1['ilayer_center'] == impinfo2['ilayer_center'] and self.inputs.offset_imp2['index']<1:
@@ -446,7 +445,7 @@ If given then the writeout step of the host GF is omitted.""")
                     return  self.exit_codes.ERROR_SOMETHING_WENT_WRONG
 
         # get zimp of imp1
-        if self.single_single:
+        if single_single:
             _, is_single_imp = self.get_and_check_zimp_list(impinfo1)
             if not is_single_imp:
                 return self.exit_codes.ERROR_INPUT_NOT_SINGLE_IMP_CALC # pylint: disable=maybe-no-member
