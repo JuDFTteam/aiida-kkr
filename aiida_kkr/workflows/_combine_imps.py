@@ -6,7 +6,7 @@ This module contains the workflow which combines pre-converged two single-impuri
 from __future__ import absolute_import
 from __future__ import print_function
 from aiida.engine import WorkChain, if_, ToContext, calcfunction
-from aiida.orm import load_node, Dict, WorkChainNode, Int, RemoteData
+from aiida.orm import load_node, Dict, WorkChainNode, Int, RemoteData, Bool
 from aiida_kkr.calculations import KkrCalculation, KkrimpCalculation
 from aiida_kkr.workflows import kkr_imp_sub_wc, kkr_flex_wc, kkr_imp_wc
 from aiida_kkr.tools.combine_imps import (create_combined_imp_info_cf, combine_potentials_cf,
@@ -313,11 +313,12 @@ If given then the writeout step of the host GF is omitted.""")
                 parent_imp1_wc_or_calc = get_imp_node_from_input(parent_input_imp1)
                 parent_imp2_wc_or_calc = get_imp_node_from_input(parent_input_imp2)
                 # Here the below imps_info_in_exact_cluster if from the inputs impurity1_output_node, and impurity2_output_node as it is not calculated in the old version attempt of the combine_imps_wc.
+                
                 imps_info_in_exact_cluster = self.create_imps_info_exact_cluster(parent_imp1_wc_or_calc, parent_imp2_wc_or_calc, parent_input_offset)
             # Now to add the input impurity info and off set of the present combine_imps_wc
             imps_info_in_exact_cluster['offset_imps'].append(self.inputs.offset_imp2.get_dict()['index'])
             imps_info_in_exact_cluster['Zimps'].append(imp2_impurity_info.get_dict()['Zimp'])
-            imps_info_in_exact_cluster['ilayers'].appendd(imp2_impurity_info.get_dict()['ilayer_center'])
+            imps_info_in_exact_cluster['ilayers'].append(imp2_impurity_info.get_dict()['ilayer_center'])
             # TODO: Delete the below print line as it is for deburging
             self.report(f"DEBUG: The is the imps_info_in_exact_cluster dict: {imps_info_in_exact_cluster}\n")
             return imps_info_in_exact_cluster
@@ -430,14 +431,14 @@ If given then the writeout step of the host GF is omitted.""")
         self.report("imp info 2: {}".format(impinfo2))
 
         self.ctx.imps_info_in_exact_cluster = self.extract_imps_info_exact_cluster()
-        
+        imps_info_in_exact_cluster = self.ctx.imps_info_in_exact_cluster 
         if single_single:
             if offset_imp2.get_dict()['index']<0:
                 return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
             if impinfo1['ilayer_center'] == impinfo2['ilayer_center'] and self.inputs.offset_imp2['index']<1:
                 return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
         else:
-            imp_offset_index = offset_imp2['offset_index']
+            imp_offset_index = offset_imp2['index']
             imp_ilayer = impinfo2['ilayer_center']
             if imp_offset_index in iter(imps_info_in_exact_cluster['offset_imps']):
                 if imp_ilayer in iter(imps_info_in_exact_cluster['ilayers']):
@@ -454,9 +455,10 @@ If given then the writeout step of the host GF is omitted.""")
         _, is_single_imp = self.get_and_check_zimp_list(impinfo2)
         if not is_single_imp:
             return self.exit_codes.ERROR_INPUT_NOT_SINGLE_IMP_CALC # pylint: disable=maybe-no-member
+        self.report(f'DEBURG: This is the exact imps: {imps_info_in_exact_cluster.get_dict()}')
 
         # create combined cluster, offset of second imp is extracted from i_neighbor_inplane
-        out_dict = create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2, simps_info_in_exact_cluste, single_single)
+        out_dict = create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2, Dict(dict=imps_info_in_exact_cluster), Bool(single_single))
 
         self.ctx.imp_info_combined = out_dict['imp_info_combined']
         self.ctx.kickout_info = out_dict['kickout_info']
