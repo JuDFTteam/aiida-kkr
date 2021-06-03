@@ -615,6 +615,7 @@ The Dict node should be of the form
         Zimp_list = imp_info_dict.get(u'Zimp')
         if type(Zimp_list)!=list: Zimp_list = [Zimp_list] # fast fix for cases when Zimp is not a list but a single value
         Rimp_rel_list = imp_info_dict.get(u'Rimp_rel', [[0,0,0]])
+        self.report(f"DEBUG: Rimp_rel_list: {Rimp_rel_list}.")
         for iatom in range(len(Zimp_list)):
             rtmp = array(Rimp_rel_list[iatom])[:3]
             self.report("INFO: Rimp_rel {}, {}".format(iatom, rtmp))
