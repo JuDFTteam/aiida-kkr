@@ -373,8 +373,9 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, im
     zimp2 = imps_info_in_exact_cluster['Zimps'][-1]
 
     if 'imp_cls' in impinfo1.get_dict():
-        clust1 = impinfo1['imp_cls']
-    else:
+        clust1 = np.array(impinfo1['imp_cls'])
+        
+    elif single_single:
         # create cluster of imp1
         clust1 = get_scoef_single_imp(host_structure, impinfo1)
 
