@@ -141,7 +141,7 @@ If given then the writeout step of the host GF is omitted.""")
         # structure of the workflow
         spec.outline(
             cls.start,                              # initialize workflow (set things in context and some consistency checks)
-            cls.single_single,                      # check the inputs given node whether from single impurity wc.           
+            cls.combine_single_single,                      # check the inputs given node whether from single impurity wc.           
             cls.create_big_cluster,                 # Create the big cluster for both single-single and multi-single
             cls.update_params,                      # update wf_parameters of kkr_imp_sub_wc, kkr_flex_wc and run_options
             if_(cls.need_gf_run)(                   # check if GF was given in input and can be reused
