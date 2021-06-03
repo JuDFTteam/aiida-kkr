@@ -440,8 +440,8 @@ If given then the writeout step of the host GF is omitted.""")
         else:
             imp_offset_index = offset_imp2['index']
             imp_ilayer = impinfo2['ilayer_center']
-            if imp_offset_index in iter(imps_info_in_exact_cluster['offset_imps']):
-                if imp_ilayer in iter(imps_info_in_exact_cluster['ilayers']):
+            if imp_offset_index in iter(imps_info_in_exact_cluster['offset_imps'][:-1]):
+                if imp_ilayer in iter(imps_info_in_exact_cluster['ilayers'][:-1]):
                     self.report(f"ERROR: The new impurity is overlaping with the existing impurities. Change the 'ilayer_certer' or 'offset_index'.")
                     return  self.exit_codes.ERROR_SOMETHING_WENT_WRONG
 

@@ -366,11 +366,11 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, im
     create impurity clusters from impinfo nodes and combine these putting the second
     impurity to the i_neighbor_inplane-th in-plane neighbor
     """
+    #TODO: Try it with the self object in the in the input
     imps_info_in_exact_cluster = imps_info_in_exact_cluster.get_dict()
     if single_single:
         zimp1 = imps_info_in_exact_cluster['Zimps'][0]
     zimp2 = imps_info_in_exact_cluster['Zimps'][-1]
-
 
     if 'imp_cls' in impinfo1.get_dict():
         clust1 = impinfo1['imp_cls']
@@ -388,7 +388,6 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, im
     #if debug:
     #    print('cls1:', clust1)
     #    print('cls2:', clust2)
-
         
     if 'r_offset' in offset_imp2.get_dict():
         # use offset given in input
@@ -420,10 +419,12 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, im
         print('rimp_rel_combined:', rimp_rel_combined)
         print('kickout_list:', kickout_list)
         print('i_removed_from_1:', i_removed_from_1)
+    
+    zimp_combined = imps_info_in_exact_cluster['Zimps']
 
     # create new imp_info node with imp_cls, Rimp_rel and Zimp definig the cluster and impurity location
     imp_info_combined = Dict(dict={'imp_cls': cluster_combined, 'Zimp': zimp_combined, 'Rimp_rel': rimp_rel_combined})
-    
+     
     # kickout info (used later in cfreation of combined potential)
     kickout_info = Dict(dict={'i_removed_from_1': i_removed_from_1, 'kickout_list': kickout_list, 
                               'Ncls1': len(clust1), 'Ncls2': len(clust2), 'Ncls_combined': len(cluster_combined)}
@@ -433,7 +434,7 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, im
 
 
 @calcfunction
-def create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, imps_info_in_exact_cluster, offset_imp2, single_single):
+def create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2, imps_info_in_exact_cluster, single_single):
     """
     create impurity clusters from impinfo nodes and combine these putting the second
     impurity to the i_neighbor_inplane-th in-plane neighbor
