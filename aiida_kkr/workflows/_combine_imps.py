@@ -455,7 +455,7 @@ If given then the writeout step of the host GF is omitted.""")
         _, is_single_imp = self.get_and_check_zimp_list(impinfo2)
         if not is_single_imp:
             return self.exit_codes.ERROR_INPUT_NOT_SINGLE_IMP_CALC # pylint: disable=maybe-no-member
-        self.report(f'DEBURG: This is the exact imps: {imps_info_in_exact_cluster.get_dict()}')
+        self.report(f'DEBURG: This is the exact imps: {imps_info_in_exact_cluster}')
 
         # create combined cluster, offset of second imp is extracted from i_neighbor_inplane
         out_dict = create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2, Dict(dict=imps_info_in_exact_cluster), Bool(single_single))

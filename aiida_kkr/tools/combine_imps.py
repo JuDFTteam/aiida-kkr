@@ -7,7 +7,7 @@ from __future__ import print_function
 import numpy as np
 import tarfile
 from aiida.engine import calcfunction
-from aiida.orm import Dict, SinglefileData, load_node
+from aiida.orm import Dict, SinglefileData, load_node, Bool
 from aiida.common import InputValidationError
 from aiida.common.folders import SandboxFolder
 from aiida_kkr.tools.tools_kkrimp import modify_potential, create_scoef_array
@@ -366,6 +366,7 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, im
     create impurity clusters from impinfo nodes and combine these putting the second
     impurity to the i_neighbor_inplane-th in-plane neighbor
     """
+    imps_info_in_exact_cluster = imps_info_in_exact_cluster.get_dict()
     if single_single:
         zimp1 = imps_info_in_exact_cluster['Zimps'][0]
     zimp2 = imps_info_in_exact_cluster['Zimps'][-1]
@@ -382,8 +383,8 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, im
 
     # set zimp in scoef file (not used by the code but makes it easier to read the files / debug)
     if single_single:
-        clust1[0][4] = zimp1[0]
-    clust2[0][4] = zimp2[0]
+        clust1[0][4] = zimp1
+    clust2[0][4] = zimp2
     #if debug:
     #    print('cls1:', clust1)
     #    print('cls2:', clust2)
