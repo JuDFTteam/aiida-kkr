@@ -285,7 +285,7 @@ def combine_clusters(clust1, clust2_offset, single_single, debug=False):
     if single_single:
         rimp_rel_combined = [clust1[0,:3]] + [clust2_offset[0,:3]]
     else:
-        rimp_rel_combined = [clust2_offset[clust2_offset[0:3]
+        rimp_rel_combined = [clust2_offset[0:3]]
     return cluster_combined, rimp_rel_combined, kickout_list, i_removed_from_1
 
 

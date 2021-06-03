@@ -284,8 +284,8 @@ If given then the writeout step of the host GF is omitted.""")
         if self.ctx.single_vs_single:
         #TODO what is self.ctx.imp1 i.e self.ctx.imp1==combine_imps_wc for single
             imps_info_in_exact_cluster = self.create_imps_info_exact_cluster(self.ctx.imp1, self.ctx.imp2, self.inputs.offset_imp2)
-            return imps_info_in_exact_cluster
             self.report(f"DEBUG: The is the imps_info_in_exact_cluster dict: {imps_info_in_exact_cluster}\n")
+            return imps_info_in_exact_cluster
         else:
             imp1_input = self.ctx.imp1
             # This 'if clause' to extract the imps_info_in_exact_cluster from  workflow_info of the input impurity node
