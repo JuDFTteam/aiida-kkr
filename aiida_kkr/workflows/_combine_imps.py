@@ -18,9 +18,6 @@ from masci_tools.io.common_functions import get_Ry2eV
 from aiida.orm import ArrayData
 from six.moves import range
 
-
-
-
 __copyright__ = (u"Copyright (c), 2020, Forschungszentrum Jülich GmbH, "
                  "IAS-1/PGI-1, Germany. All rights reserved.")
 __license__ = "MIT license, see LICENSE.txt file"
@@ -420,6 +417,7 @@ If given then the writeout step of the host GF is omitted.""")
             if imp1.process_class == self.__class__:
                 imp1 = imp1.get_outgoing(node_class=kkr_imp_sub_wc).all()[0].node
             impinfo1 = imp1.inputs.impurity_info
+            self.report(f"DEBUG: impinfo1 : {impinfo1.get_dict()} ." ]
         impinfo2 = imp2.inputs.impurity_info
         
         host_structure = self.ctx.host_structure
