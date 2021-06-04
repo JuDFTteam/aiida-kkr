@@ -303,12 +303,13 @@ If given then the writeout step of the host GF is omitted.""")
             try:
                 imps_info_in_exact_cluster = out_workflow_info.get_dict()['imps_info_in_exact_cluster']
             except KeyError:
-                parent_input_imp1 = parent_combine_wc.inputs.impurity1_output_node# TODO: rename combine_wc to the parent_combine_wc
+                parent_input_imp1 = parent_combine_wc.inputs.impurity1_output_node # TODO: rename combine_wc to the parent_combine_wc
                 parent_input_imp2 = parent_combine_wc.inputs.impurity2_output_node
                 parent_input_offset = parent_combine_wc.inputs.offset_imp2
                 
-                parent_imp1_wc_or_calc = get_imp_node_from_input(parent_input_imp1)
-                parent_imp2_wc_or_calc = get_imp_node_from_input(parent_input_imp2)
+                parent_imp1_wc_or_calc = self.get_imp_node_from_input(impurity_output_node= parent_input_imp1)
+                parent_imp2_wc_or_calc = self.get_imp_node_from_input(impurity_output_node= parent_input_imp2)
+
                 # Here the below imps_info_in_exact_cluster if from the inputs impurity1_output_node, and impurity2_output_node as it is not calculated in the old version attempt of the combine_imps_wc.
                 
                 imps_info_in_exact_cluster = self.create_imps_info_exact_cluster(parent_imp1_wc_or_calc, parent_imp2_wc_or_calc, parent_input_offset)
@@ -339,15 +340,18 @@ If given then the writeout step of the host GF is omitted.""")
 
 
 
-    def get_imp_node_from_input(self, iimp=1):
+    def get_imp_node_from_input(self, impurity_output_node=None, iimp=1):
         """
         extract impurty calculation from impurity output node of inputs
         """
-        if iimp==1:
-            imp_out = self.inputs.impurity1_output_node
-        else:
-            imp_out = self.inputs.impurity2_output_node
-        
+        if impurity_output_node==None:
+            if iimp==1:
+                imp_out = self.inputs.impurity1_output_node
+            else:
+                imp_out = self.inputs.impurity2_output_node
+       else:
+           imp_out = impurity_output_node
+
         kkrimpcalc_parents = imp_out.get_incoming(node_class=KkrimpCalculation).all()
         if len(kkrimpcalc_parents) > 0:
             imp = kkrimpcalc_parents[0].node
