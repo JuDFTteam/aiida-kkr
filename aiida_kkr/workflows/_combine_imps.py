@@ -349,8 +349,8 @@ If given then the writeout step of the host GF is omitted.""")
                 imp_out = self.inputs.impurity1_output_node
             else:
                 imp_out = self.inputs.impurity2_output_node
-       else:
-           imp_out = impurity_output_node
+        else:
+            imp_out = impurity_output_node
 
         kkrimpcalc_parents = imp_out.get_incoming(node_class=KkrimpCalculation).all()
         if len(kkrimpcalc_parents) > 0:
