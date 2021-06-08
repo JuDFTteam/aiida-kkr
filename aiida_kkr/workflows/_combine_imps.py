@@ -315,7 +315,13 @@ If given then the writeout step of the host GF is omitted.""")
                 imps_info_in_exact_cluster = self.create_imps_info_exact_cluster(parent_imp1_wc_or_calc, parent_imp2_wc_or_calc, parent_input_offset)
             # Now to add the input impurity info and off set of the present combine_imps_wc
             imps_info_in_exact_cluster['offset_imps'].append(self.inputs.offset_imp2.get_dict()['index'])
-            imps_info_in_exact_cluster['Zimps'].append(imp2_impurity_info.get_dict()['Zimp'])
+                
+            Zimp_2= imp2_impurity_info.get_dict()['Zimp']
+            if isinstance(Zimp_2, list):
+                    imps_info_in_exact_cluster['Zimps'].append(Zimp_2[0])
+            else:
+                    imps_info_in_exact_cluster['Zimps'].append(Zimp_2)
+
             imps_info_in_exact_cluster['ilayers'].append(imp2_impurity_info.get_dict()['ilayer_center'])
             # TODO: Delete the below print line as it is for deburging
             self.report(f"DEBUG: The is the imps_info_in_exact_cluster dict: {imps_info_in_exact_cluster}\n")
