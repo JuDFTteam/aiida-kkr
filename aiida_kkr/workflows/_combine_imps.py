@@ -848,7 +848,18 @@ def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_
             if filename in tar_filenames:
                 tf.extract(filename, tfpath.replace(_FILENAME_TAR,'')) # extract to tempfolder
     # Collect the zimp for impurity_output_node
-    imp1_z = impurity1_output_node.get_incoming(node_class=kkr_imp_wc).first().node.inputs.impurity_info.get_dict()['Zimp']
+    try:
+        imp1_z = impurity1_output_node.get_incoming(node_class=kkr_imp_wc).first().node.inputs.impurity_info.get_dict()['Zimp']
+    except AttributeError:
+        try:
+            impurity1_output_node_combine = impurity1_output_node.get_incoming(node_class=combine_imps_wc).first().node
+            imp1_z = impurity1_output_node_combine.get_outgoing(node_class=kkr_imp_sub_wc).first().node.inputs.impurity_info.get_dict()['Zimp']
+        except AttributeError:
+            try:
+                imp1_z = impurity1_output_node.get_incoming(node_class=kkr_imp_sub_wc).first().node.inputs.impurity_info.get_dict()['Zimp']
+            except AttributeError:
+                    imp1_z = impurity1_output_node.get_incoming(node_class=KkrimpCalculation).first().node.inputs.impurity_info.get_dict()['Zimp']
+ 
     imp2_z = impurity2_output_node.get_incoming(node_class=kkr_imp_wc).first().node.inputs.impurity_info.get_dict()['Zimp'] 
     
     jijdata = np.loadtxt(tfpath.replace(_FILENAME_TAR,'')+'out_Jijmatrix')
