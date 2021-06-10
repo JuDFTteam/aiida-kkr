@@ -282,8 +282,9 @@ def combine_clusters(clust1, clust2_offset, single_single, debug=False):
     cluster_combined[:,-1] = np.sqrt(np.sum(cluster_combined[:,:3]**2, axis=1))
 
     # construct Rimp_rel list
+    
     rimp_rel_combined = [clust1[0,:3]] + [clust2_offset[0,:3]]
-
+    
     return cluster_combined, rimp_rel_combined, kickout_list, i_removed_from_1
 
 
@@ -365,6 +366,7 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, im
     impurity to the i_neighbor_inplane-th in-plane neighbor
     """
     #TODO: Try it with the self object in the in the input
+
     imps_info_in_exact_cluster = imps_info_in_exact_cluster.get_dict()
     if single_single:
         zimp1 = imps_info_in_exact_cluster['Zimps'][0]
@@ -390,7 +392,7 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, im
         
     if 'r_offset' in offset_imp2.get_dict():
         # use offset given in input
-        r_offset = imps_info_in_exact_cluster['offset_imps'][-1]
+        r_offset = offset_imp2['r_offset']
     else:
         # find offset taking into account the possible out-of-plane vector if the imps are in different layers
         r_out_of_plane = np.array([0,0,0])
@@ -412,7 +414,7 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, im
     
     if 'Rimp_rel' in impinfo1.get_dict():
         rimp_rel_combined = impinfo1['Rimp_rel'] + rimp_rel_combined[1:]
-    
+
     if debug:
         #print('cls_combined:', cluster_combined)
         print('rimp_rel_combined:', rimp_rel_combined)

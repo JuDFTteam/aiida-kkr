@@ -480,7 +480,7 @@ If given then the writeout step of the host GF is omitted.""")
 
         self.ctx.imp_info_combined = out_dict['imp_info_combined']
         self.ctx.kickout_info = out_dict['kickout_info']
-
+        self.report(f"DEBUG: imp_info_combined: {out_dict['imp_info_combined']}\n kickout_info: {out_dict['kickout_info']}")
     
     def get_and_check_zimp_list(self, impurity_info):
         """
