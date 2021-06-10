@@ -138,7 +138,7 @@ If given then the writeout step of the host GF is omitted.""")
         # structure of the workflow
         spec.outline(
             cls.start,                              # initialize workflow (set things in context and some consistency checks)
-            cls.combine_single_single,                      # check the inputs given node whether from single impurity wc.           
+            cls.combine_single_single,              # check the inputs given node whether from single impurity wc.           
             cls.create_big_cluster,                 # Create the big cluster for both single-single and multi-single
             cls.update_params,                      # update wf_parameters of kkr_imp_sub_wc, kkr_flex_wc and run_options
             if_(cls.need_gf_run)(                   # check if GF was given in input and can be reused
@@ -239,6 +239,7 @@ If given then the writeout step of the host GF is omitted.""")
             if isinstance(Zimp_num_1, list):
                 if len(Zimp_num_1) > 1:
                     single_imp_1 = Flase
+
         elif imp_1.process_class == kkr_imp_sub_wc:
             combine_wc = imp_1.get_incoming(node_class=combine_imps_wc).all()
             if len(combine_wc) != 0:
@@ -270,7 +271,7 @@ If given then the writeout step of the host GF is omitted.""")
                     self.ctx.imp2 = imp_1
         # TODO: Delete this print line for created for deguging
         self.ctx.single_vs_single = single_single
-        self.report(f"DEBUG: The self.combine_single_single() is successfully done")
+        self.report(f"DEBUG: The self.combine_single_single() is successfully done. This is the single-sigle: {self.ctx.single_vs_single}")
    
 
     def extract_imps_info_exact_cluster(self):
@@ -329,13 +330,22 @@ If given then the writeout step of the host GF is omitted.""")
                 
 
     def create_imps_info_exact_cluster(self, single_imp1_wc, single_imp2_wc, offset_imp2):
+        """
+            This construct a python dict keeping info about all the inpurities with respect to the original host structure e.i. before transforming the center to the first impurity position.
+        """
         impinfo1 = single_imp1_wc.inputs.impurity_info
         impinfo2 = single_imp2_wc.inputs.impurity_info
         # imp_info_in_exact_cluster keeps the exact data before creating the cluster will help to add more imps later.
         imps_info_in_exact_cluster = {'Zimps':[], 'ilayers':[], 'offset_imps': [0]} # This number is taking the first imp. 
-        #offset_imp contains offset_index for imps 2nd, 3rd so on 
-        imps_info_in_exact_cluster['Zimps'].append(impinfo1.get_dict().get('Zimp'))
-        imps_info_in_exact_cluster['Zimps'].append(impinfo2.get_dict().get('Zimp'))
+        #offset_imp contains offset_index for imps 2nd, 3rd so on
+        zimp_1= impinfo1.get_dict().get('Zimp') 
+        zimp_2= impinfo2.get_dict().get('Zimp')
+        if isinstance(zimp_1, list):
+            zimp_1 = zimp_1[0]
+        if isinstance(zimp_2, list):
+            zimp_2 = zimp_2[0]
+        imps_info_in_exact_cluster['Zimps'].append(zimp_1)
+        imps_info_in_exact_cluster['Zimps'].append(zimp_2)
 
         imps_info_in_exact_cluster['ilayers'].append(impinfo1.get_dict().get('ilayer_center'))
         imps_info_in_exact_cluster['ilayers'].append(impinfo2.get_dict().get('ilayer_center'))
