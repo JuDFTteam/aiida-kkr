@@ -331,7 +331,7 @@ If given then the writeout step of the host GF is omitted.""")
 
     def create_imps_info_exact_cluster(self, single_imp1_wc, single_imp2_wc, offset_imp2):
         """
-            This construct a python dict keeping info about all the inpurities with respect to the original host structure e.i. before transforming the center to the first impurity position.
+            This construct a python dict keeping info about two inpurities with respect to the original host structure e.i. before transforming the center to the first impurity position.
         """
         impinfo1 = single_imp1_wc.inputs.impurity_info
         impinfo2 = single_imp2_wc.inputs.impurity_info
@@ -358,7 +358,7 @@ If given then the writeout step of the host GF is omitted.""")
 
     def get_imp_node_from_input(self, impurity_output_node=None, iimp=1):
         """
-        extract impurty calculation from impurity output node of inputs
+        extract impurty calculation from impurity_output_node as inputs
         """
         if impurity_output_node==None:
             if iimp==1:
@@ -457,9 +457,9 @@ If given then the writeout step of the host GF is omitted.""")
                 return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL # pylint: disable=maybe-no-member
         else:
             imp_offset_index = offset_imp2['index']
-            imp_ilayer = impinfo2['ilayer_center']
+            imp2_ilayer = impinfo2['ilayer_center']
             if imp_offset_index in iter(imps_info_in_exact_cluster['offset_imps'][:-1]):
-                if imp_ilayer in iter(imps_info_in_exact_cluster['ilayers'][:-1]):
+                if imp2_ilayer in iter(imps_info_in_exact_cluster['ilayers'][:-1]):
                     self.report(f"ERROR: The new impurity is overlaping with the existing impurities. Change the 'ilayer_certer' or 'offset_index'.")
                     return  self.exit_codes.ERROR_SOMETHING_WENT_WRONG
 
