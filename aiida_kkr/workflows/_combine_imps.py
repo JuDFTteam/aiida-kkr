@@ -233,12 +233,12 @@ If given then the writeout step of the host GF is omitted.""")
 
         imp_1 = self.ctx.imp1
         imp_2 = self.ctx.imp2
-        # check for the impurity1
+        # check for the impurity1 whether from single kkr_imp_wc or not
         if imp_1.process_class == KkrCalculation:
             Zimp_num_1 = imp_1.inputs.impurity_info.get_dict().get('Zimp')
             if isinstance(Zimp_num_1, list):
                 if len(Zimp_num_1) > 1:
-                    single_imp_1 = Flase
+                    single_imp_1 = False
 
         elif imp_1.process_class == kkr_imp_sub_wc:
             combine_wc = imp_1.get_incoming(node_class=combine_imps_wc).all()
@@ -247,7 +247,7 @@ If given then the writeout step of the host GF is omitted.""")
         elif imp_1.process_class == combine_imps_wc:
             single_imp_1= False
 
-         # check for the impurity2
+         # check for the impurity2 whether from single kkr_imp_wc or not
         if imp_2.process_class == KkrCalculation:
             Zimp_num_2 = imp_2.inputs.impurity_info.get_dict().get('Zimp')
             if isinstance(Zimp_num_2, list):
@@ -276,27 +276,27 @@ If given then the writeout step of the host GF is omitted.""")
 
     def extract_imps_info_exact_cluster(self):
         """
-                This function collects the all exist impurity info as in the exact crystal rather than in the crystal centering the first impurity at (0,0,0) position. Returns the imps_info_in_exact_cluster dict.
+                This method collects the all exist impurity info as in the exact crystal rather than in the crystal centering the first impurity at (0,0,0) position. Returns the imps_info_in_exact_cluster dict.
         """
         if self.ctx.single_vs_single:
         #TODO what is self.ctx.imp1 i.e self.ctx.imp1==combine_imps_wc for single
-            imps_info_in_exact_cluster = self.create_imps_info_exact_cluster(self.ctx.imp1, self.ctx.imp2, self.inputs.offset_imp2)
-            self.report(f"DEBUG: The is the imps_info_in_exact_cluster dict: {imps_info_in_exact_cluster}\n")
+            imps_info_in_exact_cluster = self.imps_info_exact_cluster_2imps(self.ctx.imp1, self.ctx.imp2, self.inputs.offset_imp2)
+            self.report(f"DEBUG: The is the imps_info_in_exact_cluster dict for single-single imp calc: {imps_info_in_exact_cluster}\n")
             return imps_info_in_exact_cluster
         else:
             imp1_input = self.ctx.imp1
             # This 'if clause' to extract the imps_info_in_exact_cluster from  workflow_info of the input impurity node
             if imp1_input.process_class == combine_imps_wc:
                 parent_combine_wc = imp1_input
-                out_workflow_info = parent_combine_wc.get_outgoing(link_label_filter='workflow_info').all()[0].node
-                print('first')
+#                out_workflow_info = parent_combine_wc.get_outgoing(link_label_filter='workflow_info').all()[0].node
+                
             elif imp1_input.process_class == KkrimpCalculation:
                 kkrimp_sub = imp1_input.get_incoming(node_class= kkr_imp_sub_wc).all()[0].node
                 parent_combine_wc= kkrimp_sub.get_incoming(node_class= combine_imps_wc).all()[0].node
-                print('second')
+                
             elif imp1_input.process_class == kkr_imp_sub_wc:
                 parent_combine_wc= imp1_input.get_incoming(node_class=combine_imps_wc).all()[0].node
-                print('third')
+                
             out_workflow_info = parent_combine_wc.outputs.workflow_info
 
             imp2_impurity_info = self.ctx.imp2.inputs.impurity_info
@@ -311,9 +311,9 @@ If given then the writeout step of the host GF is omitted.""")
                 parent_imp1_wc_or_calc = self.get_imp_node_from_input(impurity_output_node= parent_input_imp1)
                 parent_imp2_wc_or_calc = self.get_imp_node_from_input(impurity_output_node= parent_input_imp2)
 
-                # Here the below imps_info_in_exact_cluster if from the inputs impurity1_output_node, and impurity2_output_node as it is not calculated in the old version attempt of the combine_imps_wc.
+                # Here below imps_info_in_exact_cluster is construct from the inputs impurity1_output_node, and impurity2_output_node as the idea was not calculated in the old version attempt of the combine_imps_wc.
                 
-                imps_info_in_exact_cluster = self.create_imps_info_exact_cluster(parent_imp1_wc_or_calc, parent_imp2_wc_or_calc, parent_input_offset)
+                imps_info_in_exact_cluster = self.imps_info_exact_cluster_2imps(parent_imp1_wc_or_calc, parent_imp2_wc_or_calc, parent_input_offset)
             # Now to add the input impurity info and off set of the present combine_imps_wc
             imps_info_in_exact_cluster['offset_imps'].append(self.inputs.offset_imp2.get_dict()['index'])
                 
@@ -329,9 +329,9 @@ If given then the writeout step of the host GF is omitted.""")
             return imps_info_in_exact_cluster
                 
 
-    def create_imps_info_exact_cluster(self, single_imp1_wc, single_imp2_wc, offset_imp2):
+    def imps_info_exact_cluster_2imps(self, single_imp1_wc, single_imp2_wc, offset_imp2):
         """
-            This construct a python dict keeping info about two inpurities with respect to the original host structure e.i. before transforming the center to the first impurity position.
+            This construct a python dict keeping info about two single inpurities with respect to the original host structure e.i. before transforming the center to the first impurity position.
         """
         impinfo1 = single_imp1_wc.inputs.impurity_info
         impinfo2 = single_imp2_wc.inputs.impurity_info
@@ -458,11 +458,12 @@ If given then the writeout step of the host GF is omitted.""")
         else:
             imp_offset_index = offset_imp2['index']
             imp2_ilayer = impinfo2['ilayer_center']
-            if imp_offset_index in iter(imps_info_in_exact_cluster['offset_imps'][:-1]):
-                if imp2_ilayer in iter(imps_info_in_exact_cluster['ilayers'][:-1]):
-                    self.report(f"ERROR: The new impurity is overlaping with the existing impurities. Change the 'ilayer_certer' or 'offset_index'.")
-                    return  self.exit_codes.ERROR_SOMETHING_WENT_WRONG
 
+            for offset, ilayer in zip(imps_info_in_exact_cluster['offset_imps'][:-1], imps_info_in_exact_cluster['ilayers'][:-1]):
+                if (offset, ilayer) == (imp_offset_index, imp2_ilayer):
+                    self.report(f"ERROR: The new impurity is overlaping with the existing impurities. Change the 'ilayer_certer': {ilayer} or 'offset_index'{offset}.")
+                    return  self.exit_codes.ERROR_SOMETHING_WENT_WRONG
+            
         # get zimp of imp1
         if single_single:
             _, is_single_imp = self.get_and_check_zimp_list(impinfo1)
