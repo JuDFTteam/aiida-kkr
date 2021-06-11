@@ -530,11 +530,18 @@ def combine_potentials(kickout_info, pot_imp1, pot_imp2, nspin_node):
         neworder_pot = [neworder_pot[i] for i in range(len(neworder_pot)) if i not in i_removed_from_1]
     if debug:
         print('neworder_pot:', neworder_pot)
-
+    
     # add dummy lines which are replace with pot 2
-    N0 = len(neworder_pot)
-    N_add = Ncls_combined-N0
-    replacepos = [i for i in range(N0+1, N0+N_add+1)]# range(N0, N0+N_add)]
+    if i_removed_from_1 is not None:
+        N0 = len(neworder_pot)
+        N_add = Ncls_combined-N0
+        replacepos = [i for i in range(N0+1, N0+N_add+1)]# range(N0, N0+N_add)]
+    else:
+        N0 = len(neworder_pot)
+        N_add = Ncls_combined-N0
+        replacepos = [i for i in range(N0, N0+N_add)]# range(N0, N0+N_add)]
+    
+    
     neworder_pot += replacepos
 
     # prepare index of pot2 without kciked out positions
@@ -545,7 +552,10 @@ def combine_potentials(kickout_info, pot_imp1, pot_imp2, nspin_node):
         print('index_pot2:', index_pot2)
 
     # create replacelist (mapping which positions of neworder_pos are taken from pot2 instead)
-    replacelist_pot2 = [(replacepos[i]-1, index_pot2[i]) for i in range(len(replacepos))]
+    if i_removed_from_1 is not None:
+        replacelist_pot2 = [(replacepos[i]-1, index_pot2[i]) for i in range(len(replacepos))]
+    else:
+        replacelist_pot2 = [(replacepos[i], index_pot2[i]) for i in range(len(replacepos))]
 
     # take care of spin doubling for NSPIN==2
     if nspin>1:
