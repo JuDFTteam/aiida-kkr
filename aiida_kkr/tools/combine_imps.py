@@ -449,7 +449,7 @@ def create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2,
 
 # combine potentials calcfunction
 
-def combine_potentials(kickout_info, pot_imp1, pot_imp2, nspin_node):
+def combine_potentials___(kickout_info, pot_imp1, pot_imp2, nspin_node):
 
     # unpack kickout info
     kickout_list = kickout_info['kickout_list']
@@ -473,7 +473,7 @@ def combine_potentials(kickout_info, pot_imp1, pot_imp2, nspin_node):
     # add dummy lines which are replace with pot 2
     N0 = len(neworder_pot)
     N_add = Ncls_combined-N0
-    replacepos = [i for i in range(N0+1, N0+N_add+1)]
+    replacepos = [i for i in range(N0+1, N0+N_add+1)]# range(N0, N0+N_add)]
     neworder_pot += replacepos
 
     # prepare index of pot2 without kciked out positions
@@ -509,6 +509,69 @@ def combine_potentials(kickout_info, pot_imp1, pot_imp2, nspin_node):
 
     # return the combined potential
     return output_potential_sfd_node
+
+def combine_potentials(kickout_info, pot_imp1, pot_imp2, nspin_node):
+
+    # unpack kickout info
+    kickout_list = kickout_info['kickout_list']
+    i_removed_from_1 = kickout_info['i_removed_from_1']
+    Ncls1 = kickout_info['Ncls1']
+    Ncls2 = kickout_info['Ncls2']
+    Ncls_combined = kickout_info['Ncls_combined']
+    nspin = nspin_node.value
+    if debug:
+        print('kickout_list:', kickout_list)
+        print('i_removed:', i_removed_from_1)
+        print('params;', nspin, Ncls1, Ncls2, Ncls_combined)
+
+    # create neworder_pot list
+    neworder_pot = list(range(Ncls1))
+    if i_removed_from_1 is not None:
+        neworder_pot = [neworder_pot[i] for i in range(len(neworder_pot)) if i not in i_removed_from_1]
+    if debug:
+        print('neworder_pot:', neworder_pot)
+
+    # add dummy lines which are replace with pot 2
+    N0 = len(neworder_pot)
+    N_add = Ncls_combined-N0
+    replacepos = [i for i in range(N0+1, N0+N_add+1)]# range(N0, N0+N_add)]
+    neworder_pot += replacepos
+
+    # prepare index of pot2 without kciked out positions
+    index_pot2 = [i for i in list(range(Ncls2)) if i not in kickout_list]
+
+    if debug:
+        print('replacepos:', replacepos)
+        print('index_pot2:', index_pot2)
+
+    # create replacelist (mapping which positions of neworder_pos are taken from pot2 instead)
+    replacelist_pot2 = [(replacepos[i]-1, index_pot2[i]) for i in range(len(replacepos))]
+
+    # take care of spin doubling for NSPIN==2
+    if nspin>1:
+        neworder_pot = np.array([[2*i, 2*i+1] for i in neworder_pot]).reshape(-1)
+        replacelist_pot2 = np.array([[(2*i[0], 2*i[1]), (2*i[0]+1, 2*i[1]+1)] for i in replacelist_pot2]).reshape(-1, 2)
+
+
+    # now combine potentials
+    with SandboxFolder() as tempfolder:
+        with tempfolder.open('potential_combined', 'w') as out_pot_fhandle:
+            with pot_imp1.open(pot_imp1.filename) as pot1_filehande:
+                with pot_imp2.open(pot_imp2.filename) as pot2_filehande:
+                    # use neworder_potential function
+                    modify_potential().neworder_potential(pot1_filehande, out_pot_fhandle, neworder_pot, potfile_2=pot2_filehande,
+                                                          replace_from_pot2=replacelist_pot2, debug=debug)
+
+            # store output potential to SinglefileData
+            output_potential_sfd_node = SinglefileData(file=tempfolder.open('potential_combined', u'rb'))
+            # add label and description
+            output_potential_sfd_node.label = 'combined_potentials'
+            output_potential_sfd_node.description = 'combined potential of imps {} and {}'.format(pot_imp1.uuid, pot_imp2.uuid)
+
+    # return the combined potential
+    return output_potential_sfd_node
+
+
 
 @calcfunction
 def combine_potentials_cf(kickout_info, pot_imp1, pot_imp2, nspin_node):
