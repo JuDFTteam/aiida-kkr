@@ -883,8 +883,11 @@ def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_
     impurity_info = impurity_info.get_dict()
     pos = np.array(impurity_info['imp_cls'])
     z = np.array(impurity_info['imp_cls'])[:,4]
-    Vpos = list(np.where( z == imp1_z )[0]) + list(np.where( z == imp2_z )[0])
 
+    if not isinstance(imp1_z,list):
+        Vpos = list(np.where( z == imp1_z )[0]) + list(np.where( z == imp2_z )[0])
+    else:
+        Vpos = [np.where( z == i )[0][0] for i in imp1_z] + list(np.where( z == imp2_z )[0])
     Ry2eV = get_Ry2eV()
 
     # extract number of atoms
