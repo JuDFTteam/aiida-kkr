@@ -938,7 +938,7 @@ def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_
                 J = jij_trace[iatom, jatom]
                 Dx, Dy, Dz = Dij_vec[0, iatom , jatom], Dij_vec[1, iatom , jatom], Dij_vec[2, iatom , jatom]
                 D = np.sqrt(Dx**2 + Dy**2 + Dz**2)
-                out_txt += '%3i %3i %15.5e %15.5e %15.5e %4i %4i\n'%(iatom, jatom, J, D, D/J, pos[iatom][4], pos[jatom][4])
+                out_txt += '%3i         %3i         %15.5e          %15.5e          %15.5e          %4i         %4i\n'%(iatom, jatom, J, D, D/J, pos[iatom][4], pos[jatom][4])
                 rdiff = pos[jatom] - pos[iatom]
                 plotdata.append([rdiff[0], rdiff[1], rdiff[2], J, D, Dx, Dy, Dz])
     plotdata = np.array(plotdata)
