@@ -931,7 +931,7 @@ def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_
     plotdata = []
 
     #return jij_combined_iter
-    out_txt = "Output Jij values between V impurities:\ni   j     Jij (meV)       Dij(meV)        D/J       i_zimp       j_zimp \n-----------------------------------------------\n"
+    out_txt = "Output Jij values between V impurities:\n i          j           Jij (meV)           Dij(meV)            D/J             i_zimp          j_zimp \n---------------------------------------------------------------------------\n"
     for iatom in range(natom-1):
         for jatom in range(natom)[iatom+1:] :
             if iatom!=jatom and iatom in Vpos and jatom in Vpos:
