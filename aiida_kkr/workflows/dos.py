@@ -8,7 +8,7 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 from six.moves import range
-from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, WorkChainNode
+from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, WorkChainNode, 
 from aiida.engine import WorkChain, if_, ToContext
 from aiida.engine import submit
 from masci_tools.io.kkr_params import kkrparams
@@ -431,50 +431,4 @@ class kkr_dos_wc(WorkChain):
         self.report("INFO: done with DOS workflow!\n")
 
 
-@calcfunction
-def parse_dosfiles(dos_retrieved):
-    """
-    parse dos files to XyData nodes
-    """
-    from masci_tools.io.common_functions import interpolate_dos
-    from masci_tools.io.common_functions import get_Ry2eV
-
-    eVscale = get_Ry2eV()
-
-    with dos_retrieved.open("complex.dos") as dosfolder:
-        ef, dos, dos_int = interpolate_dos(dosfolder, return_original=True)
-
-    # convert to eV units
-    dos[:, :, 0] = (dos[:, :, 0]-ef)*eVscale
-    dos[:, :, 1:] = dos[:, :, 1:]/eVscale
-    dos_int[:, :, 0] = (dos_int[:, :, 0]-ef)*eVscale
-    dos_int[:, :, 1:] = dos_int[:, :, 1:]/eVscale
-
-    # create output nodes
-    dosnode = XyData()
-    dosnode.set_x(dos[:, :, 0], "E-EF", "eV")
-    name = ["tot", "s", "p", "d", "f", "g"]
-    name = name[:len(dos[0, 0, 1:])-1]+["ns"]
-    ylists = [[], [], []]
-    for line, _name in enumerate(name):
-        ylists[0].append(dos[:, :, 1+line])
-        ylists[1].append("dos {}".format(_name))
-        ylists[2].append("states/eV")
-    dosnode.set_y(ylists[0], ylists[1], ylists[2])
-    dosnode.label = "dos_data"
-    dosnode.description = "Array data containing uniterpolated DOS (i.e. dos at finite imaginary part of energy). 3D array with (atoms, energy point, l-channel) dimensions."
-
-    # now create XyData node for interpolated data
-    dosnode2 = XyData()
-    dosnode2.set_x(dos_int[:, :, 0], "E-EF", "eV")
-    ylists = [[], [], []]
-    for line, _name in enumerate(name):
-        ylists[0].append(dos_int[:, :, 1+line])
-        ylists[1].append("interpolated dos {}".format(_name))
-        ylists[2].append("states/eV")
-    dosnode2.set_y(ylists[0], ylists[1], ylists[2])
-    dosnode2.label = "dos_interpol_data"
-    dosnode2.description = "Array data containing interpolated DOS (i.e. dos at real axis). 3D array with (atoms, energy point, l-channel) dimensions."
-
-    return {"dos_data": dosnode, "dos_data_interpol":  dosnode2}
 
