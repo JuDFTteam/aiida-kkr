@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from builtins import object, str
 from six.moves import range
+from ..calculations.kkr import get_natyp
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
@@ -1282,6 +1283,8 @@ class plot_kkr(object):
 
             if calcnode.is_finished_ok:
                 natoms = len(calcnode.outputs.output_parameters.get_dict().get('charge_core_states_per_atom'))
+                from aiida_kkr.tools import find_parent_structure
+                natoms = get_natyp(find_parent_structure(calcnode))
                 self.dosplot(
                     d,
                     natoms,
@@ -1342,7 +1345,7 @@ class plot_kkr(object):
                 ptitle = kwargs.pop('ptitle')
             else:
                 ptitle = f'pk= {node.pk}'
-            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
+            self.dosplot(d, get_natyp(struc), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
             title(ptitle)
             # maybe save as file
             save_fig_to_file(kwargs, 'plot_kkr_out_dos.png')
@@ -1533,7 +1536,6 @@ class plot_kkr(object):
         """plot outputs of a kkr_scf_wc workflow"""
         from aiida.orm import CalcJobNode, load_node
         from aiida_kkr.calculations.kkr import KkrCalculation
-        from aiida_kkr.tools import find_parent_structure
         from numpy import sort
         from matplotlib.pyplot import axvline, axhline, subplot, figure, title
 
@@ -1541,6 +1543,7 @@ class plot_kkr(object):
         if 'structure' in node.inputs:
             struc = node.inputs.structure
         else:
+            from aiida_kkr.tools import find_parent_structure
             struc = find_parent_structure(node.inputs.remote_data)
 
         try:
