@@ -721,7 +721,7 @@ The Dict node should be of the form
 
         # extract fix_dir flag and set FIXMOM RUNOPT in parameters accordingly
         fix_dir = self.inputs.initial_noco_angles['fix_dir']
-        natom = len(structure.sites)
+        natom = get_natyp(structure)
         if len(fix_dir) != natom:
             raise InputValidationError("Error: `fix_dir` list in `initial_noco_angles` input node needs to have the same length as number of atoms!")
             
@@ -816,3 +816,13 @@ def _update_params(parameters, change_values):
         #parameters = update_params_wf(parameters, new_params_node)
         parameters = new_params_node
     return parameters
+
+
+def get_natyp(structure):
+    """Count number of atom types (>NAEZ for CPA) for the structure"""
+    counter = 0  # for CPA
+    for site in structure.sites:
+        sitekind = structure.get_kind(site.kind_name)
+        for ikind in range(len(sitekind.symbols)):
+            counter += 1
+    return counter

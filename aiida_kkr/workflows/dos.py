@@ -15,8 +15,8 @@ from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida.engine import CalcJob, calcfunction
 from aiida.common.exceptions import InputValidationError
+from aiida_kkr.tools.parse_dos import parse_dosfiles
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 from aiida_kkr.workflows.bs import set_energy_params
 
@@ -477,3 +477,4 @@ def parse_dosfiles(dos_retrieved):
     dosnode2.description = "Array data containing interpolated DOS (i.e. dos at real axis). 3D array with (atoms, energy point, l-channel) dimensions."
 
     return {"dos_data": dosnode, "dos_data_interpol":  dosnode2}
+

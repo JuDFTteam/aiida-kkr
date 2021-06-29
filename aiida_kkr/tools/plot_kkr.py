@@ -7,11 +7,34 @@ from __future__ import division
 from __future__ import absolute_import
 from builtins import object, str
 from six.moves import range
-__copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH, "
-                 "IAS-1/PGI-1, Germany. All rights reserved.")
-__license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.1"
-__contributors__ = ("Philipp Rüßmann")
+from ..calculations.kkr import get_natyp
+
+
+__copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__license__ = 'MIT license, see LICENSE.txt file'
+__version__ = '0.6.3'
+__contributors__ = ('Philipp Rüßmann')
+
+
+def remove_empty_atoms(show_empty_atoms, structure, silent=False):
+    # check if empty sphere need to be removed for plotting (ase structgure cannot be constructed for alloys or vacancies)
+    #print('in remove empty atoms:', structure.has_vacancies, ('X' in [i.kind_name for i in structure.sites]) )
+    if structure.has_vacancies or ('X' in [i.kind_name for i in structure.sites]):
+        #print("structure has vacancies, need to remove empty sites for plotting")
+        from aiida.orm import StructureData
+        stmp = StructureData(cell=structure.cell)
+        for site in structure.sites:
+            k = structure.get_kind(site.kind_name)
+            pos = site.position
+            if not (k.has_vacancies or 'X' in site.kind_name):
+                stmp.append_atom(position=pos, symbols=k.symbol)
+            elif show_empty_atoms:
+                stmp.append_atom(position=pos, symbols='X')
+            elif not silent:
+                print('removing atom', site)
+        stmp.set_pbc(structure.pbc)
+        structure = stmp
+    return structure
 
 
 def _in_notebook():
@@ -1232,7 +1255,20 @@ class plot_kkr(object):
             
             if calcnode.is_finished_ok:
                 natoms = len(calcnode.outputs.output_parameters.get_dict().get('charge_core_states_per_atom'))
-                self.dosplot(d, natoms, nofig, all_atoms, l_channels, sum_spins, switch_xy, switch_sign_spin2, yscale=yscale, **kwargs)
+                from aiida_kkr.tools import find_parent_structure
+                natoms = get_natyp(find_parent_structure(calcnode))
+                self.dosplot(
+                    d,
+                    natoms,
+                    nofig,
+                    all_atoms,
+                    l_channels,
+                    sum_spins,
+                    switch_xy,
+                    switch_sign_spin2,
+                    yscale=yscale,
+                    **kwargs
+                )
                 if ptitle is None:
                     title('pk= {}'.format(node.pk))
                 else:
@@ -1274,8 +1310,8 @@ class plot_kkr(object):
             if 'ptitle' in list(kwargs.keys()):
                 ptitle = kwargs.pop('ptitle')
             else:
-                ptitle = 'pk= {}'.format(node.pk)
-            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
+                ptitle = f'pk= {node.pk}'
+            self.dosplot(d, get_natyp(struc), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
             title(ptitle)
             # maybe save as file
             save_fig_to_file(kwargs, 'plot_kkr_out_dos.png')
@@ -1445,6 +1481,12 @@ class plot_kkr(object):
         from matplotlib.pyplot import axvline, axhline, subplot, figure
 
         # structure plot only if structure is in inputs
+        if 'structure' in node.inputs:
+            struc = node.inputs.structure
+        else:
+            from aiida_kkr.tools import find_parent_structure
+            struc = find_parent_structure(node.inputs.remote_data)
+
         try:
             struc = node.inputs.structure
             strucplot = False

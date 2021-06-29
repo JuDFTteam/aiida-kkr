@@ -10,6 +10,7 @@ from .common_workfunctions import (update_params_wf, prepare_VCA_structure_wf, p
                                    structure_from_params, neworder_potential_wf, vca_check, 
                                    kick_out_corestates_wf, find_cluster_radius)
 from .plot_kkr import plot_kkr
+from .parse_dos import parse_dosfiles
 from .tools_kkrimp import modify_potential, rotate_onto_z, find_neighbors, make_scoef
 # make the most important things from masci-tools importable here
 from masci_tools.io.kkr_params import kkrparams
