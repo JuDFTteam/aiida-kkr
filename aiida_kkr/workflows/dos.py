@@ -8,7 +8,7 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 from six.moves import range
-from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, WorkChainNode, 
+from aiida.orm import Code, load_node, CalcJobNode, RemoteData, StructureData, Dict, XyData, WorkChainNode 
 from aiida.engine import WorkChain, if_, ToContext
 from aiida.engine import submit
 from masci_tools.io.kkr_params import kkrparams
@@ -428,7 +428,4 @@ class kkr_dos_wc(WorkChain):
         for link_name, node in outdict.items():
             self.out(link_name, node)
 
-        self.report("INFO: done with DOS workflow!\n")
-
-
-
+        self.report('INFO: done with DOS workflow!\n')
