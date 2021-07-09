@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from builtins import object, str
 from six.moves import range
-from ..calculations.kkr import get_natyp
+from ..tools.common_workfunctions import get_natyp
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'

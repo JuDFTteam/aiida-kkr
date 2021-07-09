@@ -331,7 +331,7 @@ class kkr_dos_wc(WorkChain):
         econt_new['NPOL'] = 0
         econt_new['NPT1'] = 0
         econt_new['NPT3'] = 0
-        parent_calc = self.inputs.remote_data.get_incoming().first().node
+        parent_calc = self.inputs.remote_data.get_incoming(node_class=orm.CalcJobNode).first().node
         if parent_calc.process_label == 'VoronoiCalculation':
             # for the voronoi calculation we need to calculate the Fermi level since it is not in the output parameters directly
             voro_out_para = parent_calc.outputs.output_parameters.get_dict()

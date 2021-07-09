@@ -9,6 +9,7 @@ import numpy as np
 from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData, Bool
 from .voro import VoronoiCalculation
+from ..tools.common_workfunctions import get_natyp
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import InputValidationError, ValidationError
 from aiida.common.datastructures import CalcInfo, CodeInfo
@@ -1001,13 +1002,3 @@ def _update_params(parameters, change_values):
         #parameters = update_params_wf(parameters, new_params_node)
         parameters = new_params_node
     return parameters
-
-
-def get_natyp(structure):
-    """Count number of atom types (>NAEZ for CPA) for the structure"""
-    counter = 0  # for CPA
-    for site in structure.sites:
-        sitekind = structure.get_kind(site.kind_name)
-        for ikind in range(len(sitekind.symbols)):
-            counter += 1
-    return counter
