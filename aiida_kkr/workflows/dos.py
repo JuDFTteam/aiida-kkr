@@ -294,11 +294,16 @@ class kkr_dos_wc(WorkChain):
         # Contour parameter given as input to workflow.
         econt_new = self.ctx.dos_params_dict
         # always overwrite NPOL, N1, N3, thus add these to econt_new
-        econt_new["NPOL"] = 0
-        econt_new["NPT1"] = 0
-        econt_new["NPT3"] = 0
-        kkr_calc = self.inputs.remote_data.get_incoming().first().node
-        ef = kkr_calc.outputs.output_parameters.get_dict()['fermi_energy'] # unit in Ry
+        econt_new['NPOL'] = 0
+        econt_new['NPT1'] = 0
+        econt_new['NPT3'] = 0
+        parent_calc = self.inputs.remote_data.get_incoming(node_class=orm.CalcJobNode).first().node
+        if parent_calc.process_label == 'VoronoiCalculation':
+            # for the voronoi calculation we need to calculate the Fermi level since it is not in the output parameters directly
+            voro_out_para = parent_calc.outputs.output_parameters.get_dict()
+            ef = voro_out_para['emin'] - voro_out_para['emin_minus_efermi_Ry']
+        else:
+            ef = parent_calc.outputs.output_parameters.get_dict()['fermi_energy']  # unit in Ry
         try:
             para_check = set_energy_params(econt_new, ef, para_check)
         except:

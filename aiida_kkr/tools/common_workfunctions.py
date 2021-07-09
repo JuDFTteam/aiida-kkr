@@ -1199,3 +1199,13 @@ def get_username(computer):
         raise ValueError('Error getting the username from the computer!')
 
     return remote_user
+
+
+def get_natyp(structure):
+    """Count number of atom types (>NAEZ for CPA) for the structure"""
+    counter = 0  # for CPA
+    for site in structure.sites:
+        sitekind = structure.get_kind(site.kind_name)
+        for ikind in range(len(sitekind.symbols)):
+            counter += 1
+    return counter

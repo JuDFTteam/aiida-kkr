@@ -511,19 +511,14 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
     for ne in range(np.shape(qdos_intensity)[0]):
         nk = np.shape(qdos_intensity)[1]
 
-        qdos_intensity[ne,:] = total_qdos[ ne*nk : (ne+1)*nk, 5 ]/eVscale 
-        
-    qdos_intensity = qdos_intensity.T # setting eng-kpts corresponds to x-y asix
-    q_vec = np.asarray(q_vec) # converting q_vec into array
-    eng_points = (np.asarray(eng_points)) # converting eng_popints into array in Ry unit
-    
-    klbl_dict = dict(kpoints.labels) # Special k-points
     # To save into the ArrayData
     array = ArrayData()
     array.set_array('BlochSpectralFunction', qdos_intensity)
     array.set_array('Kpts', q_vec)
-    array.set_array('energy_points',eng_points)
-    array.extras['k-labels'] = klbl_dict
+    array.set_array('energy_points', eng_points)
+    if 'labels' in kpoints:
+        klbl_dict = dict(kpoints.labels)  # Special k-points
+        array.extras['k-labels'] = klbl_dict
 
     return {'BS_Data' : array}
 
