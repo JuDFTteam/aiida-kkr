@@ -16,7 +16,7 @@ from six.moves import range
 from builtins import str
 
 # keys that are used by aiida-kkr some something else than KKR parameters
-_ignored_keys = ['ef_set', 'use_input_alat']
+_ignored_keys = ['ef_set', 'use_input_alat', '<newversion_bdg>']
 _ignored_keys += [i.upper() for i in _ignored_keys]
 
 
