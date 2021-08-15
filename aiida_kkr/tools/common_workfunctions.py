@@ -15,8 +15,11 @@ from masci_tools.io.common_functions import open_general
 from six.moves import range
 from builtins import str
 
-# keys that are used by aiida-kkr some something else than KKR parameters
-_ignored_keys = ['ef_set', 'use_input_alat', '<newversion_bdg>', '<decouple_spins_cheby>']
+# Ignored keys:
+# - Special keys that are used for special cases but are not part of the KKR parameter set.
+# - Keys which were part of the KKR parameter set in earlier masci-tools / aiida-kkr versions,
+#   but have been removed or renamed, and are included here for backwards compatibility.
+_ignored_keys = ['ef_set', 'use_input_alat', '<decouple_spins_cheby>', '<newversion_bdg>']
 _ignored_keys += [i.upper() for i in _ignored_keys]
 
 
@@ -100,8 +103,9 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
     if not add_direct:
         for key in inp_params:
             if key not in list(params.values.keys()) and key not in _ignored_keys:
-                print(f'Input node contains invalid key "{key}"')
-                raise InputValidationError(f'invalid key "{key}" in input parameter node')
+                msg = f'Invalid key "{key}" in input calc_parameters node.'
+                print(msg)
+                raise InputValidationError(msg)
 
     # copy values from input node
     for key in inp_params:
