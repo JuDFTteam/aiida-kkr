@@ -29,7 +29,7 @@ from __future__ import print_function
 from aiida_kkr.tests.dbsetup import *
 import pytest
 from aiida.manage.tests.pytest_fixtures import aiida_localhost, aiida_profile
-from aiida_kkr.tools.multi_imps_data_Extract import MultiImpuritiesData
+from aiida_kkr.tools.multi_imps_data_extract import MultiImpuritiesData
 from aiida.orm import load_node
 from aiida.tools.importexport import import_data
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
