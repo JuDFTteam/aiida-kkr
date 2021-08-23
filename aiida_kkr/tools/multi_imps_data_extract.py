@@ -1,15 +1,17 @@
 """Magnetic data collection.
 
-This module collect the magnetic data from combine_imps_wc node, while the 
-the wc combine and runs two single impurity wc, kkr_imp_wc or one 
-combine_imps_wc and one kkr_imp_wc.
+This module collect the magnetic data from <combine_imps_wc> node, when the 
+the <combine_imps_w> combines two single impurity wc <kkr_imp_wc> or one 
+<combine_imps_wc> and <one kkr_imp_wc>.
 
 Module includes two classes:
-    CoupleImpurityData: The class collects the data of a couple of impurities.
+    CoupleImpurityData: The class collects the data of a couple of impurities
+        from a specific <combine_imps_wc> node .
 
-    MultiImpuritiesData: The class collects the data for all possible couples
-        implmenting CoupleImpurityData class.
-
+    MultiImpuritiesData: The class collects the data from all possible couples 
+    of the <combine_imps_wc> by implmenting CoupleImpurityData class.
+    And it  repeats the same process for all the <combine_imps_wc> nodes given 
+    by python list.
 """
 
 
@@ -26,13 +28,14 @@ class CoupleImpurityData(object):
     """A magnetic data of impurity couple.
     
     The class must be instantiated by combine_imps_wc 'node' and 'imp_orders'
-    dict. Where the imp_orders dict includes the values like 0,1 or 1,2 etc
+    dict. Where the 'imp_orders' dict includes the values like 0,1 or 1,2 etc
     under any key name e.g. key1, key2. The numbers indicate the a couple
     first-second (0,1) impurities, second-third (1,2) impurities respectively.
 
     According to the imagnetic impurity order the class collects data related
-    impurities. The data includes J_ij interaction, magnetic moment for each,
-    abs(DMI), DMI components, impurity distance components.
+    to the impurities. The data includes J_ij interaction, magnetic moment for
+    indivisual impurity, abs(DMI), DMI components, impurity distance 
+    components and so on.
 
     """
     
@@ -98,7 +101,8 @@ class CoupleImpurityData(object):
         return print_str 
 
     def ExtractData(self, node: Node):
-        """Extract magnetic data of impurity data.
+        """Extract data of magnetic impurity couple.
+
         node: Combine_imps_wc node and data will be extract from this node.
         """
         
@@ -187,42 +191,44 @@ class MultiImpuritiesData(object):
     """Multiple impurity data extraction.
 
     This class extract magnetic data for all possible couples of impurities
-    using CoupleImpurityData class. Then the data for all possible couples
-    will be collected into dictionary as key->list map formate.
+    using CoupleImpurityData class. Later the process continue for all given
+    nodes in node list. Then the data for all possible couples will be 
+    appended into dictionary as key->list map formate.
     """
 
     def __init__(self, node: Node):
         """Tnstantiate MultiImpurityData.
-        
+
         inputs:
-        node: aiida node. It should be combine_imps_wc workflow node.
+        node: <combine_imps_wc> node.
         """
 
         workflow_info = node.outputs.workflow_info.get_dict()
         self.zimps = workflow_info['imp_info_combined']['Zimp']
-        
+
         self.node = node
-        
+
         self.DataDictConstruct()
         self.DataDictFill()
-        
-    
+
+
     def DataDictConstruct(self):
         """Construct Data Dict.
-        
-        It construct the data dict for the class as name of data parameter
-        to the value list."""
+
+        It construct the data dict in formate {property_name:list} that 
+        will be filled by the couple impurity data in DataDictFill method.
+        """
 
         imp_num = len(self.zimps)
         multi_impurity_dict = dict()
-        
+
         multi_impurity_dict['calc_imps'] = []
         multi_impurity_dict['J_data_uuid'] = []
         for imp_no in range(imp_num):
             multi_impurity_dict['imp'+str(imp_no)] = []
             multi_impurity_dict['offset'+str(imp_no)] = []
             multi_impurity_dict['ilayer'+str(imp_no)] = []
-        
+
         multi_impurity_dict['i'] = []
         multi_impurity_dict['j'] = []
         multi_impurity_dict['Z_i'] = []
@@ -239,9 +245,8 @@ class MultiImpuritiesData(object):
         multi_impurity_dict['mom1'] = []
         multi_impurity_dict['mom2'] = []
         multi_impurity_dict['tot_mom'] = []
-        
         self.multi_impurity_dict = multi_impurity_dict
-    
+
     def DataDictFill(self):
         """Fill Data Dict.
 
@@ -317,10 +322,12 @@ class MultiImpuritiesData(object):
                     
     def AppendDataMultipleNode(self, node_list: List[Node]):
         """Fill the Data Dict for a group of nodes.
-        
-        Append the data from a group of nodes given in the 'node_list'
-        Data Dict where each node created from the same number of impurity
-        calculation."""
+       inputs:
+        node_list: List[Node]
+        Append the data to the Data Dict from a group of nodes given in
+        'node_list' where each node created from the <combine_imps_wc> wf 
+        for same number of impurities.
+        """
 
         if isinstance(node_list, list):
             for node in node_list:
@@ -328,13 +335,13 @@ class MultiImpuritiesData(object):
                 self.DataDictFill()
         else:
             raise TypeError('Parameter node_list should be list of node.')
-    
+
     @classmethod
     def ExtractDictMultipleNode(cls, node_list:List[Node]):
-        """Use the MultiImpuritiesData class to extract data.
+        """Use the MultiImpuritiesData class to extract data
 
         This classmethod will instantiate the class and collects 
-        magnetic data using instance method AppendDataMultipleNode(self)
+        magnetic data using instance method AppendDataMultipleNode(self).
         """
         if issubclass(node_list[0].process_class, combine_imps_wc):
             obj = cls(node=node_list[0])
@@ -350,9 +357,9 @@ class MultiImpuritiesData(object):
 
         return obj
 
-
     def GetDataDict(self):
-        """Return DataDict.
+        """Return DataDict
+
         Return the Data Dict that is already filled.
         """
         return self.multi_impurity_dict
@@ -366,11 +373,14 @@ class MultiImpuritiesData(object):
         multi_impurity_dict = self.multi_impurity_dict
         print_str = (f'multi impurity dict: \n{multi_impurity_dict}')
         return print_str
+
+
 def ExtractImpInfo(node):
     """Extract impurity info from single kkrimp calc.
              
         This constructs and returns a python dict keeping info about two
-        single inpurities with respect to the original host structure e.i.
+        single impurities form <kkr_imp_wc> with respect to the original
+        host structure e.i.
         before transforming the center to the first impurity position.
 
         Note: This ExtractImpInfo is required for the old combined_imps_wc
