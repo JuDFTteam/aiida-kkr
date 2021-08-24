@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """Magnetic data collection.
 
 This module collect the magnetic data from <combine_imps_wc> node, when the 
@@ -19,10 +21,8 @@ from __future__ import absolute_import
 from aiida.orm import Node
 from typing import List
 import math as m
-from aiida_kkr.workflows import kkr_imp_sub_wc, combine_imps_wc
-from aiida_kkr.calculations import KkrimpCalculation
+#from aiida_kkr.calculations import KkrimpCalculation
 from six.moves import range
-
 
 class CoupleImpurityData(object):
     """A magnetic data of impurity couple.
@@ -48,6 +48,8 @@ class CoupleImpurityData(object):
                 and third impurities in the impurity list.
         """
         
+        from aiida_kkr.workflows import combine_imps_wc
+       
         self.J_data_uuid: str = None
         self.calc_imps: int = None
         self.imp1: int = None
@@ -106,6 +108,8 @@ class CoupleImpurityData(object):
         node: Combine_imps_wc node and data will be extract from this node.
         """
         
+        from aiida_kkr.workflows import kkr_imp_sub_wc
+
         imp_order1 = self.imp_order1
         imp_order2 = self.imp_order2
         workflow_info = node.outputs.workflow_info.get_dict()
@@ -195,6 +199,7 @@ class MultiImpuritiesData(object):
     nodes in node list. Then the data for all possible couples will be 
     appended into dictionary as key->list map formate.
     """
+
 
     def __init__(self, node: Node):
         """Tnstantiate MultiImpurityData.
@@ -343,6 +348,8 @@ class MultiImpuritiesData(object):
         This classmethod will instantiate the class and collects 
         magnetic data using instance method AppendDataMultipleNode(self).
         """
+
+        from aiida_kkr.workflows import combine_imps_wc, kkr_imp_wc
         if issubclass(node_list[0].process_class, combine_imps_wc):
             obj = cls(node=node_list[0])
         else:
@@ -427,6 +434,8 @@ def get_imp_node_from_input(impurity_output_node):
     from 'impurity_output_node' given as input in combine_imps_wc 
     workflow.
     """
+    
+    from aiida_kkr.calculations.kkrimp import KkrimpCalculation
     imp_out = impurity_output_node
 
     kkrimpcalc_parents = imp_out.get_incoming(node_class=
