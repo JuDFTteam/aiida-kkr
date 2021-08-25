@@ -17,39 +17,29 @@ In this test typicaly three pandas data frame have been created
 3. Instantiating the class method ExtractDictMultipleNode(node_list).
     After populate the obj with the node list containg the validating node.
 
-Later, the data represented in 'padas data frame' will be validated 
+Later, the data represented in 'pandas data frame' will be validated 
 w.r.t. the combine_imps_wc node '22d72273-676a-4243-9d41-f20273d7941b'
 which is the first node in data_list_1. So, technically this node is
 one equipment of the test.
 """
 
-
-from __future__ import absolute_import
-from __future__ import print_function
-from aiida_kkr.tests.dbsetup import *
 import pytest
-from aiida.manage.tests.pytest_fixtures import aiida_localhost, aiida_profile
-from aiida_kkr.tools.multi_imps_data_extract import MultiImpuritiesData
+import os
+import pandas as pd
 from aiida.orm import load_node
 from aiida.tools.importexport import import_data
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
-import pandas as pd
+from aiida.manage.tests.pytest_fixtures import clear_database_after_test, clear_database_before_test
+from aiida_kkr.tools.multi_imps_data_extract import MultiImpuritiesData
 
-def test_data_frame( clear_database_before_test, clear_database_after_test):
+def test_multi_imp_to_data_frame(clear_database_before_test, clear_database_after_test):
     """ Test Pandas DataFrame.
   
     Data is being tested under the validating node 
     '22d72273-676a-4243-9d41-f20273d7941b'
     """
-    from aiida import get_version
-    from aiida.orm import Code, load_node, Dict, StructureData
-    from aiida.orm import Computer
-    from aiida.orm.querybuilder import QueryBuilder
-    from numpy import array
 
-
-
-    import_data('../files/db_dump_imps_data_extract_tools.tar.gz')
+    TEST_DIR = os.path.dirname(os.path.realpath(__file__))
+    import_data(os.path.join(TEST_DIR, '../files/db_dump_imps_data_extract_tools.tar.gz'))
          
     data_list_1 = ['22d72273-676a-4243-9d41-f20273d7941b',
                    '5f8bf3a8-fc7d-45d5-8140-9a1e7f566207',
