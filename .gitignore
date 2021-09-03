@@ -11,6 +11,7 @@ __pycache__/
 .Python
 env/
 build/
+_build/
 develop-eggs/
 dist/
 downloads/
@@ -117,7 +118,7 @@ venv*/
 
 # VScode
 .idea/
-aiida_kkr/.vscode/
+.vscode/
 
 # testing files (test runs locally)
 aiida_kkr/tests/.aiida/

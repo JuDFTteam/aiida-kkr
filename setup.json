@@ -24,7 +24,7 @@
     "reentry_register": true,
     "install_requires": [
         "aiida-core >= 1.0.0b6,<2.0.0",
-        "masci-tools >= 0.4.8.dev5,<0.5.0",
+        "masci-tools >= 0.4.8.dev5,<1.0.0",
         "seekpath >= 1.9.2",
         "ase",
         "pymatgen"

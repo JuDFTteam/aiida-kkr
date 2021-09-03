@@ -15,8 +15,11 @@ from masci_tools.io.common_functions import open_general
 from six.moves import range
 from builtins import str
 
-# keys that are used by aiida-kkr some something else than KKR parameters
-_ignored_keys = ['ef_set', 'use_input_alat']
+# Ignored keys:
+# - Special keys that are used for special cases but are not part of the KKR parameter set.
+# - Keys which were part of the KKR parameter set in earlier masci-tools / aiida-kkr versions,
+#   but have been removed or renamed, and are included here for backwards compatibility.
+_ignored_keys = ['ef_set', 'use_input_alat', '<decouple_spins_cheby>', '<newversion_bdg>']
 _ignored_keys += [i.upper() for i in _ignored_keys]
 
 
