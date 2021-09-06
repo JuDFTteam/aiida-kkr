@@ -1855,10 +1855,11 @@ def get_rms_kkrcalc_from_remote(node, **kwargs):
     from aiida.common.folders import SandboxFolder
     from masci_tools.io.common_functions import search_string
     # extract info needed to open transport
-    c = node.inputs.code
-    comp = c.computer
-    authinfo = comp.get_authinfo(c.user)
-    transport = authinfo.get_transport()
+    #c = node.inputs.code
+    #comp = c.computer
+    #authinfo = comp.get_authinfo(c.user)
+    #transport = authinfo.get_transport()
+    transport = node.get_transport()
 
     out_kkr = ''
     rms, neutr, etot, efermi = [], [], [], []
