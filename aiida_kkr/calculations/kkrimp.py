@@ -280,11 +280,14 @@ The Dict node should be of the form
             if 'imp_cls' in imp_info_inputnode.get_dict().keys():
                 input_imp_cls_arr = array(imp_info_inputnode.get_dict()['imp_cls'])
                 parent_imp_cls_arr = array(imp_info.get_dict()['imp_cls'])
-                is_identical = array_equal(input_imp_cls_arr[:,0:3],parent_imp_cls_arr[:,0:3])
+                is_identical = array_equal(input_imp_cls_arr[:,0:4],parent_imp_cls_arr[:,0:4])
+
+                self.report(f'Delete different impurity cls : {input_imp_cls_arr[:,0:4] - parent_imp_cls_arr[:,0:4]}')
+                
                 if is_identical:
                     check_consistency_imp_info = True
                 else:
-                        self.report('impurity_info node from input and from previous GF calculation are NOT compatible!. ')
+                    self.report('impurity_info node from input and from previous GF calculation are NOT compatible!. ')
 
             elif imp_info_inputnode.get_dict().get('Rcut') == imp_info.get_dict().get('Rcut'):
                 check_consistency_imp_info = True
