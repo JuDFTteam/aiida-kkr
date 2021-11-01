@@ -281,8 +281,6 @@ The Dict node should be of the form
                 input_imp_cls_arr = array(imp_info_inputnode.get_dict()['imp_cls'])
                 parent_imp_cls_arr = array(imp_info.get_dict()['imp_cls'])
                 is_identical = array_equal(input_imp_cls_arr[:,0:4],parent_imp_cls_arr[:,0:4])
-
-                self.report(f'Delete different impurity cls : {input_imp_cls_arr[:,0:4] - parent_imp_cls_arr[:,0:4]}')
                 
                 if is_identical:
                     check_consistency_imp_info = True
