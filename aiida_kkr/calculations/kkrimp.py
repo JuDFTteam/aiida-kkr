@@ -278,20 +278,19 @@ The Dict node should be of the form
             #TODO: implement also 'ilayer_center' check
             if 'imp_cls' in imp_info_inputnode.get_dict().keys():
                 input_imp_cls_arr = array(imp_info_inputnode.get_dict()['imp_cls'])
-                parent_imp_cls_arr = array(imp_info_inputnode.get_dict()['imp_cls'])
+                parent_imp_cls_arr = array(imp_info.get_dict()['imp_cls'])
                 is_identical = array_equal(input_imp_cls_arr[:,0:4],parent_imp_cls_arr[:,0:4])
                 if is_identical:
                     check_consistency_imp_info = True
                 else:
-                        self.report('impurity_info node from input and from previous GF calculation are NOT compatible!. ')
+                    self.report('impurity_info node from input and from previous GF calculation are NOT compatible!.')
 
             elif imp_info_inputnode.get_dict().get('Rcut') == imp_info.get_dict().get('Rcut'):
                 check_consistency_imp_info = True
                 try:
                     if (imp_info_inputnode.get_dict().get('hcut') == imp_info.get_dict().get('hcut')
                         and imp_info_inputnode.get_dict().get('cylinder_orient') == imp_info.get_dict().get('cylinder_orient')
-                        and imp_info_inputnode.get_dict().get('Rimp_rel') == imp_info.get_dict().get('Rimp_rel')
-                        and imp_info_inputnode.get_dict().get('imp_cls') == imp_info.get_dict().get('imp_cls')):
+                        and imp_info_inputnode.get_dict().get('Rimp_rel') == imp_info.get_dict().get('Rimp_rel')):
                         self.report('impurity_info node from input and from previous GF calculation are compatible')
                         check_consistency_imp_info = True
                     else:
