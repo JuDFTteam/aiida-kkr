@@ -276,10 +276,12 @@ The Dict node should be of the form
         # case, raise an error
         if found_impurity_inputnode and found_host_parent:
             #TODO: implement also 'ilayer_center' check
+            check_consistency_imp_info = False
             if 'imp_cls' in imp_info_inputnode.get_dict().keys():
                 input_imp_cls_arr = array(imp_info_inputnode.get_dict()['imp_cls'])
                 parent_imp_cls_arr = array(imp_info.get_dict()['imp_cls'])
                 is_identical = array_equal(input_imp_cls_arr[:,0:4],parent_imp_cls_arr[:,0:4])
+                
                 if is_identical:
                     check_consistency_imp_info = True
                 else:
