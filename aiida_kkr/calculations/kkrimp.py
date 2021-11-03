@@ -275,8 +275,8 @@ The Dict node should be of the form
         # the one from the parent calc (except for 'Zimp'). If that's not the
         # case, raise an error
         if found_impurity_inputnode and found_host_parent:
-            #TODO: implement also 'ilayer_center' check
             check_consistency_imp_info = False
+            #TODO: implement also 'ilayer_center' check
             if 'imp_cls' in imp_info_inputnode.get_dict().keys():
                 input_imp_cls_arr = array(imp_info_inputnode.get_dict()['imp_cls'])
                 parent_imp_cls_arr = array(imp_info.get_dict()['imp_cls'])
