@@ -383,7 +383,7 @@ class kkr_dos_wc(WorkChain):
             self.report('used nonco angles from input to workflow')
         else:
             # extract from the parent calculation
-            parent_calc = remote.get_incoming(node_class=KkrCalculation).first().node
+            parent_calc = remote.get_incoming(node_class=orm.CalcJobNode).first().node
             if 'initial_noco_angles' in parent_calc.inputs:
                 noco_angles = extract_noco_angles(
                     fix_dir_threshold=orm.Float(1e-6),  # make small enough
