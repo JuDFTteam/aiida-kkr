@@ -59,13 +59,15 @@
             "kkr.kkr = aiida_kkr.calculations.kkr:KkrCalculation",
             "kkr.kkrimporter = aiida_kkr.calculations.kkrimporter:KkrImporterCalculation",
             "kkr.voro = aiida_kkr.calculations.voro:VoronoiCalculation",
-            "kkr.kkrimp = aiida_kkr.calculations.kkrimp:KkrimpCalculation"
+            "kkr.kkrimp = aiida_kkr.calculations.kkrimp:KkrimpCalculation",
+            "kkr.kkrnano = aiida_kkr.calculations.kkrnano:KKRnanoCalculation"
             ],
         "aiida.parsers": [
             "kkr.voroparser = aiida_kkr.parsers.voro:VoronoiParser",
             "kkr.kkrparser = aiida_kkr.parsers.kkr:KkrParser",
             "kkr.kkrimporterparser = aiida_kkr.parsers.kkrimporter:KkrImporterParser",
-            "kkr.kkrimpparser = aiida_kkr.parsers.kkrimp:KkrimpParser"
+            "kkr.kkrimpparser = aiida_kkr.parsers.kkrimp:KkrimpParser",
+            "kkr.kkrnanoparser = aiida_kkr.parsers.kkrnano:KKRnanoParser"
             ],
         "aiida.data": [
             ],
