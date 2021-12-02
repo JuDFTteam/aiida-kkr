@@ -289,75 +289,75 @@ def combine_clusters(clust1, clust2_offset, single_single, debug=False):
 
 
 
-def create_combined_imp_info___(host_structure, impinfo1, impinfo2, offset_imp2, imps_info_in_exact_cluster, single_single, debug=False):
-    """
-    create impurity clusters from impinfo nodes and combine these putting the second
-    impurity to the i_neighbor_inplane-th in-plane neighbor
-    """
-
-    zimp1 = get_zimp(impinfo1)
-    zimp2 = get_zimp(impinfo2)
-
-    # combine Zimp lists
-    zimp_combined = zimp1 + zimp2
-
-    if 'imp_cls' in impinfo1.get_dict():
-        clust1 = impinfo1['imp_cls']
-    else:
-        # create cluster of imp1
-        clust1 = get_scoef_single_imp(host_structure, impinfo1)
-
-    # do the same for imp2
-    clust2 = get_scoef_single_imp(host_structure, impinfo2)
-
-    # set zimp in scoef file (not used by the code but makes it easier to read the files / debug)
-    clust1[0][4] = zimp1[0]
-    clust2[0][4] = zimp2[0]
-    #if debug:
-    #    print('cls1:', clust1)
-    #    print('cls2:', clust2)
-
-        
-    if 'r_offset' in offset_imp2.get_dict():
-        # use offset given in input
-        r_offset = offset_imp2['r_offset']
-    else:
-        # find offset taking into account the possible out-of-plane vector if the imps are in different layers
-        r_out_of_plane = np.array([0,0,0])
-        layer1 = impinfo1['ilayer_center']
-        layer2 = impinfo2['ilayer_center']
-        if layer1 != layer2:
-            pos1 = np.array(host_structure.sites[layer1].position)
-            pos2 = np.array(host_structure.sites[layer2].position)
-            r_out_of_plane = pos2-pos1
-        i_neighbor_inplane = offset_imp2['index']
-        r_offset = get_inplane_neighbor(host_structure, i_neighbor_inplane, r_out_of_plane)
-    if debug: print('r_offset:', r_offset)
-
-    # add offset to cluster 2
-    clust2_offset = clust2.copy()
-    clust2_offset[:, :3] += r_offset
-
-    cluster_combined, rimp_rel_combined, kickout_list, i_removed_from_1 = combine_clusters(clust1, clust2_offset, debug)
-    
-    if 'Rimp_rel' in impinfo1.get_dict():
-        rimp_rel_combined = list(impinfo1['Rimp_rel']) + rimp_rel_combined[1:]
-    
-    if debug:
-        #print('cls_combined:', cluster_combined)
-        print('rimp_rel_combined:', rimp_rel_combined)
-        print('kickout_list:', kickout_list)
-        print('i_removed_from_1:', i_removed_from_1)
-
-    # create new imp_info node with imp_cls, Rimp_rel and Zimp definig the cluster and impurity location
-    imp_info_combined = Dict(dict={'imp_cls': cluster_combined, 'Zimp': zimp_combined, 'Rimp_rel': rimp_rel_combined})
-    
-    # kickout info (used later in cfreation of combined potential)
-    kickout_info = Dict(dict={'i_removed_from_1': i_removed_from_1, 'kickout_list': kickout_list, 
-                              'Ncls1': len(clust1), 'Ncls2': len(clust2), 'Ncls_combined': len(cluster_combined)}
-                        )
-
-    return {'imp_info_combined': imp_info_combined, 'kickout_info': kickout_info}
+#def create_combined_imp_info___(host_structure, impinfo1, impinfo2, offset_imp2, imps_info_in_exact_cluster, single_single, debug=False):
+#    """
+#    create impurity clusters from impinfo nodes and combine these putting the second
+#    impurity to the i_neighbor_inplane-th in-plane neighbor
+#    """
+#
+#    zimp1 = get_zimp(impinfo1)
+#    zimp2 = get_zimp(impinfo2)
+#
+#    # combine Zimp lists
+#    zimp_combined = zimp1 + zimp2
+#
+#    if 'imp_cls' in impinfo1.get_dict():
+#        clust1 = impinfo1['imp_cls']
+#    else:
+#        # create cluster of imp1
+#        clust1 = get_scoef_single_imp(host_structure, impinfo1)
+#
+#    # do the same for imp2
+#    clust2 = get_scoef_single_imp(host_structure, impinfo2)
+#
+#    # set zimp in scoef file (not used by the code but makes it easier to read the files / debug)
+#    clust1[0][4] = zimp1[0]
+#    clust2[0][4] = zimp2[0]
+#    #if debug:
+#    #    print('cls1:', clust1)
+#    #    print('cls2:', clust2)
+#
+#        
+#    if 'r_offset' in offset_imp2.get_dict():
+#        # use offset given in input
+#        r_offset = offset_imp2['r_offset']
+#    else:
+#        # find offset taking into account the possible out-of-plane vector if the imps are in different layers
+#        r_out_of_plane = np.array([0,0,0])
+#        layer1 = impinfo1['ilayer_center']
+#        layer2 = impinfo2['ilayer_center']
+#        if layer1 != layer2:
+#            pos1 = np.array(host_structure.sites[layer1].position)
+#            pos2 = np.array(host_structure.sites[layer2].position)
+#            r_out_of_plane = pos2-pos1
+#        i_neighbor_inplane = offset_imp2['index']
+#        r_offset = get_inplane_neighbor(host_structure, i_neighbor_inplane, r_out_of_plane)
+#    if debug: print('r_offset:', r_offset)
+#
+#    # add offset to cluster 2
+#    clust2_offset = clust2.copy()
+#    clust2_offset[:, :3] += r_offset
+#
+#    cluster_combined, rimp_rel_combined, kickout_list, i_removed_from_1 = combine_clusters(clust1, clust2_offset, debug)
+#    
+#    if 'Rimp_rel' in impinfo1.get_dict():
+#        rimp_rel_combined = list(impinfo1['Rimp_rel']) + rimp_rel_combined[1:]
+#    
+#    if debug:
+#        #print('cls_combined:', cluster_combined)
+#        print('rimp_rel_combined:', rimp_rel_combined)
+#        print('kickout_list:', kickout_list)
+#        print('i_removed_from_1:', i_removed_from_1)
+#
+#    # create new imp_info node with imp_cls, Rimp_rel and Zimp definig the cluster and impurity location
+#    imp_info_combined = Dict(dict={'imp_cls': cluster_combined, 'Zimp': zimp_combined, 'Rimp_rel': rimp_rel_combined})
+#    
+#    # kickout info (used later in cfreation of combined potential)
+#    kickout_info = Dict(dict={'i_removed_from_1': i_removed_from_1, 'kickout_list': kickout_list, 
+#                              'Ncls1': len(clust1), 'Ncls2': len(clust2), 'Ncls_combined': len(cluster_combined)}
+#                        )
+#
+#    return {'imp_info_combined': imp_info_combined, 'kickout_info': kickout_info}
 
 
 def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, imps_info_in_exact_cluster, single_single, debug=False):
@@ -449,66 +449,66 @@ def create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2,
 
 # combine potentials calcfunction
 
-def combine_potentials___(kickout_info, pot_imp1, pot_imp2, nspin_node):
-
-    # unpack kickout info
-    kickout_list = kickout_info['kickout_list']
-    i_removed_from_1 = kickout_info['i_removed_from_1']
-    Ncls1 = kickout_info['Ncls1']
-    Ncls2 = kickout_info['Ncls2']
-    Ncls_combined = kickout_info['Ncls_combined']
-    nspin = nspin_node.value
-    if debug:
-        print('kickout_list:', kickout_list)
-        print('i_removed:', i_removed_from_1)
-        print('params;', nspin, Ncls1, Ncls2, Ncls_combined)
-
-    # create neworder_pot list
-    neworder_pot = list(range(Ncls1))
-    if i_removed_from_1 is not None:
-        neworder_pot = [neworder_pot[i] for i in range(len(neworder_pot)) if i not in i_removed_from_1]
-    if debug:
-        print('neworder_pot:', neworder_pot)
-
-    # add dummy lines which are replace with pot 2
-    N0 = len(neworder_pot)
-    N_add = Ncls_combined-N0
-    replacepos = [i for i in range(N0+1, N0+N_add+1)]# range(N0, N0+N_add)]
-    neworder_pot += replacepos
-
-    # prepare index of pot2 without kciked out positions
-    index_pot2 = [i for i in list(range(Ncls2)) if i not in kickout_list]
-
-    if debug:
-        print('replacepos:', replacepos)
-        print('index_pot2:', index_pot2)
-
-    # create replacelist (mapping which positions of neworder_pos are taken from pot2 instead)
-    replacelist_pot2 = [(replacepos[i]-1, index_pot2[i]) for i in range(len(replacepos))]
-
-    # take care of spin doubling for NSPIN==2
-    if nspin>1:
-        neworder_pot = np.array([[2*i, 2*i+1] for i in neworder_pot]).reshape(-1)
-        replacelist_pot2 = np.array([[(2*i[0], 2*i[1]), (2*i[0]+1, 2*i[1]+1)] for i in replacelist_pot2]).reshape(-1, 2)
-
-
-    # now combine potentials
-    with SandboxFolder() as tempfolder:
-        with tempfolder.open('potential_combined', 'w') as out_pot_fhandle:
-            with pot_imp1.open(pot_imp1.filename) as pot1_filehande:
-                with pot_imp2.open(pot_imp2.filename) as pot2_filehande:
-                    # use neworder_potential function
-                    modify_potential().neworder_potential(pot1_filehande, out_pot_fhandle, neworder_pot, potfile_2=pot2_filehande,
-                                                          replace_from_pot2=replacelist_pot2, debug=debug)
-
-            # store output potential to SinglefileData
-            output_potential_sfd_node = SinglefileData(file=tempfolder.open('potential_combined', u'rb'))
-            # add label and description
-            output_potential_sfd_node.label = 'combined_potentials'
-            output_potential_sfd_node.description = 'combined potential of imps {} and {}'.format(pot_imp1.uuid, pot_imp2.uuid)
-
-    # return the combined potential
-    return output_potential_sfd_node
+#def combine_potentials___(kickout_info, pot_imp1, pot_imp2, nspin_node):
+#
+#    # unpack kickout info
+#    kickout_list = kickout_info['kickout_list']
+#    i_removed_from_1 = kickout_info['i_removed_from_1']
+#    Ncls1 = kickout_info['Ncls1']
+#    Ncls2 = kickout_info['Ncls2']
+#    Ncls_combined = kickout_info['Ncls_combined']
+#    nspin = nspin_node.value
+#    if debug:
+#        print('kickout_list:', kickout_list)
+#        print('i_removed:', i_removed_from_1)
+#        print('params;', nspin, Ncls1, Ncls2, Ncls_combined)
+#
+#    # create neworder_pot list
+#    neworder_pot = list(range(Ncls1))
+#    if i_removed_from_1 is not None:
+#        neworder_pot = [neworder_pot[i] for i in range(len(neworder_pot)) if i not in i_removed_from_1]
+#    if debug:
+#        print('neworder_pot:', neworder_pot)
+#
+#    # add dummy lines which are replace with pot 2
+#    N0 = len(neworder_pot)
+#    N_add = Ncls_combined-N0
+#    replacepos = [i for i in range(N0+1, N0+N_add+1)]# range(N0, N0+N_add)]
+#    neworder_pot += replacepos
+#
+#    # prepare index of pot2 without kciked out positions
+#    index_pot2 = [i for i in list(range(Ncls2)) if i not in kickout_list]
+#
+#    if debug:
+#        print('replacepos:', replacepos)
+#        print('index_pot2:', index_pot2)
+#
+#    # create replacelist (mapping which positions of neworder_pos are taken from pot2 instead)
+#    replacelist_pot2 = [(replacepos[i]-1, index_pot2[i]) for i in range(len(replacepos))]
+#
+#    # take care of spin doubling for NSPIN==2
+#    if nspin>1:
+#        neworder_pot = np.array([[2*i, 2*i+1] for i in neworder_pot]).reshape(-1)
+#        replacelist_pot2 = np.array([[(2*i[0], 2*i[1]), (2*i[0]+1, 2*i[1]+1)] for i in replacelist_pot2]).reshape(-1, 2)
+#
+#
+#    # now combine potentials
+#    with SandboxFolder() as tempfolder:
+#        with tempfolder.open('potential_combined', 'w') as out_pot_fhandle:
+#            with pot_imp1.open(pot_imp1.filename) as pot1_filehande:
+#                with pot_imp2.open(pot_imp2.filename) as pot2_filehande:
+#                    # use neworder_potential function
+#                    modify_potential().neworder_potential(pot1_filehande, out_pot_fhandle, neworder_pot, potfile_2=pot2_filehande,
+#                                                          replace_from_pot2=replacelist_pot2, debug=debug)
+#
+#            # store output potential to SinglefileData
+#            output_potential_sfd_node = SinglefileData(file=tempfolder.open('potential_combined', u'rb'))
+#            # add label and description
+#            output_potential_sfd_node.label = 'combined_potentials'
+#            output_potential_sfd_node.description = 'combined potential of imps {} and {}'.format(pot_imp1.uuid, pot_imp2.uuid)
+#
+#    # return the combined potential
+#    return output_potential_sfd_node
 
 def combine_potentials(kickout_info, pot_imp1, pot_imp2, nspin_node):
 
