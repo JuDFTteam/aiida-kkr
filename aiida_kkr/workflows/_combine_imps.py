@@ -217,6 +217,7 @@ If given then the writeout step of the host GF is omitted.""")
             self.ctx.scf_wf_parameters = self.inputs.scf.wf_parameters
         # Add some run option here
         self.ctx.jij_option = False
+        self.ctx.offset_imp2  = self.inputs.offset_imp2
 
         # TODO: PRESERVE THE INPUTS FROM host_gf NAMESPACE TO CONTEXT
         # TODO: ALSO EDIT THE RUN_GF_WRITEOUT() FOR THIS CORRESPONDING CHANGES
@@ -315,9 +316,9 @@ If given then the writeout step of the host GF is omitted.""")
                 
                 imps_info_in_exact_cluster = self.imps_info_exact_cluster_2imps(parent_imp1_wc_or_calc, parent_imp2_wc_or_calc, parent_input_offset)
             # Now to add the input impurity info and off set of the present combine_imps_wc
-            imps_info_in_exact_cluster['offset_imps'].append(self.inputs.offset_imp2.get_dict()['index'])
-                
-            Zimp_2= imp2_impurity_info.get_dict()['Zimp']
+            imps_info_in_exact_cluster['offset_imps'].append(self.ctx.offset_imp2['index'])
+
+            Zimp_2 = imp2_impurity_info.get_dict()['Zimp']
             if isinstance(Zimp_2, list):
                     imps_info_in_exact_cluster['Zimps'].append(Zimp_2[0])
             else:
