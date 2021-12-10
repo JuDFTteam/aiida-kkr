@@ -30,6 +30,7 @@ class KKRnanoCalculation(CalcJob):
     # Default input and output files
     _DEFAULT_INPUT_FILE = 'input.conf'  # will be shown with inputcat
     _DEFAULT_OUTPUT_FILE = 'out'  #'shell output will be shown with outputcat
+    _DEFAULT_OUTPUT_PREP_FILE = 'output.0.txt'
     # template.product entry point defined in setup.json
     _DEFAULT_PARSER = 'kkr.kkrnanoparser'
     # File names

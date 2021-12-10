@@ -4,12 +4,19 @@ from __future__ import absolute_import
 from aiida.parsers.parser import Parser
 from aiida.orm import Dict
 from aiida_kkr.calculations.kkrnano import KKRnanoCalculation
+from masci_tools.io.common_functions import (search_string,open_general)
+import numpy as np
+from io import StringIO
+from pprint import  pprint as pp
 import os
 
 __copyright__ = (u'Copyright (c), 2021, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.0.1'
 __contributors__ = ('Markus Struckmann', 'Philipp Rüßmann')
+
+
+
 
 
 class KKRnanoParser(Parser):
@@ -21,9 +28,10 @@ class KKRnanoParser(Parser):
         """
         Initialize 
         """
-        # these files should be present after success of voronoi
+        # these files should be present after successful run of KKRnano
         self._default_files = {
-            'stdout': KKRnanoCalculation._DEFAULT_OUTPUT_FILE
+            'stdout': KKRnanoCalculation._DEFAULT_OUTPUT_FILE,
+            'stdout_prep': KKRnanoCalculation._DEFAULT_OUTPUT_PREP_FILE
         }
 
         self._ParserVersion = __version__
@@ -32,6 +40,195 @@ class KKRnanoParser(Parser):
         super(KKRnanoParser, self).__init__(calc)
 
     # pylint: disable=protected-access
+   
+
+    def _get_lines(self,output_file_handle):
+        """returns list of string lines"""
+        with open_general(output_file_handle, 'r') as f:
+                lines = f.readlines()
+        return lines
+
+
+
+    def _findSimpleEntries(self,string2find, output_file_handle, lineindices=[-1], simpleEntry=True):
+        """
+        read out entries that are simply given at the end of a line preceeded by the string2find.
+        returns a list of said entries
+        """
+        lines=_self.get_lines(output_file_handle)
+
+        returnlist,indexlist=[],[]
+
+        #checking if line indices were passed. If so, only the specified lines are searched
+        if lineindices[0]==-1:   
+            lineindices=range(len(lines))
+
+        #looping over indicated or all (default) lines
+        for j in lineindices:
+            line=lines[j]
+            stringposition=line.find(string2find)
+
+            #matching sought string
+            if stringposition>=0:
+                indexlist.append(j)
+                keyvalue=line[stringposition+len(string2find)+1:-1]#.replace(" ", "")
+                keyvalue=keyvalue.replace("=","")
+                keyvalue=keyvalue.split(sep="(")[0]
+
+                if simpleEntry:
+                    array=np.genfromtxt(StringIO(keyvalue.replace("D", "e")),delimiter=" ", dtype=None)#[0]
+
+                try:
+                    returnlist.append(array.item()[0])
+                except TypeError:
+                    returnlist.append(array.item())
+
+        return returnlist,indexlist
+
+    def _get_index_list(self, string2find, output_file_handle="", lines=[]):
+        """
+        returns list of indicies of lines containting the passed string.
+        opens file, if a file handle and no string is passed.
+        """
+        if lines==[] and output_file_handle=="":
+            print("ERROR in get_index_list: Neither file handle nor lines of strings were passed")
+        if lines ==[]:
+            lines=_self.get_lines(output_file_handle)
+
+        returnlist,indexlist=[],[]
+
+        for j in range(len(lines)):
+                line=lines[j]
+                stringposition=line.find(string2find)
+                if stringposition>=0:
+                    indexlist.append(j)
+        return indexlist
+
+    def _read_table_block(self,lines,index_multiple_tables=-1):
+        """
+        reads a table in the output of the --prepare step which is indicated by a borderlines of "---", returns a string array of said table.
+        """
+        indexlist=get_index_list("---------",lines=lines)
+        if index_multiple_tables == -1:
+            table=lines[indexlist[-2]+1:indexlist[-1]]
+        else:
+            table=lines[indexlist[index_multiple_tables*2]+1:indexlist[index_multiple_tables*2+1]]
+        array=[line.replace("\n","").split(" ") for line in table]
+        for j in range(len(array)):
+            for k in range(array[j].count("")):
+                array[j].remove("")
+
+        #array=[np.delete(a,np.where(a=="")) for a in array]
+        return np.array(array)
+
+
+    def _find_block(self,lines, string):
+        """
+        finds a block which contains the indicated string in passed lines.
+        Can be used for the output of the --prepare step which is indicated by a borderlines of "===", returns a list of the lineindices in the passed lines.
+        """
+        pos__output=search_string(string,lines) 
+        indexlist=_self.get_index_list("=======",lines=lines)
+        for i in range(len(indexlist)-1):
+            if indexlist[i] < pos__output and indexlist[i+1]> pos__output:
+                return lines[indexlist[i]: indexlist[i+1]]
+        print("Warning: Block '{}' not found!".format(string))
+        return []
+
+    def _get_total_EnergyeV(self,key):
+        return_dict={}
+        _,indexlist=_self.findSimpleEntries(stringsInOutputFile[key],output_file_handle)
+        #print(indexlist)
+        #print(findSimpleEntries("eV  :",output_file_handle, np.array(indexlist)+1))
+        return_dict["total_energy_in_eV"],_=_self.findSimpleEntries("eV  :",output_file_handle, np.array(indexlist)+1)
+        return return_dict
+
+
+    def _get_charge_in_WScell(self,key):
+        number_of_atoms=5
+        charges,indexlist=_self.findSimpleEntries(key, output_file_handle)
+        charge_dict={}
+        charge_dict['atom']={}
+        num_atoms=out0_dict['num_atoms']
+
+
+        for k in range(num_atoms):
+            charge_dict['atom'][k+1]=[charges[i] for i in np.arange(0+k,len(charges)+k,num_atoms)]
+        return charge_dict
+
+    def _stringFromList(self,stringlist):
+        """
+        turn a list of strings into a single string
+        """
+        finalstring=""
+        for string in stringlist:
+            finalstring+=string
+        return finalstring
+
+    def _dict_from_table(self,captions_columns,captions_lines,array):
+        """
+        returns a dictionary from a table using specified captions for columns and lines
+        """
+        return_dict={}
+        for caption_index in range(len(captions_columns)):
+            return_dict[captions_columns[caption_index]]=dict(zip(captions_lines,array[:,caption_index]))
+        return return_dict
+
+
+    def _extract_l_valence_charges(self,lines,captions):
+        """
+        extract the l-decomposed valence charges charges from the output file of a KKRnano run:
+        reads the used captions and turns the used tables into a dict
+        """
+        orbitals = ["s","p","d","f","dummy"] #KKRnano does not write out "orbitals" beyond this, dummy to simplify accounting for varying lengths
+        return_dict = {}
+
+        length_top=search_string("----",lines) #this delimiter marks where only total values follow in the output file, varies w.r.t. used LMAX
+        length_bottom=len(lines)-length_top
+
+
+        #after col 21, only floats follow, that are sought to be read in in the following
+        blockstring=_self.stringFromList([line[21:] for line in lines[:-length_bottom]])
+
+        used_orbitals=orbitals[:length_top]
+        used_orbitals[-1]="non-spherical" #last entry is always the non-spherical part
+
+        array=np.genfromtxt(StringIO(blockstring),dtype=float)
+        if array.ndim ==1:
+            array=np.transpose(np.atleast_2d(array)) #make sure that a 2D array is processed in the following, as this would raise an error otherwise
+        # Single String for line where the total values are indicated
+        totalstring=_self.stringFromList(lines[-length_bottom+1])
+
+        return_dict=dict_from_table(captions,used_orbitals,array)
+
+        totalvalues=np.genfromtxt(StringIO(totalstring[21:]), dtype=float) #again after col 21, only floats follow
+
+        if np.shape(totalvalues)==(): #accounting for 0D array
+            return_dict["total"]=dict(zip(captions,[totalvalues.item()]))
+        else:
+            return_dict["total"]=dict(zip(captions,np.genfromtxt(StringIO(totalstring[21:]),dtype=float)))
+
+        return return_dict
+
+
+    def _convert_all_values_2_python_natives(self,sub_dictionary):
+        """
+        convert all dtypes of numpy to python native data types in a given (potentially nested) dictionary.
+        """
+        for key, value in sub_dictionary.items():
+
+            if type(value) is dict:
+                convert_all_values_2_python_natives(value)
+
+            else:
+                try:
+                    sub_dictionary[key]=value.item()
+                except:
+                    pass
+        return sub_dictionary
+
+
+
     def parse(self, debug=False, **kwargs):
         """
         Parse output data folder, store results in database.
@@ -43,14 +240,165 @@ class KKRnanoParser(Parser):
 
         success = True
         node_list = ()
-
-        # initialize out_dict and parse output files
-        out_dict = {'parser_version': self._ParserVersion}
         
-        #TODO fill parsed output dict
+        output0_file_handle=KKRnanoCalculation._DEFAULT_OUTPUT_PREP_FILE
+        output_file_handle=KKRnanoCalculation._DEFAULT_OUTPUT_FILE
+        
+        # initialize out_dict and parse output files
+        out_dict_final = {'parser_version': self._ParserVersion}
+        
+        #from --prepare output file
+        out0_dict={}
+        lines0=self._get_lines(output0_file_handle)
+
+        # number of atoms
+        try:
+            out0_dict['num_atoms']=int(lines0[search_string("atoms in rbasis.xyz",lines0)].split(sep=" ")[1])
+
+        except:
+            print("Number of atoms was not read!")
+
+        # lattice constant
+
+        try:
+            alat_string=lines0[search_string("Lattice constants :  ALAT",lines0)].split(sep=" = ")[1].split(sep="   ")[0].replace(" ","")   
+            out0_dict['alat_internal']=float(alat_string)
+            pass
+        except:
+            print("ALAT was not read!")
+        out0_dict['alat_internal_unit']= 'a_Bohr'
+    
+        
+        # Reading k-mesh details
+
+        kmesh_dict={}
+        #kmesh_dict['number_different_kmeshes']=int(lines0[search_string("number of different k-meshes",lines0)].split(sep=" : ")[1])
+
+        try:
+            kmesh_dict['number_different_kmeshes']=int(lines0[search_string("number of different k-meshes",lines0)].split(sep=" : ")[1])
+
+        except:
+            print("Number of diff. k-meshes was not read!")
+
+        kmesh_caption_KKRnano="k-mesh NofKs N kx N ky N kz vol BZ"
+        kmesh_caption_aiida_KKRhost=['number_of_kpts','n_kx', 'n_ky','n_kz']
+
+        table=_self.read_table_block(_self.find_block(lines0,kmesh_caption_KKRnano))
+        kmesh_dict['number_kpoints_per_kmesh']={}
+
+        #filling dictionary with retrieved data
+        for keyindex in range(len(kmesh_caption_aiida_KKRhost)):
+            key=kmesh_caption_aiida_KKRhost[keyindex]
+            kmesh_dict['number_kpoints_per_kmesh'][key]=np.array(table[:,1+keyindex], dtype=int)
+
+        out0_dict['kmesh_group']= kmesh_dict
+        
+        
+        # reciprocal Bravais matrix
+        bravais_caption="Reciprocal lattice cell vectors"
+        table=_self.read_table_block(find_block([line[:45] for line in lines0],bravais_caption)) 
+
+        table=np.array(table[:,1:],dtype=float)
+        out0_dict['reciprocal_bravais_matrix']=table[:,:3]
+        out0_dict['reciprocal_bravais_matrix_unit']= '2*pi / alat'
+        
+        # Bravais matrix
+        bravais_caption="Direct lattice cell vectors"
+        table=_self.read_table_block(find_block([line[:45] for line in lines0],bravais_caption),index_multiple_tables=0)
+
+        table=np.array(table[:,1:],dtype=float)
+        out0_dict['direct_bravais_matrix']=table[:,:3]
+        out0_dict['direct_bravais_matrix_unit']= 'alat'
+        
+        
+        # read entries from the main output
+
+        stringsInOutputFile={"total_energy_in_ryd":"TOTAL ENERGY in ryd. :",
+                             "rms_all_iterations":"v+ + v-",
+                             "rms_minus_all_iterations":"v+ - v-",
+                            "fermi_energy_in_ryd":"Fermi energy =",
+                            "charge_neutrality_in_e":"charge neutrality in unit cell =",
+                             "total_magn_moment_in_unit_cell":"TOTAL mag. moment in unit cell ="
+                            }
+
+        out_dict={}
+        for key in stringsInOutputFile:
+            out_dict[key],_=_self.findSimpleEntries(stringsInOutputFile[key],output_file_handle)
+        
+        out_dict={**out_dict,**get_total_EnergyeV("total_energy_in_ryd")}
+        
+        
+        # Get charges in WS cell
+        dict_WScell_keys={"charge_in_e":"charge in Wigner Seitz cell =",
+             "spin_moment":"spin moment in Wigner Seitz cell =",
+             "nuclear_charge_in_e":"nuclear charge",
+             "core_charge_in_e":"core charge"}
+        WScell_dict={}
+        for key in dict_WScell_keys:
+            WScell_dict[key]=_self.get_charge_in_WScell(dict_WScell_keys[key])
+
+        
+        # Extract the l-decomposed valence charges information for all "orbitals"
+        # and all iterations and add them to the dict
+        lines=_self.get_lines(output_file_handle)
+
+        #Captions for the "orbitals"
+        orbitals = ["s","p","d","f"] #KKRnano does not write out orbitals beyond this
+
+        #find block where the valence charges are indicated
+        string2find="l-decomposed valence charges"
+        indexlist=np.array(_self.get_index_list(string2find, output_file_handle,lines))+1
+
+        #using a subdictionary to store the information
+        dict_orbitals={}
+        for m in range(len(indexlist)):
+            #find iteration block to process
+            index=indexlist[m]
+            nextindex=indexlist[(m+1)%len(indexlist)]
+            if nextindex < index:
+                nextindex= -1 #use EOF as nextindex, if necessary
+
+            #read in the captions of the table and convert them to a format that is easier to process
+            captions_table=np.genfromtxt(StringIO(lines[index+2]),dtype=str, delimiter="  ")
+            captions_table=np.delete(captions_table,np.where(captions_table==""))
+            captions_table=[item.replace(" ","_") for item in captions_table][1:]
+
+            # removing leading "_" (occurs for some spins)
+            for s in range(len(captions_table)):
+                if captions_table[s].find("_")==0:
+                    captions_table[s]=captions_table[s][1:]
+
+            #find string list with the lines to process
+            blockend = index+2+search_string("#########",lines[index+2:nextindex])
+            blocklines=lines[index+3:blockend]
+
+            atomblocks= np.array(self._get_index_list("===",output_file_handle,blocklines))+index+3
+
+            if len(atomblocks)>1:
+                atomblocklength=atomblocks[1]-atomblocks[0]
+            else:
+                atomblocklength=blockend-atomblocks[0]
+
+            #loop over the atomblocks to read in the information for each atom
+
+            dict_atoms={}
+            dict_atoms['atom']={}
+            for j in range(len(atomblocks)):
+                    dict_atoms['atom'][j+1]=self._extract_l_valence_charges(lines[atomblocks[0]+j*atomblocklength+1:atomblocks[0]+(j+1)*atomblocklength+1],captions_table) #all blocks should have the same length
+
+            #add the atom dic-tionary to the one for the iterations
+            dict_orbitals[m+1]=dict_atoms
+
+        dict_orbitals={"iterations":dict_orbitals}
+        
+        out_dict_final["prepare"]=out0_dict
+        out_dict_final["WS_charges"]=WScell_dict
+        out_dict_final["l_decomposed_charges"]=dict_orbitals
+        
+        out_dict_final={**out_dict,**out_dict_final}
 
         # create output node and link
-        self.out('output_parameters', Dict(dict=out_dict))
+        self.out('output_parameters', Dict(dict=out_dict_final))
 
         if not success:
             return self.exit_codes.ERROR_PARSING_FAILED
