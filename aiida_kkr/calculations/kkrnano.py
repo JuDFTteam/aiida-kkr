@@ -86,7 +86,7 @@ class KKRnanoCalculation(CalcJob):
         spec.inputs['metadata']['options']['parser_name'].default = cls._DEFAULT_PARSER
         spec.inputs['metadata']['options']['input_filename'].default = cls._DEFAULT_INPUT_FILE
         spec.inputs['metadata']['options']['output_filename'].default = cls._DEFAULT_OUTPUT_FILE
-
+        #spec.inputs['metadata']['options']['output_prep_filename'].default = cls._DEFAULT_OUTPUT_PREP_FILE ->does not work
         # define input nodes (optional ones have required=False)
         spec.input('parameters', valid_type=Dict, required=False,
                    default= lambda: Dict(dict=cls._DEFAULT_KKRNANO_PARA),
@@ -129,9 +129,10 @@ class KKRnanoCalculation(CalcJob):
         calcinfo.uuid = self.uuid
         calcinfo.local_copy_list = self._get_local_copy_list(self.inputs.parent_calc)
         calcinfo.remote_copy_list = []
-        calcinfo.retrieve_list = [
+        calcinfo.retrieve_list = ["output.0.txt","out"] #self._DEFAULT_OUTPUT_PREP_FILE,
+                                 #self._DEFAULT_OUTPUT_FILE]#["output.0.txt"]
             # TODO fill retrieve list with binary output file
-        ]
+     
 
         codeinfo = CodeInfo()
         codeinfo.cmdline_params = []

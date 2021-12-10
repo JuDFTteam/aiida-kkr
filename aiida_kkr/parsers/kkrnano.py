@@ -30,8 +30,8 @@ class KKRnanoParser(Parser):
         """
         # these files should be present after successful run of KKRnano
         self._default_files = {
-            'stdout': KKRnanoCalculation._DEFAULT_OUTPUT_FILE,
-            'stdout_prep': KKRnanoCalculation._DEFAULT_OUTPUT_PREP_FILE
+            'stdout': KKRnanoCalculation._DEFAULT_OUTPUT_FILE
+           #'stdout_prep': KKRnanoCalculation._DEFAULT_OUTPUT_PREP_FILE
         }
 
         self._ParserVersion = __version__
@@ -55,7 +55,7 @@ class KKRnanoParser(Parser):
         read out entries that are simply given at the end of a line preceeded by the string2find.
         returns a list of said entries
         """
-        lines=_self.get_lines(output_file_handle)
+        lines=self._get_lines(output_file_handle)
 
         returnlist,indexlist=[],[]
 
@@ -93,7 +93,7 @@ class KKRnanoParser(Parser):
         if lines==[] and output_file_handle=="":
             print("ERROR in get_index_list: Neither file handle nor lines of strings were passed")
         if lines ==[]:
-            lines=_self.get_lines(output_file_handle)
+            lines=self._get_lines(output_file_handle)
 
         returnlist,indexlist=[],[]
 
@@ -128,7 +128,7 @@ class KKRnanoParser(Parser):
         Can be used for the output of the --prepare step which is indicated by a borderlines of "===", returns a list of the lineindices in the passed lines.
         """
         pos__output=search_string(string,lines) 
-        indexlist=_self.get_index_list("=======",lines=lines)
+        indexlist=self._get_index_list("=======",lines=lines)
         for i in range(len(indexlist)-1):
             if indexlist[i] < pos__output and indexlist[i+1]> pos__output:
                 return lines[indexlist[i]: indexlist[i+1]]
@@ -137,16 +137,16 @@ class KKRnanoParser(Parser):
 
     def _get_total_EnergyeV(self,key):
         return_dict={}
-        _,indexlist=_self.findSimpleEntries(stringsInOutputFile[key],output_file_handle)
+        _,indexlist=self._findSimpleEntries(stringsInOutputFile[key],output_file_handle)
         #print(indexlist)
         #print(findSimpleEntries("eV  :",output_file_handle, np.array(indexlist)+1))
-        return_dict["total_energy_in_eV"],_=_self.findSimpleEntries("eV  :",output_file_handle, np.array(indexlist)+1)
+        return_dict["total_energy_in_eV"],_=self._findSimpleEntries("eV  :",output_file_handle, np.array(indexlist)+1)
         return return_dict
 
 
     def _get_charge_in_WScell(self,key):
         number_of_atoms=5
-        charges,indexlist=_self.findSimpleEntries(key, output_file_handle)
+        charges,indexlist=self._findSimpleEntries(key, output_file_handle)
         charge_dict={}
         charge_dict['atom']={}
         num_atoms=out0_dict['num_atoms']
@@ -188,7 +188,7 @@ class KKRnanoParser(Parser):
 
 
         #after col 21, only floats follow, that are sought to be read in in the following
-        blockstring=_self.stringFromList([line[21:] for line in lines[:-length_bottom]])
+        blockstring=self._stringFromList([line[21:] for line in lines[:-length_bottom]])
 
         used_orbitals=orbitals[:length_top]
         used_orbitals[-1]="non-spherical" #last entry is always the non-spherical part
@@ -197,7 +197,7 @@ class KKRnanoParser(Parser):
         if array.ndim ==1:
             array=np.transpose(np.atleast_2d(array)) #make sure that a 2D array is processed in the following, as this would raise an error otherwise
         # Single String for line where the total values are indicated
-        totalstring=_self.stringFromList(lines[-length_bottom+1])
+        totalstring=self._stringFromList(lines[-length_bottom+1])
 
         return_dict=dict_from_table(captions,used_orbitals,array)
 
@@ -241,14 +241,19 @@ class KKRnanoParser(Parser):
         success = True
         node_list = ()
         
+        
+        #print("Hallo!")
         output0_file_handle=KKRnanoCalculation._DEFAULT_OUTPUT_PREP_FILE
         output_file_handle=KKRnanoCalculation._DEFAULT_OUTPUT_FILE
         
         # initialize out_dict and parse output files
         out_dict_final = {'parser_version': self._ParserVersion}
         
+        
+
         #from --prepare output file
         out0_dict={}
+        """
         lines0=self._get_lines(output0_file_handle)
 
         # number of atoms
@@ -283,7 +288,7 @@ class KKRnanoParser(Parser):
         kmesh_caption_KKRnano="k-mesh NofKs N kx N ky N kz vol BZ"
         kmesh_caption_aiida_KKRhost=['number_of_kpts','n_kx', 'n_ky','n_kz']
 
-        table=_self.read_table_block(_self.find_block(lines0,kmesh_caption_KKRnano))
+        table=self._read_table_block(self._find_block(lines0,kmesh_caption_KKRnano))
         kmesh_dict['number_kpoints_per_kmesh']={}
 
         #filling dictionary with retrieved data
@@ -296,7 +301,7 @@ class KKRnanoParser(Parser):
         
         # reciprocal Bravais matrix
         bravais_caption="Reciprocal lattice cell vectors"
-        table=_self.read_table_block(find_block([line[:45] for line in lines0],bravais_caption)) 
+        table=self._read_table_block(find_block([line[:45] for line in lines0],bravais_caption)) 
 
         table=np.array(table[:,1:],dtype=float)
         out0_dict['reciprocal_bravais_matrix']=table[:,:3]
@@ -304,12 +309,12 @@ class KKRnanoParser(Parser):
         
         # Bravais matrix
         bravais_caption="Direct lattice cell vectors"
-        table=_self.read_table_block(find_block([line[:45] for line in lines0],bravais_caption),index_multiple_tables=0)
+        table=self._read_table_block(find_block([line[:45] for line in lines0],bravais_caption),index_multiple_tables=0)
 
         table=np.array(table[:,1:],dtype=float)
         out0_dict['direct_bravais_matrix']=table[:,:3]
         out0_dict['direct_bravais_matrix_unit']= 'alat'
-        
+        """
         
         # read entries from the main output
 
@@ -323,9 +328,9 @@ class KKRnanoParser(Parser):
 
         out_dict={}
         for key in stringsInOutputFile:
-            out_dict[key],_=_self.findSimpleEntries(stringsInOutputFile[key],output_file_handle)
+            out_dict[key],_=self._findSimpleEntries(stringsInOutputFile[key],output_file_handle)
         
-        out_dict={**out_dict,**get_total_EnergyeV("total_energy_in_ryd")}
+        out_dict={**out_dict,**_get_total_EnergyeV("total_energy_in_ryd")}
         
         
         # Get charges in WS cell
@@ -335,19 +340,19 @@ class KKRnanoParser(Parser):
              "core_charge_in_e":"core charge"}
         WScell_dict={}
         for key in dict_WScell_keys:
-            WScell_dict[key]=_self.get_charge_in_WScell(dict_WScell_keys[key])
+            WScell_dict[key]=self._get_charge_in_WScell(dict_WScell_keys[key])
 
         
         # Extract the l-decomposed valence charges information for all "orbitals"
         # and all iterations and add them to the dict
-        lines=_self.get_lines(output_file_handle)
+        lines=self._get_lines(output_file_handle)
 
         #Captions for the "orbitals"
         orbitals = ["s","p","d","f"] #KKRnano does not write out orbitals beyond this
 
         #find block where the valence charges are indicated
         string2find="l-decomposed valence charges"
-        indexlist=np.array(_self.get_index_list(string2find, output_file_handle,lines))+1
+        indexlist=np.array(self._get_index_list(string2find, output_file_handle,lines))+1
 
         #using a subdictionary to store the information
         dict_orbitals={}
