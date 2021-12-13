@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Dec 13 14:38:59 2021
+
+@author: markus
+"""
+
 # -*- coding: utf-8 -*-
 
 from __future__ import absolute_import
@@ -42,20 +50,25 @@ class KKRnanoParser(Parser):
     # pylint: disable=protected-access
    
 
-    def _get_lines(self,output_file_handle):
+    def _get_lines(self,retrieved_folder,output_file_handle):
         """returns list of string lines"""
+        
+        with retrieved_folder.open(output_file_handle, 'r') as f:
+                lines = f.readlines()
+        return lines
+        """
         with open_general(output_file_handle, 'r') as f:
                 lines = f.readlines()
         return lines
+        """
 
 
-
-    def _findSimpleEntries(self,string2find, output_file_handle, lineindices=[-1], simpleEntry=True):
+    def _findSimpleEntries(self,string2find,retrieved_folder,output_file_handle, lineindices=[-1], simpleEntry=True):
         """
         read out entries that are simply given at the end of a line preceeded by the string2find.
         returns a list of said entries
         """
-        lines=self._get_lines(output_file_handle)
+        lines=self._get_lines(retrieved_folder,output_file_handle)
 
         returnlist,indexlist=[],[]
 
@@ -85,15 +98,16 @@ class KKRnanoParser(Parser):
 
         return returnlist,indexlist
 
-    def _get_index_list(self, string2find, output_file_handle="", lines=[]):
+    def _get_index_list(self, string2find, retrieved_folder, output_file_handle="", lines=[]):
         """
         returns list of indicies of lines containting the passed string.
         opens file, if a file handle and no string is passed.
         """
+        
         if lines==[] and output_file_handle=="":
             print("ERROR in get_index_list: Neither file handle nor lines of strings were passed")
         if lines ==[]:
-            lines=self._get_lines(output_file_handle)
+            lines=self._get_lines(retrieved_folder,output_file_handle)
 
         returnlist,indexlist=[],[]
 
@@ -104,11 +118,11 @@ class KKRnanoParser(Parser):
                     indexlist.append(j)
         return indexlist
 
-    def _read_table_block(self,lines,index_multiple_tables=-1):
+    def _read_table_block(self,lines,retrieved_folder,output0_file_handle,index_multiple_tables=-1):
         """
         reads a table in the output of the --prepare step which is indicated by a borderlines of "---", returns a string array of said table.
         """
-        indexlist=get_index_list("---------",lines=lines)
+        indexlist=self._get_index_list("---------",retrieved_folder,output0_file_handle, lines=lines)
         if index_multiple_tables == -1:
             table=lines[indexlist[-2]+1:indexlist[-1]]
         else:
@@ -122,34 +136,34 @@ class KKRnanoParser(Parser):
         return np.array(array)
 
 
-    def _find_block(self,lines, string):
+    def _find_block(self,lines, string, retrieved_folder,output0_file_handle):
         """
         finds a block which contains the indicated string in passed lines.
         Can be used for the output of the --prepare step which is indicated by a borderlines of "===", returns a list of the lineindices in the passed lines.
         """
         pos__output=search_string(string,lines) 
-        indexlist=self._get_index_list("=======",lines=lines)
+        indexlist=self._get_index_list("=======",retrieved_folder,output0_file_handle,lines=lines)
         for i in range(len(indexlist)-1):
             if indexlist[i] < pos__output and indexlist[i+1]> pos__output:
                 return lines[indexlist[i]: indexlist[i+1]]
         print("Warning: Block '{}' not found!".format(string))
         return []
 
-    def _get_total_EnergyeV(self,key):
+    def _get_total_EnergyeV(self,key,retrieved_folder,output_file_handle,stringsInOutputFile):
         return_dict={}
-        _,indexlist=self._findSimpleEntries(stringsInOutputFile[key],output_file_handle)
+        _,indexlist=self._findSimpleEntries(stringsInOutputFile[key],retrieved_folder,output_file_handle)
         #print(indexlist)
-        #print(findSimpleEntries("eV  :",output_file_handle, np.array(indexlist)+1))
-        return_dict["total_energy_in_eV"],_=self._findSimpleEntries("eV  :",output_file_handle, np.array(indexlist)+1)
+        #print(findSimpleEntries("eV  :",output_file_handle,retrieved_folder) np.array(indexlist)+1))
+        return_dict["total_energy_in_eV"],_=self._findSimpleEntries("eV  :",retrieved_folder,output_file_handle, np.array(indexlist)+1)
         return return_dict
 
 
-    def _get_charge_in_WScell(self,key):
+    def _get_charge_in_WScell(self,key,retrieved_folder,output_file_handle,n_atoms):
         number_of_atoms=5
-        charges,indexlist=self._findSimpleEntries(key, output_file_handle)
+        charges,indexlist=self._findSimpleEntries(key, retrieved_folder,output_file_handle)
         charge_dict={}
         charge_dict['atom']={}
-        num_atoms=out0_dict['num_atoms']
+        num_atoms=n_atoms
 
 
         for k in range(num_atoms):
@@ -199,7 +213,7 @@ class KKRnanoParser(Parser):
         # Single String for line where the total values are indicated
         totalstring=self._stringFromList(lines[-length_bottom+1])
 
-        return_dict=dict_from_table(captions,used_orbitals,array)
+        return_dict=self._dict_from_table(captions,used_orbitals,array)
 
         totalvalues=np.genfromtxt(StringIO(totalstring[21:]), dtype=float) #again after col 21, only floats follow
 
@@ -242,9 +256,23 @@ class KKRnanoParser(Parser):
         node_list = ()
         
         
-        #print("Hallo!")
+        # Get retrieved folders
+        try:
+            retrieved_folder = self.retrieved
+        except exceptions.NotExistent:
+            print("OUT FOLDER NOT FOUND")
+            return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
+        
+
+        
+
         output0_file_handle=KKRnanoCalculation._DEFAULT_OUTPUT_PREP_FILE
         output_file_handle=KKRnanoCalculation._DEFAULT_OUTPUT_FILE
+        
+        
+        
+        
+        
         
         # initialize out_dict and parse output files
         out_dict_final = {'parser_version': self._ParserVersion}
@@ -253,8 +281,8 @@ class KKRnanoParser(Parser):
 
         #from --prepare output file
         out0_dict={}
-        """
-        lines0=self._get_lines(output0_file_handle)
+        #"""
+        lines0=self._get_lines(retrieved_folder,output0_file_handle)
 
         # number of atoms
         try:
@@ -288,7 +316,8 @@ class KKRnanoParser(Parser):
         kmesh_caption_KKRnano="k-mesh NofKs N kx N ky N kz vol BZ"
         kmesh_caption_aiida_KKRhost=['number_of_kpts','n_kx', 'n_ky','n_kz']
 
-        table=self._read_table_block(self._find_block(lines0,kmesh_caption_KKRnano))
+        table=self._read_table_block(self._find_block(lines0,kmesh_caption_KKRnano,retrieved_folder,output0_file_handle),retrieved_folder,output0_file_handle) 
+
         kmesh_dict['number_kpoints_per_kmesh']={}
 
         #filling dictionary with retrieved data
@@ -301,7 +330,7 @@ class KKRnanoParser(Parser):
         
         # reciprocal Bravais matrix
         bravais_caption="Reciprocal lattice cell vectors"
-        table=self._read_table_block(find_block([line[:45] for line in lines0],bravais_caption)) 
+        table=self._read_table_block(self._find_block([line[:45] for line in lines0],bravais_caption,retrieved_folder,output0_file_handle),retrieved_folder,output0_file_handle) 
 
         table=np.array(table[:,1:],dtype=float)
         out0_dict['reciprocal_bravais_matrix']=table[:,:3]
@@ -309,12 +338,12 @@ class KKRnanoParser(Parser):
         
         # Bravais matrix
         bravais_caption="Direct lattice cell vectors"
-        table=self._read_table_block(find_block([line[:45] for line in lines0],bravais_caption),index_multiple_tables=0)
+        table=self._read_table_block(self._find_block([line[:45] for line in lines0],bravais_caption,retrieved_folder,output0_file_handle),retrieved_folder,output0_file_handle,index_multiple_tables=0)
 
         table=np.array(table[:,1:],dtype=float)
         out0_dict['direct_bravais_matrix']=table[:,:3]
         out0_dict['direct_bravais_matrix_unit']= 'alat'
-        """
+        #"""
         
         # read entries from the main output
 
@@ -328,9 +357,9 @@ class KKRnanoParser(Parser):
 
         out_dict={}
         for key in stringsInOutputFile:
-            out_dict[key],_=self._findSimpleEntries(stringsInOutputFile[key],output_file_handle)
+            out_dict[key],_=self._findSimpleEntries(stringsInOutputFile[key],retrieved_folder,output_file_handle)
         
-        out_dict={**out_dict,**_get_total_EnergyeV("total_energy_in_ryd")}
+        out_dict={**out_dict,**self._get_total_EnergyeV("total_energy_in_ryd",retrieved_folder,output_file_handle,stringsInOutputFile)}
         
         
         # Get charges in WS cell
@@ -340,19 +369,18 @@ class KKRnanoParser(Parser):
              "core_charge_in_e":"core charge"}
         WScell_dict={}
         for key in dict_WScell_keys:
-            WScell_dict[key]=self._get_charge_in_WScell(dict_WScell_keys[key])
+            WScell_dict[key]=self._get_charge_in_WScell(dict_WScell_keys[key],retrieved_folder,output_file_handle,out0_dict['num_atoms'])
 
         
         # Extract the l-decomposed valence charges information for all "orbitals"
         # and all iterations and add them to the dict
-        lines=self._get_lines(output_file_handle)
+        lines=self._get_lines(retrieved_folder,output_file_handle)
 
-        #Captions for the "orbitals"
-        orbitals = ["s","p","d","f"] #KKRnano does not write out orbitals beyond this
+
 
         #find block where the valence charges are indicated
         string2find="l-decomposed valence charges"
-        indexlist=np.array(self._get_index_list(string2find, output_file_handle,lines))+1
+        indexlist=np.array(self._get_index_list(string2find,retrieved_folder,output_file_handle,lines))+1
 
         #using a subdictionary to store the information
         dict_orbitals={}
@@ -360,7 +388,7 @@ class KKRnanoParser(Parser):
             #find iteration block to process
             index=indexlist[m]
             nextindex=indexlist[(m+1)%len(indexlist)]
-            if nextindex < index:
+            if nextindex <= index:
                 nextindex= -1 #use EOF as nextindex, if necessary
 
             #read in the captions of the table and convert them to a format that is easier to process
@@ -377,7 +405,14 @@ class KKRnanoParser(Parser):
             blockend = index+2+search_string("#########",lines[index+2:nextindex])
             blocklines=lines[index+3:blockend]
 
-            atomblocks= np.array(self._get_index_list("===",output_file_handle,blocklines))+index+3
+            
+            print("blocklines",blocklines)
+            print("indexlist", indexlist)
+            print("index", index)
+            print("lines", lines[:5])
+            print("blockend", blockend)
+            print("nextindex",nextindex)
+            atomblocks= np.array(self._get_index_list("===",retrieved_folder,lines=blocklines))+index+3 #retrieved folder is actually not needed, but is passed for keeping it simple
 
             if len(atomblocks)>1:
                 atomblocklength=atomblocks[1]-atomblocks[0]
