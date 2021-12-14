@@ -8,7 +8,8 @@ from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools import find_parent_structure
 from masci_tools.io.common_functions import get_Ang2aBohr
-    
+from aiida.common.exceptions import InputValidationError
+
 import numpy as np
 
 __copyright__ = (u'Copyright (c), 2021, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
@@ -29,6 +30,7 @@ class KKRnanoCalculation(CalcJob):
     _CALCULATION_PLUGIN_VERSION = __version__
     # Default input and output files
     _DEFAULT_INPUT_FILE = 'input.conf'  # will be shown with inputcat
+    _DEFAULT_NOCO_INPUT_FILE = 'nonco_angle.dat'
     _DEFAULT_OUTPUT_FILE = 'out'  #'shell output will be shown with outputcat
     _DEFAULT_OUTPUT_PREP_FILE = 'output.0.txt'
     # template.product entry point defined in setup.json
@@ -71,10 +73,11 @@ class KKRnanoCalculation(CalcJob):
       "kte": {"value":  1, "required": True,\
               "description": "1=calculate energies, -1 = total energy only, less I/O"} ,
       "rclust_voronoi": {"value":  2.00, "required": True,\
-                         "description": "radius of cluster used for Voronoi (Should be irrelevant for use with aiida)"},
+                         "description": "radius of cluster used for Voronoi (Should be irrelevant for use with aiida)"}#,
+      #"soc":{"value": True}
     }
 
-
+    
     @classmethod
     def define(cls, spec):
         """
@@ -87,10 +90,15 @@ class KKRnanoCalculation(CalcJob):
         spec.inputs['metadata']['options']['input_filename'].default = cls._DEFAULT_INPUT_FILE
         spec.inputs['metadata']['options']['output_filename'].default = cls._DEFAULT_OUTPUT_FILE
         #spec.inputs['metadata']['options']['output_prep_filename'].default = cls._DEFAULT_OUTPUT_PREP_FILE ->does not work
+        
         # define input nodes (optional ones have required=False)
         spec.input('parameters', valid_type=Dict, required=False,
                    default= lambda: Dict(dict=cls._DEFAULT_KKRNANO_PARA),
                    help='Dict node that specifies the input parameters for KKRnano (k-point density etc.)')
+        spec.input('nocoangles', valid_type=Dict, required=False, default=Dict(dict={}),
+                   help='Dict node that specifies the starting angles for non-colinear calculations\
+                   (only needed in conjunction with non-colinear calculations, i. e. KORBIT=1\
+                   (which is also necessary for SOC calculations!))' )
         spec.input(
             'parent_calc',
             valid_type=RemoteData,
@@ -114,15 +122,38 @@ class KKRnanoCalculation(CalcJob):
         :return: `aiida.common.datastructures.CalcInfo` instance
         """
         # Check inputdict
-        parameters = self.inputs.parameters
+        parameters = self.inputs.parameters.get_dict()
+        nonco_angles=self.inputs.nocoangles.get_dict()
         structure = find_parent_structure(self.inputs.parent_calc).get_pymatgen_structure()
         code = self.inputs.code
 
-        # Prepare inputcard from Structure and input parameter data
+        # Prepare rbasis.xyz and input.conf from Structure and input parameter data
         with tempfolder.open(self._DEFAULT_INPUT_FILE, u'w') as input_file_handle:
             self._write_input_file(input_file_handle, parameters, structure)
         with tempfolder.open(self._RBASIS, u'w') as rbasis_handle:
             self._write_rbasis(rbasis_handle, structure)
+            
+        # Check if non-colinear calculation mode is activated
+        noco=False
+        if "KORBIT" in parameters:
+            if parameters["KORBIT"]==1:
+                noco=True
+        if "soc" in parameters:
+            print("SOC in parameters")
+            print("NOCO0",noco)
+            if parameters["soc"]["value"]==True:
+                print("NOCO1",noco)
+                if noco==False:
+                    print("NOCO2",noco)
+                    parameters["KORBIT"]=True
+                    self.logger.warn('KORBIT was set to 1 -> SOC is implemented for the NOCO-Chebyshev solver, only! This is however not changed in the input node and might lead to inconsistencies if this feature has been added in KKRnano!')
+                    noco=True
+                    
+        print("NOCO",noco)
+        if noco:
+            with tempfolder.open(self._DEFAULT_NOCO_INPUT_FILE, u'w') as nonco_angles_handle:
+                self._write_nonco_angles(nonco_angles_handle,nonco_angles,structure)
+        
         
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()
@@ -141,7 +172,8 @@ class KKRnanoCalculation(CalcJob):
         calcinfo.codes_info = [codeinfo]
 
         return calcinfo
-
+    
+    
     def _list2string(self,list0):
         string=''
         for item in list0:
@@ -164,7 +196,12 @@ class KKRnanoCalculation(CalcJob):
         elif type(value)==np.ndarray:
             content="{} = {}".format(key,self._array2string(value))
         elif type(value)==list:
-             content="{} = {}".format(key,self._list2string(value))  
+             content="{} = {}".format(key,self._list2string(value))
+        elif type(value)==bool:
+            value2write = "f"
+            if value:
+                value2write="t"
+            content="{} = {}".format(key,value2write)
         else:
             print('WARNING: Unknown datatype of entry "{}". \
                   Assume array and proceed'.format(value))
@@ -202,14 +239,46 @@ class KKRnanoCalculation(CalcJob):
             write_list.append('bravais_{}=  {}  {}  {}\n'.format(directions[i],rbrav[i][0],rbrav[i][1],rbrav[i][2]))
         write_list.append("\ncartesian = t\n")
         #writing other parameters from parameter dict
-        params=parameters.get_dict()
+        #params=parameters.get_dict()
+        params=parameters
         for key in params:
             write_list.append(self._getParametersEntry(key,params[key]["value"]))
         
         input_file_handle.writelines(write_list)
 
         
-    
+    def _write_nonco_angles(self,nonco_angles_handle,nonco_angles,structure):
+        """
+        write nonco_angles.dat file for KKRnano
+        created from dictionary with structure dict={'atom':{1:{'theta':0,'phi':0, 'fix_angle_mode':1},...}
+        The angles 'theta' (polar angle going from z- to x-direction) and 'phi' (azimuthal angle) are given in deg.
+        'fix_angle_mode' takes values 0,1,2,3. 0 is for relaxation of the spin-direciton, 1 is for fixing it; 2 and 3
+        are for constraining fields calculations.
+        """
+        n_atoms=len(structure.atomic_numbers)
+        
+        #Create dictionary if none was given in the input
+        if nonco_angles=={}:
+            nonco_angles={'atom':{}}
+            for i in range(n_atoms):
+                nonco_angles['atom'][i+1]={'theta': 0.0, 'phi': 0.0, 'fix_angle_mode': 1}
+        print(n_atoms)
+        print(nonco_angles)
+        print(len(nonco_angles['atom'].keys()))
+        if n_atoms != len(nonco_angles['atom'].keys()):
+            raise InputValidationError("The number of atoms in the structure must\
+            match the number of atoms specified for the non-colinear angles.")
+        
+        write_list=[]
+        for key in nonco_angles['atom']:
+            write_list.append("{} {} {}\n".format(nonco_angles['atom'][key]['theta'],\
+                                                  nonco_angles['atom'][key]['phi'],\
+                                                  nonco_angles['atom'][key]['fix_angle_mode']))
+        print(write_list)                                         
+        nonco_angles_handle.writelines(write_list)
+        
+                              
+                              
     def _write_rbasis(self, rbasis_handle, structure):
         """write the rbasis.xyz file for KKRnano"""
         #PSE element symbols 

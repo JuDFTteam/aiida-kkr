@@ -406,12 +406,13 @@ class KKRnanoParser(Parser):
             blocklines=lines[index+3:blockend]
 
             
-            print("blocklines",blocklines)
-            print("indexlist", indexlist)
-            print("index", index)
-            print("lines", lines[:5])
-            print("blockend", blockend)
-            print("nextindex",nextindex)
+#             print("blocklines",blocklines)
+#             print("indexlist", indexlist)
+#             print("index", index)
+#             print("lines", lines[:5])
+#             print("blockend", blockend)
+#             print("nextindex",nextindex)
+            
             atomblocks= np.array(self._get_index_list("===",retrieved_folder,lines=blocklines))+index+3 #retrieved folder is actually not needed, but is passed for keeping it simple
 
             if len(atomblocks)>1:
