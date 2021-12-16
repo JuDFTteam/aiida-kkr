@@ -95,7 +95,7 @@ class KKRnanoCalculation(CalcJob):
         spec.input('parameters', valid_type=Dict, required=False,
                    default= lambda: Dict(dict=cls._DEFAULT_KKRNANO_PARA),
                    help='Dict node that specifies the input parameters for KKRnano (k-point density etc.)')
-        spec.input('nocoangles', valid_type=Dict, required=False, default=Dict(dict={}),
+        spec.input('nocoangles', valid_type=Dict, required=False, default= lambda: Dict(dict={}),
                    help='Dict node that specifies the starting angles for non-colinear calculations\
                    (only needed in conjunction with non-colinear calculations, i. e. KORBIT=1\
                    (which is also necessary for SOC calculations!))' )
@@ -160,8 +160,16 @@ class KKRnanoCalculation(CalcJob):
         calcinfo.uuid = self.uuid
         calcinfo.local_copy_list = self._get_local_copy_list(self.inputs.parent_calc)
         calcinfo.remote_copy_list = []
-        calcinfo.retrieve_list = ["output.0.txt","out"] #self._DEFAULT_OUTPUT_PREP_FILE,
-                                 #self._DEFAULT_OUTPUT_FILE]#["output.0.txt"]
+        calcinfo.retrieve_list = [self._DEFAULT_OUTPUT_PREP_FILE,
+                                 self._DEFAULT_OUTPUT_FILE,
+                                    "bin.vpotnew", 
+                                    "bin.vpotnew.idx",
+                                    "bin.meshes", 
+                                    "bin.meshes.idx", 
+                                    "bin.energy_mesh", 
+                                    "bin.atoms", 
+                                    "nonco_angle_out.dat" ] #self._DEFAULT_OUTPUT_PREP_FILE,
+                                 #self._DEFAULT_OUTPUT_FILE]#["output.0.txt","out"]
             # TODO fill retrieve list with binary output file
      
 
@@ -197,10 +205,11 @@ class KKRnanoCalculation(CalcJob):
             content="{} = {}".format(key,self._array2string(value))
         elif type(value)==list:
              content="{} = {}".format(key,self._list2string(value))
-        elif type(value)==bool:
+        elif type(value) is bool:
             value2write = "f"
             if value:
                 value2write="t"
+            self.logger.info("TEST123")
             content="{} = {}".format(key,value2write)
         else:
             print('WARNING: Unknown datatype of entry "{}". \
@@ -211,7 +220,7 @@ class KKRnanoCalculation(CalcJob):
                 print("{} = {}".format(key,self._array2string(value)))
                 return content
             except:
-                print('ERROR: Datatype cannot be used as array!')
+                self.logger.error('ERROR: Datatype cannot be used as array!')
         content=content+"\n"
         return content
 
@@ -241,8 +250,12 @@ class KKRnanoCalculation(CalcJob):
         #writing other parameters from parameter dict
         #params=parameters.get_dict()
         params=parameters
+        
         for key in params:
             write_list.append(self._getParametersEntry(key,params[key]["value"]))
+        
+        write_list.append("# CHANGED SCRIPT")
+        
         
         input_file_handle.writelines(write_list)
 
