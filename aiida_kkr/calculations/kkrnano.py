@@ -3,7 +3,7 @@
 Input plug-in for a KKRnano calculation.
 """
 from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode, Dict, RemoteData
+from aiida.orm import CalcJobNode, Dict, RemoteData, StructureData
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools import find_parent_structure
@@ -30,6 +30,7 @@ class KKRnanoCalculation(CalcJob):
     _CALCULATION_PLUGIN_VERSION = __version__
     # Default input and output files
     _DEFAULT_INPUT_FILE = 'input.conf'  # will be shown with inputcat
+    _DEFAULT_EFERMI_FILE = 'EFERMI'
     _DEFAULT_NOCO_INPUT_FILE = 'nonco_angle.dat'
     _DEFAULT_OUTPUT_FILE = 'out'  #'shell output will be shown with outputcat
     _DEFAULT_OUTPUT_PREP_FILE = 'output.0.txt'
@@ -41,6 +42,10 @@ class KKRnanoCalculation(CalcJob):
     _OUT_POTENTIAL = 'out_potential'
     _RBASIS = 'rbasis.xyz'
 
+    
+    
+
+    
     _DEFAULT_KKRNANO_PARA = {
       "bzdivide": {"value": [10,10,10],"required": True,"description": "number of k-points in each direction"},
       "emin": {"value": -1.2, "unit":"Rydberg", "required": True, "description":  "lower energy of contour"},
@@ -100,12 +105,13 @@ class KKRnanoCalculation(CalcJob):
                    (only needed in conjunction with non-colinear calculations, i. e. KORBIT=1\
                    (which is also necessary for SOC calculations!))' )
         spec.input(
-            'parent_calc',
+            'parent_folder',
             valid_type=RemoteData,
             required=True,
             help='Use a node that specifies a parent KKRnano or voronoi calculation'
         )
-
+        
+        #spec.input('structure', valid_type=StructureData, required=False, default:)
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the calculation')
         spec.default_output_node = 'output_parameters'
@@ -121,18 +127,42 @@ class KKRnanoCalculation(CalcJob):
         :param tempfolder: an `aiida.common.folders.Folder` to temporarily write files on disk
         :return: `aiida.common.datastructures.CalcInfo` instance
         """
-        # Check inputdict
+        #prepare inputs
         parameters = self.inputs.parameters.get_dict()
         nonco_angles=self.inputs.nocoangles.get_dict()
-        structure = find_parent_structure(self.inputs.parent_calc).get_pymatgen_structure()
+        parent_calc=self.inputs.parent_folder#.get_incoming(node_class=CalcJobNode).first().node
+        parent_calc_calc_node=parent_calc.get_incoming(node_class=CalcJobNode).first().node
+        structure = find_parent_structure(parent_calc_calc_node).get_pymatgen_structure()
+        parent_outfolder = parent_calc_calc_node.outputs.retrieved
         code = self.inputs.code
+        
+        
+        
+        
+        
+        # Local copy list for continuing KKRnano calculations
+        # if necessary, change some names in order to start from a preconverged calculation
+        # (cf. jukkr/source/KKRnano/scripts/prepare.sh)
+        local_copy_list_for_continued=[(parent_outfolder.uuid,"bin.vpotnew", "bin.vpotnew.0"),
+                           (parent_outfolder.uuid,"bin.vpotnew.idx", "bin.vpotnew.0.idx"),
+                           (parent_outfolder.uuid,"bin.meshes","bin.meshes.0"  ),
+                           (parent_outfolder.uuid,"bin.meshes.idx","bin.meshes.0.idx" ),
+                           (parent_outfolder.uuid,"bin.energy_mesh","bin.energy_mesh.0" ),
+                           (parent_outfolder.uuid,"bin.atoms","bin.atoms")]#,
+                           #(parent_outfolder.uuid,"nonco_angle_out.dat","bin.atoms"  )]
+        #TODO: Parse noco_angle_out.dat and write a new file from that
+        
+        # Check inputdict
+        self._check_input_dict(parameters)
+        #Check if parent is a KKRnano calculation
+        write_efermi=False
+        self._check_valid_parent(parent_outfolder)
+        
+        
+        if parent_calc_calc_node.process_label=='KKRnanoCalculation':
+            fermi=parent_calc_calc_node.outputs.output_parameters.get_dict()['fermi_energy_in_ryd'][-1]
+            write_efermi=True
 
-        # Prepare rbasis.xyz and input.conf from Structure and input parameter data
-        with tempfolder.open(self._DEFAULT_INPUT_FILE, u'w') as input_file_handle:
-            self._write_input_file(input_file_handle, parameters, structure)
-        with tempfolder.open(self._RBASIS, u'w') as rbasis_handle:
-            self._write_rbasis(rbasis_handle, structure)
-            
         # Check if non-colinear calculation mode is activated
         noco=False
         if "KORBIT" in parameters:
@@ -148,29 +178,35 @@ class KKRnanoCalculation(CalcJob):
                     parameters["KORBIT"]=True
                     self.logger.warn('KORBIT was set to 1 -> SOC is implemented for the NOCO-Chebyshev solver, only! This is however not changed in the input node and might lead to inconsistencies if this feature has been added in KKRnano!')
                     noco=True
-                    
+        
+        
         print("NOCO",noco)
         if noco:
             with tempfolder.open(self._DEFAULT_NOCO_INPUT_FILE, u'w') as nonco_angles_handle:
                 self._write_nonco_angles(nonco_angles_handle,nonco_angles,structure)
         
         
+        # Prepare rbasis.xyz and input.conf from Structure and input parameter data
+        with tempfolder.open(self._DEFAULT_INPUT_FILE, u'w') as input_file_handle:
+            self._write_input_file(input_file_handle, parameters, structure)
+        with tempfolder.open(self._RBASIS, u'w') as rbasis_handle:
+            self._write_rbasis(rbasis_handle, structure)
+        if write_efermi:
+            with tempfolder.open(self._DEFAULT_EFERMI_FILE, u'w') as efermi_file_handle:
+                self._write_efermi_file(efermi_file_handle, fermi)
+            
+        
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()
         calcinfo.uuid = self.uuid
-        calcinfo.local_copy_list = self._get_local_copy_list(self.inputs.parent_calc)
+        calcinfo.local_copy_list= self._get_local_copy_list(parent_calc,local_copy_list_for_continued)
         calcinfo.remote_copy_list = []
         calcinfo.retrieve_list = [self._DEFAULT_OUTPUT_PREP_FILE,
-                                 self._DEFAULT_OUTPUT_FILE,
-                                    "bin.vpotnew", 
-                                    "bin.vpotnew.idx",
-                                    "bin.meshes", 
-                                    "bin.meshes.idx", 
-                                    "bin.energy_mesh", 
-                                    "bin.atoms", 
-                                    "nonco_angle_out.dat" ] #self._DEFAULT_OUTPUT_PREP_FILE,
-                                 #self._DEFAULT_OUTPUT_FILE]#["output.0.txt","out"]
-            # TODO fill retrieve list with binary output file
+                                 self._DEFAULT_OUTPUT_FILE]
+        
+        #add the binary files that are necessary to restart a calculation to the retrieved list
+        for j in range(len(local_copy_list_for_continued)):
+               calcinfo.retrieve_list.append(local_copy_list_for_continued[j][1])
      
 
         codeinfo = CodeInfo()
@@ -270,6 +306,7 @@ class KKRnanoCalculation(CalcJob):
         """
         n_atoms=len(structure.atomic_numbers)
         
+        #TODO: Adapt to KKRhost style
         #Create dictionary if none was given in the input
         if nonco_angles=={}:
             nonco_angles={'atom':{}}
@@ -323,8 +360,11 @@ class KKRnanoCalculation(CalcJob):
         
         rbasis_handle.writelines(write_list)
         
-
-    def _get_local_copy_list(self, parent_calc_remote):
+    def _write_efermi_file(self,efermi_handle, efermi):
+        """ write file EFERMI necessary to restart a calculation. """
+        efermi_handle.writelines([str(efermi)])
+                                 
+    def _get_local_copy_list(self, parent_calc_remote,local_copy_list_for_continued):
         """find files to copy from the parent_folder's retrieved to the iniput of a KKRnano calculation"""
 
         parent_calc = parent_calc_remote.get_incoming(node_class=CalcJobNode).first().node
@@ -338,10 +378,8 @@ class KKRnanoCalculation(CalcJob):
             # copy shapefun from voronoi output
             local_copy_list += [(retrieved.uuid, parent_calc.process_class._SHAPEFUN, self._SHAPEFUN)]
 
-        else:  #if parent_calc.process_class == KkrImporterCalculation:
-            #TODO add functionality to start from KKRnano parent
-            raise NotImplementedError('starting from KKRnano parent not implemented yet.') 
-
+        elif parent_calc.process_label=='KKRnanoCalculation':
+            local_copy_list=local_copy_list_for_continued
         return local_copy_list
 
 
@@ -350,7 +388,6 @@ class KKRnanoCalculation(CalcJob):
         Check that calc is a valid parent for a KKRnano.
         It can be a VoronoiCalculation, KKRnanoCalculation
         """
-        overwrite_pot = False
 
         # extract parent calculation
         parent_calcs = parent_calc_folder.get_incoming(node_class=CalcJobNode)
@@ -365,11 +402,41 @@ class KKRnanoCalculation(CalcJob):
             parent_calc = parent_calcs.first().node
             overwrite_pot = True
 
-        if ((not self._is_KkrnanoCalc(parent_calc))):
-            raise ValueError('Parent calculation must be a KkrCalculation')
-
-        return overwrite_pot, parent_calc
-
+#         if ((not self._is_KkrnanoCalc(parent_calc))):
+#             raise ValueError('Parent calculation must be a KkrCalculation.')
+        if (not parent_calc.process_label=='KKRnanoCalculation')\
+    and (not parent_calc.process_label=='VoronoiCalculation'):
+            raise ValueError("Parent Calculation has to be another KKRnano or a Voronoi calculation.")
+    
+    def _check_input_dict(self,inputdict):
+        """ checks if all essential keys are contained in the inputdict and if it has the right format """
+        #Check if all essential keys are present
+        all_present=True
+        missing_keys=[]
+        for key in self._DEFAULT_KKRNANO_PARA:
+            if not key in inputdict:
+                all_present=False
+                missing_keys.append(key)
+        if not all_present:
+            raise InputValidationError('Not all essential keys were given in the input dictionary. \
+            At least the following keys are missing: \
+            {}'.format(missing_keys))
+        #Check for format
+        keys_in_wrong_format=[]
+        correct_format=True
+        for key in inputdict:
+            try:
+                if not "value" in inputdict[key]:
+                    correct_format=False
+                    keys_in_wrong_format.append(key)
+            except:
+                    correct_format=False
+                    keys_in_wrong_format.append(key)
+        if not correct_format:
+            raise InputValidationError('Some keys were provided in an incorrect format. Dict entries must have entry `value`\
+(see e. g. KKRnano-Plugin/aiida-kkr/aiida_kkr/calculations/kkrnano.py). At least the following keys are in an incorrect format: \
+{}'.format(keys_in_wrong_format))    
+                
     def _is_KkrnanoCalc(self, calc):
         """
         check if calc contains the file out_potential
@@ -377,7 +444,7 @@ class KKRnanoCalculation(CalcJob):
         is_KKR = False
         if calc.process_type == 'aiida.calculations:kkr.kkrnano':
             retrieved_node = calc.get_retrieved_node()
-            if 'out_potential' in retrieved_node.list_object_names():
+            if True:#'out_potential' in retrieved_node.list_object_names():
                 is_KKR = True
 
         return is_KKR
