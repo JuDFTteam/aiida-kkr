@@ -10,8 +10,9 @@ Created on Mon Dec 13 14:38:59 2021
 
 from __future__ import absolute_import
 from aiida.parsers.parser import Parser
-from aiida.orm import Dict
+from aiida.orm import Dict, CalcJobNode
 from aiida_kkr.calculations.kkrnano import KKRnanoCalculation
+from aiida_kkr.tools import find_parent_structure
 from masci_tools.io.common_functions import (search_string,open_general)
 import numpy as np
 from io import StringIO
@@ -240,7 +241,77 @@ class KKRnanoParser(Parser):
                 except:
                     pass
         return sub_dictionary
+    
+    def _identifyBlocks(self,lines):
+        """identify the DOS blocks in the respective output files"""
+        blockstartlist=[-1]
+        index=0
+        for line in lines:
 
+            block_pos=line.find('&') #find blocks in DOS file
+            if block_pos >= 0:
+                blockstartlist.append(index)
+            index+=1
+        blockstartlist.append(len(lines)) #add EOF line index
+
+        #print(blockstartlist)
+        return blockstartlist
+    
+    def _get_commentlessLineIndices(self,lines):
+        nonemptylines=[] #index list
+        index=0
+        for line in lines:
+            com_pos=line.find('#') #comment sign position
+
+            if com_pos<0:
+                nonemptylines.append(index)
+            index+=1
+        return nonemptylines
+
+    def _process_DOS_file(self,retrieved_folder, filename):
+        """reading in DOS file output from KKRnano"""
+        data=np.array(self._get_lines(retrieved_folder, filename))
+        element=data[0][1:3]
+        
+
+        blocklist=self._identifyBlocks(data)
+        dict_dos={}
+        multipleSpins=False
+        if len(blocklist) >1:
+            multipleSpins=True
+            dict_dos["spin_directions"]=2
+            first_spin=data[0].split(sep="SPIN")[1].split(sep=" ")[1]
+            if first_spin=="DOWN":
+                spin_list=["spin_down","spin_up"]
+            elif first_spin=="UP":
+                spin_list=["spin_up","spin_down"]
+            else:
+                dict_dos["spin_directions"]=1
+        #DOS_blocks=[]
+        
+        
+        DOS_captions=["energy_in_ryd", "s", "p", "d", "f", "non-spherical", "total_DOS"]
+        for i in range(len(blocklist)-1):
+            datablockindices=np.array(self._get_commentlessLineIndices( \
+                    data[blocklist[i]+1:blocklist[i+1]-1]))+blocklist[i]+1
+            datablockcontent=self._stringFromList(data[datablockindices])
+            #print(datablockcontent)
+            DOS_block=np.genfromtxt(StringIO(datablockcontent))
+            
+            block_dict={}
+            final_DOS_captions=DOS_captions[:np.shape(DOS_block)[1]-2]
+            final_DOS_captions.append(DOS_captions[-2])
+            final_DOS_captions.append(DOS_captions[-1])
+        
+            for p in range(np.shape(DOS_block)[1]):
+                block_dict[final_DOS_captions[p]]=DOS_block[:,p]
+                           
+            if multipleSpins:
+                dict_dos[spin_list[i]]=block_dict
+            else:
+                dict_dos=block_dict
+            #DOS_blocks.append(DOS_block)
+        return element, dict_dos #DOS_blocks
 
 
     def parse(self, debug=False, **kwargs):
@@ -263,7 +334,17 @@ class KKRnanoParser(Parser):
             print("OUT FOLDER NOT FOUND")
             return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
         
-
+        
+        
+        # check what is inside the folder
+        list_of_files = retrieved_folder._repository.list_object_names()
+        
+        
+        
+        
+        
+        calc_node=retrieved_folder.get_incoming(node_class=CalcJobNode).first().node
+        struc=find_parent_structure(calc_node)
         
 
         output0_file_handle=KKRnanoCalculation._DEFAULT_OUTPUT_PREP_FILE
@@ -321,12 +402,14 @@ class KKRnanoParser(Parser):
         kmesh_dict['number_kpoints_per_kmesh']={}
 
         #filling dictionary with retrieved data
-        for keyindex in range(len(kmesh_caption_aiida_KKRhost)):
-            key=kmesh_caption_aiida_KKRhost[keyindex]
-            kmesh_dict['number_kpoints_per_kmesh'][key]=np.array(table[:,1+keyindex], dtype=int)
+        try:
+            for keyindex in range(len(kmesh_caption_aiida_KKRhost)):
+                key=kmesh_caption_aiida_KKRhost[keyindex]
+                kmesh_dict['number_kpoints_per_kmesh'][key]=np.array(table[:,1+keyindex], dtype=int)
 
-        out0_dict['kmesh_group']= kmesh_dict
-        
+            out0_dict['kmesh_group']= kmesh_dict
+        except:
+            print("Number of different k-meshes was not read due to unusal format.")
         
         # reciprocal Bravais matrix
         bravais_caption="Reciprocal lattice cell vectors"
@@ -430,6 +513,27 @@ class KKRnanoParser(Parser):
             #add the atom dic-tionary to the one for the iterations
             dict_orbitals[m+1]=dict_atoms
 
+            
+        # identify DOS-files
+        list_of_DOS_files=[]
+        for file in list_of_files:
+            if file.find("DOS")>-1:
+                list_of_DOS_files.append(file)
+        
+        #process DOS files if necessary
+        out_dict_dos={}
+        if len(list_of_DOS_files)>0:
+            for file_index in range(len(list_of_DOS_files)):
+                file=list_of_DOS_files[file_index]
+            
+                element,DOSblocks=self._process_DOS_file(retrieved_folder,file)
+                atomname="atom {}".format(file_index + 1)
+                out_dict_dos[atomname] = DOSblocks
+                out_dict_dos[atomname]["element"] = element
+                
+            out_dict_final["DOS"]=out_dict_dos
+            
+            
         dict_orbitals={"iterations":dict_orbitals}
         
         out_dict_final["prepare"]=out0_dict

@@ -3,7 +3,7 @@
 Input plug-in for a KKRnano calculation.
 """
 from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode, Dict, RemoteData, StructureData
+from aiida.orm import CalcJobNode, Dict, Bool, RemoteData, StructureData
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools import find_parent_structure
@@ -34,6 +34,7 @@ class KKRnanoCalculation(CalcJob):
     _DEFAULT_NOCO_INPUT_FILE = 'nonco_angle.dat'
     _DEFAULT_OUTPUT_FILE = 'out'  #'shell output will be shown with outputcat
     _DEFAULT_OUTPUT_PREP_FILE = 'output.0.txt'
+    _DEFAULT_NOCO_OUTPUT_FILE = 'nonco_angle_out.dat'
     # template.product entry point defined in setup.json
     _DEFAULT_PARSER = 'kkr.kkrnanoparser'
     # File names
@@ -111,6 +112,9 @@ class KKRnanoCalculation(CalcJob):
             help='Use a node that specifies a parent KKRnano or voronoi calculation'
         )
         
+        spec.input('convert', valid_type=Bool, required=False, default=lambda: Bool(False),
+                  help='Activate to use together with set up convert code in order to retrieve potential files.')
+        
         #spec.input('structure', valid_type=StructureData, required=False, default:)
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the calculation')
@@ -135,11 +139,7 @@ class KKRnanoCalculation(CalcJob):
         structure = find_parent_structure(parent_calc_calc_node).get_pymatgen_structure()
         parent_outfolder = parent_calc_calc_node.outputs.retrieved
         code = self.inputs.code
-        
-        
-        
-        
-        
+
         # Local copy list for continuing KKRnano calculations
         # if necessary, change some names in order to start from a preconverged calculation
         # (cf. jukkr/source/KKRnano/scripts/prepare.sh)
@@ -148,9 +148,29 @@ class KKRnanoCalculation(CalcJob):
                            (parent_outfolder.uuid,"bin.meshes","bin.meshes.0"  ),
                            (parent_outfolder.uuid,"bin.meshes.idx","bin.meshes.0.idx" ),
                            (parent_outfolder.uuid,"bin.energy_mesh","bin.energy_mesh.0" ),
-                           (parent_outfolder.uuid,"bin.atoms","bin.atoms")]#,
+                           (parent_outfolder.uuid,"bin.atoms","bin.atoms")]
+  
+        
                            #(parent_outfolder.uuid,"nonco_angle_out.dat","bin.atoms"  )]
         #TODO: Parse noco_angle_out.dat and write a new file from that
+        
+        
+        #Check if convert mode has been activated
+        convert=self.inputs.convert.value
+        if convert:
+            if not parent_calc_calc_node.process_label=='KKRnanoCalculation':
+                raise InputValidationError("A convert process can only be started from a KKRnano calculation. Check also that convert code is used!")
+            
+            #mark files from previous calc as such
+            local_copy_list_for_continued=[(parent_outfolder.uuid,"bin.vpotnew", "bin.vpotnew"),
+                   (parent_outfolder.uuid,"bin.vpotnew.idx", "bin.vpotnew.idx"),
+                   (parent_outfolder.uuid,"bin.meshes","bin.meshes"  ),
+                   (parent_outfolder.uuid,"bin.meshes.idx","bin.meshes.idx" ),
+                   (parent_outfolder.uuid,"bin.energy_mesh","bin.energy_mesh" ),
+                   (parent_outfolder.uuid,"bin.atoms","bin.atoms"),
+                   (parent_outfolder.uuid,self._DEFAULT_OUTPUT_PREP_FILE,self._DEFAULT_OUTPUT_PREP_FILE),
+                   (parent_outfolder.uuid,self._DEFAULT_OUTPUT_FILE,self._DEFAULT_OUTPUT_FILE)]
+
         
         # Check inputdict
         self._check_input_dict(parameters)
@@ -166,7 +186,7 @@ class KKRnanoCalculation(CalcJob):
         # Check if non-colinear calculation mode is activated
         noco=False
         if "KORBIT" in parameters:
-            if parameters["KORBIT"]==1:
+            if parameters["KORBIT"]['value']==1:
                 noco=True
         if "soc" in parameters:
             print("SOC in parameters")
@@ -175,7 +195,7 @@ class KKRnanoCalculation(CalcJob):
                 print("NOCO1",noco)
                 if noco==False:
                     print("NOCO2",noco)
-                    parameters["KORBIT"]=True
+                    parameters["KORBIT"]['value']=True
                     self.logger.warn('KORBIT was set to 1 -> SOC is implemented for the NOCO-Chebyshev solver, only! This is however not changed in the input node and might lead to inconsistencies if this feature has been added in KKRnano!')
                     noco=True
         
@@ -202,7 +222,11 @@ class KKRnanoCalculation(CalcJob):
         calcinfo.local_copy_list= self._get_local_copy_list(parent_calc,local_copy_list_for_continued)
         calcinfo.remote_copy_list = []
         calcinfo.retrieve_list = [self._DEFAULT_OUTPUT_PREP_FILE,
-                                 self._DEFAULT_OUTPUT_FILE]
+                                 self._DEFAULT_OUTPUT_FILE,
+                                 self._DEFAULT_NOCO_OUTPUT_FILE,
+                                 "vpot*","DOS*"]
+        
+    #TODO: Add fancy functionality to start from potential files "built" from vpot-files 
         
         #add the binary files that are necessary to restart a calculation to the retrieved list
         for j in range(len(local_copy_list_for_continued)):
@@ -210,7 +234,10 @@ class KKRnanoCalculation(CalcJob):
      
 
         codeinfo = CodeInfo()
-        codeinfo.cmdline_params = []
+        if convert:
+            codeinfo.cmdline_params = ['--convert']
+        else:
+            codeinfo.cmdline_params = []
         codeinfo.stdout_name = self._DEFAULT_OUTPUT_FILE
         codeinfo.code_uuid = code.uuid
         calcinfo.codes_info = [codeinfo]
