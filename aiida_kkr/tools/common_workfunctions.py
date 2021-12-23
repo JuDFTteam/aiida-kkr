@@ -561,15 +561,15 @@ def generate_inputcard_from_structure(
     charges = array(charges)
     positions = array(positions)
 
-    # workaround for voronoi calculation with Zatom=83 (Bi potential not there!)
-    if isvoronoi:
-        from numpy import where
-        mask_replace_Bi_Pb = where(charges == 83)
-        if len(mask_replace_Bi_Pb[0]) > 0:
-            charges[mask_replace_Bi_Pb] = 82
-            wmess = 'Bi potential not available, using Pb instead!!!'
-            print(f'WARNING: {wmess}')
-            warnings.append(wmess)
+    # workaround for voronoi calculation with Zatom=83 (Bi potential not there!) -> is there now!
+    #if isvoronoi:
+        #from numpy import where
+        #mask_replace_Bi_Pb = where(charges == 83)
+        #if len(mask_replace_Bi_Pb[0]) > 0:
+            #charges[mask_replace_Bi_Pb] = 82
+            #wmess = 'Bi potential not available, using Pb instead!!!'
+            #print(f'WARNING: {wmess}')
+            #warnings.append(wmess)
 
     ######################################
     # Prepare keywords for kkr from input structure

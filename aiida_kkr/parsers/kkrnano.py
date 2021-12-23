@@ -346,7 +346,7 @@ class KKRnanoParser(Parser):
         calc_node=retrieved_folder.get_incoming(node_class=CalcJobNode).first().node
         struc=find_parent_structure(calc_node)
         
-
+        #Also for the convert step, these are the files that are supposed to be parsed
         output0_file_handle=KKRnanoCalculation._DEFAULT_OUTPUT_PREP_FILE
         output_file_handle=KKRnanoCalculation._DEFAULT_OUTPUT_FILE
         

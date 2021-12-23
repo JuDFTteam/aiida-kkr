@@ -33,6 +33,7 @@ class KKRnanoCalculation(CalcJob):
     _DEFAULT_EFERMI_FILE = 'EFERMI'
     _DEFAULT_NOCO_INPUT_FILE = 'nonco_angle.dat'
     _DEFAULT_OUTPUT_FILE = 'out'  #'shell output will be shown with outputcat
+    _CONVERT_OUTPUT_FILE = 'convert_out'
     _DEFAULT_OUTPUT_PREP_FILE = 'output.0.txt'
     _DEFAULT_NOCO_OUTPUT_FILE = 'nonco_angle_out.dat'
     # template.product entry point defined in setup.json
@@ -168,6 +169,7 @@ class KKRnanoCalculation(CalcJob):
                    (parent_outfolder.uuid,"bin.meshes.idx","bin.meshes.idx" ),
                    (parent_outfolder.uuid,"bin.energy_mesh","bin.energy_mesh" ),
                    (parent_outfolder.uuid,"bin.atoms","bin.atoms"),
+                   (parent_outfolder.uuid,"bin.dims","bin.dims"),
                    (parent_outfolder.uuid,self._DEFAULT_OUTPUT_PREP_FILE,self._DEFAULT_OUTPUT_PREP_FILE),
                    (parent_outfolder.uuid,self._DEFAULT_OUTPUT_FILE,self._DEFAULT_OUTPUT_FILE)]
 
@@ -224,8 +226,10 @@ class KKRnanoCalculation(CalcJob):
         calcinfo.retrieve_list = [self._DEFAULT_OUTPUT_PREP_FILE,
                                  self._DEFAULT_OUTPUT_FILE,
                                  self._DEFAULT_NOCO_OUTPUT_FILE,
+                                 "bin.dims",
+                                 self._CONVERT_OUTPUT_FILE,
                                  "vpot*","DOS*"]
-        
+    # bin.dims is added here, as this should be retrieved for generating vpot-files (negligable in size anyway)
     #TODO: Add fancy functionality to start from potential files "built" from vpot-files 
         
         #add the binary files that are necessary to restart a calculation to the retrieved list
@@ -236,9 +240,10 @@ class KKRnanoCalculation(CalcJob):
         codeinfo = CodeInfo()
         if convert:
             codeinfo.cmdline_params = ['--convert']
+            codeinfo.stdout_name = self._CONVERT_OUTPUT_FILE
         else:
             codeinfo.cmdline_params = []
-        codeinfo.stdout_name = self._DEFAULT_OUTPUT_FILE
+            codeinfo.stdout_name = self._DEFAULT_OUTPUT_FILE
         codeinfo.code_uuid = code.uuid
         calcinfo.codes_info = [codeinfo]
 
