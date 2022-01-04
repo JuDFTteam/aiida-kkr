@@ -153,9 +153,8 @@ class KKRnanoParser(Parser):
     def _get_total_EnergyeV(self,key,retrieved_folder,output_file_handle,stringsInOutputFile):
         return_dict={}
         _,indexlist=self._findSimpleEntries(stringsInOutputFile[key],retrieved_folder,output_file_handle)
-        #print(indexlist)
         #print(findSimpleEntries("eV  :",output_file_handle,retrieved_folder) np.array(indexlist)+1))
-        return_dict["total_energy_in_eV"],_=self._findSimpleEntries("eV  :",retrieved_folder,output_file_handle, np.array(indexlist)+1)
+        return_dict["total_energy_in_eV"],_=self._findSimpleEntries("eV  :", retrieved_folder,output_file_handle, np.array(indexlist)+1)
         return return_dict
 
 

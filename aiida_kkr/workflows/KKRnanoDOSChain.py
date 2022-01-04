@@ -27,7 +27,6 @@ class KKRnanoDOSChain(WorkChain):
                                    {"imix": {"value":  6}, 
                                   "mixing": {"value":  0.01},
                                    'target_rms': {"value": 1e-08},
-                                   "npol": {"value":  0.01},
                                      'emin': {'value': -0.35},
                                      'emax': {'value': 0.35},
                                      'npnt1': {'value': 0},
@@ -39,8 +38,8 @@ class KKRnanoDOSChain(WorkChain):
         
         
         
-    _OPTIONS_DEFAULT = {'queue_name' : 'viti',                         # Queue name to submit jobs too
-                'resources': {"num_machines": 1,'tot_num_mpiprocs': 1},          # resources to allowcate for the job
+    _OPTIONS_DEFAULT = {'queue_name' : 'viti', #'th1-2020-32',                         # Queue name to submit jobs too
+                'resources': {"num_machines": 3,'tot_num_mpiprocs': 15},          # resources to allowcate for the job
                 'withmpi' : True,                          # execute KKR with mpi or without
                 'custom_scheduler_commands' : ''           # some additional scheduler commands
                 }
@@ -53,9 +52,7 @@ class KKRnanoDOSChain(WorkChain):
         strparams=self.inputs.wf_parameters.get_dict()['coarse_mixing']
         parent_folder=self.inputs.parent_folder
 
-        #preparing the approptiate parameters
-        params["soc"]={"value":0}
-        params["KORBIT"]={"value":0}  
+
         for key in strparams:
             params[key]=strparams[key]
 #             params['mixing']=strparams["mixing"]
@@ -64,7 +61,10 @@ class KKRnanoDOSChain(WorkChain):
 #             params["scfsteps"]=strparams["scfsteps"]
 
         #KKRnanoCalculation._check_input_dict(load_node('58f35be4-3ddc-4b24-947b-c3ddbb8959ac'),params)
-
+        
+        #preparing the approptiate parameters
+        params["soc"]={"value":0}
+        params["KORBIT"]={"value":0}  
 
         builder = KKRnanoCalculation.get_builder()
 
@@ -90,12 +90,13 @@ class KKRnanoDOSChain(WorkChain):
         colparams=self.inputs.wf_parameters.get_dict()['colinear']
         parent_folder=self.ctx.str_result.outputs.remote_folder
 
+
+        for key in colparams:
+            params[key]=colparams[key]
+        
         #preparing the approptiate parameters
         params["soc"]={"value":0}
         params["KORBIT"]={"value":0}  
-        for key in colparams:
-            params[key]=colparams[key]
-
 
         #KKRnanoCalculation._check_input_dict(load_node('58f35be4-3ddc-4b24-947b-c3ddbb8959ac'),params)
 
@@ -122,12 +123,13 @@ class KKRnanoDOSChain(WorkChain):
         socparams=self.inputs.wf_parameters.get_dict()['SOC']
         parent_folder=self.ctx.col_result.outputs.remote_folder
 
-        #preparing the approptiate parameters
-        params["soc"]={"value":1}
-        params["KORBIT"]={"value":1}  
+ 
         for key in socparams:
             params[key]=socparams[key]
-
+        
+        #preparing the approptiate parameters
+        params["soc"]={"value":1}
+        params["KORBIT"]={"value":1} 
 
         #KKRnanoCalculation._check_input_dict(load_node('58f35be4-3ddc-4b24-947b-c3ddbb8959ac'),params)
 
@@ -156,16 +158,17 @@ class KKRnanoDOSChain(WorkChain):
         dosparams=self.inputs.wf_parameters.get_dict()['DOS']
         parent_folder=self.ctx.soc_result.outputs.remote_folder
 
+
+        
+        for key in dosparams:
+            params[key]=dosparams[key]
+
         #preparing the approptiate parameters
         params["soc"]={"value":1}
         params["KORBIT"]={"value":1}
         params["scfsteps"]={"value":  1}
         params["npol"]={"value":  0}
         
-        for key in dosparams:
-            params[key]=dosparams[key]
-
-
         #KKRnanoCalculation._check_input_dict(load_node('58f35be4-3ddc-4b24-947b-c3ddbb8959ac'),params)
 
 
@@ -185,12 +188,20 @@ class KKRnanoDOSChain(WorkChain):
         
         return ToContext(dos_result=dos_calc)  
     
+    
+    #@calcfunction
+    #def create_output_node(outself):
+        
     def prepare_output(self):
-        output_dictionary=self.ctx.soc_result.outputs.output_parameters
-        self.out('result', output_dictionary)
+#         output_dictionary=self.ctx.soc_result.outputs.output_parameters.get_dict()
+#         if self.inputs.calculate_DOS.value:
+#             dos_dict=self.ctx.dos_result.outputs.output_parameters.get_dict()['DOS']
+#             output_dictionary['DOS']=dos_dict
+#         self.out('result', Dict(dict=output_dictionary))
         if self.inputs.calculate_DOS.value:
-            dos_dict=self.ctx.dos_result.outputs.output_parameters.get_dict()['DOS']
-            output_dictionary['DOS']=dos_dict
+            output_dictionary=self.ctx.dos_result.outputs.output_parameters
+        else:
+            output_dictionary=self.ctx.soc_result.outputs.output_parameters
         self.out('result', output_dictionary)
 
     def check_input(self):
@@ -205,7 +216,7 @@ class KKRnanoDOSChain(WorkChain):
     
  
     def check_steps_to_run(self):
-        if spec.inputs.calculate_DOS.value:
+        if self.inputs.calculate_DOS.value:
             return True
         else:
             return False
