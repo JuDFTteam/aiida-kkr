@@ -38,8 +38,8 @@ class KKRnanoDOSChain(WorkChain):
         
         
         
-    _OPTIONS_DEFAULT = {'queue_name' : 'viti', #'th1-2020-32',                         # Queue name to submit jobs too
-                'resources': {"num_machines": 3,'tot_num_mpiprocs': 15},          # resources to allowcate for the job
+    _OPTIONS_DEFAULT = {'queue_name' : 'th1-2020-32',                         # Queue name to submit jobs too
+                'resources': {"num_machines": 1,'tot_num_mpiprocs': 15},          # resources to allowcate for the job
                 'withmpi' : True,                          # execute KKR with mpi or without
                 'custom_scheduler_commands' : ''           # some additional scheduler commands
                 }
@@ -63,7 +63,7 @@ class KKRnanoDOSChain(WorkChain):
         #KKRnanoCalculation._check_input_dict(load_node('58f35be4-3ddc-4b24-947b-c3ddbb8959ac'),params)
         
         #preparing the approptiate parameters
-        params["soc"]={"value":0}
+        params["soc"]={"value":False}
         params["KORBIT"]={"value":0}  
 
         builder = KKRnanoCalculation.get_builder()
@@ -95,7 +95,7 @@ class KKRnanoDOSChain(WorkChain):
             params[key]=colparams[key]
         
         #preparing the approptiate parameters
-        params["soc"]={"value":0}
+        params["soc"]={"value":False}
         params["KORBIT"]={"value":0}  
 
         #KKRnanoCalculation._check_input_dict(load_node('58f35be4-3ddc-4b24-947b-c3ddbb8959ac'),params)
@@ -121,14 +121,18 @@ class KKRnanoDOSChain(WorkChain):
         builder = KKRnanoCalculation.get_builder()
         params=self.inputs.calc_parameters.get_dict()
         socparams=self.inputs.wf_parameters.get_dict()['SOC']
-        parent_folder=self.ctx.col_result.outputs.remote_folder
+        
+        if self.inputs.start_from_col.value:
+            parent_folder=self.inputs.parent_folder
+        else:
+            parent_folder=self.ctx.col_result.outputs.remote_folder
 
  
         for key in socparams:
             params[key]=socparams[key]
         
         #preparing the approptiate parameters
-        params["soc"]={"value":1}
+        params["soc"]={"value":True}
         params["KORBIT"]={"value":1} 
 
         #KKRnanoCalculation._check_input_dict(load_node('58f35be4-3ddc-4b24-947b-c3ddbb8959ac'),params)
@@ -164,7 +168,7 @@ class KKRnanoDOSChain(WorkChain):
             params[key]=dosparams[key]
 
         #preparing the approptiate parameters
-        params["soc"]={"value":1}
+        params["soc"]={"value":True}
         params["KORBIT"]={"value":1}
         params["scfsteps"]={"value":  1}
         params["npol"]={"value":  0}
@@ -215,12 +219,23 @@ class KKRnanoDOSChain(WorkChain):
     
     
  
-    def check_steps_to_run(self):
+    def check_if_DOS_to_run(self):
         if self.inputs.calculate_DOS.value:
             return True
         else:
             return False
         
+    def check_if_str_to_run(self):
+        if self.inputs.start_from_col:
+            return False
+        else:
+            return True
+        
+    def check_if_col_to_run(self):
+        if self.inputs.start_from_col:
+            return False
+        else:
+            return True
     @classmethod    
     def define(cls, spec):
         """Specify inputs and outputs."""
@@ -242,18 +257,22 @@ class KKRnanoDOSChain(WorkChain):
         )
         
         spec.input("options", valid_type=Dict, required=False,
-                   default=Dict(dict=cls._OPTIONS_DEFAULT))
+                   default= lambda: Dict(dict=cls._OPTIONS_DEFAULT))
         spec.input('calculate_DOS', valid_type=Bool, required=False, default=lambda: Bool(False),
                   help='Trigger DOS calculation.')
+        spec.input('start_from_col', valid_type=Bool, required=False, default=lambda: Bool(False),
+                  help='Start with SOC calculation.')
         
         spec.input('code', valid_type=Code)
         
         spec.outline(
             cls.check_input,
-            cls.str_mixing,
-            cls.col,
+            if_(cls.check_if_str_to_run)(
+            cls.str_mixing),
+            if_(cls.check_if_col_to_run)(
+            cls.col),
              cls.SOC,
-            if_(cls.check_steps_to_run)(
+            if_(cls.check_if_DOS_to_run)(
                    cls.DOS),
             cls.prepare_output
         )

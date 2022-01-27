@@ -329,6 +329,7 @@ class KKRnanoParser(Parser):
         # Get retrieved folders
         try:
             retrieved_folder = self.retrieved
+            print(retrieved_folder)
         except exceptions.NotExistent:
             print("OUT FOLDER NOT FOUND")
             return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER

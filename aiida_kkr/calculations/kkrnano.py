@@ -61,9 +61,7 @@ class KKRnanoCalculation(CalcJob):
                 "description": "number of points parallel to real axis in interval (E_F - 30*k*T + imag, E_F + imag)"},
       "npol": {"value":  7,  "required": True,\
                "description": "Number of Matsubara poles, npol=0 triggers DOS calculation"} ,
-      "tempr": {"value":  800,  "unit":"Kelvin",\
-                "required": False, "description": "artificial temperature (Kelvin) for energy broadening,\
-                determines together with npol the distance from real axis"},
+
       "scfsteps": {"value":  1,"required": True, "description": "Number of scf steps"},
       "imix": {"value":  6,"required": True,\
                "description": "mixing method: imix = 0 -> straight mixing; imix = 1 -> straight mixing;\
@@ -140,6 +138,7 @@ class KKRnanoCalculation(CalcJob):
         structure = find_parent_structure(parent_calc_calc_node).get_pymatgen_structure()
         parent_outfolder = parent_calc_calc_node.outputs.retrieved
         code = self.inputs.code
+        num_mpi_procs=self.metadata.options.resources["tot_num_mpiprocs"]
 
         # Local copy list for continuing KKRnano calculations
         # if necessary, change some names in order to start from a preconverged calculation
@@ -175,7 +174,8 @@ class KKRnanoCalculation(CalcJob):
 
         
         # Check inputdict
-        self._check_input_dict(parameters)
+        parameters=self._check_input_dict(parameters,num_mpi_procs)
+
         #Check if parent is a KKRnano calculation
         write_efermi=False
         self._check_valid_parent(parent_outfolder)
@@ -197,7 +197,7 @@ class KKRnanoCalculation(CalcJob):
                 print("NOCO1",noco)
                 if noco==False:
                     print("NOCO2",noco)
-                    parameters["KORBIT"]['value']=True
+                    parameters["KORBIT"]['value']=1
                     self.logger.warn('KORBIT was set to 1 -> SOC is implemented for the NOCO-Chebyshev solver, only! This is however not changed in the input node and might lead to inconsistencies if this feature has been added in KKRnano!')
                     noco=True
         
@@ -440,7 +440,7 @@ class KKRnanoCalculation(CalcJob):
     and (not parent_calc.process_label=='VoronoiCalculation'):
             raise ValueError("Parent Calculation has to be another KKRnano or a Voronoi calculation.")
     
-    def _check_input_dict(self,inputdict):
+    def _check_input_dict(self,inputdict,num_mpi_procs):
         """ checks if all essential keys are contained in the inputdict and if it has the right format """
         #Check if all essential keys are present
         all_present=True
@@ -465,9 +465,75 @@ class KKRnanoCalculation(CalcJob):
                     correct_format=False
                     keys_in_wrong_format.append(key)
         if not correct_format:
-            raise InputValidationError('Some keys were provided in an incorrect format. Dict entries must have entry `value`\
+            self.logger.warn('Some keys were provided in an incorrect format. Dict entries must have entry `value`\
 (see e. g. KKRnano-Plugin/aiida-kkr/aiida_kkr/calculations/kkrnano.py). At least the following keys are in an incorrect format: \
-{}'.format(keys_in_wrong_format))    
+{} \nMoving on by assuming just the key `value` was missing and adapt accordingly'.format(keys_in_wrong_format))    
+            #try to correct incorrect entries, most likely they do not have the 'value' feature
+            try:
+                for key in keys_in_wrong_format:
+                    likely_value=inputdict[key]
+                    inputdict[key]={'value':likely_value}
+            except:
+                raise InputValidationError('Some keys were provided in an incorrect format. Dict entries must have entry `value`\
+(see e. g. KKRnano-Plugin/aiida-kkr/aiida_kkr/calculations/kkrnano.py). At least the following keys are in an incorrect format: \
+{}.'.format(keys_in_wrong_format))
+                
+        #Check if the values are provided in the correct data type
+        all_correct_dtype=True
+        keys_with_incorrect_dtypes=[]
+        values_with_incorrect_dtypes=[]
+        correct_dtypes_for_incorrect_keys=[]
+        for key in self._DEFAULT_KKRNANO_PARA:
+            default_value=self._DEFAULT_KKRNANO_PARA[key]["value"]
+            dtype_required=type(default_value)
+            
+            entered_value=inputdict[key]["value"]
+            dtype_entered=type(entered_value)
+            
+            if dtype_required==list:
+                try:
+                    for item_index in range(len(default_value)):
+                        default_entry=default_value[item_index]
+                        entered_entry=entered_value[item_index]
+                        if not type(default_entry)==type(entered_entry):
+                            all_correct_dtype=False
+                            keys_with_incorrect_dtypes.append(key)
+                            values_with_incorrect_dtypes.append(str(entered_value))
+                            correct_dtypes_for_incorrect_keys.append("array/list of {} (wrong entry type)".format(str(type(default_entry))))
+                except IndexError:
+                            all_correct_dtype=False
+                            keys_with_incorrect_dtypes.append(key)
+                            values_with_incorrect_dtypes.append(str(entered_value))
+                            correct_dtypes_for_incorrect_keys.append("array/list of {} (wrong length, \
+length should be {} )".format(str(type(default_entry)),str(len(default_value))))
+                    
+            elif not dtype_required==dtype_entered:
+                        all_correct_dtype=False
+                        keys_with_incorrect_dtypes.append(key)
+                        values_with_incorrect_dtypes.append(str(entered_value))
+                        correct_dtypes_for_incorrect_keys.append("{}".format(str(type(default_entry))))
+                        
+            if not all_correct_dtype:
+                #Generate helpful error message
+                dtype_error_message="Some keys were provided with an incorrect datatype. These values are \n"
+                for j in range(len(keys_with_incorrect_dtypes)):
+                    dtype_error_message+="key: {}, entered value: {}, needed datatype: {}\n".format(keys_with_incorrect_dtypes[j],\
+                                                values_with_incorrect_dtypes[j],correct_dtypes_for_incorrect_keys[j])
+                raise InputValidationError(dtype_error_message)
+                
+                
+        #Check if the number of mpi processes, specified with the builder matches the settings in the inputdict
+        mpikeys=["NTHRDS","EMPID","SMPID","num_atom_procs"]
+        needed_num_mpi_procs=1
+        for key in mpikeys:
+            if key in inputdict:
+                needed_num_mpi_procs*=inputdict[key]["value"]
+        if num_mpi_procs%needed_num_mpi_procs!=0:
+            raise(InputValidationError("Number of MPI processes does not match! In builder.metadata.options.resources['num_mpi_procs']= {}, however according to the builder.parameters node, the needed number of MPI process is {}".format(num_mpi_procs, needed_num_mpi_procs)))
+        
+        
+        
+        return inputdict
                 
     def _is_KkrnanoCalc(self, calc):
         """
