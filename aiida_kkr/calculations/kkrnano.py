@@ -3,7 +3,7 @@
 Input plug-in for a KKRnano calculation.
 """
 from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode, Dict, Bool, RemoteData, StructureData
+from aiida.orm import CalcJobNode, Dict, Bool, Float, RemoteData, StructureData
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools import find_parent_structure
@@ -114,6 +114,11 @@ class KKRnanoCalculation(CalcJob):
         spec.input('convert', valid_type=Bool, required=False, default=lambda: Bool(False),
                   help='Activate to use together with set up convert code in order to retrieve potential files.')
         
+        spec.input('passed_lattice_param_angs', valid_type=Float, required=False, default=lambda: Float(-10000.0),
+                   help='Use a prespecified lattice constant in Angstrom as input for KKRnano, i. e. in the input.conf file. \
+                   Default is the length of the longest Bravais vector in the structure object used for the voronoi calculation. \
+                   This can be useful in the context of treating supercells.')
+        
         #spec.input('structure', valid_type=StructureData, required=False, default:)
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the calculation')
@@ -132,6 +137,7 @@ class KKRnanoCalculation(CalcJob):
         """
         #prepare inputs
         parameters = self.inputs.parameters.get_dict()
+        passed_lattice_const = self.inputs.passed_lattice_param_angs.value
         nonco_angles=self.inputs.nocoangles.get_dict()
         parent_calc=self.inputs.parent_folder#.get_incoming(node_class=CalcJobNode).first().node
         parent_calc_calc_node=parent_calc.get_incoming(node_class=CalcJobNode).first().node
@@ -209,10 +215,13 @@ class KKRnanoCalculation(CalcJob):
         
         
         # Prepare rbasis.xyz and input.conf from Structure and input parameter data
+        
+        print(type(passed_lattice_const))
+        print(passed_lattice_const)
         with tempfolder.open(self._DEFAULT_INPUT_FILE, u'w') as input_file_handle:
-            self._write_input_file(input_file_handle, parameters, structure)
+            self._write_input_file(input_file_handle, parameters, structure, passed_lattice_const)
         with tempfolder.open(self._RBASIS, u'w') as rbasis_handle:
-            self._write_rbasis(rbasis_handle, structure)
+            self._write_rbasis(rbasis_handle, structure, passed_lattice_const)
         if write_efermi:
             with tempfolder.open(self._DEFAULT_EFERMI_FILE, u'w') as efermi_file_handle:
                 self._write_efermi_file(efermi_file_handle, fermi)
@@ -292,10 +301,28 @@ class KKRnanoCalculation(CalcJob):
         content=content+"\n"
         return content
 
-    def _write_input_file(self, input_file_handle, parameters, structure):
+    def _get_lattice_constant(self, passed_lattice_const):
+        """determine whether a passed lattice constant should be used"""
+        # default value, see above. (Probably) No one would use this large a lattice constant to replace the other
+        if passed_lattice_const == -10000.0: 
+            lattice_param_angs=max(structure.lattice.abc)
+        elif passed_lattice_const > 0.0:
+            lattice_param_angs=passed_lattice_const
+            self.logger.info("Using passed lattice constant. The vectors are scaled accordingly!")
+        else:
+            raise InputValidationError("The passed lattice constant must not be negative!")
+        print(lattice_param_angs)
+        return lattice_param_angs
+            
+    def _write_input_file(self, input_file_handle, parameters, structure, passed_lattice_const):
         """write the input.conf file for KKRnano"""
+
+        #lattice_param_angs=max(structure.lattice.abc)
+        print("XXXX")
+        print(passed_lattice_const)
+        lattice_param_angs=self._get_lattice_constant(passed_lattice_const) 
+        print(lattice_param_angs)
         
-        lattice_param_angs=max(structure.lattice.abc)
         write_list=[]
         
         #header of input.conf
@@ -313,7 +340,7 @@ class KKRnanoCalculation(CalcJob):
 
         directions=['a','b','c']
         for i in range(3):
-            write_list.append('bravais_{}=  {}  {}  {}\n'.format(directions[i],rbrav[i][0],rbrav[i][1],rbrav[i][2]))
+            write_list.append('bravais_{}=  {:.15f}  {:.15f}  {:.15f}\n'.format(directions[i],rbrav[i][0],rbrav[i][1],rbrav[i][2]))
         write_list.append("\ncartesian = t\n")
         #writing other parameters from parameter dict
         #params=parameters.get_dict()
@@ -361,7 +388,7 @@ class KKRnanoCalculation(CalcJob):
         
                               
                               
-    def _write_rbasis(self, rbasis_handle, structure):
+    def _write_rbasis(self, rbasis_handle, structure, passed_lattice_const):
         """write the rbasis.xyz file for KKRnano"""
         #PSE element symbols 
         symbols = ('__',
@@ -382,10 +409,14 @@ class KKRnanoCalculation(CalcJob):
         write_list=[str(len(structure.atomic_numbers)),'\n',\
                     str(structure.composition), ", ", str(structure.get_space_group_info()),'\n']
         
-        lattice_param_angs=max(structure.lattice.abc)
-        
+        #lattice_param_angs=max(structure.lattice.abc)
+        print("XXXX")
+        print(passed_lattice_const)
+        lattice_param_angs=self._get_lattice_constant(passed_lattice_const) 
+        print(lattice_param_angs)
+            
         for i in range(np.shape(structure.cart_coords)[0]):
-               write_list.append('{}   {}   {}   {}\n'.format(symbols[structure.atomic_numbers[i]], \
+               write_list.append('{}   {:.15f}   {:.15f}   {:.15f}\n'.format(symbols[structure.atomic_numbers[i]], \
                   structure.cart_coords[i,0]/lattice_param_angs, \
                   structure.cart_coords[i,1]/lattice_param_angs,\
                   structure.cart_coords[i,2]/lattice_param_angs))
