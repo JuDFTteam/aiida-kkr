@@ -165,7 +165,12 @@ class KKRnanoCalculation(CalcJob):
         #parent_outfolder = parent_calc_calc_node.outputs.retrieved
         code = self.inputs.code
         num_mpi_procs = self.metadata.options.resources['tot_num_mpiprocs']
-
+        
+        
+        #Check if convert mode has been activated
+        convert = self.inputs.convert.value
+        
+        
         #StrucWithPot object as starting point -> contains passed_lattice_constant, shapefun, potential, and structure
         if hasattr(self.inputs, 'strucwithpot') and not hasattr(self.inputs, 'parent_folder'):
             use_strucwithpot = True
@@ -184,7 +189,10 @@ class KKRnanoCalculation(CalcJob):
             passed_lattice_const = self.inputs.passed_lattice_param_angs.value
             parent_calc = self.inputs.parent_folder  #.get_incoming(node_class=CalcJobNode).first().node
             parent_calc_calc_node = parent_calc.get_incoming(node_class=CalcJobNode).first().node
-            structure = find_parent_structure(parent_calc_calc_node).get_pymatgen_structure()
+           
+            #Find structure unless convert mode is activated, as for that no structure is needed
+            if not convert:
+                structure = find_parent_structure(parent_calc_calc_node).get_pymatgen_structure()
             parent_outfolder = parent_calc_calc_node.outputs.retrieved
 
             parent_outfolder_uuid = parent_outfolder.uuid
@@ -209,8 +217,7 @@ class KKRnanoCalculation(CalcJob):
         #(parent_outfolder_uuid,"nonco_angle_out.dat","bin.atoms"  )]
         #TODO: Parse noco_angle_out.dat and write a new file from that
 
-        #Check if convert mode has been activated
-        convert = self.inputs.convert.value
+
         #Convert mode is not available for call using strucwithpot
         if use_strucwithpot and convert:
             raise InputValidationError('Convert mode cannot be used for call using a strucwithpot object.')
@@ -266,12 +273,12 @@ class KKRnanoCalculation(CalcJob):
             with tempfolder.open(self._DEFAULT_NOCO_INPUT_FILE, u'w') as nonco_angles_handle:
                 self._write_nonco_angles(nonco_angles_handle, nonco_angles, structure)
 
-        # Prepare rbasis.xyz and input.conf from Structure and input parameter data
-
-        with tempfolder.open(self._DEFAULT_INPUT_FILE, u'w') as input_file_handle:
-            self._write_input_file(input_file_handle, parameters, structure, passed_lattice_const)
-        with tempfolder.open(self._RBASIS, u'w') as rbasis_handle:
-            self._write_rbasis(rbasis_handle, structure, passed_lattice_const)
+        # Prepare rbasis.xyz and input.conf from Structure and input parameter data unless convert mode
+        if not convert:
+            with tempfolder.open(self._DEFAULT_INPUT_FILE, u'w') as input_file_handle:
+                self._write_input_file(input_file_handle, parameters, structure, passed_lattice_const)
+            with tempfolder.open(self._RBASIS, u'w') as rbasis_handle:
+                self._write_rbasis(rbasis_handle, structure, passed_lattice_const)
         if write_efermi:
             with tempfolder.open(self._DEFAULT_EFERMI_FILE, u'w') as efermi_file_handle:
                 self._write_efermi_file(efermi_file_handle, fermi)

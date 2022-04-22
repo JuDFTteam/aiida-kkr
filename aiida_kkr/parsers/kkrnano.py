@@ -12,7 +12,7 @@ from __future__ import absolute_import
 from aiida.parsers.parser import Parser
 from aiida.orm import Dict, CalcJobNode
 from aiida_kkr.calculations.kkrnano import KKRnanoCalculation
-from aiida_kkr.tools import find_parent_structure
+#from aiida_kkr.tools import find_parent_structure
 from masci_tools.io.common_functions import (search_string, open_general)
 import numpy as np
 from io import StringIO
@@ -335,10 +335,10 @@ class KKRnanoParser(Parser):
 
         #Check if a StrucWithPotData object was used as input and take then corresponding structure or
         #if a parent_structure has to be found
-        if hasattr(calc_node.inputs, 'strucwithpot') and not hasattr(calc_node.inputs, 'parent_folder'):
-            struc = calc_node.inputs.strucwithpot.structure
-        else:
-            struc = find_parent_structure(calc_node)
+#         if hasattr(calc_node.inputs, 'strucwithpot') and not hasattr(calc_node.inputs, 'parent_folder'):
+#             struc = calc_node.inputs.strucwithpot.structure
+#         else:
+#             struc = find_parent_structure(calc_node)
 
         #Also for the convert step, these are the files that are supposed to be parsed
         output0_file_handle = KKRnanoCalculation._DEFAULT_OUTPUT_PREP_FILE
