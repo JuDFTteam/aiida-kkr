@@ -84,11 +84,11 @@ class KKRnanoDOSChain(WorkChain):
     }
 
     _OPTIONS_DEFAULT = {
-        'queue_name': 'th1-2020-32',  # Queue name to submit jobs too
+        'queue_name': 'th1-2020-32',  # Queue name to submit jobs to
         'resources': {
             'num_machines': 1,
             'tot_num_mpiprocs': 15
-        },  # resources to allowcate for the job
+        },  # ressources to allocate for the job
         'withmpi': True,  # execute KKR with mpi or without
         'custom_scheduler_commands': ''  # some additional scheduler commands
     }
@@ -315,7 +315,7 @@ class KKRnanoDOSChain(WorkChain):
         spec.input(
             'parent_folder',
             valid_type=RemoteData,
-            required=True,
+            required=False,
             help='Use a node that specifies a parent KKRnano or voronoi calculation'
         )
         spec.input(

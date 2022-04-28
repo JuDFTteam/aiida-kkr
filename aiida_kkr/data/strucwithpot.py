@@ -9,8 +9,8 @@ import os
 
 class StrucWithPotData(Data):
     def __init__(self, passedStructure=None, list_of_shapes=None, list_of_pots=None, specified_lattice_constant=False,KKRnanoCalcNode=None,\
-                 VoronoiCalcNode=None, **kwargs):
-        """ 
+                 VoronoiCalcNode=None, KKRhostCalcNode=None, **kwargs):
+        """
         Can be created from an AiiDA structure object and a list of shapes and potentials, corresponding to this object. Also possible to create from KKRnanoCalcNode or a VoronoiCalcNode. Instead of a Voronoi calculation also a KKRhost calculation can be read in using VoronoiCalcNode
         """
 
@@ -20,6 +20,8 @@ class StrucWithPotData(Data):
             passedStructure, list_of_shapes, list_of_pots = self.get_strucwithpot_from_KKRnanoConvert(KKRnanoCalcNode)
         if not VoronoiCalcNode == None:
             passedStructure, list_of_shapes, list_of_pots = self.get_strucwithpot_from_Voronoi(VoronoiCalcNode)
+        if not KKRhostCalcNode == None:
+            passedStructure, list_of_shapes, list_of_pots = self.get_strucwithpot_from_Voronoi(KKRhostCalcNode)
 
         if not passedStructure == None and not list_of_shapes == None and not list_of_pots == None:
             self.structure = passedStructure
@@ -145,18 +147,18 @@ and lists of SingleFileData potential and shape files have to be provided.'
         """
         returns a list of sites, which have more than one element and a potential list with tuples for theses sites
         """
-        CPA_sites=[]
-        potential_no=0
-        new_potlist=[]
+        CPA_sites = []
+        potential_no = 0
+        new_potlist = []
         for site in structure.get_pymatgen().sites:
-            no_species=len(site.species.elements)
-            if no_species>1:
+            no_species = len(site.species.elements)
+            if no_species > 1:
                 CPA_sites.append(site)
-                new_potlist.append(tuple(potentiallist[potential_no:potential_no+no_species]))
-                potential_no+=no_species
+                new_potlist.append(tuple(potentiallist[potential_no:potential_no + no_species]))
+                potential_no += no_species
             else:
                 new_potlist.append(potentiallist[potential_no])
-                potential_no+=1
+                potential_no += 1
         return CPA_sites, new_potlist
 
     def get_strucwithpot_from_Voronoi(self, calcnode):
@@ -182,7 +184,7 @@ and lists of SingleFileData potential and shape files have to be provided.'
             if shapes[line].find('Shape') > 0:
                 lines.append(line)
         lines.append(len(shapes))
-        print("Printing out paths of shape files \n__________")
+        print('Printing out paths of shape files \n__________')
         for j in range(len(lines) - 1):
             shape_string = ''
             for k in range(lines[j], lines[j + 1]):
@@ -201,7 +203,7 @@ and lists of SingleFileData potential and shape files have to be provided.'
             self.set_attribute(shape_no_filename.replace('.', ''), shape_no_filename)
             with self.open(shape_no_filename, 'r') as _f:
                 shapelist.append(SinglefileData(_f.name))
-        print("__________")
+        print('__________')
         #potential
         potentiallist = []
         try:
@@ -223,9 +225,9 @@ and lists of SingleFileData potential and shape files have to be provided.'
                 else:
                     lines.append(line)
         lines.append(len(potentials))
-        print("__________")
+        print('__________')
         #creating new files with the individual potentials
-        print("Printing out paths of potential files\n__________")
+        print('Printing out paths of potential files\n__________')
         for j in range(len(lines) - 1):
             potential_string = ''
             for k in range(lines[j], lines[j + 1]):
@@ -235,39 +237,41 @@ and lists of SingleFileData potential and shape files have to be provided.'
             with open(potential_no_filename, 'w') as file:
                 file.write(potential_string)
                 path = os.path.realpath(file.name)
-            print("local path: ",path)
+            print('local path: ', path)
             abs_path = f'{cwd}/{potential_no_filename}'
             self.put_object_from_file(abs_path, potential_no_filename)  #Problem has to be called via instance
             self.set_attribute(potential_no_filename.replace('.', ''), potential_no_filename)
             with self.open(potential_no_filename, 'r') as _f:
                 potentiallist.append(SinglefileData(_f.name))
-                print("repository path: ",_f)
-        print("__________")
-        
+                print('repository path: ', _f)
+        print('__________')
+
         #Check for CPA
         if not len(structure.sites) == len(potentiallist):
-            CPA_sites,_ =self._check_for_CPA(structure, potentiallist)
-#             CPA_sites=[]
-#             potential_no=0
-#             new_potlist=[]
-#             for site in structure.get_pymatgen().sites:
-#                 no_species=len(site.species.elements)
-#                 if no_species>1:
-#                     CPA_sites.append(site)
-#                     new_potlist.append(tuple(potentiallist[potential_no:potential_no+no_species]))
-#                     potential_no+=no_species
-#                 else:
-#                     new_potlist.append(potentiallist[potential_no])
-#                     potential_no+=1
-#             potentiallist=new_potlist
+            CPA_sites, _ = self._check_for_CPA(structure, potentiallist)
+            #             CPA_sites=[]
+            #             potential_no=0
+            #             new_potlist=[]
+            #             for site in structure.get_pymatgen().sites:
+            #                 no_species=len(site.species.elements)
+            #                 if no_species>1:
+            #                     CPA_sites.append(site)
+            #                     new_potlist.append(tuple(potentiallist[potential_no:potential_no+no_species]))
+            #                     potential_no+=no_species
+            #                 else:
+            #                     new_potlist.append(potentiallist[potential_no])
+            #                     potential_no+=1
+            #             potentiallist=new_potlist
 
-            if len(CPA_sites)==0:
+            if len(CPA_sites) == 0:
                 raise InputValidationError(
                     'The number of sites in the found parent structure does not match the number of obtained potentials.'
                 )
             else:
-                print("WARNING: The number of sites in the found parent structure does not match the number of obtained potentials. This might be due to some CPA input which cannot be processed by KKRnano. The following sites are not (single) chemical elements: \n",CPA_sites)
-                
+                print(
+                    'WARNING: The number of sites in the found parent structure does not match the number of obtained potentials. This might be due to some CPA input which cannot be processed by KKRnano. The following sites are not (single) chemical elements: \n',
+                    CPA_sites
+                )
 
         return structure, shapelist, potentiallist
 
@@ -473,19 +477,22 @@ and lists of SingleFileData potential and shape files have to be provided.'
             )
         print(shapelist)
         return shapelist
-    
+
     def sites(self):
         """
         Gives back a list of sites. Particularly useful for processing CPA input.
         (AiiDA structure site, potential file(s), shapefun)
         """
-        struc=self.structure
-        pots=self.potentials
-        shapes=self.shapes
-        
-        _,new_pots=self._check_for_CPA(struc,pots)
-        site_list=[]
+        struc = self.structure
+        pots = self.potentials
+        shapes = self.shapes
+
+        _, new_pots = self._check_for_CPA(struc, pots)
+        site_list = []
         for j in range(len(struc.sites)):
-            site_list.append({"StructureDataSite": struc.sites[j], "potential":new_pots[j], "shapefun": shapes[j%len(shapes)]})
+            site_list.append({
+                'StructureDataSite': struc.sites[j],
+                'potential': new_pots[j],
+                'shapefun': shapes[j % len(shapes)]
+            })
         return site_list
-        

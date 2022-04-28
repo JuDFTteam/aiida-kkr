@@ -6,10 +6,12 @@ from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode, Dict, Bool, Float, RemoteData, StructureData
 from aiida_kkr.data.strucwithpot import StrucWithPotData
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
-from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools import find_parent_structure
 from masci_tools.io.common_functions import get_Ang2aBohr
-from aiida.common.exceptions import InputValidationError
+from aiida.common import NotExistent
+from aiida.common.exceptions import InputValidationError, UniquenessError
+
+from aiida_kkr.calculations.voro import VoronoiCalculation
 
 import numpy as np
 
@@ -67,7 +69,7 @@ class KKRnanoCalculation(CalcJob):
       'imix': {'value':  6,'required': True,\
                'description': "mixing method: imix = 0 -> straight mixing; imix = 1 -> straight mixing;\
                imix = 4 -> Broyden's 2nd method; imix = 5 -> gen. Anderson mixing;\
-               imix = 6 -> Broyden's 2nd method with support for >1 atom per process"                                                                                                                                                                                                                                                               },
+               imix = 6 -> Broyden's 2nd method with support for >1 atom per process"                                                                                                                                                                                                                                                                                                                                                    },
 
       'mixing': {'value':  0.01, 'required': True,\
                  'description': 'straight mixing parameter'},
@@ -165,12 +167,10 @@ class KKRnanoCalculation(CalcJob):
         #parent_outfolder = parent_calc_calc_node.outputs.retrieved
         code = self.inputs.code
         num_mpi_procs = self.metadata.options.resources['tot_num_mpiprocs']
-        
-        
+
         #Check if convert mode has been activated
         convert = self.inputs.convert.value
-        
-        
+
         #StrucWithPot object as starting point -> contains passed_lattice_constant, shapefun, potential, and structure
         if hasattr(self.inputs, 'strucwithpot') and not hasattr(self.inputs, 'parent_folder'):
             use_strucwithpot = True
@@ -178,8 +178,11 @@ class KKRnanoCalculation(CalcJob):
             strucwithpot = self.inputs.strucwithpot
             structure = strucwithpot.structure.get_pymatgen_structure()
 
-            if hasattr(strucwithpot, 'specified_lattice_constant'):
-                passed_lattice_const = strucwithpot.specified_lattice_constant.value
+            if self.inputs.passed_lattice_param_angs.value == -10000.0:  #check if default value is used
+                if hasattr(strucwithpot, 'specified_lattice_constant'):
+                    passed_lattice_const = strucwithpot.specified_lattice_constant.value
+                else:
+                    passed_lattice_const = self.inputs.passed_lattice_param_angs.value
             else:
                 passed_lattice_const = self.inputs.passed_lattice_param_angs.value
 
@@ -189,7 +192,7 @@ class KKRnanoCalculation(CalcJob):
             passed_lattice_const = self.inputs.passed_lattice_param_angs.value
             parent_calc = self.inputs.parent_folder  #.get_incoming(node_class=CalcJobNode).first().node
             parent_calc_calc_node = parent_calc.get_incoming(node_class=CalcJobNode).first().node
-           
+
             #Find structure unless convert mode is activated, as for that no structure is needed
             if not convert:
                 structure = find_parent_structure(parent_calc_calc_node).get_pymatgen_structure()
@@ -216,7 +219,6 @@ class KKRnanoCalculation(CalcJob):
 
         #(parent_outfolder_uuid,"nonco_angle_out.dat","bin.atoms"  )]
         #TODO: Parse noco_angle_out.dat and write a new file from that
-
 
         #Convert mode is not available for call using strucwithpot
         if use_strucwithpot and convert:
@@ -301,9 +303,10 @@ class KKRnanoCalculation(CalcJob):
         calcinfo.remote_copy_list = []
 
         #retrieve list
+        #TODO add NOCO
         calcinfo.retrieve_list = [
             self._DEFAULT_OUTPUT_PREP_FILE, self._DEFAULT_OUTPUT_FILE, self._DEFAULT_NOCO_OUTPUT_FILE, 'bin.dims',
-            self._CONVERT_OUTPUT_FILE, 'vpot*', 'DOS*'
+            self._CONVERT_OUTPUT_FILE, 'vpot*', 'DOS*', 'nonco_angle_out.dat'
         ]  # bin.dims is added here, as this should be retrieved for generating vpot-files (negligable in size anyway)
 
         for j in range(
@@ -414,7 +417,7 @@ class KKRnanoCalculation(CalcJob):
     def _write_nonco_angles(self, nonco_angles_handle, nonco_angles, structure):
         """
         write nonco_angles.dat file for KKRnano
-        created from dictionary with structure dict={'atom':{1:{'theta':0,'phi':0, 'fix_angle_mode':1},...}
+        created from dictionary with structure dict={'atom':{1:{'theta':0.0,'phi':00.0, 'fix_angle_mode':1},...}
         The angles 'theta' (polar angle going from z- to x-direction) and 'phi' (azimuthal angle) are given in deg.
         'fix_angle_mode' takes values 0,1,2,3. 0 is for relaxation of the spin-direciton, 1 is for fixing it; 2 and 3
         are for constraining fields calculations.
@@ -673,3 +676,48 @@ length should be {} )'.format(str(type(default_entry)), str(len(default_value)))
                 is_KKR = True
 
         return is_KKR
+
+    @classmethod
+    def _get_struc(self, parent_calc):
+        """
+        Get strucwithpot from a parent_folder (result of a calculation, typically a remote folder)
+        """
+        try:
+            return parent_calc.inputs.strucwithpot.structure
+        except:
+            return parent_calc.inputs.structure
+
+    @classmethod
+    def _has_struc(self, parent_folder):
+        """
+        Check if parent_folder has strucwithpot information in its input
+        """
+        success = True
+        link_labels = parent_folder.get_incoming().all_link_labels()
+        if 'strucwithpot' not in link_labels and 'structure' not in link_labels:
+            success = False
+        return success
+
+    @classmethod
+    def find_parent_struc_from_voro_or_stwpd(self, parent_folder):
+        """
+        Find the StructureData node recuresively in chain of parent calculations (structure node is input to voronoi calculation or in input StrucWithPotData node of KKRnano calculation)
+
+        returns structure, parent_folder
+        """
+        iiter = 0
+        Nmaxiter = 1000
+        parent_folder_tmp = VoronoiCalculation.get_remote(parent_folder)
+        while not self._has_struc(parent_folder_tmp) and iiter < Nmaxiter:
+            parent_folder_tmp = VoronoiCalculation.get_remote(VoronoiCalculation.get_parent(parent_folder_tmp))
+            iiter += 1
+            if iiter % 200 == 0:
+                print(
+                    'Warning: find_parent_structure takes quite long (already searched {} ancestors). Stop after {}'.
+                    format(iiter, Nmaxiter)
+                )
+        if self._has_struc(parent_folder_tmp):
+            struc = self._get_struc(parent_folder_tmp)
+            return struc, parent_folder_tmp
+        else:
+            raise ValueError('structure not found'.format(parent_folder_tmp))
