@@ -6,7 +6,6 @@ from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode, Dict, Bool, Float, RemoteData, StructureData
 from aiida_kkr.data.strucwithpot import StrucWithPotData
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
-from aiida_kkr.tools import find_parent_structure
 from masci_tools.io.common_functions import get_Ang2aBohr
 from aiida.common import NotExistent
 from aiida.common.exceptions import InputValidationError, UniquenessError
@@ -69,7 +68,7 @@ class KKRnanoCalculation(CalcJob):
       'imix': {'value':  6,'required': True,\
                'description': "mixing method: imix = 0 -> straight mixing; imix = 1 -> straight mixing;\
                imix = 4 -> Broyden's 2nd method; imix = 5 -> gen. Anderson mixing;\
-               imix = 6 -> Broyden's 2nd method with support for >1 atom per process"                                                                                                                                                                                                                                                                                                                                                    },
+               imix = 6 -> Broyden's 2nd method with support for >1 atom per process"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              },
 
       'mixing': {'value':  0.01, 'required': True,\
                  'description': 'straight mixing parameter'},
@@ -163,7 +162,7 @@ class KKRnanoCalculation(CalcJob):
         nonco_angles = self.inputs.nocoangles.get_dict()
         #parent_calc=self.inputs.parent_folder#.get_incoming(node_class=CalcJobNode).first().node
         #parent_calc_calc_node=parent_calc.get_incoming(node_class=CalcJobNode).first().node
-        #structure = find_parent_structure(parent_calc_calc_node).get_pymatgen_structure()
+        #structure = find_parent_struc_from_voro_or_stwpd(parent_calc_calc_node)[0].get_pymatgen_structure()
         #parent_outfolder = parent_calc_calc_node.outputs.retrieved
         code = self.inputs.code
         num_mpi_procs = self.metadata.options.resources['tot_num_mpiprocs']
@@ -195,7 +194,7 @@ class KKRnanoCalculation(CalcJob):
 
             #Find structure unless convert mode is activated, as for that no structure is needed
             if not convert:
-                structure = find_parent_structure(parent_calc_calc_node).get_pymatgen_structure()
+                structure = self.find_parent_struc_from_voro_or_stwpd(parent_calc_calc_node)[0].get_pymatgen_structure()
             parent_outfolder = parent_calc_calc_node.outputs.retrieved
 
             parent_outfolder_uuid = parent_outfolder.uuid
@@ -659,7 +658,7 @@ length should be {} )'.format(str(type(default_entry)), str(len(default_value)))
             raise (
                 InputValidationError(
                     "Number of MPI processes does not match! In builder.metadata.options.resources['num_mpi_procs']= {}, however for the convert step the needed number of MPI processes is 1."
-                    .format(num_mpi_procs, needed_num_mpi_procs)
+                    .format(num_mpi_procs)
                 )
             )
 
@@ -720,4 +719,4 @@ length should be {} )'.format(str(type(default_entry)), str(len(default_value)))
             struc = self._get_struc(parent_folder_tmp)
             return struc, parent_folder_tmp
         else:
-            raise ValueError('structure not found'.format(parent_folder_tmp))
+            raise ValueError(f'structure not found {parent_folder_tmp}')

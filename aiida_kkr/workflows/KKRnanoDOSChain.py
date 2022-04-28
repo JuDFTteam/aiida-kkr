@@ -129,7 +129,7 @@ class KKRnanoDOSChain(WorkChain):
         params['soc'] = {'value': False}
         params['KORBIT'] = {'value': 0}
 
-        builder = KKRnanoCalculation.get_builder()
+        #builder = KKRnanoCalculation.get_builder()
 
         builder.metadata.label = 'WC_coarse_mixing'
 
@@ -159,7 +159,7 @@ class KKRnanoDOSChain(WorkChain):
 
         #KKRnanoCalculation._check_input_dict(load_node('58f35be4-3ddc-4b24-947b-c3ddbb8959ac'),params)
 
-        builder = KKRnanoCalculation.get_builder()
+        #builder = KKRnanoCalculation.get_builder()
 
         builder.metadata.label = 'WC_colinear'
 
@@ -201,7 +201,7 @@ class KKRnanoDOSChain(WorkChain):
 
         #KKRnanoCalculation._check_input_dict(load_node('58f35be4-3ddc-4b24-947b-c3ddbb8959ac'),params)
 
-        builder = KKRnanoCalculation.get_builder()
+        #builder = KKRnanoCalculation.get_builder()
 
         builder.metadata.label = 'WC_SOC'
 
