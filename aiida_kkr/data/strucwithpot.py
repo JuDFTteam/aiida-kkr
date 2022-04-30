@@ -1,9 +1,10 @@
-#from aiida.engine import calcfunction
-#from aiida.orm import CalcJobNode, Dict, Bool, Float, RemoteData, StructureData
+
 from aiida.orm import CalcJobNode, Dict, StructureData, SinglefileData, load_node, Data
 from aiida.common.exceptions import InputValidationError
 from aiida.common import NotExistent
 from aiida_kkr.tools import find_parent_structure
+from aiida_kkr.calculations.voro import VoronoiCalculation
+
 import os
 
 
@@ -167,7 +168,7 @@ and lists of SingleFileData potential and shape files have to be provided.'
         """
         #TODO: Check if input is valid
 
-        structure = find_parent_structure(calcnode)
+        structure = VoronoiCalculation.find_parent_structure(calcnode)[0]
         cwd = os.getcwd()
 
         #shapefun
@@ -271,7 +272,7 @@ and lists of SingleFileData potential and shape files have to be provided.'
             raise InputValidationError(
                 'Only the convert step output can be processed! If this has not been done, yet, the parameter `builder.convert=Bool(False)` can be used and the process be run with 1 MPI, to obtain ASCII-potential files'
             )
-        structure = find_parent_structure(calcnode)
+        structure = VoronoiCalculation.find_parent_structure(calcnode)[0]
         pot_list = []
         for item in calcnode.outputs.retrieved.list_object_names():
             if item.find('vpot') == 0:
