@@ -68,7 +68,7 @@ class KKRnanoCalculation(CalcJob):
       'imix': {'value':  6,'required': True,\
                'description': "mixing method: imix = 0 -> straight mixing; imix = 1 -> straight mixing;\
                imix = 4 -> Broyden's 2nd method; imix = 5 -> gen. Anderson mixing;\
-               imix = 6 -> Broyden's 2nd method with support for >1 atom per process"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              },
+               imix = 6 -> Broyden's 2nd method with support for >1 atom per process"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 },
 
       'mixing': {'value':  0.01, 'required': True,\
                  'description': 'straight mixing parameter'},
@@ -162,10 +162,20 @@ class KKRnanoCalculation(CalcJob):
         nonco_angles = self.inputs.nocoangles.get_dict()
         #parent_calc=self.inputs.parent_folder#.get_incoming(node_class=CalcJobNode).first().node
         #parent_calc_calc_node=parent_calc.get_incoming(node_class=CalcJobNode).first().node
-        #structure = find_parent_struc_from_voro_or_stwpd(parent_calc_calc_node)[0].get_pymatgen_structure()
+        #structure = self._find_parent_struc_from_voro_or_stwpd(parent_calc_calc_node)[0].get_pymatgen_structure()
         #parent_outfolder = parent_calc_calc_node.outputs.retrieved
         code = self.inputs.code
-        num_mpi_procs = self.metadata.options.resources['tot_num_mpiprocs']
+        
+        
+        #determine number of MPI processes
+        try:
+            num_mpi_procs = self.metadata.options.resources['tot_num_mpiprocs']
+        except:
+            try:
+                num_mpi_procs=self.metadata.options.resources['num_machines']*\
+                self.metadata.options.resources['num_mpiprocs_per_machine']
+            except:
+                raise InputValidationError("The total number of MPI processes could not be determined. In case of doubt: Specify `builder.metadata.options.resources['tot_num_mpiprocs']=?` Do not forget number of machines")
 
         #Check if convert mode has been activated
         convert = self.inputs.convert.value
@@ -173,7 +183,6 @@ class KKRnanoCalculation(CalcJob):
         #StrucWithPot object as starting point -> contains passed_lattice_constant, shapefun, potential, and structure
         if hasattr(self.inputs, 'strucwithpot') and not hasattr(self.inputs, 'parent_folder'):
             use_strucwithpot = True
-            #print(type(self.inputs.strucwithpot))
             strucwithpot = self.inputs.strucwithpot
             structure = strucwithpot.structure.get_pymatgen_structure()
 
@@ -257,19 +266,14 @@ class KKRnanoCalculation(CalcJob):
             if parameters['KORBIT']['value'] == 1:
                 noco = True
         if 'soc' in parameters:
-            print('SOC in parameters')
-            print('NOCO0', noco)
             if parameters['soc']['value'] == True:
-                print('NOCO1', noco)
                 if noco == False:
-                    print('NOCO2', noco)
                     parameters['KORBIT']['value'] = 1
                     self.logger.warn(
                         'KORBIT was set to 1 -> SOC is implemented for the NOCO-Chebyshev solver, only! This is however not changed in the input node and might lead to inconsistencies if this feature has been added in KKRnano!'
                     )
                     noco = True
 
-        print('NOCO', noco)
         if noco:
             with tempfolder.open(self._DEFAULT_NOCO_INPUT_FILE, u'w') as nonco_angles_handle:
                 self._write_nonco_angles(nonco_angles_handle, nonco_angles, structure)
@@ -429,9 +433,6 @@ class KKRnanoCalculation(CalcJob):
             nonco_angles = {'atom': {}}
             for i in range(n_atoms):
                 nonco_angles['atom'][i + 1] = {'theta': 0.0, 'phi': 0.0, 'fix_angle_mode': 1}
-#         print(n_atoms)
-#         print(nonco_angles)
-#         print(len(nonco_angles['atom'].keys()))
         if n_atoms != len(nonco_angles['atom'].keys()):
             raise InputValidationError(
                 'The number of atoms in the structure must\
@@ -443,7 +444,7 @@ class KKRnanoCalculation(CalcJob):
             write_list.append('{} {} {}\n'.format(nonco_angles['atom'][key]['theta'],\
                                                   nonco_angles['atom'][key]['phi'],\
                                                   nonco_angles['atom'][key]['fix_angle_mode']))
-#         print(write_list)
+
         nonco_angles_handle.writelines(write_list)
 
     def _get_rbasis_atom_symbol(self, atomic_number):
@@ -476,11 +477,8 @@ class KKRnanoCalculation(CalcJob):
         write_list=[str(len(structure.atomic_numbers)),'\n',\
                     str(structure.composition), ', ', space_group_info,'\n']
 
-        #lattice_param_angs=max(structure.lattice.abc)
-        print('XXXX')
-        print(passed_lattice_const)
+
         lattice_param_angs = self._get_lattice_constant(structure, passed_lattice_const)
-        print(lattice_param_angs)
 
         for i in range(np.shape(structure.cart_coords)[0]):
             write_list.append('{}   {:.15f}   {:.15f}   {:.15f}\n'.format(self._get_rbasis_atom_symbol(structure.atomic_numbers[i]), \
@@ -543,8 +541,6 @@ class KKRnanoCalculation(CalcJob):
             overwrite_pot = True
 
 
-#         if ((not self._is_KkrnanoCalc(parent_calc))):
-#             raise ValueError('Parent calculation must be a KkrCalculation.')
         if (not parent_calc.process_label=='KKRnanoCalculation')\
     and (not parent_calc.process_label=='VoronoiCalculation'):
             raise ValueError('Parent Calculation has to be another KKRnano or a Voronoi calculation.')

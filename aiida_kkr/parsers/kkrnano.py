@@ -230,7 +230,7 @@ class KKRnanoParser(Parser):
         for key, value in sub_dictionary.items():
 
             if type(value) is dict:
-                convert_all_values_2_python_natives(value)
+                self._convert_all_values_2_python_natives(value)
 
             else:
                 try:
@@ -324,7 +324,7 @@ class KKRnanoParser(Parser):
         try:
             retrieved_folder = self.retrieved
             print(retrieved_folder)
-        except exceptions.NotExistent:
+        except:
             print('OUT FOLDER NOT FOUND')
             return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
 
@@ -335,10 +335,10 @@ class KKRnanoParser(Parser):
 
         #Check if a StrucWithPotData object was used as input and take then corresponding structure or
         #if a parent_structure has to be found
-#         if hasattr(calc_node.inputs, 'strucwithpot') and not hasattr(calc_node.inputs, 'parent_folder'):
-#             struc = calc_node.inputs.strucwithpot.structure
-#         else:
-#             struc = find_parent_structure(calc_node)
+        #         if hasattr(calc_node.inputs, 'strucwithpot') and not hasattr(calc_node.inputs, 'parent_folder'):
+        #             struc = calc_node.inputs.strucwithpot.structure
+        #         else:
+        #             struc = find_parent_structure(calc_node)
 
         #Also for the convert step, these are the files that are supposed to be parsed
         output0_file_handle = KKRnanoCalculation._DEFAULT_OUTPUT_PREP_FILE

@@ -189,8 +189,7 @@ and lists of SingleFileData potential and shape files have to be provided.'
             shape_string = ''
             for k in range(lines[j], lines[j + 1]):
                 shape_string += shapes[k]
-                #shape_string+="\n"
-            #print(shape_string)
+
 
             shape_no_filename = 'shape.' + str(j + 1).zfill(7)
             with open(shape_no_filename, 'w') as file:
@@ -249,19 +248,7 @@ and lists of SingleFileData potential and shape files have to be provided.'
         #Check for CPA
         if not len(structure.sites) == len(potentiallist):
             CPA_sites, _ = self._check_for_CPA(structure, potentiallist)
-            #             CPA_sites=[]
-            #             potential_no=0
-            #             new_potlist=[]
-            #             for site in structure.get_pymatgen().sites:
-            #                 no_species=len(site.species.elements)
-            #                 if no_species>1:
-            #                     CPA_sites.append(site)
-            #                     new_potlist.append(tuple(potentiallist[potential_no:potential_no+no_species]))
-            #                     potential_no+=no_species
-            #                 else:
-            #                     new_potlist.append(potentiallist[potential_no])
-            #                     potential_no+=1
-            #             potentiallist=new_potlist
+
 
             if len(CPA_sites) == 0:
                 raise InputValidationError(
@@ -309,21 +296,6 @@ and lists of SingleFileData potential and shape files have to be provided.'
         return structure, shape_list, pot_list
 
 
-#     def find_parent_shapefun():
-#         """
-#         get the  parent folder of the calculation. If not parent was found return input folder
-#         """
-#         input_folder_tmp0 = input_folder
-#         try:
-#             parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_calc_folder')
-#         except NotExistent:
-#             try:
-#                 parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_folder')
-#             except NotExistent:
-#                 parent_folder_tmp = input_folder_tmp0
-#         return parent_folder_tmp
-#         pass
-
     def _get_remote(self, parent_folder):
         """
         get remote_folder from input if parent_folder is not already a remote folder
@@ -350,23 +322,6 @@ and lists of SingleFileData potential and shape files have to be provided.'
                 parent_folder_tmp = input_folder_tmp0
         return parent_folder_tmp
 
-    # def _has_suitable_shape_input(remote_folder):
-    #     """
-    #     Are there suitable files in the remote folder or does the calculation have ?
-    #     """
-    #     returnBool = False
-    #     try:
-    #         parent_struc_with_pot= calc.get_incoming().get_node_by_label('strucwithpot')
-    #         return True
-    #     except NotExistent:
-    #         try:
-    #             parent_folder_tmp = calc.get_incoming().get_node_by_label('parent_folder')
-    #             parent_folder_tmp_listdir = parent_folder_tmp.listdir()
-    #             if "shape.0000001" in  parent_folder_tmp_listdir or "shapefun" in  parent_folder_tmp_listdir:
-    #                 return True
-    #         except NotExistent:
-    #             raise NotExistent("Neither an input remote_folder nor a StrucWithPotData object could be found.")
-    #     return False
 
     def find_parent_shapefun(self, parent_folder):
         """
@@ -377,15 +332,6 @@ and lists of SingleFileData potential and shape files have to be provided.'
 
         parent_folder_tmp = self._get_parent(parent_folder)
 
-        #     try:
-        #         parent_struc_with_pot= parent_folder.get_incoming().get_node_by_label('strucwithpot')
-
-        #         #TODO save shapefun list
-        #     except NotExistent:
-        #             try:
-        #                 parent_folder_tmp = parent_folder.get_incoming().get_node_by_label('remote_folder')
-        #             except NotExistent:
-        #                 raise NotExistent("Neither an input remote_folder nor a StrucWithPotData object could be found.")
 
         print(parent_folder_tmp)
         parent_folder_tmp_listdir = parent_folder_tmp.listdir(
@@ -403,7 +349,6 @@ and lists of SingleFileData potential and shape files have to be provided.'
                         iiter, Nmaxiter
                     )
                 )
-        print('_AFTER_LOOP')
         if 'shape.0000001' in parent_folder_tmp_listdir or 'shapefun' in parent_folder_tmp_listdir:
             try:
                 shapelist = self.extract_shapefuns(parent_folder_tmp.outputs.remote_folder)
@@ -411,7 +356,7 @@ and lists of SingleFileData potential and shape files have to be provided.'
                 shapelist = self.extract_shapefuns(parent_folder_tmp)
             return shapelist
         else:
-            raise ValueError('shape files not found'.format(parent_folder_tmp0))
+            raise ValueError('shape files not found ')
 
     def extract_shapefuns(self, parent_folder):
         """
@@ -419,34 +364,34 @@ and lists of SingleFileData potential and shape files have to be provided.'
         """
         shapelist = []
         cwd = os.getcwd()
-        print('shapes_extracting')
+        print('Extracting shapes')
         has_shapefun_file = False
-        found_shapes = False
+        found_shapes = False #to see if KKRnano produced some shapes as output (better than using shapefun)
         parent_folder_listdir = parent_folder.listdir()  #quicker this way as based on SSH tunneling
-        for filename in parent_folder_listdir:  #["shape.0000001"]:#
+        for filename in parent_folder_listdir: 
             if filename.find('shape.') >= 0:
                 if has_shapefun_file:
                     shapelist = []
                 abs_path = f'{cwd}/{filename}'
                 parent_folder.getfile(filename, f'{cwd}/{filename}')
-                self.put_object_from_file(abs_path, filename)  #Problem has to be called via instance
+                self.put_object_from_file(abs_path, filename)  
                 self.set_attribute(filename.replace('.', ''), filename)
                 os.remove(filename)
                 with self.open(filename, 'r') as _f:
                     shapelist.append(SinglefileData(_f.name))
+                    print("Found shape in repsitory:")
                     print(_f.name)
                 has_shapefun_file = False
                 found_shapes = True
         if 'shapefun' in parent_folder_listdir and not found_shapes:
             filename = 'shapefun'
             print('Shapefun in dir, this part of the program might need more testing')
-            #filename=shapefun
             abs_path = f'{cwd}/{filename}'
             parent_folder.getfile(filename, f'{cwd}/{filename}')
 
             with open(filename, 'r') as reader:
                 shapes = reader.readlines()
-                print(os.path.realpath(reader.name))
+#                 print(os.path.realpath(reader.name))
             lines = []
             for line in range(len(shapes)):
                 if shapes[line].find('Shape') > 0:
@@ -456,8 +401,6 @@ and lists of SingleFileData potential and shape files have to be provided.'
                 shape_string = ''
                 for k in range(lines[j], lines[j + 1]):
                     shape_string += shapes[k]
-                    #shape_string += '\n' TODO: Test if works properly
-                #print(shape_string)
 
                 shape_no_filename = 'shape.' + str(j + 1).zfill(7)
                 with open(shape_no_filename, 'w') as file:
@@ -469,12 +412,13 @@ and lists of SingleFileData potential and shape files have to be provided.'
                 self.set_attribute(shape_no_filename.replace('.', ''), shape_no_filename)
                 with self.open(shape_no_filename, 'r') as _f:
                     shapelist.append(SinglefileData(_f.name))
-                #os.remove(shape_no_filename)
+                os.remove(shape_no_filename)
             has_shapefun_file = True
         if has_shapefun_file:
             print(
                 'WARNING: Only a shapefun from some Voronoi input was found, it is possible that the potential does not match the shapefun parameters, unless they are set this way explicitly in the respective input file! It is advisable to use the `write_shapes=1` command in input.conf'
             )
+        print("Found shapelist:")
         print(shapelist)
         return shapelist
 
