@@ -2,7 +2,7 @@
 from aiida.orm import CalcJobNode, Dict, StructureData, SinglefileData, load_node, Data
 from aiida.common.exceptions import InputValidationError
 from aiida.common import NotExistent
-from aiida_kkr.tools import find_parent_structure
+#from aiida_kkr.tools import find_parent_structure #deprecated
 from aiida_kkr.calculations.voro import VoronoiCalculation
 
 import os
