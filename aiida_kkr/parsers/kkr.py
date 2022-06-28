@@ -12,10 +12,12 @@ from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida.common.exceptions import InputValidationError, NotExistent
 from masci_tools.io.parsers.kkrparser_functions import parse_kkr_outputfile, check_error_category
 from masci_tools.io.common_functions import search_string
+from aiida_kkr.tools.context import open_context_to_stack, open_files_in_context
+from contextlib import ExitStack
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.6'
+__version__ = '0.7.0'
 __contributors__ = ('Jens Broeder', u'Philipp Rüßmann')
 
 
@@ -62,7 +64,7 @@ class KkrParser(Parser):
             return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
 
         # check what is inside the folder
-        list_of_files = out_folder._repository.list_object_names()
+        list_of_files = out_folder.list_object_names()
 
         # we need at least the output file name as defined in calcs.py
         if KkrCalculation._DEFAULT_OUTPUT_FILE not in list_of_files:
@@ -88,63 +90,43 @@ class KkrParser(Parser):
         file_errors = []
 
         # Parse output files of KKR calculation
-        if KkrCalculation._DEFAULT_OUTPUT_FILE in out_folder.list_object_names():
-            with out_folder.open(KkrCalculation._DEFAULT_OUTPUT_FILE) as fhandle:
-                outfile = fhandle.name
-        else:
+        outfile_name = KkrCalculation._DEFAULT_OUTPUT_FILE
+        if outfile_name not in out_folder.list_object_names():
             file_errors.append((1 + self.icrit, msg))
-            outfile = None
+            outfile_name = None
 
         # get path to files and catch errors if files are not present
         # append tupels (error_category, error_message) where error_category is
         # 1: critical error, always leads to failing of calculation
         # 2: warning, is inspected and checked for consistency with read-in
         #    out_dict values (e.g. nspin, newsosol, ...)
-        fname = KkrCalculation._OUTPUT_0_INIT
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                outfile_0init = fhandle.name
-        else:
-            file_errors.append((1 + self.icrit, f'Critical error! OUTPUT_0_INIT not found {fname}'))
-            outfile_0init = None
-        fname = KkrCalculation._OUTPUT_000
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                outfile_000 = fhandle.name
-        else:
-            file_errors.append((1 + self.icrit, f'Critical error! OUTPUT_000 not found {fname}'))
-            outfile_000 = None
-        fname = KkrCalculation._OUTPUT_2
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                outfile_2 = fhandle.name
-        else:
+        outfile_0init_name = KkrCalculation._OUTPUT_0_INIT
+        if outfile_0init_name not in out_folder.list_object_names():
+            file_errors.append((1 + self.icrit, f'Critical error! OUTPUT_0_INIT not found {outfile_0init_name}'))
+            outfile_0init_name = None
+        outfile_000_name = KkrCalculation._OUTPUT_000
+        if outfile_000_name not in out_folder.list_object_names():
+            file_errors.append((1 + self.icrit, f'Critical error! OUTPUT_000 not found {outfile_000_name}'))
+            outfile_000_name = None
+        outfile_2_name = KkrCalculation._OUTPUT_2
+        if outfile_2_name not in out_folder.list_object_names():
             if not only_000_present:
-                file_errors.append((1 + self.icrit, f'Critical error! OUTPUT_2 not found {fname}'))
-                outfile_2 = None
+                file_errors.append((1 + self.icrit, f'Critical error! OUTPUT_2 not found {outfile_2_name}'))
+                outfile_2_name = None
             else:
-                outfile_2 = outfile_000
-        fname = KkrCalculation._OUT_POTENTIAL
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                potfile_out = fhandle.name
-        else:
-            file_errors.append((1 + self.icrit, f'Critical error! OUT_POTENTIAL not found {fname}'))
-            potfile_out = None
-        fname = KkrCalculation._OUT_TIMING_000
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                timing_file = fhandle.name
-        else:
-            file_errors.append((1 + self.icrit, f'Critical error! OUT_TIMING_000  not found {fname}'))
-            timing_file = None
-        fname = KkrCalculation._NONCO_ANGLES_OUT
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                nonco_out_file = fhandle.name
-        else:
-            file_errors.append((2, f'Error! NONCO_ANGLES_OUT not found {fname}'))
-            nonco_out_file = None
+                outfile_2_name = outfile_000_name
+        potfile_out_name = KkrCalculation._OUT_POTENTIAL
+        if potfile_out_name not in out_folder.list_object_names():
+            file_errors.append((1 + self.icrit, f'Critical error! OUT_POTENTIAL not found {potfile_out_name}'))
+            potfile_out_name = None
+        timing_file_name = KkrCalculation._OUT_TIMING_000
+        if timing_file_name not in out_folder.list_object_names():
+            file_errors.append((1 + self.icrit, f'Critical error! OUT_TIMING_000  not found {timing_file_name}'))
+            timing_file_name = None
+        nonco_out_file_name = KkrCalculation._NONCO_ANGLES_OUT
+        if nonco_out_file_name not in out_folder.list_object_names():
+            file_errors.append((2, f'Error! NONCO_ANGLES_OUT not found {nonco_out_file_name}'))
+            nonco_out_file_name = None
 
         out_dict = {
             'parser_version': self._ParserVersion,
@@ -153,18 +135,40 @@ class KkrParser(Parser):
 
         # TODO job title, compound description
 
-        success, msg_list, out_dict = parse_kkr_outputfile(
-            out_dict,
-            outfile,
-            outfile_0init,
-            outfile_000,
-            timing_file,
-            potfile_out,
-            nonco_out_file,
-            outfile_2,
-            skip_readin=skip_mode,
-            debug=debug
-        )
+        # open all files in context managers
+        with ExitStack() as stack:
+            # open files only if they exist
+            # openend files are added to the context manager stack
+            # so that at the end of the parsing all files are closed
+            # when the context manager is exited
+            (outfile, outfile_0init, outfile_000, outfile_2,
+             potfile_out, timing_file, nonco_out_file) = open_files_in_context(
+                stack,
+                out_folder,
+                outfile_name,
+                outfile_0init_name,
+                outfile_000_name,
+                outfile_2_name,
+                potfile_out_name,
+                timing_file_name,
+                nonco_out_file_name
+            )
+
+            # then parse the output
+            out_dict = {}
+            success, msg_list, out_dict = parse_kkr_outputfile(
+              out_dict,
+              outfile,
+              outfile_0init,
+              outfile_000,
+              timing_file,
+              potfile_out,
+              nonco_out_file,
+              outfile_2,
+              skip_readin=skip_mode,
+              debug=debug
+              )
+
 
         # try to parse with other combinations of files to minimize parser errors
         if self.icrit != 0:
@@ -243,3 +247,4 @@ class KkrParser(Parser):
         for fileid in files_to_delete:
             if fileid in self.retrieved.list_object_names():
                 self.retrieved.delete_object(fileid, force=True)
+
