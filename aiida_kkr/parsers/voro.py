@@ -76,7 +76,7 @@ class VoronoiParser(Parser):
             else:
                 file_errors.append(
                     'Critical error! Neither potfile {}  not {} '
-                    'was found'.format(VoronoiCalculation._OUT_POTENTIAL_voronoi, potfile_name)
+                    'was found'.format(potfile_name, VoronoiCalculation._POTENTIAL_IN_OVERWRITE)
                 )
                 potfile_name = None
 
