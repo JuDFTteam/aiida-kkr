@@ -68,40 +68,38 @@ class VoronoiParser(Parser):
 
         # get path to files and catch errors if files are not present
         file_errors = []
-        if VoronoiCalculation._OUT_POTENTIAL_voronoi in out_folder.list_object_names():
-            potfile_name = VoronoiCalculation._OUT_POTENTIAL_voronoi
-        else:
+        potfile_name = VoronoiCalculation._OUT_POTENTIAL_voronoi
+        if potfile_name not in out_folder.list_object_names():
             # cover case where potfile is overwritten from input to voronoi calculation
             if VoronoiCalculation._POTENTIAL_IN_OVERWRITE in out_folder.list_object_names():
                 potfile_name = VoronoiCalculation._POTENTIAL_IN_OVERWRITE
             else:
                 file_errors.append(
                     'Critical error! Neither potfile {}  not {} '
-                    'was found'.format(
-                        VoronoiCalculation._OUT_POTENTIAL_voronoi, VoronoiCalculation._POTENTIAL_IN_OVERWRITE
-                    )
+                    'was found'.format(VoronoiCalculation._OUT_POTENTIAL_voronoi, potfile_name)
                 )
-                potfile = 'file_not_found'
-        if VoronoiCalculation._OUTPUT_FILE_NAME in out_folder.list_object_names():
-            outfile_name = VoronoiCalculation._OUTPUT_FILE_NAME
-        else:
-            file_errors.append(f'Critical error! outfile not found {VoronoiCalculation._OUTPUT_FILE_NAME}')
-            outfile = 'file_not_found'
-        if VoronoiCalculation._ATOMINFO in out_folder.list_object_names():
-            atominfo_name = VoronoiCalculation._ATOMINFO
-        else:
-            file_errors.append(f'Critical error! atominfo not found {VoronoiCalculation._ATOMINFO}')
-            atominfo = 'file_not_found'
-        if VoronoiCalculation._RADII in out_folder.list_object_names():
-            radii_name = VoronoiCalculation._RADII
-        else:
-            file_errors.append(f'Critical error! radii not found {VoronoiCalculation._RADII}')
-            radii = 'file_not_found'
-        if VoronoiCalculation._INPUT_FILE_NAME in out_folder.list_object_names():
-            inputfile_name = VoronoiCalculation._INPUT_FILE_NAME
-        else:
-            file_errors.append(f'Critical error! inputfile not found {VoronoiCalculation._INPUT_FILE_NAME}')
-            inputfile = 'file_not_found'
+                potfile_name = None
+
+        outfile_name = VoronoiCalculation._OUTPUT_FILE_NAME
+        if outfile_name not in out_folder.list_object_names():
+            file_errors.append(f'Critical error! outfile not found {outfile_name}')
+            outfile_name = None
+
+        atominfo_name = VoronoiCalculation._ATOMINFO
+        if atominfo_name not in out_folder.list_object_names():
+            file_errors.append(f'Critical error! atominfo not found {atominfo_name}')
+            atominfo_name = None
+
+        radii_name = VoronoiCalculation._RADII
+        if radii_name not in out_folder.list_object_names():
+            file_errors.append(f'Critical error! radii not found {radii_name}')
+            radii_name = None
+
+        inputfile_name = VoronoiCalculation._INPUT_FILE_NAME
+        if inputfile_name not in out_folder.list_object_names():
+            file_errors.append(f'Critical error! inputfile not found {inputfile_name}')
+            inputfile_name = None
+
         # initialize out_dict and parse output files
         out_dict = {'parser_version': self._ParserVersion}
         out_dict['calculation_plugin_version'] = VoronoiCalculation._CALCULATION_PLUGIN_VERSION
