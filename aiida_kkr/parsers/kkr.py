@@ -141,34 +141,26 @@ class KkrParser(Parser):
             # openend files are added to the context manager stack
             # so that at the end of the parsing all files are closed
             # when the context manager is exited
-            (outfile, outfile_0init, outfile_000, outfile_2,
-             potfile_out, timing_file, nonco_out_file) = open_files_in_context(
-                stack,
-                out_folder,
-                outfile_name,
-                outfile_0init_name,
-                outfile_000_name,
-                outfile_2_name,
-                potfile_out_name,
-                timing_file_name,
-                nonco_out_file_name
-            )
+            (outfile, outfile_0init, outfile_000, outfile_2, potfile_out, timing_file,
+             nonco_out_file) = open_files_in_context(
+                 stack, out_folder, outfile_name, outfile_0init_name, outfile_000_name, outfile_2_name,
+                 potfile_out_name, timing_file_name, nonco_out_file_name
+             )
 
             # then parse the output
             out_dict = {}
             success, msg_list, out_dict = parse_kkr_outputfile(
-              out_dict,
-              outfile,
-              outfile_0init,
-              outfile_000,
-              timing_file,
-              potfile_out,
-              nonco_out_file,
-              outfile_2,
-              skip_readin=skip_mode,
-              debug=debug
-              )
-
+                out_dict,
+                outfile,
+                outfile_0init,
+                outfile_000,
+                timing_file,
+                potfile_out,
+                nonco_out_file,
+                outfile_2,
+                skip_readin=skip_mode,
+                debug=debug
+            )
 
         # try to parse with other combinations of files to minimize parser errors
         if self.icrit != 0:
@@ -247,4 +239,3 @@ class KkrParser(Parser):
         for fileid in files_to_delete:
             if fileid in self.retrieved.list_object_names():
                 self.retrieved.delete_object(fileid, force=True)
-

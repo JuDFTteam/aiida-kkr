@@ -569,7 +569,7 @@ class KkrCalculation(CalcJob):
             #self.report(
             #        f"efset: {ef_set}  efset_1: {parameters.get_dict().get('ef_set')} efset_2: {parameters.get_dict().get('EF_SET')}"
             #)
-            self.report(f"params: {set_values}")
+            self.report(f'params: {set_values}')
             if ef_set is not None:
                 local_copy_list = self._set_ef_value_potential(ef_set, local_copy_list, tempfolder)
 

@@ -113,13 +113,7 @@ class VoronoiParser(Parser):
             # so that at the end of the parsing all files are closed
             # when the context manager is exited
             (potfile, outfile, atominfo, radii, inputfile) = open_files_in_context(
-                stack,
-                out_folder,
-                potfile_name,
-                outfile_name,
-                atominfo_name,
-                radii_name,
-                inputfile_name
+                stack, out_folder, potfile_name, outfile_name, atominfo_name, radii_name, inputfile_name
             )
             success, msg_list, out_dict = parse_voronoi_output(
                 out_dict, outfile, potfile, atominfo, radii, inputfile, debug=debug
