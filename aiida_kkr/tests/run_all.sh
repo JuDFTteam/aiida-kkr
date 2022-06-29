@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-set -e # force stop on first error
-set -x # add debug output
 
 export AIIDA_PATH='.';
 mkdir -p '.aiida';
@@ -34,7 +32,10 @@ usage(){
 addopt=""
 while getopts vh option; do
   case $option in
-    v) # Add verbosity flags '-sv' to pytest run
+    v) # add debug options for this script 
+       set -e # force stop on first error
+       set -x # add debug output
+       # Add verbosity flags '-sv' to pytest run
        addopt=" -sv " && echo "Found -v flag: adding option '$addopt' to pytest execution" ;;
     h) # Display help
        usage

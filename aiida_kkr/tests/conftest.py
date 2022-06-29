@@ -50,10 +50,10 @@ def aiida_localhost_serial(temp_dir):  # pylint: disable=redefined-outer-name
     name = 'localhost-test'
 
     try:
-        computer = Computer.objects.get(name=name)
+        computer = Computer.objects.get(label=name)
     except NotExistent:
         computer = Computer(
-            name=name,
+            label=name,
             description='localhost computer set up by test manager',
             hostname=name,
             workdir=temp_dir,
@@ -182,7 +182,7 @@ def voronoi_local_code(reuse_local_code):
     prepend_text = """
 ulimit -s hard
 ln -s {}/ElementDataBase .
-source compiler-select gcc8""".format(os.path.abspath(exec_rel_path))
+#source compiler-select gcc8""".format(os.path.abspath(exec_rel_path))
     voro_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text, use_export_file=False)
     
     return voro_code
@@ -200,7 +200,7 @@ def kkrhost_local_code(reuse_local_code):
     prepend_text = """
 ulimit -s hard
 export OMP_STACKSIZE=2G
-source compiler-select gcc8"""
+#source compiler-select gcc8"""
     kkrhost_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text, use_export_file=False)
     
     return kkrhost_code
@@ -218,7 +218,7 @@ def kkrimp_local_code(reuse_local_code):
     prepend_text = """
 ulimit -s hard
 export OMP_STACKSIZE=2G
-source compiler-select gcc8"""
+#source compiler-select gcc8"""
     kkrimp_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text, use_export_file=False)
     
     return kkrimp_code

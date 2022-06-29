@@ -198,6 +198,7 @@ class Test_kkr_calculation(object):
         """
         from aiida.orm import load_node, CalcJobNode, Dict
         from aiida_kkr.calculations import KkrCalculation, VoronoiCalculation
+        from aiida_kkr.tools import kkrparams
 
         # import previous voronoi calc (ran with parent_KKR mode and increased LMAX in input params)
         import_with_migration('files/export_kkr_lmax_change.tar.gz')
@@ -205,13 +206,15 @@ class Test_kkr_calculation(object):
 
         # extract KKR parameter from imported voronoi calc
         params_node = voro_with_kkr_input.inputs.parameters
+        p = kkrparams(**{k:v for k,v in params_node.get_dict().items()
+                         if k not in ['<NEWVERSION_BDG>', '<DECOUPLE_SPINS_CHEBY>']})
 
         # construct process builder and run calc
         options = {'resources': {'num_machines':1, 'tot_num_mpiprocs':1}, 'queue_name': queuename}
         builder = KkrCalculation.get_builder()
         builder.code = kkrhost_local_code
         builder.metadata.options = options
-        builder.parameters = Dict(dict=params_node.get_dict())
+        builder.parameters = Dict(dict=p)
         builder.parent_folder = voro_with_kkr_input.outputs.remote_folder
 
         # now run or load from cached data

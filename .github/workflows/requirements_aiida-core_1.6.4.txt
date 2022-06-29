@@ -1,0 +1,4 @@
+# change the following dependencies for an installation in with aiida-core==1.6.4
+# this is needed to ensure that the testing suite uses the proper aiida version
+# which is needed to allow calculations to be cached (we don't want to run any calculations with the tests)
+aiida-core==1.6.4
