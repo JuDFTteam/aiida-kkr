@@ -134,6 +134,12 @@ else
     echo "skipping kkr_dos workflow test"
   fi
   if [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
+    echo "run kkr_bs workflow test"
+    pytest --cov-report=$repfmt --cov-append --cov=./.. ./workflows/test_bs_wc.py $addopt
+  else
+    echo "skipping kkr_bs workflow test"
+  fi
+  if [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run kkr_gf_writeout workflow test"
     pytest --cov-report=$repfmt --cov-append --cov=./.. ./workflows/test_gf_writeout_wc.py $addopt
   else
