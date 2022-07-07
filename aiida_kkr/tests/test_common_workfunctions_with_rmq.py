@@ -65,7 +65,8 @@ class Test_common_workfunctions_rmq(object):
         from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
         import_with_migration('files/db_dump_kkrflex_create.tar.gz')
         GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6').outputs
-        neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.retrieved.open('scoef'), skiprows=1)[:,3]-1]
+        with GF_host_calc.retrieved.open('scoef') as _f:
+            neworder_pot1 = [int(i) for i in loadtxt(_f, skiprows=1)[:,3]-1]
         settings_dict = {'pot1': 'out_potential',  'out_pot': 'potential_imp', 'neworder': neworder_pot1}
         settings = Dict(dict=settings_dict)
         startpot_imp_sfd = neworder_potential_wf(settings_node=settings, parent_calc_folder=GF_host_calc.remote_folder)
