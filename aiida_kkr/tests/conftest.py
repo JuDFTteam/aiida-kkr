@@ -15,7 +15,9 @@ from aiida.manage.tests.pytest_fixtures import aiida_profile, temp_dir
 import aiida_kkr
 
 
-pytest_plugins = ['aiida.manage.tests.pytest_fixtures']
+pytest_plugins = [
+        'aiida.manage.tests.pytest_fixtures', 'aiida_testing.mock_code', 'aiida_testing.export_cache',
+    ] 
 
 # test settings:
 test_dir = pathlib.Path(aiida_kkr.tests.__file__).parent
