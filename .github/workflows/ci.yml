@@ -163,7 +163,7 @@ jobs:
 
     - name: Run pytest
       run: |
-        cd aiida_kkr/tests/
+        cd tests/
         # fake installations of the JuKKR codes
         # and make sure kkr.x etc is found in the PATH (even necessary for the fakes)
         mkdir -p jukkr

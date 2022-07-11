@@ -21,7 +21,8 @@ pytest_plugins = [
 ]
 
 # test settings:
-test_dir = pathlib.Path(aiida_kkr.__file__).parent
+# paths where the tests are located and where the test input data is stored
+test_dir = pathlib.Path(aiida_kkr.__file__).parent.parent / 'tests'
 data_dir = (test_dir / 'data_dir')  # TODO: get from config?
 
 # fixtures
