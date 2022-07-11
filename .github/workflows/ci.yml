@@ -157,6 +157,7 @@ jobs:
         pip install ${{ matrix.aiida.version }}
         pip install ${{ matrix.masci-tools.version }}
         pip install .[testing]
+        pip install reentry
         reentry scan
         pip freeze
 
