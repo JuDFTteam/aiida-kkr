@@ -42,12 +42,13 @@ class modify_potential(object):
     def _read_input(self, filepath):
         with open_general(filepath) as f:
             data = f.readlines()
-            filepathname = f.name
 
-        if 'shapefun' in filepathname:
-            mode = 'shape'
-        else:
-            mode = 'pot'
+        # check if mode is shapefun or potential
+        mode = 'shape'
+        for line in data:
+            if 'exc:' in line:
+                mode = 'pot'
+                break
 
         # read file
         index1 = []

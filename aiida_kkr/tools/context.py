@@ -4,7 +4,7 @@ Helper functions used in KKR and voronoi parser. Needed to properly open file wi
 """
 
 
-def open_context_to_stack(stack, out_folder, outfile_name):
+def open_context_to_stack(stack, out_folder, outfile_name, rw_mode=u'r'):
     """Open a file in a context manager which are collected
     in a context manager stack. The file is only opened if
     the filename is not None.
@@ -16,7 +16,7 @@ def open_context_to_stack(stack, out_folder, outfile_name):
     :returns: the file handle or None if the filename was None
     """
     if outfile_name is not None:
-        outfile = stack.enter_context(out_folder.open(outfile_name))
+        outfile = stack.enter_context(out_folder.open(outfile_name, rw_mode))
     else:
         outfile = None
     return outfile

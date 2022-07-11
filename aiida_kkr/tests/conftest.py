@@ -8,20 +8,20 @@ import pytest
 import tempfile
 import shutil
 import pathlib
-from aiida.common.hashing import make_hash
-from aiida.orm import RemoteData
+from aiida import __version__ as aiida_core_version
+from aiida.orm import RemoteDatafrom
+aiida.common.hashing import make_hash
 from aiida.manage.tests.pytest_fixtures import aiida_profile, temp_dir
 import aiida_kkr
 
 
 pytest_plugins = ['aiida.manage.tests.pytest_fixtures']
-# test settings:
 
+# test settings:
 test_dir = pathlib.Path(aiida_kkr.tests.__file__).parent
 data_dir = (test_dir / 'data_dir')  # TODO: get from config?
 
 # fixtures
-
 
 @pytest.fixture(scope='function', autouse=True)
 def clear_database_auto(clear_database):
@@ -52,13 +52,21 @@ def aiida_localhost_serial(temp_dir):  # pylint: disable=redefined-outer-name
     try:
         computer = Computer.objects.get(label=name)
     except NotExistent:
+        if int(aiida_core_version.split('.')[0])<2:
+            # old name before aiida-core v2.0
+            transport_type='local'
+            scheduler_type='direct'
+        else:
+            # new names in aiida-core >= 2.0
+            transport_type='core.local'
+            scheduler_type='core.direct'
         computer = Computer(
             label=name,
             description='localhost computer set up by test manager',
             hostname=name,
             workdir=temp_dir,
-            transport_type='local',
-            scheduler_type='direct'
+            transport_type=transport_type,
+            scheduler_type=scheduler_type
         )
         computer.store()
         computer.set_minimum_job_poll_interval(0.)
@@ -124,13 +132,26 @@ def reuse_local_code(aiida_local_code_factory_prepend):
 
     def _get_code(executable, exec_relpath, entrypoint, prepend_text=None, use_export_file=True):
         import os
-        from aiida.tools.importexport import import_data, export
         from aiida.orm import ProcessNode, QueryBuilder, Code, load_node
 
+        try:
+            # this is for aiida-core < 2.0
+            from aiida.tools.importexport import import_data, export
+            aiida_core_ver_old = True
+        except ImportError:
+            # This is the case for aiida >= 2.0.0
+            from aiida.tools.archive import import_archive
+            import_kwargs = {'group': None}
+            aiida_core_ver_old = False
+        
         full_import_path = str(data_dir)+'/'+executable+'.tar.gz'
+            
         # check if exported code exists and load it, otherwise create new code (will have different has due to different working directory)
         if use_export_file and pathlib.Path(full_import_path).exists():
-            import_data(full_import_path, silent=True)
+            if aiida_core_ver_old:
+                import_data(full_import_path, silent=True)
+            else:
+                import_archive(archive_path, **import_kwargs)
             codes = Code.objects.find(filters={'label': executable})  # pylint: disable=no-member
             code = codes[0]
             code.computer.configure()
@@ -143,9 +164,10 @@ def reuse_local_code(aiida_local_code_factory_prepend):
             # get code using aiida_local_code_factory fixture
             code = aiida_local_code_factory_prepend(entrypoint, executable, prepend_text=prepend_text)
             
-            if use_export_file:
+            if use_export_file and aiida_core_ver_old:
                 #export for later reuse
                 export([code], outfile=full_import_path, overwrite=True) # add export of extras automatically
+                
 
         return code
 

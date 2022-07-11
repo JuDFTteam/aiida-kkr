@@ -1009,8 +1009,7 @@ class plot_kkr(object):
                                     # parent is scf workflow
                                     ef = parent_calc.outputs.last_calc_out['fermi_energy']
                             except:
-                                outfile_name = f.name.replace('qvec.dat', 'output.0.txt')
-                                with open_general(outfile_name) as file_handle:
+                                with node.outputs.retrieved.open('output.0.txt', mode='r') as file_handle:
                                     txt = file_handle.readlines()
                                     iline = search_string('Fermi energy', txt)
                                     if iline >= 0:

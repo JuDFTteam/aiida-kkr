@@ -8,15 +8,18 @@ all errors and warnings and show them to the user.
 from __future__ import absolute_import
 import tarfile
 import os
-from aiida.parsers.parser import Parser
+from aiida import __version__ as aiida_core_version
 from aiida.orm import Dict
-from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from aiida.common.exceptions import InputValidationError, NotExistent
+from aiida.parsers.parser import Parser
+from aiida_kkr.calculations.kkrimp import KkrimpCalculation
+from aiida_kkr.tools.context import open_files_in_context
 from masci_tools.io.parsers.kkrparser_functions import check_error_category
 from masci_tools.io.common_functions import open_general
 from masci_tools.io.parsers.kkrimp_parser_functions import KkrimpParserFunctions
 from six.moves import range
 from pprint import pprint
+from contextlib import ExitStack
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
@@ -58,7 +61,7 @@ class KkrimpParser(Parser):
             return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
 
         # check what is inside the folder
-        list_of_files = out_folder._repository.list_object_names()
+        list_of_files = out_folder.list_object_names()
 
         file_errors = []
         files = {}
@@ -71,89 +74,26 @@ class KkrimpParser(Parser):
         # 2: warning, is inspected and checked for consistency with read-in
         #    out_dict values (e.g. nspin, newsosol, ...)
 
-        if KkrimpCalculation._DEFAULT_OUTPUT_FILE not in list_of_files:
-            msg = f"Output file '{KkrimpCalculation._DEFAULT_OUTPUT_FILE}' not found in list of files: {list_of_files}"
+        # first go through list of critical files that should always be there
+        critical_files = [
+            ('outfile', KkrimpCalculation._DEFAULT_OUTPUT_FILE),
+            ('out_log', KkrimpCalculation._OUTPUT_000),
+            ('out_pot', KkrimpCalculation._OUT_POTENTIAL),
+            ('out_timing', KkrimpCalculation._OUT_TIMING_000),
+            ('out_enersp_at', KkrimpCalculation._OUT_ENERGYSP_PER_ATOM),
+            ('out_enertot_at', KkrimpCalculation._OUT_ENERGYTOT_PER_ATOM),
+        ]
+        for keyname, fname in critical_files:
+            self._check_file_existance(out_folder, files, keyname, fname, 1, file_errors)
 
-        if KkrimpCalculation._DEFAULT_OUTPUT_FILE in out_folder.list_object_names():
-            with out_folder.open(KkrimpCalculation._DEFAULT_OUTPUT_FILE) as fhandle:
-                outfile = fhandle.name
-            files['outfile'] = outfile
-        else:
-            file_errors.append((1, msg))
-            outfile = None
-
-        fname = KkrimpCalculation._OUTPUT_000
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                filepath = fhandle.name
-            files['out_log'] = filepath
-        else:
-            file_errors.append((1, f"Critical error! file '{fname}' not found "))
-            files['out_log'] = None
-        fname = KkrimpCalculation._OUT_POTENTIAL
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                filepath = fhandle.name
-            files['out_pot'] = filepath
-        else:
-            file_errors.append((1, f"Critical error! file '{fname}' not found "))
-            files['out_pot'] = None
-        fname = KkrimpCalculation._OUT_TIMING_000
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                filepath = fhandle.name
-            files['out_timing'] = filepath
-        else:
-            file_errors.append((1, f"Critical error! file '{fname}' not found "))
-            files['out_timing'] = None
-        fname = KkrimpCalculation._OUT_ENERGYSP_PER_ATOM
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                filepath = fhandle.name
-            files['out_enersp_at'] = filepath
-        else:
-            file_errors.append((1, f"Critical error! file '{fname}' not found "))
-            files['out_enersp_at'] = None
-        fname = KkrimpCalculation._OUT_ENERGYTOT_PER_ATOM
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                filepath = fhandle.name
-            files['out_enertot_at'] = filepath
-        else:
-            file_errors.append((1, f"Critical error! file '{fname}' not found "))
-            files['out_enertot_at'] = None
-        fname = KkrimpCalculation._KKRFLEX_LLYFAC
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                filepath = fhandle.name
-            files['kkrflex_llyfac'] = filepath
-        else:
-            file_errors.append((2, f"Warning! file '{fname}' not found "))
-            files['kkrflex_llyfac'] = None
-        fname = KkrimpCalculation._KKRFLEX_ANGLE
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                filepath = fhandle.name
-            files['kkrflex_angles'] = filepath
-        else:
-            file_errors.append((2, f"Warning! file '{fname}' not found "))
-            files['kkrflex_angles'] = None
-        fname = KkrimpCalculation._OUT_MAGNETICMOMENTS
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                filepath = fhandle.name
-            files['out_spinmoms'] = filepath
-        else:
-            file_errors.append((2, f"Warning! file '{fname}' not found "))
-            files['out_spinmoms'] = None
-        fname = KkrimpCalculation._OUT_ORBITALMOMENTS
-        if fname in out_folder.list_object_names():
-            with out_folder.open(fname) as fhandle:
-                filepath = fhandle.name
-            files['out_orbmoms'] = filepath
-        else:
-            file_errors.append((2, f"Warning! file '{fname}' not found "))
-            files['out_orbmoms'] = None
+        additional_files = [
+            ('kkrflex_llyfac', KkrimpCalculation._KKRFLEX_LLYFAC),
+            ('kkrflex_angles', KkrimpCalculation._KKRFLEX_ANGLE),
+            ('out_spinmoms', KkrimpCalculation._OUT_MAGNETICMOMENTS),
+            ('out_orbmoms', KkrimpCalculation._OUT_ORBITALMOMENTS),
+        ]
+        for keyname, fname in additional_files:
+            self._check_file_existance(out_folder, files, keyname, fname, 2, file_errors)
 
         if debug:
             pprint(files)
@@ -164,7 +104,19 @@ class KkrimpParser(Parser):
             'calculation_plugin_version': KkrimpCalculation._CALCULATION_PLUGIN_VERSION
         }
 
-        success, msg_list, out_dict = KkrimpParserFunctions().parse_kkrimp_outputfile(out_dict, files, debug=debug)
+        # open all files in context managers
+        with ExitStack() as stack:
+            # open files only if they exist
+            # openend files are added to the context manager stack
+            # so that at the end of the parsing all files are closed
+            # when the context manager is exited
+            fhandles = open_files_in_context(stack, out_folder, *files.values())
+            named_file_handles = dict([[key, fhandles[ik]] for ik, key in enumerate(files.keys())])
+
+            # now we can parse the output files
+            success, msg_list, out_dict = KkrimpParserFunctions().parse_kkrimp_outputfile(
+                out_dict, named_file_handles, debug=debug
+            )
 
         out_dict['parser_errors'] = msg_list
         # add file open errors to parser output of error messages
@@ -184,15 +136,36 @@ class KkrimpParser(Parser):
 
         # cleanup after parsing (only if parsing was successful)
         if success:
-            # reduce size of timing file
-            self.cleanup_outfiles(files['out_timing'], ['Iteration number', 'time until scf starts'])
-            # reduce size of out_log file
-            self.cleanup_outfiles(files['out_log'], ['Iteration Number'])
-            # delete completely parsed output files and create a tar ball to reduce size
-            self.remove_unnecessary_files()
-            self.final_cleanup()
+            # cleanup only works below aiida-core v2.0
+            if int(aiida_core_version.split('.')[0]) < 2:
+                # reduce size of timing file
+                self.cleanup_outfiles(files['out_timing'], ['Iteration number', 'time until scf starts'])
+                # reduce size of out_log file
+                self.cleanup_outfiles(files['out_log'], ['Iteration Number'])
+                # delete completely parsed output files and create a tar ball to reduce size
+                self.remove_unnecessary_files()
+                self.final_cleanup()
         else:
             return self.exit_codes.ERROR_PARSING_KKRIMPCALC
+
+    def _check_file_existance(self, out_folder, files, keyname, fname, icrit, file_errors):
+        """Check if file called `fname` exists and then
+        add it to the `files` dict with a given `keyname`.
+        The icrit index determines how critical it is if a file
+        is not found (1=critical error, 2=only a warning).
+        """
+        if fname in out_folder.list_object_names():
+            files[keyname] = fname
+        else:
+            # file not
+            if icrit == 1:
+                crit_level = 'Critical file error!'
+            elif icrit == 2:
+                crit_level = 'Warning!'
+            else:
+                raise ValueError('icrit should be either 1 or 2')
+            file_errors.append((icrit, crit_level + f" File '{fname}' not found."))
+            files[keyname] = None
 
     def cleanup_outfiles(self, fileidentifier, keyslist):
         """open file and remove unneeded output"""

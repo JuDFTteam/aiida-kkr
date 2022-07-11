@@ -6,13 +6,14 @@ all errors and warnings and show them to the user.
 """
 
 from __future__ import absolute_import
+from aiida import __version__ as aiida_core_version
 from aiida.parsers.parser import Parser
 from aiida.orm import Dict
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida.common.exceptions import InputValidationError, NotExistent
 from masci_tools.io.parsers.kkrparser_functions import parse_kkr_outputfile, check_error_category
 from masci_tools.io.common_functions import search_string
-from aiida_kkr.tools.context import open_context_to_stack, open_files_in_context
+from aiida_kkr.tools.context import open_files_in_context
 from contextlib import ExitStack
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
@@ -224,10 +225,12 @@ class KkrParser(Parser):
         if not success:
             return self.exit_codes.ERROR_KKR_PARSING_FAILED
         else:  # cleanup after parsing (only if parsing was successful)
-            # delete completely parsed output files
-            self.remove_unnecessary_files()
-            # then (maybe) tar the output to save space
-            # TODO needs implementing (see kkrimp parser)
+            # cleanup only works below aiida-core v2.0
+            if int(aiida_core_version.split('.')[0]) < 2:
+                # delete completely parsed output files
+                self.remove_unnecessary_files()
+                # then (maybe) tar the output to save space
+                # TODO needs implementing (see kkrimp parser)
 
     def remove_unnecessary_files(self):
         """
