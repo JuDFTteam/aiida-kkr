@@ -9,8 +9,8 @@ import tempfile
 import shutil
 import pathlib
 from aiida import __version__ as aiida_core_version
-from aiida.orm import RemoteDatafrom
-aiida.common.hashing import make_hash
+from aiida.orm import RemoteData
+from aiida.common.hashing import make_hash
 from aiida.manage.tests.pytest_fixtures import aiida_profile, temp_dir
 import aiida_kkr
 
