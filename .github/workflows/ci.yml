@@ -154,6 +154,8 @@ jobs:
       run: |
         # install aiida-kkr with aiida-core 1.6.4 (used in the generation of the test files on iffaiida)
         #pip install --use-feature=2020-resolver .[testing] -r .github/workflows/requirements_aiida-core_1.6.4.txt
+        pip install ${{ matrix.aiida.version }}
+        pip install ${{ matrix.masci-tools.version }}
         pip install .[testing]
         reentry scan
         pip freeze
