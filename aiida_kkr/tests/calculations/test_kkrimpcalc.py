@@ -5,7 +5,7 @@ from builtins import object
 import pytest
 from aiida_kkr.tests.dbsetup import *
 from aiida.manage.tests.pytest_fixtures import aiida_profile, clear_database, clear_database_after_test
-from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
+from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint, absolute_archive_path
 from ..conftest import data_dir, import_with_migration
 
 # tests

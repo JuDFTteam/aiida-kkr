@@ -6,7 +6,7 @@ from __future__ import absolute_import
 from builtins import object
 from aiida_kkr.tests.dbsetup import *
 from ..conftest import voronoi_local_code, test_dir, data_dir, import_with_migration
-from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
+from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint, absolute_archive_path
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 import pytest
 

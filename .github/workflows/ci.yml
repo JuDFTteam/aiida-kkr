@@ -92,6 +92,7 @@ jobs:
         masci-tools: [{version: 'masci-tools', name: ''}]
         allowed-to-fail: [false]
         include:
+          # for python 3.9 we also test with the latest aiida-core version and the latest version of masci-tools
           - python-version: 3.9
             aiida: {version: 'git+https://github.com/aiidateam/aiida-core.git@main', name: 'latest'}
             masci-tools: {version: 'masci-tools', name: ''}
@@ -101,6 +102,7 @@ jobs:
             masci-tools: {version: 'git+https://github.com/JuDFTteam/masci-tools.git@develop', name: '-masci-develop'}
             allowed-to-fail: true
         exclude:
+          # aiida-core>=2.0 needs at least python 3.8
           - python-version: 3.7
             aiida: {version: 'aiida-core==2.0.1', name: '2.0.1'}
             masci-tools: {version: 'masci-tools', name: ''}
@@ -151,7 +153,8 @@ jobs:
     - name: Install aiida-kkr
       run: |
         # install aiida-kkr with aiida-core 1.6.4 (used in the generation of the test files on iffaiida)
-        pip install --use-feature=2020-resolver .[testing] -r .github/workflows/requirements_aiida-core_1.6.4.txt
+        #pip install --use-feature=2020-resolver .[testing] -r .github/workflows/requirements_aiida-core_1.6.4.txt
+        pip install .[testing]
         reentry scan
         pip freeze
 
