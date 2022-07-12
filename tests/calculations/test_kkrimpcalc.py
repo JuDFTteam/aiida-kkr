@@ -30,7 +30,8 @@ class Test_kkrimp_calculation(object):
         # now create a SingleFileData node containing the impurity starting potential
         from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
         from numpy import loadtxt
-        neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.outputs.retrieved.open('scoef'), skiprows=1)[:, 3] - 1]
+        with GF_host_calc.outputs.retrieved.open('scoef') as _f:
+            neworder_pot1 = [int(i) for i in loadtxt(_f, skiprows=1)[:, 3] - 1]
         settings_dict = {'pot1': 'out_potential', 'out_pot': 'potential_imp', 'neworder': neworder_pot1}
         settings = Dict(dict=settings_dict)
         startpot_imp_sfd = neworder_potential_wf(

@@ -4,11 +4,12 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 from builtins import object
+import pytest
+import pathlib
+from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
+from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint, absolute_archive_path
 from ..dbsetup import *
 from ..conftest import voronoi_local_code, test_dir, data_dir, import_with_migration
-from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint, absolute_archive_path
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
-import pytest
 
 kkr_codename = 'kkrhost'
 
@@ -47,7 +48,6 @@ def test_voronoi_dry_run(aiida_profile, voronoi_local_code):
     builder.metadata.options = options
     builder.parameters = ParaNode
     builder.structure = Cu
-    builder._hash_ignored_inputs = ['code']
     builder.metadata.dry_run = True
     from aiida.engine import run
     run(builder)
@@ -82,7 +82,6 @@ def test_voronoi_cached(clear_database_before_test, voronoi_local_code, run_with
     builder.metadata.options = options
     builder.parameters = ParaNode
     builder.structure = Cu
-    builder._hash_ignored_inputs = ['code']
     # now run calculation or use cached result
     print('data_dir:', data_dir)
     out, node = run_with_cache(builder, data_dir=data_dir)
@@ -91,10 +90,11 @@ def test_voronoi_cached(clear_database_before_test, voronoi_local_code, run_with
     print('cache_source:', node.get_cache_source())
     print('hash', node.get_hash())
     print('_get_objects_to_hash', node._get_objects_to_hash())
-    assert node.get_cache_source() is not None
+    print('ignored attributes:', node._hash_ignored_attributes)
     print('code hash:', voronoi_local_code.get_hash())
     print('code objects to hash:', voronoi_local_code._get_objects_to_hash())
     print('ignored attributes:', voronoi_local_code._hash_ignored_attributes)
+    assert node.get_cache_source() is not None
 
 
 def test_vca_structure(aiida_profile, voronoi_local_code):

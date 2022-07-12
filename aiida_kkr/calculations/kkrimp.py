@@ -369,11 +369,9 @@ The Dict node should be of the form
         # check if host parent was KKRFLEX calculation
         hostfolder = parent_calc.outputs.retrieved
         with hostfolder.open(KkrCalculation._DEFAULT_INPUT_FILE) as fhandle:
-            input_file = fhandle.name
-        params_host_calc = kkrparams(
-            params_type='kkr'
-        )  # initialize kkrparams instance to use read_keywords_from_inputcard
-        params_host_calc.read_keywords_from_inputcard(inputcard=input_file)
+            # use read_keywords_from_inputcard of kkrparams class
+            params_host_calc = kkrparams(params_type='kkr')
+            params_host_calc.read_keywords_from_inputcard(inputcard=fhandle)
 
         if 'RUNOPT' not in list(params_host_calc.get_dict().keys()):
             host_ok = False
