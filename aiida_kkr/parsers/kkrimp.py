@@ -15,7 +15,6 @@ from aiida.parsers.parser import Parser
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from aiida_kkr.tools.context import open_files_in_context
 from masci_tools.io.parsers.kkrparser_functions import check_error_category
-from masci_tools.io.common_functions import open_general
 from masci_tools.io.parsers.kkrimp_parser_functions import KkrimpParserFunctions
 from six.moves import range
 from pprint import pprint
@@ -84,7 +83,7 @@ class KkrimpParser(Parser):
             ('out_enertot_at', KkrimpCalculation._OUT_ENERGYTOT_PER_ATOM),
         ]
         for keyname, fname in critical_files:
-            self._check_file_existance(out_folder, files, keyname, fname, 1, file_errors)
+            self._check_file_existance(files, keyname, fname, 1, file_errors)
 
         additional_files = [
             ('kkrflex_llyfac', KkrimpCalculation._KKRFLEX_LLYFAC),
@@ -93,7 +92,7 @@ class KkrimpParser(Parser):
             ('out_orbmoms', KkrimpCalculation._OUT_ORBITALMOMENTS),
         ]
         for keyname, fname in additional_files:
-            self._check_file_existance(out_folder, files, keyname, fname, 2, file_errors)
+            self._check_file_existance(files, keyname, fname, 2, file_errors)
 
         if debug:
             pprint(files)
@@ -148,13 +147,13 @@ class KkrimpParser(Parser):
         else:
             return self.exit_codes.ERROR_PARSING_KKRIMPCALC
 
-    def _check_file_existance(self, out_folder, files, keyname, fname, icrit, file_errors):
+    def _check_file_existance(self, files, keyname, fname, icrit, file_errors):
         """Check if file called `fname` exists and then
         add it to the `files` dict with a given `keyname`.
         The icrit index determines how critical it is if a file
         is not found (1=critical error, 2=only a warning).
         """
-        if fname in out_folder.list_object_names():
+        if fname in self.retrieved.list_object_names():
             files[keyname] = fname
         else:
             # file not
@@ -169,20 +168,21 @@ class KkrimpParser(Parser):
 
     def cleanup_outfiles(self, fileidentifier, keyslist):
         """open file and remove unneeded output"""
-        lineids = []
-        with open_general(fileidentifier) as tfile:
-            txt = tfile.readlines()
-            for iline in range(len(txt)):
-                for key in keyslist:  # go through all keys
-                    if key in txt[iline]:  # add line id to list if key has been found
-                        lineids.append(iline)
-        # rewrite file deleting the middle part
-        if len(lineids) > 1:  # cut only if more than one iteration was found
-            txt = txt[:lineids[0]] + \
-                ['# ... [removed output except for last iteration] ...\n'] + \
-                txt[lineids[-1]:]
-            with open_general(fileidentifier, 'w') as tfilenew:
-                tfilenew.writelines(txt)
+        if fileidentifier is not None:
+            lineids = []
+            with self.retrieved.open(fileidentifier) as tfile:
+                txt = tfile.readlines()
+                for iline in range(len(txt)):
+                    for key in keyslist:  # go through all keys
+                        if key in txt[iline]:  # add line id to list if key has been found
+                            lineids.append(iline)
+            # rewrite file deleting the middle part
+            if len(lineids) > 1:  # cut only if more than one iteration was found
+                txt = txt[:lineids[0]] + \
+                    ['# ... [removed output except for last iteration] ...\n'] + \
+                    txt[lineids[-1]:]
+                with self.retrieved.open(fileidentifier, 'w') as tfilenew:
+                    tfilenew.writelines(txt)
 
     def remove_unnecessary_files(self):
         """

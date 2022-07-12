@@ -281,7 +281,6 @@ def plot_imp_cluster(kkrimp_calc_node, **kwargs):
         ase_view_imp.make_gui(
             ase_atoms_impcls,
             center_in_uc=True,
-            use_atom_arrays=True,
         )
 
     return strucview_imp

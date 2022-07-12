@@ -18,6 +18,7 @@ def test_parse_kkrimp_calc(aiida_profile):
     from aiida_kkr.parsers.kkrimp import KkrimpParser
     import_with_migration('files/db_dump_kkrimp_out.tar.gz')
     kkrimp_calc = load_node('eab8db1b-2cc7-4b85-a524-0df4ff2b7da6')
+    print(kkrimp_calc.outputs.retrieved.list_object_names())
     parser = KkrimpParser(kkrimp_calc)
     out = parser.parse(debug=False)
     print(out)
