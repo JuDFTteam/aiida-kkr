@@ -2,7 +2,7 @@
 set -e # force stop on first error
 
 export AIIDA_PATH='.';
-mkdir -p '.aiida';
+mkdir -p '.aiida/access/test_profile'
 
 # control test coverage by setting the envoronment variables
 # SKIP_NOWORK   to run only workflow tests

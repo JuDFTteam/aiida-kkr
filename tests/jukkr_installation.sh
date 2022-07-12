@@ -25,6 +25,7 @@ if [[ -z "$install_jukkr" ]]; then
 else
     # clone jukkr repository
     git clone --depth 1 -b develop --single-branch gitlab@iffgit.fz-juelich.de:kkr/jukkr.git
+    mkdir -p jukkr/
     cd jukkr/
 
     # select gcc8 environment

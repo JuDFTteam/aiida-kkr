@@ -161,6 +161,11 @@ jobs:
         reentry scan
         pip freeze
 
+    - name: Migrate AiiDA workflow caches
+      run: |
+        cd ./tests/
+        python migrate_exports.py
+
     - name: Run pytest
       run: |
         cd tests/
