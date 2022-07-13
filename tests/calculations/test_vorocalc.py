@@ -91,9 +91,18 @@ def test_voronoi_cached(clear_database_before_test, voronoi_local_code, run_with
     print('hash', node.get_hash())
     print('_get_objects_to_hash', node._get_objects_to_hash())
     print('ignored attributes:', node._hash_ignored_attributes)
+    print()
     print('code hash:', voronoi_local_code.get_hash())
     print('code objects to hash:', voronoi_local_code._get_objects_to_hash())
     print('ignored attributes:', voronoi_local_code._hash_ignored_attributes)
+    print()
+    print('structure hash:', structure.get_hash())
+    print('structure objects to hash:', structure._get_objects_to_hash())
+    print('structure ignored attributes:', structure._hash_ignored_attributes)
+    print()
+    print('parameters hash:', parameters.get_hash())
+    print('parameters objects to hash:', parameters._get_objects_to_hash())
+    print('parameters ignored attributes:', parameters._hash_ignored_attributes)
     assert node.get_cache_source() is not None
 
 
