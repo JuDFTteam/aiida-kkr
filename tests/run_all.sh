@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -e # force stop on first error
 
 export AIIDA_PATH='.';
 mkdir -p '.aiida/access/test_profile'
@@ -26,6 +25,7 @@ usage(){
   echo
   echo "Setting that control the pytest run (also set as environment variables):";
   echo "  'HTML': create html coverage report";
+  echo "  'CONTINUE_ON_ERROR': continue running tests even if we encounter errors";
   echo
   exit 0;
 }
@@ -42,17 +42,25 @@ while getopts vh option; do
   esac
 done
 
-if [[ ! -z "$HTML" ]]; then
-  echo "create html coverage report (uset 'HTML' to deactivate this)"
-  repfmt="html"
-else
-  repfmt="xml"
-fi
-
 
 # print settings before starting the tests
+
 echo "Test settings"
 echo "============="
+if [[ ! -z "$HTML" ]]; then
+  echo "Create html coverage report (unset 'HTML' to deactivate this)"
+  repfmt="html"
+else
+  echo "Create XML coverage report (set 'HTML' to activate this)"
+  repfmt="xml"
+fi
+if [[ ! -z "$CONTINUE_ON_ERROR" ]]; then
+  echo "Continue running tests even if we encounter errors (unset 'CONTINUE_ON_ERROR' to deactivate this)"
+  set -e # force stop on first error
+else
+  echo "Stop on first error (set 'CONTINUE_ON_ERROR' to deactivate this)"
+fi
+echo "== Test selection =="
 if [[ ! -z "$RUN_ALL" ]]; then
   echo "Running all test (needs all KKR executables, set by 'RUN_ALL' env)"
 else
@@ -163,21 +171,22 @@ else
 
   if [[ ! -z "$RUN_KKRIMP" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run kkrimp_scf workflow test"
-    pytest --cov-report=$repfmt --cov-append --cov=./.. --ignore=jukkr -k Test_kkrimp_scf_workflow $addopt
+    pytest --cov-report=$repfmt --cov-append --cov=./.. --ignore=jukkr ./workflows/test_kkrimp_sub_wc.py $addopt
+    #pytest --cov-report=$repfmt --cov-append --cov=./.. --ignore=jukkr ./workflows/test_kkrimp_{dos,sub}_wc.py $addopt
   else
     echo "skipping kkrimp_scf workflow test"
   fi
-  #if [[ ! -z "$RUN_KKRIMP" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ ! -z "$RUN_VORONOI" ]] && [[ -z "$NO_RMQ" ]]; then
-  #  echo "run kkrimp_full workflow test"
-  #  pytest --cov-report=$repfmt --cov-append --cov=./.. --ignore=jukkr -k Test_kkrimp_full_workflow $addopt
-  #else
-  #  echo "skipping kkrimp_full workflow test"
-  #fi
-  #if [[ ! -z "$RUN_KKRIMP" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
-  #  echo "run kkrimp_dos workflow test"
-  #  pytest --cov-report=$repfmt --cov-append --cov=./.. --ignore=jukkr -k Test_kkrimp_dos_workflow $addopt
-  #else
-  #  echo "skipping kkrimp_dos workflow test"
-  #fi
+  if [[ ! -z "$RUN_KKRIMP" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ ! -z "$RUN_VORONOI" ]] && [[ -z "$NO_RMQ" ]]; then
+    echo "run kkrimp_full workflow test"
+    pytest --cov-report=$repfmt --cov-append --cov=./.. --ignore=jukkr ./workflows/test_kkrimp_full_wc.py $addopt
+  else
+    echo "skipping kkrimp_full workflow test"
+  fi
+  if [[ ! -z "$RUN_KKRIMP" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
+    echo "run kkrimp_dos workflow test"
+    pytest --cov-report=$repfmt --cov-append --cov=./.. --ignore=jukkr -k Test_kkrimp_dos_workflow $addopt
+  else
+    echo "skipping kkrimp_dos workflow test"
+  fi
 
 fi
