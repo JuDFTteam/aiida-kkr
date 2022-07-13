@@ -124,7 +124,7 @@ def test_kkrimp_full_Ag_Cu_onsite(
     imp_info = Dict(dict={'Rcut': 3.5, 'ilayer_center': 0, 'Zimp': [47.]})
 
     # import parent calculation (converged host system)
-    imported_nodes = import_with_migration('data_dir/kkr_scf_wc-nodes-54077494de2cea64907bd7e46c816247.tar.gz')['Node']
+    imported_nodes = import_with_migration('data_dir/kkr_scf_wc-nodes-c687c8621b7a63ee5fd678e9c8a4e40c.tar.gz')['Node']
     for _, pk in imported_nodes['new'] + imported_nodes['existing']:
         node = load_node(pk)
         if node.label == 'KKR-scf for Cu bulk':

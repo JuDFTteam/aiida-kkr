@@ -185,9 +185,9 @@ jobs:
 
     - name: Archive test output artifacts
       uses: actions/upload-artifact@v3
-      if: always()
+      if: failure()
       with:
-        name: test-results-AIIDA__${{ matrix.aiida.version }}__MASCI__${{ matrix.masci-tools.version }}
+        name: test-results-AIIDA__${{ matrix.aiida.name }}__MASCI__${{ matrix.masci-tools.name }}
         path: tests
 
     - name: Upload coverage to Codecov
