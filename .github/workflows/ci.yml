@@ -65,8 +65,8 @@ jobs:
 
     - name: Install python dependencies
       run: |
-        pip install .[pre-commit]
         pip install 'git+https://github.com/JuDFTteam/masci-tools.git@develop'
+        pip install .[pre-commit]
         pip freeze
 
     - name: Run pre-commit
