@@ -57,21 +57,22 @@ def test_voronoi_cached(clear_database_before_test, voronoi_local_code, run_with
     """
     simple Cu noSOC, FP, lmax2 full example
     """
-    from aiida.orm import Code, Dict, StructureData
+    import numpy as np
     from masci_tools.io.kkr_params import kkrparams
+    from aiida.orm import Code, Dict, StructureData
     from aiida_kkr.calculations.voro import VoronoiCalculation
 
     # create StructureData instance for Cu
     alat = 3.61  # lattice constant in Angstroem
     bravais = [[0.5 * alat, 0.5 * alat, 0], [0.5 * alat, 0, 0.5 * alat], [0, 0.5 * alat,
                                                                           0.5 * alat]]  # Bravais matrix in Ang. units
-    Cu = StructureData(cell=bravais)
-    Cu.append_atom(position=[0, 0, 0], symbols='Cu')
+    structure = StructureData(cell=np.round(bravais, 3))
+    structure.append_atom(position=[0, 0, 0], symbols='Cu')
 
     # create Dict input node using kkrparams class from masci-tools
-    params = kkrparams(params_type='voronoi')
-    params.set_multiple_values(LMAX=2, NSPIN=1, RCLUSTZ=2.3)
-    ParaNode = Dict(dict=params.get_dict())
+    kkr_params = kkrparams(params_type='voronoi')
+    kkr_params.set_multiple_values(LMAX=2, NSPIN=1, RCLUSTZ=2.3)
+    parameters = Dict(dict={k: v for k, v in kkr_params.items() if v})
 
     # computer options
     options = {'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}, 'queue_name': queuename}
@@ -80,8 +81,8 @@ def test_voronoi_cached(clear_database_before_test, voronoi_local_code, run_with
     builder = VoronoiCalculation.get_builder()
     builder.code = voronoi_local_code
     builder.metadata.options = options
-    builder.parameters = ParaNode
-    builder.structure = Cu
+    builder.parameters = parameters
+    builder.structure = structure
     # now run calculation or use cached result
     print('data_dir:', data_dir)
     out, node = run_with_cache(builder, data_dir=data_dir)
