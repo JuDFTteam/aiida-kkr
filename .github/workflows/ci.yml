@@ -65,7 +65,7 @@ jobs:
 
     - name: Install python dependencies
       run: |
-        pip install --use-feature=2020-resolver .[pre-commit]
+        pip install .[pre-commit]
         pip freeze
 
     - name: Run pre-commit
@@ -194,6 +194,12 @@ jobs:
         SKIP_NOWORK=True RUN_VORONOI=True RUN_KKRHOST=True ./run_all.sh
         # now also run the KKRimp tests
         SKIP_NOWORK=True RUN_KKRIMP=True ./run_all.sh
+
+    - name: Archive test output artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: tests
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
