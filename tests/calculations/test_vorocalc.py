@@ -64,8 +64,8 @@ def test_voronoi_cached(clear_database_before_test, voronoi_local_code, run_with
 
     # create StructureData instance for Cu
     alat = 3.61  # lattice constant in Angstroem
-    bravais = [[0.5 * alat, 0.5 * alat, 0], [0.5 * alat, 0, 0.5 * alat], [0, 0.5 * alat,
-                                                                          0.5 * alat]]  # Bravais matrix in Ang. units
+    bravais = [[0.5 * alat, 0.5 * alat, 0.0], [0.5 * alat, 0.0, 0.5 * alat],
+               [0.0, 0.5 * alat, 0.5 * alat]]  # Bravais matrix in Ang. units
     structure = StructureData(cell=np.round(bravais, 3))
     structure.append_atom(position=[0, 0, 0], symbols='Cu')
 
@@ -92,18 +92,18 @@ def test_voronoi_cached(clear_database_before_test, voronoi_local_code, run_with
     print('hash', node.get_hash())
     print('_get_objects_to_hash', node._get_objects_to_hash())
     print('ignored attributes:', node._hash_ignored_attributes)
-    print()
-    print('code hash:', voronoi_local_code.get_hash())
-    print('code objects to hash:', voronoi_local_code._get_objects_to_hash())
+    print('===== code =====')
+    print('hash:', voronoi_local_code.get_hash())
+    print('objects to hash:', voronoi_local_code._get_objects_to_hash())
     print('ignored attributes:', voronoi_local_code._hash_ignored_attributes)
-    print()
+    print('===== structure =====')
     print('structure hash:', structure.get_hash())
-    print('structure objects to hash:', structure._get_objects_to_hash())
-    print('structure ignored attributes:', structure._hash_ignored_attributes)
-    print()
-    print('parameters hash:', parameters.get_hash())
-    print('parameters objects to hash:', parameters._get_objects_to_hash())
-    print('parameters ignored attributes:', parameters._hash_ignored_attributes)
+    print('objects to hash:', structure._get_objects_to_hash())
+    print('ignored attributes:', structure._hash_ignored_attributes)
+    print('===== parameters =====')
+    print('hash:', parameters.get_hash())
+    print('objects to hash:', parameters._get_objects_to_hash())
+    print('ignored attributes:', parameters._hash_ignored_attributes)
     assert node.get_cache_source() is not None
 
 

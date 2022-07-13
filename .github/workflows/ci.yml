@@ -175,31 +175,19 @@ jobs:
         touch kkr.x; touch voronoi.exe; touch kkrflex.exe
         chmod +x kkr.x voronoi.exe kkrflex.exe
 
-    - name: Run pytest 1.6.8
-      if: matrix.aiida.name == '1.6.8'
+    - name: Run pytest
       run: |
         cd tests/
-        # run all (tools, calculations, workflows) tests using caching of the results
-        #RUN_ALL='yes' ./run_all.sh
-        # for now run Voronoi and KKRhost calculations only, the rest needs fixing
+        # First only run non-workflow and tests that use KKRhost and Voronoi codes in calculations and workflows
         RUN_VORONOI=True RUN_KKRHOST=True ./run_all.sh
-
-    - name: Run pytest >=2.0.1
-      if: matrix.aiida.name != '1.6.8'
-      run: |
-        cd tests/
-        # First only run non-workflow tests but allow them to fail (some plotting still needs fixing)
-        CONTINUE_ON_ERROR=True ./run_all.sh
-        # then run Voronoi and KKRhost workflows only
-        SKIP_NOWORK=True RUN_VORONOI=True RUN_KKRHOST=True ./run_all.sh
-        # now also run the KKRimp tests
+        # then also run the KKRimp scf test (only KKRimp not the combined workflows where caching does not work yet)
         SKIP_NOWORK=True RUN_KKRIMP=True ./run_all.sh
 
     - name: Archive test output artifacts
       uses: actions/upload-artifact@v3
       if: always()
       with:
-        name: test-results
+        name: test-results-AIIDA__${{ matrix.aiida.version }}__MASCI__${{ matrix.masci-tools.version }}
         path: tests
 
     - name: Upload coverage to Codecov
