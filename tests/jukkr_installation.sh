@@ -20,6 +20,7 @@ if [[ -z "$install_jukkr" ]]; then
     echo "skip compiling code and use caching instead (still create fake files)"
     mkdir -p jukkr/build_new_kkrhost/
     touch jukkr/build_new_kkrhost/kkr.x && chmod +x jukkr/build_new_kkrhost/kkr.x
+    touch jukkr/kkr.x && chmod +x jukkr/kkr.x
     touch jukkr/voronoi.exe && chmod +x jukkr/voronoi.exe
     touch jukkr/kkrflex.exe && chmod +x jukkr/kkrflex.exe
 else
