@@ -4,9 +4,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 import pytest
 from ..dbsetup import *
+from ..conftest import kkrimp_local_code, data_dir, import_with_migration
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint, with_export_cache
-from ..conftest import kkrimp_local_code, data_dir
-from ..conftest import import_with_migration
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 
@@ -47,7 +46,8 @@ def test_kkrimp_sub_wc(clear_database_before_test, kkrimp_local_code, run_with_c
     # now create a SingleFileData node containing the impurity starting potential
     from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
     from numpy import loadtxt
-    neworder_pot1 = [int(i) for i in loadtxt(GF_host_calc.outputs.retrieved.open('scoef'), skiprows=1)[:, 3] - 1]
+    with GF_host_calc.outputs.retrieved.open('scoef') as _f:
+        neworder_pot1 = [int(i) for i in loadtxt(_f, skiprows=1)[:, 3] - 1]
     settings_dict = {'pot1': 'out_potential', 'out_pot': 'potential_imp', 'neworder': neworder_pot1}
     settings = Dict(dict=settings_dict)
     from aiida.manage.caching import enable_caching

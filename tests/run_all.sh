@@ -167,17 +167,17 @@ else
   else
     echo "skipping kkrimp_scf workflow test"
   fi
-  if [[ ! -z "$RUN_KKRIMP" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ ! -z "$RUN_VORONOI" ]] && [[ -z "$NO_RMQ" ]]; then
-    echo "run kkrimp_full workflow test"
-    pytest --cov-report=$repfmt --cov-append --cov=./.. --ignore=jukkr -k Test_kkrimp_full_workflow $addopt
-  else
-    echo "skipping kkrimp_full workflow test"
-  fi
-  if [[ ! -z "$RUN_KKRIMP" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
-    echo "run kkrimp_dos workflow test"
-    pytest --cov-report=$repfmt --cov-append --cov=./.. --ignore=jukkr -k Test_kkrimp_dos_workflow $addopt
-  else
-    echo "skipping kkrimp_dos workflow test"
-  fi
+  #if [[ ! -z "$RUN_KKRIMP" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ ! -z "$RUN_VORONOI" ]] && [[ -z "$NO_RMQ" ]]; then
+  #  echo "run kkrimp_full workflow test"
+  #  pytest --cov-report=$repfmt --cov-append --cov=./.. --ignore=jukkr -k Test_kkrimp_full_workflow $addopt
+  #else
+  #  echo "skipping kkrimp_full workflow test"
+  #fi
+  #if [[ ! -z "$RUN_KKRIMP" ]] && [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
+  #  echo "run kkrimp_dos workflow test"
+  #  pytest --cov-report=$repfmt --cov-append --cov=./.. --ignore=jukkr -k Test_kkrimp_dos_workflow $addopt
+  #else
+  #  echo "skipping kkrimp_dos workflow test"
+  #fi
 
 fi

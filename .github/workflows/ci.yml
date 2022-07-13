@@ -162,6 +162,7 @@ jobs:
         pip freeze
 
     - name: Migrate AiiDA workflow caches
+      if: matrix.aiida.name != '1.6.8'
       run: |
         cd ./tests/
         python migrate_exports.py

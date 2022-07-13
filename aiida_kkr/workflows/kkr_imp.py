@@ -674,11 +674,11 @@ class kkr_imp_wc(WorkChain):
         else:
             replacelist_pot2 = [[0, 2 * ilayer_cent], [1, 2 * ilayer_cent + 1]]
         try:
-            neworder_pot1 = [
-                int(i) for i in np.loadtxt(GF_host_calc.outputs.retrieved.open('scoef'), skiprows=1)[:, 3] - 1
-            ]
+            with GF_host_calc.outputs.retrieved.open('scoef') as _f:
+                neworder_pot1 = [int(i) for i in np.loadtxt(_f, skiprows=1)[:, 3] - 1]
         except:
-            neworder_pot1 = [int(np.loadtxt(GF_host_calc.outputs.retrieved.open('scoef'), skiprows=1)[3] - 1)]
+            with GF_host_calc.outputs.retrieved.open('scoef') as _f:
+                neworder_pot1 = [int(np.loadtxt(_f, skiprows=1)[3] - 1)]
 
         settings_label = f'startpot_KKRimp for imp_info node {imp_info.pk}'
         settings_description = f'starting potential for impurity info: {imp_info}'

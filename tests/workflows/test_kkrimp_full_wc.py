@@ -6,8 +6,7 @@ import pytest
 from ..dbsetup import *
 if __name__ != '__main__':
     from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
-    from ..conftest import voronoi_local_code, kkrhost_local_code, test_dir, data_dir
-    from ..conftest import import_with_migration
+    from ..conftest import voronoi_local_code, kkrhost_local_code, test_dir, data_dir, import_with_migration
     from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
     from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 
