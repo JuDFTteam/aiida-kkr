@@ -56,9 +56,9 @@ else
 fi
 if [[ ! -z "$CONTINUE_ON_ERROR" ]]; then
   echo "Continue running tests even if we encounter errors (unset 'CONTINUE_ON_ERROR' to deactivate this)"
-  set -e # force stop on first error
 else
   echo "Stop on first error (set 'CONTINUE_ON_ERROR' to deactivate this)"
+  set -e # force stop on first error
 fi
 echo "== Test selection =="
 if [[ ! -z "$RUN_ALL" ]]; then
