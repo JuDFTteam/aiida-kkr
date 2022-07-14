@@ -134,19 +134,20 @@ class KkrimpParser(Parser):
         self.out('output_parameters', Dict(dict=out_dict))
 
         # cleanup after parsing (only if parsing was successful), only works below aiida-core v2.0
-        if success and int(aiida_core_version.split('.')[0]) < 2:
-            # check if we should do the cleanup or not
-            cleanup_outfiles = False
-            if 'cleanup_outfiles' in self.node.inputs:
-                cleanup_outfiles = self.node.inputs.cleanup_outfiles.value
-            if cleanup_outfiles:
-                # reduce size of timing file
-                self.cleanup_outfiles(files['out_timing'], ['Iteration number', 'time until scf starts'])
-                # reduce size of out_log file
-                self.cleanup_outfiles(files['out_log'], ['Iteration Number'])
-                # delete completely parsed output files and create a tar ball to reduce size
-                self.remove_unnecessary_files()
-                self.final_cleanup()
+        if success:
+            if int(aiida_core_version.split('.')[0]) < 2:
+                # check if we should do the cleanup or not
+                cleanup_outfiles = False
+                if 'cleanup_outfiles' in self.node.inputs:
+                    cleanup_outfiles = self.node.inputs.cleanup_outfiles.value
+                if cleanup_outfiles:
+                    # reduce size of timing file
+                    self.cleanup_outfiles(files['out_timing'], ['Iteration number', 'time until scf starts'])
+                    # reduce size of out_log file
+                    self.cleanup_outfiles(files['out_log'], ['Iteration Number'])
+                    # delete completely parsed output files and create a tar ball to reduce size
+                    self.remove_unnecessary_files()
+                    self.final_cleanup()
         else:
             return self.exit_codes.ERROR_PARSING_KKRIMPCALC
 
