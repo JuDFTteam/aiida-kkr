@@ -5,7 +5,7 @@ Input plug-in for a KKRimp calculation.
 
 from __future__ import absolute_import
 from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode, Dict, RemoteData, SinglefileData
+from aiida.orm import CalcJobNode, Dict, RemoteData, SinglefileData, Bool
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError, UniquenessError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
@@ -181,6 +181,13 @@ The Dict node should be of the form
     })
     Note: The length of the theta, phi and fix_dir lists have to be equal to the number of atoms in the impurity cluster.
 """
+        )
+        spec.input(
+            'cleanup_outfiles',
+            valid_type=Bool,
+            required=False,
+            default=lambda: Bool(False),
+            help='Cleanup and compress output (works only in aiida-core<2.0 and breaks caching ability).'
         )
 
         # define outputs

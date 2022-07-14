@@ -29,6 +29,7 @@ def test_kkrimp_full_wc(
 
     wfd['nsteps'] = 20
     wfd['strmix'] = 0.05
+    # deactivate final cleanup to be able to use caching
     wfd['do_final_cleanup'] = False
     options = {
         'queue_name': queuename,

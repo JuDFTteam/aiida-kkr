@@ -994,16 +994,12 @@ class plot_kkr(object):
                 has_qdos = 'qdos.01.1.dat' in retlist or 'qdos.001.1.dat' in retlist
                 if has_qdos:
                     qdos_filenames, ne = get_qdos_filenames(node)
-                    print('qdos filenames', ne, qdos_filenames)
 
                     if ne > 1 or 'as_e_dimension' in list(kwargs.keys()):
                         a0 = get_a0_from_node(node)
-                        print('a0', a0)
                         ef = get_ef_from_parent(node)
-                        print('ef', ef)
                         data = get_qdos_data_from_node(node, qdos_filenames)
                         data_all = (a0, data, None, None, ef)
-                        print('qdos data', len(data_all), data.shape, logscale, nofig)
                         dispersionplot(
                             data_all=data_all, newfig=(not nofig), ptitle=ptitle, logscale=logscale, **kwargs
                         )
@@ -1021,6 +1017,7 @@ class plot_kkr(object):
                             [axvline(i, color='grey', ls=':') for i in ilbl]
                         except:
                             xlabel('id_kpt')
+
                         # maybe save as file
                         save_fig_to_file(kwargs, 'plot_kkr_out_bs.png')
                     else:

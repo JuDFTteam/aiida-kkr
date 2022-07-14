@@ -57,19 +57,20 @@ class kkr_imp_wc(WorkChain):
     _options_default = {
         'queue_name': '',  # Queue name to submit jobs too
         'resources': {
-            'num_machines': 1
-        },  # resources to allowcate for the job
+            'num_machines': 1  # resources to allowcate for the job
+        },
         'max_wallclock_seconds': 60 * 60,  # walltime after which the job gets killed (gets parsed to KKR)}
         'custom_scheduler_commands': '',  # some additional scheduler commands
-        'withmpi': True
-    }  # execute KKR with mpi or without
+        'withmpi': True  # execute KKR with mpi or without
+    }
 
-    _wf_default = kkr_imp_sub_wc.get_wf_defaults(silent=True)  # settings for sub workflow (impurity convergence)
-    _wf_default['retrieve_kkrflex'
-                ] = True  # add control to retrieve kkrflex files to repository or leave on remote computer only
-    _voro_aux_default = kkr_startpot_wc.get_wf_defaults(
-        silent=True
-    )  # settings for vorostart workflow, used to generate starting potential
+    # settings for sub workflow (impurity convergence)
+    _wf_default = kkr_imp_sub_wc.get_wf_defaults(silent=True)
+    # add control to retrieve kkrflex files to repository or leave on remote computer only
+    _wf_default['retrieve_kkrflex'] = True
+
+    # settings for vorostart workflow, used to generate starting potential
+    _voro_aux_default = kkr_startpot_wc.get_wf_defaults(silent=True)
 
     @classmethod
     def get_wf_defaults(self, silent=False):
@@ -326,6 +327,7 @@ class kkr_imp_wc(WorkChain):
         self.ctx.hfield = wf_dict.get('hfield', self._wf_default['hfield'])
         self.ctx.init_pos = wf_dict.get('init_pos', self._wf_default['init_pos'])
         self.ctx.accuracy_params = wf_dict.get('accuracy_params', self._wf_default['accuracy_params'])
+        self.ctx.do_final_cleanup = wf_dict.get('do_final_cleanup', self._wf_default['do_final_cleanup'])
         # set up new parameter dict to pass to kkrimp subworkflow later
         self.ctx.kkrimp_params_dict = Dict(
             dict={
@@ -341,7 +343,8 @@ class kkr_imp_wc(WorkChain):
                 'mag_init': self.ctx.mag_init,
                 'hfield': self.ctx.hfield,
                 'init_pos': self.ctx.init_pos,
-                'accuracy_params': self.ctx.accuracy_params
+                'accuracy_params': self.ctx.accuracy_params,
+                'do_final_cleanup': self.ctx.do_final_cleanup
             }
         )
 
