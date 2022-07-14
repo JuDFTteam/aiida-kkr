@@ -6,7 +6,8 @@ and some helper methods to do so with AiiDA
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
-from aiida.orm import Float, Code, CalcJobNode, RemoteData, StructureData, Dict, SinglefileData, FolderData
+from aiida import __version__ as aiida_core_version
+from aiida.orm import Float, Code, CalcJobNode, RemoteData, StructureData, Dict, SinglefileData, FolderData, Bool
 from aiida.engine import WorkChain, ToContext, while_, if_, calcfunction
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
@@ -83,7 +84,8 @@ class kkr_imp_sub_wc(WorkChain):
         False,  # specify if DOS should be calculated (!KKRFLEXFILES with energy contour necessary as GF_remote_data!)
         'lmdos': True,  # specify if DOS calculation should calculate l-resolved or l and m resolved output
         'jij_run': False,  # specify if Jijs should be calculated (!changes behavior of the code!!!)
-        'do_final_cleanup': True,  # decide whether or not to clean up intermediate files (THIS BREAKS CACHABILITY!)
+        'do_final_cleanup':
+        True,  # decide whether or not to clean up intermediate files (THIS BREAKS CACHABILITY!) # TODO: remove for aiida-core>2
         #                   # Some parameter for direct solver (if None, use the same as in host code, otherwise overwrite)
         'accuracy_params': {
             'RADIUS_LOGPANELS': None,  # where to set change of logarithmic to linear radial mesh
@@ -859,6 +861,9 @@ class kkr_imp_sub_wc(WorkChain):
         # add LDA+U input node if it was set in parent calculation of last kkrimp_remote or from input port
         if self.ctx.settings_LDAU is not None:
             inputs['settings_LDAU'] = self.ctx.settings_LDAU
+        # set cleanup option
+        if int(aiida_core_version.split('.')[0]) < 2 and self.ctx.do_final_cleanup:
+            inputs['cleanup_outfiles'] = Bool(self.ctx.do_final_cleanup)
 
         # run the KKR calculation
         message = 'INFO: doing calculation'

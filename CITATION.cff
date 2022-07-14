@@ -3,7 +3,7 @@ message: "If you use this software, please cite it as below."
 authors:
 - family-names: "Rüßmann"
   given-names: "Philipp"
-  orcid: "0000-0002-6196-2700" 
+  orcid: "0000-0002-6196-2700"
 - family-names: "Bertoldo"
   given-names: "Fabian"
 - family-names: "Bröder"
@@ -30,7 +30,7 @@ preferred-citation:
   authors:
   - family-names: "Rüßmann"
     given-names: "Philipp"
-    orcid: "0000-0002-6196-2700" 
+    orcid: "0000-0002-6196-2700"
   - family-names: "Bertoldo"
     given-names: "Fabian"
   - family-names: "Blügel"
@@ -42,4 +42,3 @@ preferred-citation:
   title: "The AiiDA-KKR plugin and its application to high-throughput impurity embedding into a topological insulator"
   volume: 7
   year: 2021
-

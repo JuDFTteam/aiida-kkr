@@ -7,10 +7,12 @@ from __future__ import division
 from __future__ import absolute_import
 from builtins import object, str
 from six.moves import range
+import numpy as np
+from masci_tools.io.common_functions import search_string
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.2'
+__version__ = '0.7.0'
 __contributors__ = ('Philipp Rüßmann')
 
 
@@ -175,7 +177,6 @@ def plot_imp_cluster(kkrimp_calc_node, **kwargs):
     from aiida_kkr.calculations import VoronoiCalculation
     from aiida_kkr.tools.tools_kkrimp import create_scoef_array
     from masci_tools.io.common_functions import get_alat_from_bravais
-    import numpy as np
 
     imp_info = kkrimp_calc_node.inputs.impurity_info.get_dict()
     structure0, _ = VoronoiCalculation.find_parent_structure(kkrimp_calc_node.inputs.host_Greenfunction_folder)
@@ -281,7 +282,6 @@ def plot_imp_cluster(kkrimp_calc_node, **kwargs):
         ase_view_imp.make_gui(
             ase_atoms_impcls,
             center_in_uc=True,
-            use_atom_arrays=True,
         )
 
     return strucview_imp
@@ -835,7 +835,6 @@ class plot_kkr(object):
         """extract rms etc from kkr Calculation. Works for both finished and still running Calculations."""
         from aiida.engine import ProcessState
         from aiida.common.folders import SandboxFolder
-        from masci_tools.io.common_functions import search_string
 
         rms, neutr, etot, efermi = [], [], [], []
         ptitle = ''
@@ -969,11 +968,12 @@ class plot_kkr(object):
         from subprocess import check_output
         from os import listdir
         from numpy import loadtxt, array, where
-        from masci_tools.io.common_functions import open_general, search_string
+        from masci_tools.io.common_functions import open_general
         from masci_tools.vis.kkr_plot_bandstruc_qdos import dispersionplot
         from masci_tools.vis.kkr_plot_FS_qdos import FSqdos2D
         from masci_tools.vis.kkr_plot_dos import dosplot
         from matplotlib.pyplot import show, figure, title, xticks, xlabel, axvline
+        from aiida import __version__ as aiida_core_version
 
         if node.is_finished_ok:
             retlist = node.outputs.retrieved.list_object_names()
@@ -991,71 +991,44 @@ class plot_kkr(object):
 
             # qdos
             if has_qvec:
-                has_qdos = 'qvec.dat' in retlist
+                has_qdos = 'qdos.01.1.dat' in retlist or 'qdos.001.1.dat' in retlist
                 if has_qdos:
-                    # read number of energy points
-                    qdos_filenames = [i for i in node.outputs.retrieved.list_object_names() if 'qdos.' in i]
-                    with node.outputs.retrieved.open(qdos_filenames[0]) as f:
-                        ne = len(set(loadtxt(f)[:, 0]))
-                    with node.outputs.retrieved.open('qvec.dat', mode='r') as f:
-                        if ne > 1 or 'as_e_dimension' in list(kwargs.keys()):
-                            try:
-                                # extract Fermi level from parent calculation
-                                parent_calc = node.inputs.parent_folder.get_incoming().first().node
-                                try:
-                                    # parent is KkrCalc
-                                    ef = parent_calc.outputs.output_parameters.get_dict()['fermi_energy']
-                                except:
-                                    # parent is scf workflow
-                                    ef = parent_calc.outputs.last_calc_out['fermi_energy']
-                            except:
-                                outfile_name = f.name.replace('qvec.dat', 'output.0.txt')
-                                with open_general(outfile_name) as file_handle:
-                                    txt = file_handle.readlines()
-                                    iline = search_string('Fermi energy', txt)
-                                    if iline >= 0:
-                                        ef = txt[iline].split('=')[1]
-                                        ef = float(ef.split()[0])
-                                    else:
-                                        ef = None
-                                if ef is None:
-                                    raise ValueError(
-                                        'error loading Fermi energy from outfile, retry extracting from parent'
-                                    )
-                            dispersionplot(
-                                f.name.replace('qvec.dat', ''),
-                                newfig=(not nofig),
-                                ptitle=ptitle,
-                                logscale=logscale,
-                                ef=ef,
-                                **kwargs
-                            )
-                            # add plot labels
-                            try:
-                                labels = node.inputs.kpoints.labels
-                                ilbl = array([int(i[0]) for i in labels])
-                                slbl = array([i[1] for i in labels])
-                                m_overlap = where(abs(ilbl[1:] - ilbl[:-1]) == 1)
-                                if len(m_overlap[0]) > 0:
-                                    for i in m_overlap[0]:
-                                        slbl[i + 1] = '\n' + slbl[i + 1]
-                                xticks(ilbl, slbl)
-                                xlabel('')
-                                [axvline(i, color='grey', ls=':') for i in ilbl]
-                            except:
-                                xlabel('id_kpt')
-                            # maybe save as file
-                            save_fig_to_file(kwargs, 'plot_kkr_out_bs.png')
-                        else:
-                            ef = check_output(
-                                f"grep \"Fermi energy\" {f.name.replace('qvec.dat', 'output.0.txt')}",
-                                shell=True,
-                                text=True
-                            )
-                            ef = float(ef.split('=')[2].split()[0])
-                            FSqdos2D(f.name.replace('qvec.dat', ''), logscale=logscale, ef=ef, **kwargs)
+                    qdos_filenames, ne = get_qdos_filenames(node)
+
+                    if ne > 1 or 'as_e_dimension' in list(kwargs.keys()):
+                        a0 = get_a0_from_node(node)
+                        ef = get_ef_from_parent(node)
+                        data = get_qdos_data_from_node(node, qdos_filenames)
+                        data_all = (a0, data, None, None, ef)
+                        dispersionplot(
+                            data_all=data_all, newfig=(not nofig), ptitle=ptitle, logscale=logscale, **kwargs
+                        )
+                        # add plot labels
+                        try:
+                            labels = node.inputs.kpoints.labels
+                            ilbl = array([int(i[0]) for i in labels])
+                            slbl = array([i[1] for i in labels])
+                            m_overlap = where(abs(ilbl[1:] - ilbl[:-1]) == 1)
+                            if len(m_overlap[0]) > 0:
+                                for i in m_overlap[0]:
+                                    slbl[i + 1] = '\n' + slbl[i + 1]
+                            xticks(ilbl, slbl)
+                            xlabel('')
+                            [axvline(i, color='grey', ls=':') for i in ilbl]
+                        except:
+                            xlabel('id_kpt')
+
+                        # maybe save as file
+                        save_fig_to_file(kwargs, 'plot_kkr_out_bs.png')
+                    else:
+                        if int(aiida_core_version.split('.')[0]) < 2:
+                            ef = get_ef_from_parent(node)
+                            with node.outputs.retrieved.open('qvec.dat') as f:
+                                FSqdos2D(f.name.replace('qvec.dat', ''), logscale=logscale, ef=ef, **kwargs)
                             # maybe save as file
                             save_fig_to_file(kwargs, 'plot_kkr_out_FS.png')
+                        else:
+                            raise ValueError('FS plot does not work with aiida-core>=2.0')
 
             # dos only if qdos was not plotted already
             if has_dos and not has_qdos:
@@ -1083,7 +1056,6 @@ class plot_kkr(object):
 
     def plot_kkrimp_calc(self, node, return_rms=False, return_stot=False, plot_rms=True, **kwargs):
         """plot things from a kkrimp Calculation node"""
-        import numpy as np
 
         # plot impurity cluster
         if kwargs.get('strucplot', True):
@@ -1385,7 +1357,6 @@ class plot_kkr(object):
 
     def plot_kkr_bs(self, node, **kwargs):
         import matplotlib.pyplot as plt
-        import numpy as np
         if node.is_finished_ok:
             BSF = node.outputs.BS_Data.get_array('BlochSpectralFunction')
             eng = node.outputs.BS_Data.get_array('energy_points')
@@ -1845,3 +1816,84 @@ class plot_kkr(object):
                     print(f'{abs(1 - v02 / v0)} {abs(1 - e02 / e0)} {abs(1 - B2 / B)}')
         except:
             pass  # do nothing if no eos data there
+
+
+def get_ef_from_parent(node):
+    """Extract Fermi level from parent calculation"""
+
+    try:
+        parent_calc = node.inputs.parent_folder.get_incoming().first().node
+        try:
+            # parent is KkrCalc
+            ef = parent_calc.outputs.output_parameters.get_dict()['fermi_energy']
+        except:
+            # parent is scf workflow
+            ef = parent_calc.outputs.last_calc_out['fermi_energy']
+    except:
+        with node.outputs.retrieved.open('output.0.txt', mode='r') as file_handle:
+            txt = file_handle.readlines()
+            iline = search_string('Fermi energy', txt)
+            if iline >= 0:
+                ef = txt[iline].split('=')[1]
+                ef = float(ef.split()[0])
+            else:
+                ef = None
+        if ef is None:
+            raise ValueError('error loading Fermi energy from outfile, retry extracting from parent')
+
+    return ef
+
+
+def get_a0_from_node(node):
+    """Extract factor 2pi/alat from inputcard"""
+    with node.outputs.retrieved.open('inputcard') as _f:
+        txt = _f.readlines()
+        txt = [line for line in txt if 'ALATBASIS' in line]
+    if len(txt) == 0:
+        raise ValueError('ALATBASIS not found in inputcard')
+    alat = float(txt[0].split('=')[1].split()[0])
+    a0 = 2 * np.pi / alat / 0.52918
+    return a0
+
+
+def get_qdos_filenames(node):
+    """get the sorted list of qdos filenames and find number of energy points"""
+    # get qdos filenames
+    retrieved = node.outputs.retrieved
+    qdos_filenames = np.sort([i for i in retrieved.list_object_names() if 'qdos.' in i])
+
+    # read number of energy points
+    with retrieved.open(qdos_filenames[0]) as _f:
+        ne = len(set(np.loadtxt(_f)[:, 0]))
+
+    return qdos_filenames, ne
+
+
+def get_qdos_data_from_node(node, qdos_filenames):
+    """Extract the qdos data (summed over all atoms)"""
+
+    if 'saved_dispersion_data' in node.extras:
+        # only return the existing numpy array if it exists
+        data = node.extras['saved_dispersion_data']
+    else:
+        # read qdos data and store as extra
+        for i, fname in enumerate(qdos_filenames):
+            # read data from qdos file
+            with node.outputs.retrieved.open(fname) as _f:
+                tmp = np.loadtxt(_f)
+            # sum up all contributions
+            if i == 0:
+                data = tmp
+            else:
+                if len(fname.split('.')[1]) == 2:
+                    # old data format that also kept the imaginary part
+                    # of the energy point
+                    data[:, 5:] += tmp[:, 5:]
+                else:
+                    # new data format
+                    data[:, 4:] += tmp[:, 4:]
+
+        # now store as extra
+        node.set_extra('saved_dispersion_data', data)
+
+    return data
