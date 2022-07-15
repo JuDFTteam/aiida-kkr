@@ -1,4 +1,3 @@
-
 from aiida.orm import CalcJobNode, Dict, StructureData, SinglefileData, load_node, Data
 from aiida.common.exceptions import InputValidationError
 from aiida.common import NotExistent
@@ -196,7 +195,6 @@ and lists of SingleFileData potential and shape files have to be provided.'
             for k in range(lines[j], lines[j + 1]):
                 shape_string += shapes[k]
 
-
             shape_no_filename = 'shape.' + str(j + 1).zfill(7)
             with open(shape_no_filename, 'w') as file:
                 file.write(shape_string)
@@ -255,7 +253,6 @@ and lists of SingleFileData potential and shape files have to be provided.'
         if not len(structure.sites) == len(potentiallist):
             CPA_sites, _ = self._check_for_CPA(structure, potentiallist)
 
-
             if len(CPA_sites) == 0:
                 raise InputValidationError(
                     'The number of sites in the found parent structure does not match the number of obtained potentials.'
@@ -301,7 +298,6 @@ and lists of SingleFileData potential and shape files have to be provided.'
 
         return structure, shape_list, pot_list
 
-
     def _get_remote(self, parent_folder):
         """
         get remote_folder from input if parent_folder is not already a remote folder
@@ -328,7 +324,6 @@ and lists of SingleFileData potential and shape files have to be provided.'
                 parent_folder_tmp = input_folder_tmp0
         return parent_folder_tmp
 
-
     def find_parent_shapefun(self, parent_folder):
         """
         Find the shape files recursively in chain of parent calculations, either to be extracted from "shapefun" file or "shapes" files
@@ -337,7 +332,6 @@ and lists of SingleFileData potential and shape files have to be provided.'
         Nmaxiter = 1000
 
         parent_folder_tmp = self._get_parent(parent_folder)
-
 
         print(parent_folder_tmp)
         parent_folder_tmp_listdir = parent_folder_tmp.listdir(
@@ -372,20 +366,20 @@ and lists of SingleFileData potential and shape files have to be provided.'
         cwd = os.getcwd()
         print('Extracting shapes')
         has_shapefun_file = False
-        found_shapes = False #to see if KKRnano produced some shapes as output (better than using shapefun)
+        found_shapes = False  #to see if KKRnano produced some shapes as output (better than using shapefun)
         parent_folder_listdir = parent_folder.listdir()  #quicker this way as based on SSH tunneling
-        for filename in parent_folder_listdir: 
+        for filename in parent_folder_listdir:
             if filename.find('shape.') >= 0:
                 if has_shapefun_file:
                     shapelist = []
                 abs_path = f'{cwd}/{filename}'
                 parent_folder.getfile(filename, f'{cwd}/{filename}')
-                self.put_object_from_file(abs_path, filename)  
+                self.put_object_from_file(abs_path, filename)
                 self.set_attribute(filename.replace('.', ''), filename)
                 os.remove(filename)
                 with self.open(filename, 'r') as _f:
                     shapelist.append(SinglefileData(_f.name))
-                    print("Found shape in repsitory:")
+                    print('Found shape in repsitory:')
                     print(_f.name)
                 has_shapefun_file = False
                 found_shapes = True
@@ -397,6 +391,8 @@ and lists of SingleFileData potential and shape files have to be provided.'
 
             with open(filename, 'r') as reader:
                 shapes = reader.readlines()
+
+
 #                 print(os.path.realpath(reader.name))
             lines = []
             for line in range(len(shapes)):
@@ -424,7 +420,7 @@ and lists of SingleFileData potential and shape files have to be provided.'
             print(
                 'WARNING: Only a shapefun from some Voronoi input was found, it is possible that the potential does not match the shapefun parameters, unless they are set this way explicitly in the respective input file! It is advisable to use the `write_shapes=1` command in input.conf'
             )
-        print("Found shapelist:")
+        print('Found shapelist:')
         print(shapelist)
         return shapelist
 

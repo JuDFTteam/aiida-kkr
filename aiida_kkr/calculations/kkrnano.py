@@ -68,7 +68,8 @@ class KKRnanoCalculation(CalcJob):
       'imix': {'value':  6,'required': True,\
                'description': "mixing method: imix = 0 -> straight mixing; imix = 1 -> straight mixing;\
                imix = 4 -> Broyden's 2nd method; imix = 5 -> gen. Anderson mixing;\
-               imix = 6 -> Broyden's 2nd method with support for >1 atom per process"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 },
+               imix = 6 -> Broyden's 2nd method with support for >1 atom per process"
+              },
 
       'mixing': {'value':  0.01, 'required': True,\
                  'description': 'straight mixing parameter'},
@@ -165,8 +166,7 @@ class KKRnanoCalculation(CalcJob):
         #structure = self._find_parent_struc_from_voro_or_stwpd(parent_calc_calc_node)[0].get_pymatgen_structure()
         #parent_outfolder = parent_calc_calc_node.outputs.retrieved
         code = self.inputs.code
-        
-        
+
         #determine number of MPI processes
         try:
             num_mpi_procs = self.metadata.options.resources['tot_num_mpiprocs']
@@ -175,7 +175,9 @@ class KKRnanoCalculation(CalcJob):
                 num_mpi_procs=self.metadata.options.resources['num_machines']*\
                 self.metadata.options.resources['num_mpiprocs_per_machine']
             except:
-                raise InputValidationError("The total number of MPI processes could not be determined. In case of doubt: Specify `builder.metadata.options.resources['tot_num_mpiprocs']=?` Do not forget number of machines")
+                raise InputValidationError(
+                    "The total number of MPI processes could not be determined. In case of doubt: Specify `builder.metadata.options.resources['tot_num_mpiprocs']=?` Do not forget number of machines"
+                )
 
         #Check if convert mode has been activated
         convert = self.inputs.convert.value
@@ -476,7 +478,6 @@ class KKRnanoCalculation(CalcJob):
 
         write_list=[str(len(structure.atomic_numbers)),'\n',\
                     str(structure.composition), ', ', space_group_info,'\n']
-
 
         lattice_param_angs = self._get_lattice_constant(structure, passed_lattice_const)
 

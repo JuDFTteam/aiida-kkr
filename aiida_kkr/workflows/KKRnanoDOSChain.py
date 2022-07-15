@@ -9,6 +9,7 @@ __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.0.1'
 __contributors__ = ('Markus Struckmann')
 
+
 class KKRnanoDOSChain(WorkChain):
     """WorkChain to multiply two numbers and add a third, for testing and demonstration purposes."""
     #TODO: Add functionality for NOCO mode
@@ -135,13 +136,13 @@ class KKRnanoDOSChain(WorkChain):
 
         #builder = KKRnanoCalculation.get_builder()
 
-        builder.metadata.label = 'WC_coarse_mixing'
+        builder.metadata.label = 'WC_coarse_mixing'  # pylint: disable=no-member
 
         builder.parameters = Dict(dict=params)
 
         #builder.metadata.dry_run = True
         #machine=#
-        builder.metadata.options = self.inputs.options.get_dict()
+        builder.metadata.options = self.inputs.options.get_dict()  # pylint: disable=no-member
 
         builder.code = self.inputs.code  # orm.Code.get_from_string("KKRnanoVersuch2@iffslurm")
         str_calc = self.submit(builder)
@@ -165,13 +166,13 @@ class KKRnanoDOSChain(WorkChain):
 
         #builder = KKRnanoCalculation.get_builder()
 
-        builder.metadata.label = 'WC_colinear'
+        builder.metadata.label = 'WC_colinear'  # pylint: disable=no-member
 
         builder.parameters = Dict(dict=params)
 
         #builder.metadata.dry_run = True
         #machine=#
-        builder.metadata.options = self.inputs.options.get_dict()
+        builder.metadata.options = self.inputs.options.get_dict()  # pylint: disable=no-member
         builder.parent_folder = parent_folder
 
         builder.code = self.inputs.code  # orm.Code.get_from_string("KKRnanoVersuch2@iffslurm")
@@ -207,13 +208,13 @@ class KKRnanoDOSChain(WorkChain):
 
         #builder = KKRnanoCalculation.get_builder()
 
-        builder.metadata.label = 'WC_SOC'
+        builder.metadata.label = 'WC_SOC'  # pylint: disable=no-member
 
         builder.parameters = Dict(dict=params)
 
         #builder.metadata.dry_run = True
 
-        builder.metadata.options = self.inputs.options.get_dict()
+        builder.metadata.options = self.inputs.options.get_dict()  # pylint: disable=no-member
 
         builder.code = self.inputs.code  # orm.Code.get_from_string("KKRnanoVersuch2@iffslurm")
         soc_calc = self.submit(builder)
@@ -240,13 +241,13 @@ class KKRnanoDOSChain(WorkChain):
 
         builder = KKRnanoCalculation.get_builder()
 
-        builder.metadata.label = 'WC_DOS'
+        builder.metadata.label = 'WC_DOS'  # pylint: disable=no-member
 
         builder.parameters = Dict(dict=params)
 
         #builder.metadata.dry_run = True
 
-        builder.metadata.options = self.inputs.options.get_dict()
+        builder.metadata.options = self.inputs.options.get_dict()  # pylint: disable=no-member
         builder.parent_folder = parent_folder
 
         builder.code = self.inputs.code  # orm.Code.get_from_string("KKRnanoVersuch2@iffslurm")
@@ -276,7 +277,7 @@ class KKRnanoDOSChain(WorkChain):
             if not inputdict['NSPIND']['value'] == 2:
                 return self.exit_codes.ERROR_INPUT_SPIN
         except:
-            return self.exit_codes.ERROR_INPUT_SPIN
+            return self.exit_codes.ERROR_INPUT_SPIN  # pylint: disable=no-member
 
     def check_if_DOS_to_run(self):
         if self.inputs.calculate_DOS.value:

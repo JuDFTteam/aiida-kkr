@@ -72,6 +72,7 @@
             "kkr.kkrnanoparser = aiida_kkr.parsers.kkrnano:KKRnanoParser"
             ],
         "aiida.data": [
+            "kkr.strucwithpot = aiida_kkr.data.strucwithpot:StrucWithPotData"
             ],
         "aiida.workflows":[
             "kkr.scf = aiida_kkr.workflows.kkr_scf:kkr_scf_wc",
