@@ -20,7 +20,7 @@ from aiida.common.exceptions import InputValidationError
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH,' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.5'
+__version__ = '0.7.0'
 __contributors__ = u'Philipp Rüßmann'
 
 
@@ -42,12 +42,13 @@ class modify_potential(object):
     def _read_input(self, filepath):
         with open_general(filepath) as f:
             data = f.readlines()
-            filepathname = f.name
 
-        if 'shapefun' in filepathname:
-            mode = 'shape'
-        else:
-            mode = 'pot'
+        # check if mode is shapefun or potential
+        mode = 'shape'
+        for line in data:
+            if 'exc:' in line:
+                mode = 'pot'
+                break
 
         # read file
         index1 = []
