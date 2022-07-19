@@ -32,14 +32,14 @@ usage(){
 }
 
 addopt=""
-while getopts vhp option; do
+while getopts ":vhp:" option; do
   case $option in
     v) # add debug options for this script
        set -x # add debug output
        # Add verbosity flags '-sv' to pytest run
        addopt=" -sv " && echo "Found -v flag: adding option '$addopt' to pytest execution" ;;
-    p) # run tests in parallel
-       addopt=" -n 4 " && echo "Found -p flag: adding option '$addopt' for parallel pytest execution using 4 cores" ;;
+    p) # run tests in parallel (specify number of cores with -p N)
+       addopt=" -n $OPTARG " && echo "Found -p flag: adding option '$addopt' for parallel pytest execution using $OPTARG cores" ;;
     h) # Display help
        usage
   esac
