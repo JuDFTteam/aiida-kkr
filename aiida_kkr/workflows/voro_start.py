@@ -856,7 +856,6 @@ class kkr_startpot_wc(WorkChain):
             except AttributeError:
                 dos_ok = False
 
-
             # TODO check for semi-core-states
 
             # TODO check rest of dos_output node if something seems important to check
