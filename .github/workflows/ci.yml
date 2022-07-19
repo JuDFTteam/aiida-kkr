@@ -179,7 +179,7 @@ jobs:
     - name: Run pytest
       run: |
         cd tests/
-        GITHUB_SUITE=True ./run_all.sh -p 4
+        GITHUB_SUITE=True ./run_all.sh -p 2
 
     - name: Archive test output artifacts
       uses: actions/upload-artifact@v3
