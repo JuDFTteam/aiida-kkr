@@ -11,7 +11,7 @@ Module includes two classes:
         from a specific <combine_imps_wc> node .
 
     MultiImpuritiesData: The class collects the data from all possible couples 
-    of the <combine_imps_wc> by implmenting CoupleImpurityData class.
+    of the <combine_imps_wc> by implementing CoupleImpurityData class.
     And it  repeats the same process for all the <combine_imps_wc> nodes given 
     by python list.
 """
@@ -32,9 +32,9 @@ class CoupleImpurityData(object):
     under any key name e.g. key1, key2. The numbers indicate the a couple
     first-second (0,1) impurities, second-third (1,2) impurities respectively.
 
-    According to the imagnetic impurity order the class collects data related
+    According to the magnetic impurity order the class collects data related
     to the impurities. The data includes J_ij interaction, magnetic moment for
-    indivisual impurity, abs(DMI), DMI components, impurity distance 
+    individual impurity, abs(DMI), DMI components, impurity distance 
     components and so on.
 
     """
@@ -44,7 +44,7 @@ class CoupleImpurityData(object):
         node: kkr_combine_imp node.
         imp_orders: Order of impurities to extract data.
                 For example, for two impurities from 4-impurity
-                calculation, the dict {key1: 1, key2: 2} indicates socond 
+                calculation, the dict {key1: 1, key2: 2} indicates second 
                 and third impurities in the impurity list.
         """
         
@@ -202,7 +202,7 @@ class MultiImpuritiesData(object):
 
 
     def __init__(self, node: Node):
-        """Tnstantiate MultiImpurityData.
+        """Instantiate MultiImpurityData.
 
         inputs:
         node: <combine_imps_wc> node.
