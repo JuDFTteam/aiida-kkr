@@ -9,11 +9,12 @@ import numpy as np
 from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData, Bool
 from .voro import VoronoiCalculation
+from ..tools.common_workfunctions import get_natyp
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import InputValidationError, ValidationError
 from aiida.common.datastructures import CalcInfo, CodeInfo
 from aiida.common.exceptions import UniquenessError
-from aiida_kkr.tools.common_workfunctions import (
+from aiida_kkr.tools import (
     generate_inputcard_from_structure, check_2Dinput_consistency, update_params_wf, vca_check, kick_out_corestates
 )
 from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
@@ -845,7 +846,7 @@ class KkrCalculation(CalcJob):
 
         # extract fix_dir flag and set FIXMOM RUNOPT in parameters accordingly
         fix_dir = self.inputs.initial_noco_angles['fix_dir']
-        natom = len(structure.sites)
+        natom = get_natyp(structure)
         if len(fix_dir) != natom:
             raise InputValidationError(
                 'Error: `fix_dir` list in `initial_noco_angles` input node needs to have the same length as number of atoms!'

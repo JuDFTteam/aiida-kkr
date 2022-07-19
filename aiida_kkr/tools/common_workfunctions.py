@@ -13,14 +13,9 @@ from aiida.orm import Dict
 from masci_tools.io.kkr_params import kkrparams
 from six.moves import range
 from builtins import str
-from .kick_out_core_states import *
-from .neworder_potential import *
 
-# Ignored keys:
-# - Special keys that are used for special cases but are not part of the KKR parameter set.
-# - Keys which were part of the KKR parameter set in earlier masci-tools / aiida-kkr versions,
-#   but have been removed or renamed, and are included here for backwards compatibility.
-_ignored_keys = ['ef_set', 'use_input_alat', '<decouple_spins_cheby>', '<newversion_bdg>']
+# keys that are used by aiida-kkr some something else than KKR parameters
+_ignored_keys = ['ef_set', 'use_input_alat', '<NEWVERSION_BDG>', '<DECOUPLE_SPINS_CHEBY>']
 _ignored_keys += [i.upper() for i in _ignored_keys]
 
 
@@ -930,3 +925,13 @@ def get_username(computer):
         raise ValueError('Error getting the username from the computer!')
 
     return remote_user
+
+
+def get_natyp(structure):
+    """Count number of atom types (>NAEZ for CPA) for the structure"""
+    counter = 0  # for CPA
+    for site in structure.sites:
+        sitekind = structure.get_kind(site.kind_name)
+        for ikind in range(len(sitekind.symbols)):
+            counter += 1
+    return counter

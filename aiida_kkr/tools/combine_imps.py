@@ -7,11 +7,12 @@ from __future__ import print_function
 import numpy as np
 import tarfile
 from aiida.engine import calcfunction
-from aiida.orm import Dict, SinglefileData, load_node
+from aiida.orm import Dict, SinglefileData, load_node, Bool
 from aiida.common import InputValidationError
 from aiida.common.folders import SandboxFolder
 from aiida_kkr.tools.tools_kkrimp import modify_potential, create_scoef_array
 from aiida_kkr.calculations import VoronoiCalculation, KkrimpCalculation
+from aiida_kkr.workflows import kkr_imp_sub_wc
 from masci_tools.io.common_functions import get_alat_from_bravais
 from six.moves import range
 
@@ -29,9 +30,21 @@ def get_host_structure(impurity_workflow_or_calc):
     extract host structure from impurity
     """
     #TODO extract host parent no from input but take into account calculation of host GF from inside kkrimp full workflow
-
+    print(
+        f'This is line in the combine impurity tool files at:: /opt/aiida-kkr/aiida_kkr/tools for deburging the line',
+        end=' '
+    )
+    print(f'impurity_workflow_or_calc: {impurity_workflow_or_calc}')
     if impurity_workflow_or_calc.process_class == KkrimpCalculation:
         host_parent = impurity_workflow_or_calc.inputs.host_Greenfunction_folder
+        # Here 'impurity_workflow_or_calc.process_class== combine_imps_wc' occurs circular import with this present module
+    elif impurity_workflow_or_calc.process_class.__name__ == 'combine_imps_wc':
+        imp_sub_wc = impurity_workflow_or_calc.get_outgoing(node_class=kkr_imp_sub_wc).first().node
+        kkr_imp_calc = imp_sub_wc.get_outgoing(node_class=KkrimpCalculation).all()[-1].node
+        host_parent = kkr_imp_calc.inputs.host_Greenfunction_folder
+    elif impurity_workflow_or_calc.process_class == kkr_imp_sub_wc:
+        kkr_imp_calc = impurity_workflow_or_calc.get_outgoing(node_class=KkrimpCalculation).all()[-1].node
+        host_parent = kkr_imp_calc.inputs.host_Greenfunction_folder
     elif 'remote_data' in impurity_workflow_or_calc.inputs:
         # this is the case if impurity_workflow_or_calc workflow is kkr_imp_sub
         host_parent = impurity_workflow_or_calc.inputs.remote_data
@@ -237,7 +250,7 @@ def pos_exists_already(pos_list_old, pos_new, debug=False):
         return False, None
 
 
-def combine_clusters(clust1, clust2_offset, debug=False):
+def combine_clusters(clust1, clust2_offset, single_single, debug=False):
     """
     combine impurity clusters and remove doubles in there
 
@@ -279,21 +292,24 @@ def combine_clusters(clust1, clust2_offset, debug=False):
     return cluster_combined, rimp_rel_combined, kickout_list, i_removed_from_1
 
 
-def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, debug=False):
+def create_combined_imp_info(
+    host_structure, impinfo1, impinfo2, offset_imp2, imps_info_in_exact_cluster, single_single, debug=False
+):
     """
     create impurity clusters from impinfo nodes and combine these putting the second
     impurity to the i_neighbor_inplane-th in-plane neighbor
     """
+    #TODO: Try it with the self object in the in the input
 
-    zimp1 = get_zimp(impinfo1)
-    zimp2 = get_zimp(impinfo2)
-
-    # combine Zimp lists
-    zimp_combined = zimp1 + zimp2
+    imps_info_in_exact_cluster = imps_info_in_exact_cluster.get_dict()
+    if single_single:
+        zimp1 = imps_info_in_exact_cluster['Zimps'][0]
+    zimp2 = imps_info_in_exact_cluster['Zimps'][-1]
 
     if 'imp_cls' in impinfo1.get_dict():
-        clust1 = impinfo1['imp_cls']
-    else:
+        clust1 = np.array(impinfo1['imp_cls'])
+
+    elif single_single:
         # create cluster of imp1
         clust1 = get_scoef_single_imp(host_structure, impinfo1)
 
@@ -301,8 +317,9 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, de
     clust2 = get_scoef_single_imp(host_structure, impinfo2)
 
     # set zimp in scoef file (not used by the code but makes it easier to read the files / debug)
-    clust1[0][4] = zimp1[0]
-    clust2[0][4] = zimp2[0]
+    if single_single:
+        clust1[0][4] = zimp1
+    clust2[0][4] = zimp2
     #if debug:
     #    print('cls1:', clust1)
     #    print('cls2:', clust2)
@@ -313,13 +330,13 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, de
     else:
         # find offset taking into account the possible out-of-plane vector if the imps are in different layers
         r_out_of_plane = np.array([0, 0, 0])
-        layer1 = impinfo1['ilayer_center']
-        layer2 = impinfo2['ilayer_center']
-        if layer1 != layer2:
-            pos1 = np.array(host_structure.sites[layer1].position)
+        center_imp = imps_info_in_exact_cluster['ilayers'][0]
+        layer2 = imps_info_in_exact_cluster['ilayers'][-1]
+        if center_imp != layer2:
+            pos1 = np.array(host_structure.sites[center_imp].position)
             pos2 = np.array(host_structure.sites[layer2].position)
             r_out_of_plane = pos2 - pos1
-        i_neighbor_inplane = offset_imp2['index']
+        i_neighbor_inplane = imps_info_in_exact_cluster['offset_imps'][-1]
         r_offset = get_inplane_neighbor(host_structure, i_neighbor_inplane, r_out_of_plane)
     if debug:
         print('r_offset:', r_offset)
@@ -328,16 +345,20 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, de
     clust2_offset = clust2.copy()
     clust2_offset[:, :3] += r_offset
 
-    cluster_combined, rimp_rel_combined, kickout_list, i_removed_from_1 = combine_clusters(clust1, clust2_offset, debug)
+    cluster_combined, rimp_rel_combined, kickout_list, i_removed_from_1 = combine_clusters(
+        clust1, clust2_offset, single_single, debug
+    )
 
     if 'Rimp_rel' in impinfo1.get_dict():
-        rimp_rel_combined = list(impinfo1['Rimp_rel']) + rimp_rel_combined[1:]
+        rimp_rel_combined = impinfo1['Rimp_rel'] + rimp_rel_combined[1:]
 
     if debug:
         #print('cls_combined:', cluster_combined)
         print('rimp_rel_combined:', rimp_rel_combined)
         print('kickout_list:', kickout_list)
         print('i_removed_from_1:', i_removed_from_1)
+
+    zimp_combined = imps_info_in_exact_cluster['Zimps']
 
     # create new imp_info node with imp_cls, Rimp_rel and Zimp definig the cluster and impurity location
     imp_info_combined = Dict(dict={'imp_cls': cluster_combined, 'Zimp': zimp_combined, 'Rimp_rel': rimp_rel_combined})
@@ -357,18 +378,20 @@ def create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2, de
 
 
 @calcfunction
-def create_combined_imp_info_cf(host_structure, impinfo1, impinfo2, offset_imp2):
+def create_combined_imp_info_cf(
+    host_structure, impinfo1, impinfo2, offset_imp2, imps_info_in_exact_cluster, single_single
+):
     """
     create impurity clusters from impinfo nodes and combine these putting the second
     impurity to the i_neighbor_inplane-th in-plane neighbor
     """
 
-    return create_combined_imp_info(host_structure, impinfo1, impinfo2, offset_imp2)
+    return create_combined_imp_info(
+        host_structure, impinfo1, impinfo2, offset_imp2, imps_info_in_exact_cluster, single_single
+    )
 
 
 # combine potentials calcfunction
-
-
 def combine_potentials(kickout_info, pot_imp1, pot_imp2, nspin_node):
 
     # unpack kickout info
@@ -391,9 +414,15 @@ def combine_potentials(kickout_info, pot_imp1, pot_imp2, nspin_node):
         print('neworder_pot:', neworder_pot)
 
     # add dummy lines which are replace with pot 2
-    N0 = len(neworder_pot)
-    N_add = Ncls_combined - N0
-    replacepos = [i for i in range(N0 + 1, N0 + N_add + 1)]
+    if i_removed_from_1 is not None:
+        N0 = len(neworder_pot)
+        N_add = Ncls_combined - N0
+        replacepos = [i for i in range(N0 + 1, N0 + N_add + 1)]  # range(N0, N0+N_add)]
+    else:
+        N0 = len(neworder_pot)
+        N_add = Ncls_combined - N0
+        replacepos = [i for i in range(N0, N0 + N_add)]  # range(N0, N0+N_add)]
+
     neworder_pot += replacepos
 
     # prepare index of pot2 without kciked out positions
@@ -404,7 +433,10 @@ def combine_potentials(kickout_info, pot_imp1, pot_imp2, nspin_node):
         print('index_pot2:', index_pot2)
 
     # create replacelist (mapping which positions of neworder_pos are taken from pot2 instead)
-    replacelist_pot2 = [(replacepos[i] - 1, index_pot2[i]) for i in range(len(replacepos))]
+    if i_removed_from_1 is not None:
+        replacelist_pot2 = [(replacepos[i] - 1, index_pot2[i]) for i in range(len(replacepos))]
+    else:
+        replacelist_pot2 = [(replacepos[i], index_pot2[i]) for i in range(len(replacepos))]
 
     # take care of spin doubling for NSPIN==2
     if nspin > 1:

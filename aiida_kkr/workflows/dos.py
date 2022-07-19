@@ -4,8 +4,12 @@
 In this module you find the base workflow for a dos calculation and
 some helper methods to do so with AiiDA
 """
-from masci_tools.io.kkr_params import kkrparams
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+from six.moves import range
 from aiida import orm
+from masci_tools.io.kkr_params import kkrparams
 from aiida.engine import WorkChain, if_, ToContext
 from aiida.engine import submit
 from aiida_kkr.tools.common_workfunctions import (
@@ -16,8 +20,8 @@ from aiida_kkr.tools.common_workfunctions import (
 )
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida.engine import CalcJob, calcfunction
 from aiida.common.exceptions import InputValidationError
+from aiida_kkr.tools.parse_dos import parse_dosfiles
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 from aiida_kkr.workflows.bs import set_energy_params
 
@@ -334,7 +338,7 @@ class kkr_dos_wc(WorkChain):
         econt_new['NPOL'] = 0
         econt_new['NPT1'] = 0
         econt_new['NPT3'] = 0
-        parent_calc = self.inputs.remote_data.get_incoming().first().node
+        parent_calc = self.inputs.remote_data.get_incoming(node_class=orm.CalcJobNode).first().node
         if parent_calc.process_label == 'VoronoiCalculation':
             # for the voronoi calculation we need to calculate the Fermi level since it is not in the output parameters directly
             voro_out_para = parent_calc.outputs.output_parameters.get_dict()
@@ -472,51 +476,3 @@ class kkr_dos_wc(WorkChain):
             self.out(link_name, node)
 
         self.report('INFO: done with DOS workflow!\n')
-
-
-@calcfunction
-def parse_dosfiles(dos_retrieved):
-    """
-    parse dos files to XyData nodes
-    """
-    from masci_tools.io.common_functions import interpolate_dos
-    from masci_tools.io.common_functions import get_Ry2eV
-
-    eVscale = get_Ry2eV()
-
-    with dos_retrieved.open('complex.dos') as dosfolder:
-        ef, dos, dos_int = interpolate_dos(dosfolder, return_original=True)
-
-    # convert to eV units
-    dos[:, :, 0] = (dos[:, :, 0] - ef) * eVscale
-    dos[:, :, 1:] = dos[:, :, 1:] / eVscale
-    dos_int[:, :, 0] = (dos_int[:, :, 0] - ef) * eVscale
-    dos_int[:, :, 1:] = dos_int[:, :, 1:] / eVscale
-
-    # create output nodes
-    dosnode = orm.XyData()
-    dosnode.set_x(dos[:, :, 0], 'E-EF', 'eV')
-    name = ['tot', 's', 'p', 'd', 'f', 'g']
-    name = name[:len(dos[0, 0, 1:]) - 1] + ['ns']
-    ylists = [[], [], []]
-    for line, _name in enumerate(name):
-        ylists[0].append(dos[:, :, 1 + line])
-        ylists[1].append(f'dos {_name}')
-        ylists[2].append('states/eV')
-    dosnode.set_y(ylists[0], ylists[1], ylists[2])
-    dosnode.label = 'dos_data'
-    dosnode.description = 'Array data containing uniterpolated DOS (i.e. dos at finite imaginary part of energy). 3D array with (atoms, energy point, l-channel) dimensions.'
-
-    # now create XyData node for interpolated data
-    dosnode2 = orm.XyData()
-    dosnode2.set_x(dos_int[:, :, 0], 'E-EF', 'eV')
-    ylists = [[], [], []]
-    for line, _name in enumerate(name):
-        ylists[0].append(dos_int[:, :, 1 + line])
-        ylists[1].append(f'interpolated dos {_name}')
-        ylists[2].append('states/eV')
-    dosnode2.set_y(ylists[0], ylists[1], ylists[2])
-    dosnode2.label = 'dos_interpol_data'
-    dosnode2.description = 'Array data containing interpolated DOS (i.e. dos at real axis). 3D array with (atoms, energy point, l-channel) dimensions.'
-
-    return {'dos_data': dosnode, 'dos_data_interpol': dosnode2}

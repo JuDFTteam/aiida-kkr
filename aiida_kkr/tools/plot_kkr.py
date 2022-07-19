@@ -7,13 +7,35 @@ from __future__ import division
 from __future__ import absolute_import
 from builtins import object, str
 from six.moves import range
-import numpy as np
+from ..tools.common_workfunctions import get_natyp
 from masci_tools.io.common_functions import search_string
+import numpy as np
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.7.0'
 __contributors__ = ('Philipp Rüßmann')
+
+
+def remove_empty_atoms(show_empty_atoms, structure, silent=False):
+    # check if empty sphere need to be removed for plotting (ase structgure cannot be constructed for alloys or vacancies)
+    #print('in remove empty atoms:', structure.has_vacancies, ('X' in [i.kind_name for i in structure.sites]) )
+    if structure.has_vacancies or ('X' in [i.kind_name for i in structure.sites]):
+        #print("structure has vacancies, need to remove empty sites for plotting")
+        from aiida.orm import StructureData
+        stmp = StructureData(cell=structure.cell)
+        for site in structure.sites:
+            k = structure.get_kind(site.kind_name)
+            pos = site.position
+            if not (k.has_vacancies or 'X' in site.kind_name):
+                stmp.append_atom(position=pos, symbols=k.symbol)
+            elif show_empty_atoms:
+                stmp.append_atom(position=pos, symbols='X')
+            elif not silent:
+                print('removing atom', site)
+        stmp.set_pbc(structure.pbc)
+        structure = stmp
+    return structure
 
 
 def _in_notebook():
@@ -1292,6 +1314,8 @@ class plot_kkr(object):
 
             if calcnode.is_finished_ok:
                 natoms = len(calcnode.outputs.output_parameters.get_dict().get('charge_core_states_per_atom'))
+                from aiida_kkr.tools import find_parent_structure
+                natoms = get_natyp(find_parent_structure(calcnode))
                 self.dosplot(
                     d,
                     natoms,
@@ -1352,7 +1376,7 @@ class plot_kkr(object):
                 ptitle = kwargs.pop('ptitle')
             else:
                 ptitle = f'pk= {node.pk}'
-            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
+            self.dosplot(d, get_natyp(struc), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
             title(ptitle)
             # maybe save as file
             save_fig_to_file(kwargs, 'plot_kkr_out_dos.png')

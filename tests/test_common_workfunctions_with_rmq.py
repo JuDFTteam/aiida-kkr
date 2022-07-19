@@ -21,8 +21,7 @@ class Test_common_workfunctions_rmq(object):
     """
 
     def test_update_params_wf(self):
-        from aiida_kkr.tools.common_workfunctions import update_params_wf
-        from masci_tools.io.kkr_params import kkrparams
+        from aiida_kkr.tools import update_params_wf, kkrparams
         from aiida.orm import Dict
 
         k = kkrparams(LMAX=2)
@@ -61,7 +60,7 @@ class Test_common_workfunctions_rmq(object):
     def test_neworder_potential_wf(self):
         from numpy import loadtxt
         from aiida.orm import load_node, Dict
-        from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
+        from aiida_kkr.tools import neworder_potential_wf
         import_with_migration('files/db_dump_kkrflex_create.tar.gz')
         GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6').outputs
         with GF_host_calc.retrieved.open('scoef') as _f:

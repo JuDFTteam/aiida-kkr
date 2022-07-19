@@ -32,14 +32,14 @@ usage(){
 }
 
 addopt=""
-while getopts vhp option; do
+while getopts ":vhp:" option; do
   case $option in
     v) # add debug options for this script
        set -x # add debug output
        # Add verbosity flags '-sv' to pytest run
        addopt=" -sv " && echo "Found -v flag: adding option '$addopt' to pytest execution" ;;
-    p) # run tests in parallel
-       addopt=" -n 4 " && echo "Found -p flag: adding option '$addopt' for parallel pytest execution using 4 cores" ;;
+    p) # run tests in parallel (specify number of cores with -p N)
+       addopt=" -n $OPTARG " && echo "Found -p flag: adding option '$addopt' for parallel pytest execution using $OPTARG cores" ;;
     h) # Display help
        usage
   esac
@@ -111,7 +111,7 @@ if [[ ! -z "$RUN_ALL" ]]; then
   pytest --cov-report=$repfmt --cov=./.. --cov-append --ignore=jukkr workflows/ $addopt
 elif [[ ! -z "$GITHUB_SUITE" ]]; then
   pytest --cov-report=$repfmt --cov=./.. --ignore=workflows --ignore=jukkr --mpl -p no:warnings $addopt
-  pytest --cov-report=$repfmt --cov-append --cov=./.. ./workflows/test_vorostart_wc.py \
+  pytest --cov-report=$repfmt --cov-append --cov=./.. -x ./workflows/test_vorostart_wc.py \
 	  ./workflows/test_dos_wc.py \
 	  ./workflows/test_gf_writeout_wc.py \
 	  ./workflows/test_scf_wc_simple.py \

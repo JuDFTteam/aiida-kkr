@@ -11,7 +11,7 @@ from aiida.engine import WorkChain, ToContext, if_
 from aiida.engine import calcfunction
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from masci_tools.io.kkr_params import kkrparams
-from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, neworder_potential_wf, update_params_wf
+from aiida_kkr.tools import test_and_get_codenode, neworder_potential_wf, update_params_wf
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc, clean_sfd

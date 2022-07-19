@@ -54,6 +54,7 @@ tests/input.temp.txt
 tests/config.cfg
 tests/plot_kkr_*.png
 tests/jukkr/*
+tests/files/mod_pot/test1/pot_new
 
 
 # Translations
