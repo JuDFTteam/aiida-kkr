@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Rüßmann"
+  given-names: "Philipp"
+  orcid: "0000-0002-6196-2700"
+- family-names: "Bertoldo"
+  given-names: "Fabian"
+- family-names: "Bröder"
+  given-names: "Jens"
+  orcid: "0000-0001-7939-226X"
+- family-names: "Wasmer"
+  given-names: "Johannes"
+  orcid: "0000-0001-5113-3119"
+- family-names: "Mozumder"
+  given-names: "Rubel"
+- family-names: "Chico"
+  given-names: "Jonathan"
+  orcid: "0000-0001-5034-159X"
+- family-names: "Blügel"
+  given-names: "Stefan"
+  orcid: "0000-0001-9987-4733"
+title: "AiiDA-KKR"
+version: 1.10
+doi: 10.5281/zenodo.3663525
+date-released: 2020-01-27
+url: "https://github.com/JuDFTteam/aiida-kkr"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Rüßmann"
+    given-names: "Philipp"
+    orcid: "0000-0002-6196-2700"
+  - family-names: "Bertoldo"
+    given-names: "Fabian"
+  - family-names: "Blügel"
+    given-names: "Stefan"
+    orcid: "0000-0001-9987-4733"
+  doi: "10.1038/s41524-020-00482-5"
+  journal: "npj Computational Materials"
+  month: 1
+  title: "The AiiDA-KKR plugin and its application to high-throughput impurity embedding into a topological insulator"
+  volume: 7
+  year: 2021

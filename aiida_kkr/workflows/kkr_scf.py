@@ -130,7 +130,7 @@ class kkr_scf_wc(WorkChain):
     # add DOS to testopts and retrieve dos.atom files in each scf run
     _wf_default.retreive_dos_data_scf_run = False
     # minimal distance of start of the energy contour to highest lying core state in Ry
-    _wf_default.delta_e_min_core_states = 0.2 # Ry
+    _wf_default.delta_e_min_core_states = 0.2  # Ry
     # set these keys from defaults in kkr_startpot workflow since they are only passed onto that workflow
     for key, value in kkr_startpot_wc.get_wf_defaults(silent=True).items():
         if key in [
@@ -980,14 +980,8 @@ class kkr_scf_wc(WorkChain):
 
             # adapt mixing and convergence settings
             new_params, label, description = self.change_conv_para(
-                    new_params,
-                    para_check,
-                    initial_settings,
-                    decrease_mixing_fac,
-                    switch_agressive_mixing,
-                    switch_higher_accuracy,
-                    label,
-                    description
+                new_params, para_check, initial_settings, decrease_mixing_fac, switch_agressive_mixing,
+                switch_higher_accuracy, label, description
             )
 
             # initial magnetization
@@ -1046,7 +1040,7 @@ class kkr_scf_wc(WorkChain):
         parent_calc_out = parent_calc.outputs.output_parameters
         ecores = parent_calc_out['core_states_group']['energy_highest_lying_core_state_per_atom']
         ecore_max = max(list(set([ec for ec in ecores if ec is not None])))
-        
+
         # get emin from Voronoi or KkrCalculation
         if parent_calc.process_class == VoronoiCalculation:
             emin_old = parent_calc.outputs.output_parameters['emin']
@@ -1054,10 +1048,10 @@ class kkr_scf_wc(WorkChain):
             emin_old = parent_calc.outputs.output_parameters['energy_contour_group']['emin']
 
         # find new emin if distance to core states is too small
-        ecore_mindist = self.ctx.delta_e_min_core_states # in Ry
+        ecore_mindist = self.ctx.delta_e_min_core_states  # in Ry
         if abs(ecore_max - emin_old) < ecore_mindist:
-            # move emin lower by delta_e (converted to Ry units) 
-            emin_new = ecore_max - self.ctx.delta_e * eV2Ry 
+            # move emin lower by delta_e (converted to Ry units)
+            emin_new = ecore_max - self.ctx.delta_e * eV2Ry
             self.report(
                 f'INFO: Core states too close to start of contour.'
                 f'\nChanging EMIN to {emin_new} (ecore_max={ecore_max}, emin_old={emin_old})'
@@ -1066,7 +1060,10 @@ class kkr_scf_wc(WorkChain):
 
         return new_params
 
-    def change_conv_para(self, new_params, para_check, initial_settings, decrease_mixing_fac, switch_agressive_mixing, switch_higher_accuracy, label, description):
+    def change_conv_para(
+        self, new_params, para_check, initial_settings, decrease_mixing_fac, switch_agressive_mixing,
+        switch_higher_accuracy, label, description
+    ):
         """Adapt the kkr parameters to change the convergence settings and the mixing"""
 
         if initial_settings and 'structure' in self.inputs:
@@ -1182,7 +1179,7 @@ class kkr_scf_wc(WorkChain):
 
         # set nspin to 2 if mag_init is used
         if self.ctx.mag_init:
-            nspin_in = para_check.get_value('NSPIN')
+            nspin_in = new_params.get('NSPIN')
             if nspin_in is None:
                 nspin_in = 1
             if nspin_in < 2:

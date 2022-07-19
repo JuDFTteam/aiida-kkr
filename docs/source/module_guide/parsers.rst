@@ -38,10 +38,10 @@ KKRimp Parser
    :private-members:
    :special-members:
 
-Voronoi Parser
+KKRnano Parser
 --------------
 
-.. automodule:: aiida_kkr.parsers.voro
+.. automodule:: aiida_kkr.parsers.kkrnano
    :members:
    :private-members:
    :special-members:

@@ -24,7 +24,7 @@ from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.11.8'
+__version__ = '0.12.0'
 __contributors__ = ('Jens Broeder', 'Philipp Rüßmann')
 
 
@@ -437,7 +437,6 @@ class KkrCalculation(CalcJob):
                     )
 
                 # now write scoef file
-                print('Input parameters for make_scoef read in correctly!')
                 with tempfolder.open(self._SCOEF, 'w') as scoef_file:
                     make_scoef(
                         structure,
@@ -453,7 +452,6 @@ class KkrCalculation(CalcJob):
 
                 # this means the full imp cluster is given in the input
                 # TODO add some consistency checks with structure etc.
-                print('Write scoef from imp_cls input!', len(imp_info.get_dict().get('imp_cls')))
                 with tempfolder.open(self._SCOEF, 'w') as scoef_file:
                     if alat_input is not None:
                         alat = get_alat_from_bravais(np.array(structure.cell), structure.pbc[2])
@@ -567,15 +565,16 @@ class KkrCalculation(CalcJob):
             # for set-ef option (needs to be done AFTER kicking out core states):
             ef_set = parameters.get_dict().get('ef_set', None)
             ef_set = parameters.get_dict().get('EF_SET', ef_set)
-            self.report(
-                f"efset: {ef_set}  efset_1: {parameters.get_dict().get('ef_set')} efset_2: {parameters.get_dict().get('EF_SET')} params: {parameters.get_dict()}"
-            )
+            set_values = kkrparams(**parameters.get_dict()).get_set_values()
+            #self.report(
+            #        f"efset: {ef_set}  efset_1: {parameters.get_dict().get('ef_set')} efset_2: {parameters.get_dict().get('EF_SET')}"
+            #)
+            self.report(f'params: {set_values}')
             if ef_set is not None:
                 local_copy_list = self._set_ef_value_potential(ef_set, local_copy_list, tempfolder)
 
             # TODO different copy lists, depending on the keywors input
-            print(f'local copy list: {local_copy_list}')
-            self.report(f'local copy list: {local_copy_list}')
+            self.logger.info(f'local copy list: {local_copy_list}')
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()
@@ -612,7 +611,6 @@ class KkrCalculation(CalcJob):
                 if 'DOS' in stripped_test_opts:
                     retrieve_dos_files = True
         if retrieve_dos_files:
-            print('adding files for dos output', self._COMPLEXDOS, self._DOS_ATOM, self._LMDOS)
             add_files = [self._COMPLEXDOS]
             for iatom in range(natom):
                 add_files.append(self._DOS_ATOM % (iatom + 1))
@@ -635,7 +633,6 @@ class KkrCalculation(CalcJob):
             else:
                 # do not retrieve kkrflex_tmat and kkrflex_green, they are kept on the remote and used from there
                 add_files = [self._KKRFLEX_ATOMINFO, self._KKRFLEX_INTERCELL_REF, self._KKRFLEX_INTERCELL_CMOMS]
-            print('adding files for KKRFLEX output', add_files)
             calcinfo.retrieve_list += add_files
 
         # 3. qdos claculation
@@ -647,7 +644,6 @@ class KkrCalculation(CalcJob):
                 if 'qdos' in stripped_run_opts:
                     retrieve_qdos_files = True
         if retrieve_qdos_files:
-            print('adding files for qdos output', self._QDOS_ATOM, self._QVEC)
             add_files = [self._QVEC]
             for iatom in range(natom):
                 for ispin in range(nspin):
@@ -670,7 +666,6 @@ class KkrCalculation(CalcJob):
                     retrieve_Jij_files = True
         if retrieve_Jij_files:
             add_files = [self._SHELLS_DAT] + [self._Jij_ATOM % iatom for iatom in range(1, natom + 1)]
-            print('adding files for Jij output', add_files)
             calcinfo.retrieve_list += add_files
 
         # 5. deci-out
@@ -683,7 +678,6 @@ class KkrCalculation(CalcJob):
                     retrieve_decifile = True
         if retrieve_decifile:
             add_files = [self._DECIFILE]
-            print('adding files for deci-out', add_files)
             calcinfo.retrieve_list += add_files
 
         # now set calcinfo and return

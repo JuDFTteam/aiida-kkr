@@ -27,8 +27,8 @@ __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.13.0'
 __contributors__ = u'Philipp Rüßmann'
 
-
 eV2Ry = 1.0 / get_Ry2eV()
+
 
 class kkr_startpot_wc(WorkChain):
     """
@@ -536,9 +536,7 @@ class kkr_startpot_wc(WorkChain):
             update_list.append('ef_set')
 
         # check if emin should be changed:
-        if self.ctx.iter > 1 and (
-            self.ctx.dos_check_fail_reason == 'EMIN too high'
-        ):
+        if self.ctx.iter > 1 and (self.ctx.dos_check_fail_reason == 'EMIN too high'):
             # decrease emin by self.ctx.delta_e for DOS run only
             emin_old = self.ctx.emin
             emin_new = emin_old - self.ctx.delta_e
@@ -697,18 +695,15 @@ class kkr_startpot_wc(WorkChain):
                 self.ctx.efermi = get_ef_from_potfile(_file)
 
         emin_dos = self.ctx.dos_params_dict['emin'] * eV2Ry + self.ctx.efermi
-        if self.ctx.iter==1:
+        if self.ctx.iter == 1:
             self.ctx.emin = self.ctx.voro_calc.res.emin
         emin_out = self.ctx.emin
         self.report(f'INFO: emin dos input: {emin_dos}, emin voronoi output: {emin_out}')
         if emin_out - self.ctx.delta_e * eV2Ry < emin_dos:
             emin_new = emin_out - self.ctx.delta_e * eV2Ry
-            emin_new = (emin_new - self.ctx.efermi) / eV2Ry # convert to relative eV units
+            emin_new = (emin_new - self.ctx.efermi) / eV2Ry  # convert to relative eV units
             self.ctx.dos_params_dict['emin'] = emin_new
-            self.report(
-                f'INFO: set emin for dos automatically'
-                f' to {emin_out - self.ctx.delta_e * eV2Ry} Ry'
-            )
+            self.report(f'INFO: set emin for dos automatically' f' to {emin_out - self.ctx.delta_e * eV2Ry} Ry')
 
         emax = self.ctx.dos_params_dict['emax']
         self.report(f'INFO: emax dos input: {emax}, efermi voronoi output: {self.ctx.efermi}')
@@ -874,22 +869,22 @@ class kkr_startpot_wc(WorkChain):
             #self.report(f'INFO: emin= {emin} Ry')
             #self.report(f'INFO: highest core state= {ecore_max} Ry')
             #if ecore_max is not None:
-                #if ecore_max >= emin:
-                #    error = "ERROR: contour contains core states!!!"
-                #    self.report(error)
-                #    dos_ok = False
+            #if ecore_max >= emin:
+            #    error = "ERROR: contour contains core states!!!"
+            #    self.report(error)
+            #    dos_ok = False
             #    #    self.ctx.dos_check_fail_reason = 'core state in contour'
-                #    # TODO maybe some logic to automatically deal with this issue?
-                #    # for now stop if this case occurs
-                #    return self.exit_codes.ERROR_CORE_STATES_IN_CONTOUR
-                #elif abs(ecore_max-emin) < self.ctx.min_dist_core_states:
-                #if abs(ecore_max - emin) < self.ctx.min_dist_core_states:
-                #    error = 'ERROR: core states too close to energy contour start!!!'
-                #    self.report(error)
-                #    dos_ok = False
-                #    self.ctx.dos_check_fail_reason = 'core state too close'
-                #else:
-                #    self.report('INFO: DOS check successful')
+            #    # TODO maybe some logic to automatically deal with this issue?
+            #    # for now stop if this case occurs
+            #    return self.exit_codes.ERROR_CORE_STATES_IN_CONTOUR
+            #elif abs(ecore_max-emin) < self.ctx.min_dist_core_states:
+            #if abs(ecore_max - emin) < self.ctx.min_dist_core_states:
+            #    error = 'ERROR: core states too close to energy contour start!!!'
+            #    self.report(error)
+            #    dos_ok = False
+            #    self.ctx.dos_check_fail_reason = 'core state too close'
+            #else:
+            #    self.report('INFO: DOS check successful')
 
             # TODO check for semi-core-states
 
