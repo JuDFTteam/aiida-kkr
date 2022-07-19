@@ -57,7 +57,6 @@ class kkr_startpot_wc(WorkChain):
         'delta_e_min': 1.,  # eV                  # minimal distance in DOS contour to emin and emax in eV
         'threshold_dos_zero': 10**-2,  #states/eV #
         'check_dos': False,  # logical to determine if DOS is computed and checked
-        #'delta_e_min_core_states': 0.2,  # Ry      # minimal distance of start of energy contour to highest lying core state in Ry
         'ef_set': None  # set Fermi level of starting potential to this value
     }
     _options_default = {
@@ -393,10 +392,6 @@ class kkr_startpot_wc(WorkChain):
             'threshold_dos_zero',
             self._wf_default['threshold_dos_zero'],
         )
-        #self.ctx.min_dist_core_states = wf_dict.get(
-        #    'delta_e_min_core_states',
-        #    self._wf_default['delta_e_min_core_states'],
-        #)
 
         # set Fermi level with input value
         self.ctx.ef_set = wf_dict.get(
@@ -422,7 +417,6 @@ class kkr_startpot_wc(WorkChain):
             f'min. number of atoms in screening cls: {self.ctx.nclsmin}\n'
             f'min. dist in DOS contour to emin/emax: {self.ctx.delta_e} eV\n'
             f'threshold where DOS is zero: {self.ctx.threshold_dos_zero} states/eV\n'
-            #f'minimal distance of highest core state from EMIN: {self.ctx.min_dist_core_states} Ry\n'
         )
 
         # return para/vars
@@ -862,29 +856,6 @@ class kkr_startpot_wc(WorkChain):
             except AttributeError:
                 dos_ok = False
 
-            # comment this out since KkrCalculation can now take out core states on its own
-            ## check for position of core states
-            #ecore_all = self.ctx.voro_calc.res.core_states_group.get('energy_highest_lying_core_state_per_atom')
-            #ecore_max = max([ec for ec in ecore_all if ec is not None])
-            #self.report(f'INFO: emin= {emin} Ry')
-            #self.report(f'INFO: highest core state= {ecore_max} Ry')
-            #if ecore_max is not None:
-            #if ecore_max >= emin:
-            #    error = "ERROR: contour contains core states!!!"
-            #    self.report(error)
-            #    dos_ok = False
-            #    #    self.ctx.dos_check_fail_reason = 'core state in contour'
-            #    # TODO maybe some logic to automatically deal with this issue?
-            #    # for now stop if this case occurs
-            #    return self.exit_codes.ERROR_CORE_STATES_IN_CONTOUR
-            #elif abs(ecore_max-emin) < self.ctx.min_dist_core_states:
-            #if abs(ecore_max - emin) < self.ctx.min_dist_core_states:
-            #    error = 'ERROR: core states too close to energy contour start!!!'
-            #    self.report(error)
-            #    dos_ok = False
-            #    self.ctx.dos_check_fail_reason = 'core state too close'
-            #else:
-            #    self.report('INFO: DOS check successful')
 
             # TODO check for semi-core-states
 

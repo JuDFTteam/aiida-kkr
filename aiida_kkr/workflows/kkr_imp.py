@@ -307,7 +307,6 @@ class kkr_imp_wc(WorkChain):
                 'delta_e_min': self.ctx.voro_delta_e_min,
                 'threshold_dos_zero': self.ctx.voro_threshold_dos_zero,
                 'check_dos': self.ctx.voro_check_dos,
-                #'delta_e_min_core_states': self.ctx.voro_delta_e_min_core_states
             }
         )
 
