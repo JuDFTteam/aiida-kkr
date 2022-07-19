@@ -14,22 +14,19 @@ from aiida.common.utils import classproperty
 from aiida.common.exceptions import InputValidationError, ValidationError
 from aiida.common.datastructures import CalcInfo, CodeInfo
 from aiida.common.exceptions import UniquenessError
-from aiida_kkr.tools.common_workfunctions import (generate_inputcard_from_structure,
-                                                  check_2Dinput_consistency, update_params_wf,
-                                                  vca_check, kick_out_corestates)
+from aiida_kkr.tools import (
+    generate_inputcard_from_structure, check_2Dinput_consistency, update_params_wf, vca_check, kick_out_corestates
+)
 from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
 from aiida_kkr.tools.tools_kkrimp import make_scoef, write_scoef_full_imp_cls
 from masci_tools.io.kkr_params import __kkr_default_params__, kkrparams
 import six
 from six.moves import range
 
-
-__copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
-                 "IAS-1/PGI-1, Germany. All rights reserved.")
-__license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.11.8"
-__contributors__ = ("Jens Broeder", "Philipp Rüßmann")
-
+__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__license__ = 'MIT license, see LICENSE.txt file'
+__version__ = '0.12.0'
+__contributors__ = ('Jens Broeder', 'Philipp Rüßmann')
 
 
 class KkrCalculation(CalcJob):
@@ -41,7 +38,7 @@ class KkrCalculation(CalcJob):
     _CALCULATION_PLUGIN_VERSION = __version__
 
     # Default input and output files
-    _DEFAULT_INPUT_FILE = 'inputcard' # will be shown with inputcat
+    _DEFAULT_INPUT_FILE = 'inputcard'  # will be shown with inputcat
     _DEFAULT_OUTPUT_FILE = 'out_kkr'  # verdi shell output will be shown with outputcat
 
     # same as _DEFAULT_OUTPUT_FILE: piped output of kkr execution to this file
@@ -52,14 +49,14 @@ class KkrCalculation(CalcJob):
     _POTENTIAL = 'potential'
 
     # List of optional input files (may be mandatory for some settings in inputcard)
-    _SHAPEFUN = 'shapefun' # mandatory if nonspherical calculation
-    _SCOEF = 'scoef' # mandatory for KKRFLEX calculation and some functionalities
-    _NONCO_ANGLES = 'nonco_angle.dat' # mandatory if noncollinear directions are used that are not (theta, phi)= (0,0) for all atoms
-    _NONCO_ANGLES_IMP = 'nonco_angle_imp.dat' # mandatory for GREENIMP option (scattering code)
-    _SHAPEFUN_IMP = 'shapefun_imp' # mandatory for GREENIMP option (scattering code)
-    _POTENTIAL_IMP = 'potential_imp' # mandatory for GREENIMP option (scattering code)
+    _SHAPEFUN = 'shapefun'  # mandatory if nonspherical calculation
+    _SCOEF = 'scoef'  # mandatory for KKRFLEX calculation and some functionalities
+    _NONCO_ANGLES = 'nonco_angle.dat'  # mandatory if noncollinear directions are used that are not (theta, phi)= (0,0) for all atoms
+    _NONCO_ANGLES_IMP = 'nonco_angle_imp.dat'  # mandatory for GREENIMP option (scattering code)
+    _SHAPEFUN_IMP = 'shapefun_imp'  # mandatory for GREENIMP option (scattering code)
+    _POTENTIAL_IMP = 'potential_imp'  # mandatory for GREENIMP option (scattering code)
 
-   # List of output files that should always be present
+    # List of output files that should always be present
     _OUT_POTENTIAL = 'out_potential'
     _OUTPUT_0_INIT = 'output.0.txt'
     _OUTPUT_000 = 'output.000.txt'
@@ -86,7 +83,13 @@ class KkrCalculation(CalcJob):
     _KKRFLEX_ATOMINFO = 'kkrflex_atominfo'
     _KKRFLEX_INTERCELL_REF = 'kkrflex_intercell_ref'
     _KKRFLEX_INTERCELL_CMOMS = 'kkrflex_intercell_cmoms'
-    _ALL_KKRFLEX_FILES = [_KKRFLEX_GREEN, _KKRFLEX_TMAT, _KKRFLEX_ATOMINFO, _KKRFLEX_INTERCELL_REF, _KKRFLEX_INTERCELL_CMOMS]
+    _ALL_KKRFLEX_FILES = [
+        _KKRFLEX_GREEN,
+        _KKRFLEX_TMAT,
+        _KKRFLEX_ATOMINFO,
+        _KKRFLEX_INTERCELL_REF,
+        _KKRFLEX_INTERCELL_CMOMS,
+    ]
     # Jij files
     _Jij_ATOM = 'Jij.atom%0.5i'
     _SHELLS_DAT = 'shells.dat'
@@ -98,10 +101,28 @@ class KkrCalculation(CalcJob):
 
     # list of keywords that are not allowed to be modified (new calculation
     # starting from structure and voronoi run is needed instead):
-    _do_never_modify = ['ALATBASIS', 'BRAVAIS', 'NAEZ', '<RBASIS>', 'CARTESIAN',
-                             'INTERFACE', '<NLBASIS>', '<RBLEFT>', 'ZPERIODL',
-                             '<NRBASIS>', '<RBRIGHT>', 'ZPERIODR', 'KSHAPE', '<SHAPE>',
-                             '<ZATOM>', 'NATYP', '<SITE>', '<CPA-CONC>', '<KAOEZL>', '<KAOEZR>']
+    _do_never_modify = [
+        'ALATBASIS',
+        'BRAVAIS',
+        'NAEZ',
+        '<RBASIS>',
+        'CARTESIAN',
+        'INTERFACE',
+        '<NLBASIS>',
+        '<RBLEFT>',
+        'ZPERIODL',
+        '<NRBASIS>',
+        '<RBRIGHT>',
+        'ZPERIODR',
+        'KSHAPE',
+        '<SHAPE>',
+        '<ZATOM>',
+        'NATYP',
+        '<SITE>',
+        '<CPA-CONC>',
+        '<KAOEZL>',
+        '<KAOEZR>',
+    ]
     #TODO implement workfunction to modify structure (e.g. to use VCA)
 
     # small number used to check for equivalence
@@ -116,40 +137,119 @@ class KkrCalculation(CalcJob):
         super(KkrCalculation, cls).define(spec)
 
         # now define input files and parser
-        spec.input('metadata.options.parser_name', valid_type=six.string_types, default=cls._default_parser, non_db=True)
-        spec.input('metadata.options.input_filename', valid_type=six.string_types, default=cls._DEFAULT_INPUT_FILE, non_db=True)
-        spec.input('metadata.options.output_filename', valid_type=six.string_types, default=cls._DEFAULT_OUTPUT_FILE, non_db=True)
+        spec.input(
+            'metadata.options.parser_name',
+            valid_type=six.string_types,
+            default=cls._default_parser,
+            non_db=True,
+        )
+        spec.input(
+            'metadata.options.input_filename',
+            valid_type=six.string_types,
+            default=cls._DEFAULT_INPUT_FILE,
+            non_db=True
+        )
+        spec.input(
+            'metadata.options.output_filename',
+            valid_type=six.string_types,
+            default=cls._DEFAULT_OUTPUT_FILE,
+            non_db=True
+        )
 
         # define input nodes (optional ones have required=False)
-        spec.input('parameters', valid_type=Dict, required=True, help='Use a node that specifies the input parameters')
-        spec.input('parent_folder', valid_type=RemoteData, required=True, help='Use a remote or local repository folder as parent folder (also for restarts and similar). It should contain all the  needed files for a KKR calc, only edited files should be uploaded from the repository.')
-        spec.input('impurity_info', valid_type=Dict, required=False, help='Use a Parameter node that specifies properties for a follwoing impurity calculation (e.g. setting of impurity cluster in scoef file that is automatically created).')
-        spec.input('kpoints', valid_type=KpointsData, required=False, help="Use a KpointsData node that specifies the kpoints for which a bandstructure (i.e. 'qdos') calculation should be performed.")
-        spec.input('initial_noco_angles', valid_type=Dict, required=False,
-                   help="""
-Initial non-collinear angles for the magnetic moments of the impurities. These values will be written into the `kkrflex_angle` input file of KKRimp.
-The Dict node should be of the form
-    initial_noco_angles = Dict(dict={
-        'theta': [theta_at1, theta_at2, ..., theta_atN],   # list theta values in degrees (0..180)
-        'phi': [phi_at1, phi_at2, ..., phi_atN],           # list phi values in degrees (0..360)
-        'fix_dir': [True/False at_1, ..., True/False at_N] # list of booleans indicating if the direction of the magentic moment should be fixed or is allowed relax (True means keep the direction of the magnetic moment fixed)
-    })
-    Note: The length of the theta, phi and fix_dir lists have to be equal to the number of atoms.
-""")
-        spec.input('deciout_parent', valid_type=RemoteData, required=False,
-                   help="KkrCalculation RemoteData folder from deci-out calculation")
-        spec.input('retrieve_kkrflex', valid_type=Bool, required=False, default= lambda: Bool(True),
-                   help="For a GF writeout caluculation, determine whether or not the kkrflex_* files are copied to the retrieved (can clutter the database) or are ony left in the remote folder.")
+        spec.input(
+            'parameters',
+            valid_type=Dict,
+            required=True,
+            help='Use a node that specifies the input parameters',
+        )
+        spec.input(
+            'parent_folder',
+            valid_type=RemoteData,
+            required=True,
+            help="""Use a remote or local repository folder as parent folder
+            (also for restarts and similar). It should contain all the  needed
+            files for a KKR calc, only edited files should be uploaded from the
+            repository."""
+        )
+        spec.input(
+            'impurity_info',
+            valid_type=Dict,
+            required=False,
+            help="""Use a Parameter node that specifies properties for a following
+            impurity calculation (e.g. setting of impurity cluster in scoef
+            file that is automatically created)."""
+        )
+        spec.input(
+            'kpoints',
+            valid_type=KpointsData,
+            required=False,
+            help="""Use a KpointsData node that specifies the kpoints for which a
+            bandstructure (i.e. 'qdos') calculation should be performed."""
+        )
+        spec.input(
+            'initial_noco_angles',
+            valid_type=Dict,
+            required=False,
+            help="""Initial non-collinear angles for the magnetic moments of
+            the impurities. These values will be written into the
+            `kkrflex_angle` input file of KKRimp.
+            The Dict node should be of the form
+            initial_noco_angles = Dict(dict={
+                'theta': [theta_at1, theta_at2, ..., theta_atN],
+                # list theta values in degrees (0..180)
+                'phi': [phi_at1, phi_at2, ..., phi_atN],
+                # list phi values in degrees (0..360)
+                'fix_dir': [True/False at_1, ..., True/False at_N]
+                # list of booleans indicating if the direction of the magnetic
+                # moment should be fixed or is allowed relax (True means keep the
+                # direction of the magnetic moment fixed)
+            })
+            Note: The length of the theta, phi and fix_dir lists have to be
+            equal to the number of atoms.
+            """
+        )
+        spec.input(
+            'deciout_parent',
+            valid_type=RemoteData,
+            required=False,
+            help="""KkrCalculation RemoteData folder from deci-out calculation"""
+        )
+        spec.input(
+            'retrieve_kkrflex',
+            valid_type=Bool,
+            required=False,
+            default=lambda: Bool(True),
+            help="""For a GF writeout calculation, determine whether or not
+            the kkrflex_* files are copied to the retrieved (can clutter the
+            database) or are ony left in the remote folder."""
+        )
 
         # define outputs
-        spec.output('output_parameters', valid_type=Dict, required=True, help='results of the KKR calculation')
+        spec.output(
+            'output_parameters',
+            valid_type=Dict,
+            required=True,
+            help='results of the KKR calculation',
+        )
         spec.default_output_node = 'output_parameters'
 
         # define exit codes, also used in parser
-        spec.exit_code(301, 'ERROR_NO_OUTPUT_FILE', message='KKR output file not found')
-        spec.exit_code(302, 'ERROR_KKR_PARSING_FAILED', message='KKR parser retuned an error')
-        spec.exit_code(303, 'ERROR_NO_SHAPEFUN_FOUND', message='Could not find shapefun from voronoi parent')
-
+        spec.exit_code(
+            301,
+            'ERROR_NO_OUTPUT_FILE',
+            message='KKR output file not found',
+        )
+        spec.exit_code(
+            302,
+            'ERROR_KKR_PARSING_FAILED',
+            message='KKR parser retuned an error',
+        )
+        spec.exit_code(
+            303,
+            'ERROR_NO_SHAPEFUN_FOUND',
+            message='Could not find shapefun from voronoi parent',
+        )
 
     def prepare_for_submission(self, tempfolder):
         """
@@ -191,9 +291,10 @@ The Dict node should be of the form
         n_parents = len(parent_calcs.all_link_labels())
         if n_parents != 1:
             raise UniquenessError(
-                    "Input RemoteData is child of {} "
-                    "calculation{}, while it should have a single parent"
-                    "".format(n_parents, "" if n_parents == 0 else "s"))
+                'Input RemoteData is child of {} '
+                'calculation{}, while it should have a single parent'
+                ''.format(n_parents, '' if n_parents == 0 else 's')
+            )
             # TODO change to exit code
         if n_parents == 1:
             parent_calc = parent_calcs.first().node
@@ -206,8 +307,8 @@ The Dict node should be of the form
         try:
             parent_inp_dict = parent_calc.inputs.parameters.get_dict()
         except:
-            self.logger.error("Failed trying to find input parameter of parent {}".format(parent_calc))
-            raise InputValidationError("No parameter node found of parent calculation.")
+            self.logger.error(f'Failed trying to find input parameter of parent {parent_calc}')
+            raise InputValidationError('No parameter node found of parent calculation.')
 
         # check if no keys are illegally overwritten (i.e. compare with keys in self._do_never_modify)
         for key in list(parameters.get_dict().keys()):
@@ -224,47 +325,50 @@ The Dict node should be of the form
                         else:
                             values_eqivalent = False
                             # check if values match up to certain numerical accuracy
-                            if type(value)==float:
-                                if abs(value-oldvalue)<self._eps:
+                            if type(value) == float:
+                                if abs(value - oldvalue) < self._eps:
                                     values_eqivalent = True
-                            elif type(value)==list or type(value)==np.ndarray:
+                            elif type(value) == list or type(value) == np.ndarray:
                                 tmp_value, tmp_oldvalue = np.array(value).reshape(-1), np.array(oldvalue).reshape(-1)
                                 values_eqivalent_tmp = []
                                 for ival in range(len(tmp_value)):
-                                    if abs(tmp_value[ival]-tmp_oldvalue[ival])<self._eps:
+                                    if abs(tmp_value[ival] - tmp_oldvalue[ival]) < self._eps:
                                         values_eqivalent_tmp.append(True)
                                     else:
                                         values_eqivalent_tmp.append(False)
-                                if all(values_eqivalent_tmp) and len(value)==len(oldvalue):
+                                if all(values_eqivalent_tmp) and len(value) == len(oldvalue):
                                     values_eqivalent = True
                     except:
-                        raise InputValidationError("Error while trying to compare old and new values with key={} in do_never_modify list, oldval={}; newval={}".format(key, oldvalue, value))
+                        raise InputValidationError(
+                            f'Error while trying to compare old and new values with key={key} in do_never_modify list, oldval={oldvalue}; newval={value}'
+                        )
                     if not values_eqivalent:
-                        self.logger.error("You are trying to set keyword {} = {} but this is not allowed since the structure would be modified. Please use a suitable workfunction instead.".format(key, value))
-                        raise InputValidationError("You are trying to modify a keyword that is not allowed to be changed! (key={}, oldvalue={}, newvalue={})".format(key, oldvalue, value))
-
+                        self.logger.error(
+                            f'You are trying to set keyword {key} = {value} but this is not allowed since the structure would be modified. Please use a suitable workfunction instead.'
+                        )
+                        raise InputValidationError(
+                            f'You are trying to modify a keyword that is not allowed to be changed! (key={key}, oldvalue={oldvalue}, newvalue={value})'
+                        )
 
         #TODO check for remote folder (starting from folder data not implemented yet)
         # if voronoi calc check if folder from db given, or get folder from rep.
         # Parent calc does not has to be on the same computer.
         # so far we copy every thing from local computer ggf if kkr we want to copy remotely
 
-
         # get StructureData node from Parent if Voronoi
         structure = None
-        self.logger.info("KkrCalculation: Get structure node from voronoi parent")
+        self.logger.info('KkrCalculation: Get structure node from voronoi parent')
         try:
             structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
         except:
-            self.logger.error('KkrCalculation: Could not get structure from Voronoi parent ({}).'.format(parent_calc))
-            raise ValidationError("Cound not find structure node from parent {}".format(parent_calc))
+            self.logger.error(f'KkrCalculation: Could not get structure from Voronoi parent ({parent_calc}).')
+            raise ValidationError(f'Cound not find structure node from parent {parent_calc}')
 
         # for VCA: check if input structure and parameter node define VCA structure
         vca_structure = vca_check(structure, parameters)
 
-        ###################################
-
-        # check whether or not the alat from the input parameters are used (this enters as a scaling factor for some parameters)
+        # check whether or not the alat from the input parameters are used
+        # (this enters as a scaling factor for some parameters)
         use_alat_input = parameters.get_dict().get('use_input_alat', False)
         use_alat_input = parameters.get_dict().get('USE_INPUT_ALAT', use_alat_input)
 
@@ -273,9 +377,8 @@ The Dict node should be of the form
         runopt = parameters.get_dict().get('RUNOPT', None)
         kkrflex_opt = False
 
-        if runopt is not None:
-            if 'KKRFLEX' in runopt:
-                kkrflex_opt = True
+        if runopt is not None and 'KKRFLEX' in runopt:
+            kkrflex_opt = True
         if kkrflex_opt:
             write_scoef = True
         elif found_imp_info:
@@ -283,16 +386,25 @@ The Dict node should be of the form
             write_scoef = True
             runopt = parameters.get_dict().get('RUNOPT', [])
             runopt.append('KKRFLEX')
-            parameters = update_params_wf(parameters, Dict(dict={'RUNOPT':runopt, 'nodename': 'update_KKRFLEX', 'nodedesc':'Update Parameter node with KKRFLEX runopt'}))
-        
+            parameters = update_params_wf(
+                parameters,
+                Dict(
+                    dict={
+                        'RUNOPT': runopt,
+                        'nodename': 'update_KKRFLEX',
+                        'nodedesc': 'Update Parameter node with KKRFLEX runopt'
+                    }
+                )
+            )
+
         if found_imp_info and write_scoef:
-        
+
             imp_info_dict = imp_info.get_dict()
 
             # find alat input if needed
             if use_alat_input:
                 alat_input = parameters.get_dict().get('ALATBASIS', None) / get_Ang2aBohr()
-                self.logger.info('alat_input is '+str(alat_input))
+                self.logger.info('alat_input is ' + str(alat_input))
             else:
                 self.logger.info('alat_input is None')
                 alat_input = None
@@ -315,27 +427,37 @@ The Dict node should be of the form
 
                 # some consistency checks
                 if ilayer_center > len(structure.sites) - 1:
-                    raise IndexError('Index of the reference site is out of range! Possible values: 0 to {}.'.format(len(structure.sites) - 1))
+                    raise IndexError(
+                        f'Index of the reference site is out of range! Possible values: 0 to {len(structure.sites) - 1}.'
+                    )
                 elif Rcut < 0:
                     raise ValueError('Cutoff radius has to be positive!')
-                elif not vec_shape or len(cylinder_orient) != 3:
-                    raise TypeError('Input orientation vector ({}) has the wrong shape! It needs to be a 3D-vector!'.format(cylinder_orient))
-                
+                if not vec_shape or len(cylinder_orient) != 3:
+                    raise TypeError(
+                        f'Input orientation vector ({cylinder_orient}) has the wrong shape! It needs to be a 3D-vector!'
+                    )
+
                 # now write scoef file
-                print('Input parameters for make_scoef read in correctly!')
                 with tempfolder.open(self._SCOEF, 'w') as scoef_file:
-                    make_scoef(structure, Rcut, scoef_file, hcut, cylinder_orient, ilayer_center, alat_input)
+                    make_scoef(
+                        structure,
+                        Rcut,
+                        scoef_file,
+                        hcut,
+                        cylinder_orient,
+                        ilayer_center,
+                        alat_input,
+                    )
 
             else:
 
                 # this means the full imp cluster is given in the input
-                #TODO add some consistency checks with structure etc.
-                print('Write scoef from imp_cls input!', len(imp_info.get_dict().get('imp_cls')))
+                # TODO add some consistency checks with structure etc.
                 with tempfolder.open(self._SCOEF, 'w') as scoef_file:
                     if alat_input is not None:
                         alat = get_alat_from_bravais(np.array(structure.cell), structure.pbc[2])
-                        rescale_alat = alat/alat_input
-                        self.report("INFO: rescaling imp cls due to alat_input: {}".format(rescale_alat))
+                        rescale_alat = alat / alat_input
+                        self.report(f'INFO: rescaling imp cls due to alat_input: {rescale_alat}')
                     else:
                         rescale_alat = None
                     write_scoef_full_imp_cls(imp_info, scoef_file, rescale_alat)
@@ -351,33 +473,37 @@ The Dict node should be of the form
             raise InputValidationError(msg)
 
         # set shapes array either from parent voronoi run or read from inputcard in kkrimporter calculation
-        if parent_calc.process_label=='VoronoiCalculation' or parent_calc.process_label=='KkrCalculation':
+        if parent_calc.process_label == 'VoronoiCalculation' or parent_calc.process_label == 'KkrCalculation':
             # get shapes array from voronoi parent
             shapes = voro_parent.outputs.output_parameters.get_dict().get('shapes')
         else:
             # extract shapes from input parameters node constructed by kkrimporter calculation
             shapes = voro_parent.inputs.parameters.get_dict().get('<SHAPE>')
-        self.logger.info('Extracted shapes: {}'.format(shapes))
-
+        self.logger.info(f'Extracted shapes: {shapes}')
 
         # qdos option, ensure low T, E-contour, qdos run option and write qvec.dat file
         if found_kpath:
             parameters = self._prepare_qdos_calc(parameters, kpath, structure, tempfolder, use_alat_input)
 
-
         # write nonco_angle.dat file and adapt RUNOPTS if needed (i.e. add FIXMOM if directions are not relaxed)
         if 'initial_noco_angles' in self.inputs:
             parameters = self._use_initial_noco_angles(parameters, structure, tempfolder)
-        
+
         # activate decimation mode and copy decifile from deciout parent
         if 'deciout_parent' in self.inputs:
             parameters = self._use_decimation(parameters, tempfolder)
-        
 
         # Prepare inputcard from Structure and input parameter data
         with tempfolder.open(self._INPUT_FILE_NAME, u'w') as input_file:
-            natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(parameters, structure, input_file, parent_calc, shapes=shapes, vca_structure=vca_structure, use_input_alat=use_alat_input)
-
+            natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(
+                parameters,
+                structure,
+                input_file,
+                parent_calc,
+                shapes=shapes,
+                vca_structure=vca_structure,
+                use_input_alat=use_alat_input
+            )
 
         #################
         # Decide what files to copy based on settings to the code (e.g. KKRFLEX option needs scoef)
@@ -401,7 +527,7 @@ The Dict node should be of the form
                     copylist.append(parent_calc.process_class._OUT_POTENTIAL_voronoi)
 
             #change copylist in case the calculation starts from an imported calculation
-            else: #if parent_calc.process_class == KkrImporterCalculation:
+            else:  #if parent_calc.process_class == KkrImporterCalculation:
                 if self._OUT_POTENTIAL in outfolder.list_object_names():
                     copylist.append(self._OUT_POTENTIAL)
                 else:
@@ -412,9 +538,12 @@ The Dict node should be of the form
             # create local_copy_list from copylist and change some names automatically
             for file1 in copylist:
                 # deal with special case that file is written to another name
-                if (file1 == 'output.pot' or file1 == self._OUT_POTENTIAL or
-                    (parent_calc.process_class == VoronoiCalculation and
-                     file1 == parent_calc.process_class._POTENTIAL_IN_OVERWRITE) ):
+                if (
+                    file1 == 'output.pot' or file1 == self._OUT_POTENTIAL or (
+                        parent_calc.process_class == VoronoiCalculation and
+                        file1 == parent_calc.process_class._POTENTIAL_IN_OVERWRITE
+                    )
+                ):
                     filename = self._POTENTIAL
                 else:
                     filename = file1
@@ -426,7 +555,7 @@ The Dict node should be of the form
                     try:
                         struc, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
                     except ValueError:
-                        return self.exit_codes.ERROR_NO_SHAPEFUN_FOUND
+                        return self.exit_codes.ERROR_NO_SHAPEFUN_FOUND  # pylint: disable=no-member
                     # copy shapefun from retrieved of voro calc
                     voro_retrieved = voro_parent.outputs.retrieved
                     local_copy_list.append((voro_retrieved.uuid, VoronoiCalculation._SHAPEFUN, self._SHAPEFUN))
@@ -437,14 +566,16 @@ The Dict node should be of the form
             # for set-ef option (needs to be done AFTER kicking out core states):
             ef_set = parameters.get_dict().get('ef_set', None)
             ef_set = parameters.get_dict().get('EF_SET', ef_set)
-            self.report(f"efset: {ef_set}  efset_1: {parameters.get_dict().get('ef_set')} efset_2: {parameters.get_dict().get('EF_SET')} params: {parameters.get_dict()}")
+            set_values = kkrparams(**parameters.get_dict()).get_set_values()
+            #self.report(
+            #        f"efset: {ef_set}  efset_1: {parameters.get_dict().get('ef_set')} efset_2: {parameters.get_dict().get('EF_SET')}"
+            #)
+            self.report(f'params: {set_values}')
             if ef_set is not None:
                 local_copy_list = self._set_ef_value_potential(ef_set, local_copy_list, tempfolder)
 
             # TODO different copy lists, depending on the keywors input
-            print('local copy list: {}'.format(local_copy_list))
-            self.report('local copy list: {}'.format(local_copy_list))
-
+            self.logger.info(f'local copy list: {local_copy_list}')
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()
@@ -454,102 +585,100 @@ The Dict node should be of the form
 
         # TODO retrieve list needs some logic, retrieve certain files,
         # only if certain input keys are specified....
-        calcinfo.retrieve_list = [self._DEFAULT_OUTPUT_FILE,
-                                  self._INPUT_FILE_NAME,
-                                  self._SCOEF,
-                                  self._NONCO_ANGLES_OUT,
-                                  self._NONCO_ANGLES_ALL_ITER,
-                                  self._OUT_POTENTIAL,
-                                  self._OUTPUT_0_INIT,
-                                  self._OUTPUT_000,
-                                  self._OUTPUT_2,
-                                  self._OUT_TIMING_000]
+        calcinfo.retrieve_list = [
+            self._DEFAULT_OUTPUT_FILE,
+            self._INPUT_FILE_NAME,
+            self._SCOEF,
+            self._NONCO_ANGLES_OUT,
+            self._NONCO_ANGLES_ALL_ITER,
+            self._OUT_POTENTIAL,
+            self._OUTPUT_0_INIT,
+            self._OUTPUT_000,
+            self._OUTPUT_2,
+            self._OUT_TIMING_000,
+        ]
 
         # for special cases add files to retireve list:
 
         # 1. dos calculation, add *dos* files if NPOL==0
         retrieve_dos_files = False
-        if 'NPOL' in  list(parameters.get_dict().keys()):
+        if 'NPOL' in list(parameters.get_dict().keys()):
             if parameters.get_dict()['NPOL'] == 0:
                 retrieve_dos_files = True
-        if 'TESTOPT' in  list(parameters.get_dict().keys()):
+        if 'TESTOPT' in list(parameters.get_dict().keys()):
             testopts = parameters.get_dict()['TESTOPT']
-            if testopts is not None :
+            if testopts is not None:
                 stripped_test_opts = [i.strip() for i in testopts]
                 if 'DOS' in stripped_test_opts:
                     retrieve_dos_files = True
         if retrieve_dos_files:
-            print('adding files for dos output', self._COMPLEXDOS, self._DOS_ATOM, self._LMDOS)
             add_files = [self._COMPLEXDOS]
             for iatom in range(natom):
-                add_files.append(self._DOS_ATOM%(iatom+1))
+                add_files.append(self._DOS_ATOM % (iatom + 1))
                 for ispin in range(nspin):
-                    add_files.append((self._LMDOS%(iatom+1, ispin+1)).replace(' ','0'))
+                    add_files.append((self._LMDOS % (iatom + 1, ispin + 1)).replace(' ', '0'))
             calcinfo.retrieve_list += add_files
 
         # 2. KKRFLEX calculation
         retrieve_kkrflex_files = False
-        if 'RUNOPT' in  list(parameters.get_dict().keys()):
+        if 'RUNOPT' in list(parameters.get_dict().keys()):
             runopts = parameters.get_dict()['RUNOPT']
-            if runopts is not None :
+            if runopts is not None:
                 stripped_run_opts = [i.strip() for i in runopts]
                 if 'KKRFLEX' in stripped_run_opts:
                     retrieve_kkrflex_files = True
         if retrieve_kkrflex_files:
-            if self.inputs.retrieve_kkrflex.value:
+            if 'retrieve_kkrflex' in self.inputs and self.inputs.retrieve_kkrflex.value:
                 # retrieve all kkrflex files
                 add_files = self._ALL_KKRFLEX_FILES
             else:
                 # do not retrieve kkrflex_tmat and kkrflex_green, they are kept on the remote and used from there
                 add_files = [self._KKRFLEX_ATOMINFO, self._KKRFLEX_INTERCELL_REF, self._KKRFLEX_INTERCELL_CMOMS]
-            print('adding files for KKRFLEX output', add_files)
             calcinfo.retrieve_list += add_files
 
         # 3. qdos claculation
         retrieve_qdos_files = False
-        if 'RUNOPT' in  list(parameters.get_dict().keys()):
+        if 'RUNOPT' in list(parameters.get_dict().keys()):
             runopts = parameters.get_dict()['RUNOPT']
-            if runopts is not None :
+            if runopts is not None:
                 stripped_run_opts = [i.strip() for i in runopts]
                 if 'qdos' in stripped_run_opts:
                     retrieve_qdos_files = True
         if retrieve_qdos_files:
-            print('adding files for qdos output', self._QDOS_ATOM, self._QVEC)
             add_files = [self._QVEC]
             for iatom in range(natom):
                 for ispin in range(nspin):
-                    add_files.append((self._QDOS_ATOM%(iatom+1, ispin+1)).replace(' ','0'))
-                    add_files.append((self._QDOS_ATOM_OLD%(iatom+1, ispin+1)).replace(' ','0')) # try to retrieve both old and new version of the files
+                    add_files.append((self._QDOS_ATOM % (iatom + 1, ispin + 1)).replace(' ', '0'))
+                    add_files.append((self._QDOS_ATOM_OLD % (iatom + 1, ispin + 1)).replace(' ', '0')
+                                     )  # try to retrieve both old and new version of the files
                 # retrieve also qdos_sx,y,z files if written out
-                add_files.append((self._QDOS_SX%(iatom+1)).replace(' ','0'))
-                add_files.append((self._QDOS_SY%(iatom+1)).replace(' ','0'))
-                add_files.append((self._QDOS_SZ%(iatom+1)).replace(' ','0'))
+                add_files.append((self._QDOS_SX % (iatom + 1)).replace(' ', '0'))
+                add_files.append((self._QDOS_SY % (iatom + 1)).replace(' ', '0'))
+                add_files.append((self._QDOS_SZ % (iatom + 1)).replace(' ', '0'))
             calcinfo.retrieve_list += add_files
 
         # 4. Jij calculation
         retrieve_Jij_files = False
-        if 'RUNOPT' in  list(parameters.get_dict().keys()):
+        if 'RUNOPT' in list(parameters.get_dict().keys()):
             runopts = parameters.get_dict()['RUNOPT']
-            if runopts is not None :
+            if runopts is not None:
                 stripped_run_opts = [i.strip() for i in runopts]
                 if 'XCPL' in stripped_run_opts:
                     retrieve_Jij_files = True
         if retrieve_Jij_files:
-            add_files = [self._SHELLS_DAT] + [self._Jij_ATOM%iatom for iatom in range(1,natom+1)]
-            print('adding files for Jij output', add_files)
+            add_files = [self._SHELLS_DAT] + [self._Jij_ATOM % iatom for iatom in range(1, natom + 1)]
             calcinfo.retrieve_list += add_files
-        
+
         # 5. deci-out
         retrieve_decifile = False
-        if 'RUNOPT' in  list(parameters.get_dict().keys()):
+        if 'RUNOPT' in list(parameters.get_dict().keys()):
             runopts = parameters.get_dict()['RUNOPT']
-            if runopts is not None :
+            if runopts is not None:
                 stripped_run_opts = [i.strip() for i in runopts]
                 if 'deci-out' in stripped_run_opts:
                     retrieve_decifile = True
         if retrieve_decifile:
             add_files = [self._DECIFILE]
-            print('adding files for deci-out', add_files)
             calcinfo.retrieve_list += add_files
 
         # now set calcinfo and return
@@ -561,18 +690,17 @@ The Dict node should be of the form
 
         return calcinfo
 
-
     def _set_parent_remotedata(self, remotedata):
         """
         Used to set a parent remotefolder in the restart of fleur.
         """
-        if not isinstance(remotedata,RemoteData):
+        if not isinstance(remotedata, RemoteData):
             raise ValueError('remotedata must be a RemoteData')
 
         # complain if another remotedata is already found
         input_remote = self.get_inputs(node_type=RemoteData)
         if input_remote:
-            raise ValidationError("Cannot set several parent calculation to a KKR calculation")
+            raise ValidationError('Cannot set several parent calculation to a KKR calculation')
 
         self.use_parent_folder(remotedata)
 
@@ -580,16 +708,16 @@ The Dict node should be of the form
         """
         Set EF value ef_set in the potential file.
         """
-        self.report('local copy list before change: {}'.format(local_copy_list))
+        self.report(f'local copy list before change: {local_copy_list}')
         self.report("found 'ef_set' in parameters: change EF of potential to this value")
 
         # first read old potential
-        
+
         if self._POTENTIAL in tempfolder.get_content_list():
             has_potfile = True
         else:
             has_potfile = False
-        self.report(f"has_potfile? {has_potfile}")
+        self.report(f'has_potfile? {has_potfile}')
 
         txt = []
         if has_potfile:
@@ -597,17 +725,17 @@ The Dict node should be of the form
             with tempfolder.open(self._POTENTIAL, 'r') as potfile:
                 # read potential
                 txt = potfile.readlines()
-            
-        if not has_potfile or len(txt)==0:
+
+        if not has_potfile or len(txt) == 0:
             # this is the case when we take the potential from an existing folder
-            potcopy_info = [i for i in local_copy_list if i[2]==self._POTENTIAL][0]
+            potcopy_info = [i for i in local_copy_list if i[2] == self._POTENTIAL][0]
             with load_node(potcopy_info[0]).open(potcopy_info[1]) as potfile:
                 # remove previous output potential from copy list
                 local_copy_list.remove(potcopy_info)
                 # read potential
                 txt = potfile.readlines()
-        
-        self.report(f"len(potfile)? {len(txt)}")
+
+        self.report(f'len(potfile)? {len(txt)}')
 
         # now change value of Fermi level in potential text
         potstart = []
@@ -616,12 +744,12 @@ The Dict node should be of the form
             if 'exc:' in line:
                 potstart.append(iline)
         for ipotstart in potstart:
-            self.report(f"set ef {ef_set} in potential starting in line {ipotstart}")
-            tmpline = txt[ipotstart+3]
+            self.report(f'set ef {ef_set} in potential starting in line {ipotstart}')
+            tmpline = txt[ipotstart + 3]
             tmpline = tmpline.split()
-            newline = '%10.5f%20.14f%20.14f\n'%(float(tmpline[0]), ef_set, float(tmpline[-1]))
-            
-            txt[ipotstart+3] = newline
+            newline = '%10.5f%20.14f%20.14f\n' % (float(tmpline[0]), ef_set, float(tmpline[-1]))
+
+            txt[ipotstart + 3] = newline
 
         # now (over)writing potential file in tempfolder with changed Fermi energy
         with tempfolder.open(self._POTENTIAL, 'w') as pot_new_ef:
@@ -632,7 +760,6 @@ The Dict node should be of the form
 
         # return updated local_copy_list
         return local_copy_list
-
 
     def _kick_out_corestates_kkrhost(self, local_copy_list, tempfolder):
         """
@@ -646,24 +773,21 @@ The Dict node should be of the form
             params.read_keywords_from_inputcard(input_file)
         emin = params.get_value('EMIN')
 
-        # run kick_out_corestates routine to remove core states that lie above emin 
-        potcopy_info = [i for i in local_copy_list if i[2]==self._POTENTIAL][0]
+        # run kick_out_corestates routine to remove core states that lie above emin
+        potcopy_info = [i for i in local_copy_list if i[2] == self._POTENTIAL][0]
         with tempfolder.open(self._POTENTIAL, 'w') as potfile_out:
             with load_node(potcopy_info[0]).open(potcopy_info[1]) as potfile_in:
                 num_deleted = kick_out_corestates(potfile_in, potfile_out, emin)
 
         # remove changed potential from local copy list (already in tempfolder without overlapping core states)
-        if num_deleted>0:
+        if num_deleted > 0:
             local_copy_list.remove(potcopy_info)
         else:
             # remove temporarily created file
             tempfolder.remove_path(self._POTENTIAL)
 
-
-
         # return updated local_copy_list
         return local_copy_list
-
 
     def _prepare_qdos_calc(self, parameters, kpath, structure, tempfolder, use_alat_input):
         """
@@ -674,25 +798,26 @@ The Dict node should be of the form
         # check qdos settings
         change_values = []
         runopt = parameters.get_dict().get('RUNOPT')
-        if runopt is None: runopt = []
+        if runopt is None:
+            runopt = []
         runopt = [i.strip() for i in runopt]
         if 'qdos' not in runopt:
             runopt.append('qdos')
             change_values.append(['RUNOPT', runopt])
         tempr = parameters.get_dict().get('TEMPR')
-        if tempr is None or tempr>100.:
+        if tempr is None or tempr > 100.:
             change_values.append(['TEMPR', 50.])
         N1 = parameters.get_dict().get('NPT1')
-        if N1 is None or N1>0:
+        if N1 is None or N1 > 0:
             change_values.append(['NPT1', 0])
         N2 = parameters.get_dict().get('NPT2')
         if N2 is None:
             change_values.append(['NPT2', 100])
         N3 = parameters.get_dict().get('NPT3')
-        if N3 is None or N3>0.:
+        if N3 is None or N3 > 0.:
             change_values.append(['NPT3', 0])
         NPOL = parameters.get_dict().get('NPOL')
-        if NPOL is None or NPOL>0.:
+        if NPOL is None or NPOL > 0.:
             change_values.append(['NPOL', 0])
         parameters = _update_params(parameters, change_values)
         # write qvec.dat file
@@ -703,15 +828,14 @@ The Dict node should be of the form
             alat_input = parameters.get_dict().get('ALATBASIS')
         else:
             alat_input = alat
-        kpath_array = kpath_array * (alat_input/alat) / get_Ang2aBohr() / (2*np.pi/alat)
+        kpath_array = kpath_array * (alat_input / alat) / get_Ang2aBohr() / (2 * np.pi / alat)
         # now write file
-        qvec = ['%i\n'%len(kpath_array)]
-        qvec+=['%e %e %e\n'%(kpt[0], kpt[1], kpt[2]) for kpt in kpath_array]
+        qvec = ['%i\n' % len(kpath_array)]
+        qvec += [f'{kpt[0]:e} {kpt[1]:e} {kpt[2]:e}\n' for kpt in kpath_array]
         with tempfolder.open(self._QVEC, 'w') as qvecfile:
             qvecfile.writelines(qvec)
 
         return parameters
-
 
     def _use_initial_noco_angles(self, parameters, structure, tempfolder):
         """
@@ -724,11 +848,14 @@ The Dict node should be of the form
         fix_dir = self.inputs.initial_noco_angles['fix_dir']
         natom = get_natyp(structure)
         if len(fix_dir) != natom:
-            raise InputValidationError("Error: `fix_dir` list in `initial_noco_angles` input node needs to have the same length as number of atoms!")
-            
+            raise InputValidationError(
+                'Error: `fix_dir` list in `initial_noco_angles` input node needs to have the same length as number of atoms!'
+            )
+
         change_values = []
         runopt = parameters.get_dict().get('RUNOPT')
-        if runopt is None: runopt = []
+        if runopt is None:
+            runopt = []
         runopt = [i.strip() for i in runopt]
         if all(fix_dir) and 'FIXMOM' not in runopt:
             runopt.append('FIXMOM')
@@ -741,10 +868,14 @@ The Dict node should be of the form
         # extract theta and phi values from input node
         thetas = self.inputs.initial_noco_angles['theta']
         if len(thetas) != natom:
-            raise InputValidationError("Error: `theta` list in `initial_noco_angles` input node needs to have the same length as number of atoms!")
+            raise InputValidationError(
+                'Error: `theta` list in `initial_noco_angles` input node needs to have the same length as number of atoms!'
+            )
         phis = self.inputs.initial_noco_angles['phi']
         if len(phis) != natom:
-            raise InputValidationError("Error: `phi` list in `initial_noco_angles` input node needs to have the same length as number of atoms!")
+            raise InputValidationError(
+                'Error: `phi` list in `initial_noco_angles` input node needs to have the same length as number of atoms!'
+            )
 
         # now write kkrflex_angle file
         with tempfolder.open(self._NONCO_ANGLES, 'w') as noco_angle_file:
@@ -752,12 +883,14 @@ The Dict node should be of the form
                 theta, phi = thetas[iatom], phis[iatom]
                 # check consistency
                 if theta < 0. or theta > 180.:
-                    raise  InputValidationError(f"Error: theta value out of range (0..180): iatom={iatom}, theta={theta}")
+                    raise InputValidationError(
+                        f'Error: theta value out of range (0..180): iatom={iatom}, theta={theta}'
+                    )
                 # write line
                 noco_angle_file.write(f'   {theta}    {phi}    {fix_dir[iatom]}\n')
 
         return parameters
-    
+
     def _use_decimation(self, parameters, tempfolder):
         """
         Activate decimation mode and copy decifile from output of deciout_parent calculation
@@ -770,25 +903,27 @@ The Dict node should be of the form
         n_parents = len(parent_calcs.all_link_labels())
         if n_parents != 1:
             raise UniquenessError(
-                    "Input RemoteData is child of {} "
-                    "calculation{}, while it should have a single parent"
-                    "".format(n_parents, "" if n_parents == 0 else "s"))
+                'Input RemoteData is child of {} '
+                'calculation{}, while it should have a single parent'
+                ''.format(n_parents, '' if n_parents == 0 else 's')
+            )
             # TODO change to exit code
         parent_calc = parent_calcs.first().node
         deciout_retrieved = parent_calc.outputs.retrieved
         if self._DECIFILE not in deciout_retrieved.list_object_names():
-            raise InputValidationError("Error: deciout_parent does not contain decifile!")
+            raise InputValidationError('Error: deciout_parent does not contain decifile!')
 
         # add 'DECIMATE' flag, decifile and NSTEPS=1
         change_values = []
         runopt = parameters.get_dict().get('RUNOPT')
-        if runopt is None: runopt = []
+        if runopt is None:
+            runopt = []
         runopt = [i.strip() for i in runopt]
         runopt.append('DECIMATE')
         change_values.append(['RUNOPT', runopt])
-        change_values.append(['FILES', [self._POTENTIAL, self._SHAPEFUN]]) # needed to make DECIFILE work
-        change_values.append(['DECIFILES', ['vacuum', self._DECIFILE]]) # works only for right continuation for now!
-        change_values.append(['NSTEPS', 1]) # decimation works only in one-shot mode
+        change_values.append(['FILES', [self._POTENTIAL, self._SHAPEFUN]])  # needed to make DECIFILE work
+        change_values.append(['DECIFILES', ['vacuum', self._DECIFILE]])  # works only for right continuation for now!
+        change_values.append(['NSTEPS', 1])  # decimation works only in one-shot mode
         parameters = _update_params(parameters, change_values)
 
         # now write kkrflex_angle file
@@ -796,9 +931,8 @@ The Dict node should be of the form
             decifile_txt = decifile_handle.readlines()
         with tempfolder.open(self._DECIFILE, 'w') as decifile_handle:
             decifile_handle.writelines(decifile_txt)
-            
-        return parameters
 
+        return parameters
 
 
 def _update_params(parameters, change_values):

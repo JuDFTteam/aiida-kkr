@@ -3,6 +3,7 @@
 Here we specify some defaults for cli commands
 """
 
+
 # Structures
 def get_si_bulk_structure():
     """Return a `StructureData` representing bulk silicon.
@@ -29,7 +30,7 @@ def get_si_bulk_structure():
     }
 
     builder = QueryBuilder().append(StructureData, filters=filters)
-    results = builder.first()
+    results = builder.first()  # pylint: disable=no-value-for-parameter
 
     if not results:
         alat = 5.43
@@ -43,9 +44,10 @@ def get_si_bulk_structure():
         structure = StructureData(ase=ase_structure)
         structure.store()
     else:
-        structure = results[0]
+        structure = results[0]  # pylint: disable=unsubscriptable-object
 
     return structure.uuid
+
 
 def get_cu_bulk_structure():
     """Return a `StructureData` representing bulk copper.
@@ -72,7 +74,7 @@ def get_cu_bulk_structure():
     }
 
     builder = QueryBuilder().append(StructureData, filters=filters)
-    results = builder.first()
+    results = builder.first()  # pylint: disable=no-value-for-parameter
 
     if not results:
         alat = 3.615
@@ -86,7 +88,7 @@ def get_cu_bulk_structure():
         structure = StructureData(ase=ase_structure)
         structure.store()
     else:
-        structure = results[0]
+        structure = results[0]  # pylint: disable=unsubscriptable-object
 
     return structure.uuid
 
@@ -101,21 +103,21 @@ def get_kkrpara_defaults():
 
     # Filters that will match the Dict node with kkr_default_params
     filters = {'extras.aiida-kkr_cmdline_info': 'kkr_default_params'}
-   
-    # now query for this 
+
+    # now query for this
     builder = QueryBuilder().append(Dict, filters=filters)
-    results = builder.first()
+    results = builder.first()  # pylint: disable=no-value-for-parameter
 
     # create kkr params node or take from database if found
     if not results:
         defaults, version = kkrparams.get_KKRcalc_parameter_defaults()
         params = Dict(dict=defaults)
         params.label = 'Default KKR parameters'
-        params.description = f"Version of the KKR params: {version}"
-        params.extras['aiida-kkr_cmdline_info'] = 'kkr_default_params'
+        params.description = f'Version of the KKR params: {version}'
+        params.extras['aiida-kkr_cmdline_info'] = 'kkr_default_params'  # pylint: disable=no-member
         params.store()
     else:
-        params = results[0]
+        params = results[0]  # pylint: disable=unsubscriptable-object
 
     # return params node
     return params.uuid
@@ -130,6 +132,7 @@ def get_voro():
 def get_kkr():
     """Return a `Code` node of the latest added inpgen executable in the database."""
     return get_last_code('kkr.kkr')
+
 
 def get_kkrimp():
     """Return a `Code` node of the latest added inpgen executable in the database."""
@@ -154,11 +157,11 @@ def get_last_code(entry_point_name):
 
     builder = QueryBuilder().append(Code, filters=filters)
     builder.order_by({Code: {'ctime': 'desc'}})
-    results = builder.first()
+    results = builder.first()  # pylint: disable=no-value-for-parameter
 
     if not results:
         raise NotExistent(f'ERROR: Could not find any Code in the database with entry point: {entry_point_name}!')
     else:
-        code = results[0]
+        code = results[0]  # pylint: disable=unsubscriptable-object
 
     return code.uuid

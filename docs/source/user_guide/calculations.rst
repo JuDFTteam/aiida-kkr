@@ -297,7 +297,7 @@ Now we create a new KKR calculation and set input nodes::
     builder.parameters = ParaNode
     builder.parent_folder = kkr_converged_parent_folder
     # prepare impurity_info node containing the information about the impurity cluster
-    imp_info = Dict(dict={'Rcut':1.01, 'ilayer_center': 0, 'Zimp':[79.]})
+    imp_info = Dict(dict={'Rcut':4.0, 'ilayer_center': 0, 'Zimp':[79.]})
     # set impurity info node to calculation
     builder.impurity_info = imp_info
     
@@ -305,7 +305,7 @@ Now we create a new KKR calculation and set input nodes::
     the impurity cluster using the following parameters:
     
         * ``ilayer_center`` (int) layer index of position in the unit cell that describes the center of the impurity cluster 
-        * ``Rcut`` (float) cluster radius of impurity cluster in units of the lattice constant
+        * ``Rcut`` (float) cluster radius of impurity cluster in Ang. units 
         * ``hcut`` (float, *optional*) height of a cylindrical cluster with radius ``Rcut``, if not given spherical cluster is taken
         * ``cylinder_orient`` (list of 3 float values, *optional*)
         * ``Zimp`` (list of *Nimp* float entries) atomic charges of the substitutional impurities on positions defined by ``Rimp_rel``
@@ -467,9 +467,9 @@ from ``aiida_kkr.tools.common_workfunctions``.
 
 We start with the creation of the auxiliary styructure::
 
-    # use an aiida workfunction to keep track of the provenance
-    from aiida.work import workfunction as wf
-    @wf
+    # use an aiida calcfunction to keep track of the provenance
+    from aiida.engine import calcfunction
+    @calcfunction
     def change_struc_imp_aux_wf(struc, imp_info): # Note: works for single imp at center only!
         from aiida.common.constants import elements as PeriodicTableElements
         _atomic_numbers = {data['symbol']: num for num, data in PeriodicTableElements.iteritems()}

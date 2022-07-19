@@ -4,6 +4,7 @@ This contains code snippets and utility useful for dealing with parameter data n
 commonly used by the plugin and workflows
 """
 
+
 def clean_nones(dict_to_clean):
     """Recursively remove all keys which values are None from a nested dictionary
     return the cleaned dictionary

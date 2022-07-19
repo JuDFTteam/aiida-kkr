@@ -62,11 +62,6 @@ script:
   - echo "iffgit.fz-juelich.de,134.94.161.83 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH2UDrT0bZP+WmJGGbtLPtFyC5FgQgOM1XvVJ6u5XBJrYMnKNVb9jAttL+k8VvDgcK6b3dFJnvt7eiXtG/hnqCo=" >> ~/.ssh/known_hosts
   # clone the code and install
   - cd aiida_kkr/tests && ./jukkr_installation.sh
-  # fake installations
-  - mkdir -p jukkr/build_new_kkrhost/
-  - touch jukkr/build_new_kkrhost/kkr.x && chmod +x jukkr/build_new_kkrhost/kkr.x
-  - touch jukkr/voronoi.exe && chmod +x jukkr/voronoi.exe
-  - touch jukkr/kkrflex.exe && chmod +x jukkr/kkrflex.exe
   # install aiida-testing manually
   - pip install git+https://github.com/broeder-j/aiida-testing.git@42510e11d404a78877b9925bf22a39e3936181e4
   ## First check if rabbitmq communication is working
@@ -74,8 +69,8 @@ script:
   #- ./verify_rmq_check.py
   #- verdi status # no profile set up
   # choose tests to run via environment variables:
-  #- export RUN_VORONOI='yes' 
-  #- export RUN_KKRHOST='yes' 
+  #- export RUN_VORONOI='yes'
+  #- export RUN_KKRHOST='yes'
   - export RUN_ALL='yes'
   # Then run all tests
   - bash ./run_all.sh

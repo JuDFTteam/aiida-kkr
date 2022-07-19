@@ -17,13 +17,10 @@ from .kkr import KkrCalculation
 #from aiida_kkr.tools.common_workfunctions import structure_from_params
 #from six.moves import range
 
-
-__copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
-                 "IAS-1/PGI-1, Germany. All rights reserved.")
-__license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
-__contributors__ = ("Philipp Rüßmann")
-
+__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__license__ = 'MIT license, see LICENSE.txt file'
+__version__ = '0.2'
+__contributors__ = ('Philipp Rüßmann')
 
 
 class KkrImporterCalculation(KkrCalculation):
