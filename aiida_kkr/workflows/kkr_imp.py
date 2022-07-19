@@ -20,7 +20,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.8.2'
+__version__ = '0.9.0'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -289,9 +289,9 @@ class kkr_imp_wc(WorkChain):
             'threshold_dos_zero', self._voro_aux_default['threshold_dos_zero']
         )
         self.ctx.voro_check_dos = voro_aux_dict.get('check_dos', self._voro_aux_default['check_dos'])
-        self.ctx.voro_delta_e_min_core_states = voro_aux_dict.get(
-            'delta_e_min_core_states', self._voro_aux_default['delta_e_min_core_states']
-        )
+        #self.ctx.voro_delta_e_min_core_states = voro_aux_dict.get(
+        #    'delta_e_min_core_states', self._voro_aux_default['delta_e_min_core_states']
+        #)
         # set up new parameter dict to pass to voronoi subworkflow later
         self.ctx.voro_params_dict = Dict(
             dict={
@@ -307,7 +307,6 @@ class kkr_imp_wc(WorkChain):
                 'delta_e_min': self.ctx.voro_delta_e_min,
                 'threshold_dos_zero': self.ctx.voro_threshold_dos_zero,
                 'check_dos': self.ctx.voro_check_dos,
-                'delta_e_min_core_states': self.ctx.voro_delta_e_min_core_states
             }
         )
 

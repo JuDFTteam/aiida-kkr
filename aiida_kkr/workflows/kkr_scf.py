@@ -31,8 +31,10 @@ from aiida_kkr.workflows.dos import kkr_dos_wc
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.10.6'
+__version__ = '0.11.0'
 __contributors__ = (u'Jens Broeder', u'Philipp Rüßmann')
+
+eV2Ry = 1.0 / get_Ry2eV()
 
 # TODO: magnetism (init and converge magnetic state)
 # TODO: check convergence (RMAX, GMAX etc.)
@@ -84,6 +86,8 @@ class kkr_scf_wc(WorkChain):
     """
 
     _workflowversion = __version__
+
+    # default workflow parameters
     _wf_default = AttributeDict()
     # Maximum number of kkr jobs/starts (defauld iterations per start)
     _wf_default.kkr_runmax = 5
@@ -125,15 +129,8 @@ class kkr_scf_wc(WorkChain):
     _wf_default.fix_dir_threshold = 1.0
     # add DOS to testopts and retrieve dos.atom files in each scf run
     _wf_default.retreive_dos_data_scf_run = False
-    _options_default = AttributeDict()
-    _options_default.queue_name = ''  # Queue name to submit jobs too
-    # resources to allowcate for the job
-    _options_default.resources = AttributeDict()
-    _options_default.resources.num_machines = 1
-    # walltime after which the job gets killed (gets parsed to KKR)
-    _options_default.max_wallclock_seconds = 60 * 60
-    _options_default.withmpi = True  # execute KKR with mpi or without
-    _options_default.custom_scheduler_commands = ''  # some additional scheduler commands
+    # minimal distance of start of the energy contour to highest lying core state in Ry
+    _wf_default.delta_e_min_core_states = 0.2  # Ry
     # set these keys from defaults in kkr_startpot workflow since they are only passed onto that workflow
     for key, value in kkr_startpot_wc.get_wf_defaults(silent=True).items():
         if key in [
@@ -145,6 +142,17 @@ class kkr_scf_wc(WorkChain):
             'check_dos',
         ]:
             _wf_default[key] = value
+
+    # default options
+    _options_default = AttributeDict()
+    _options_default.queue_name = ''  # Queue name to submit jobs too
+    # resources to allowcate for the job
+    _options_default.resources = AttributeDict()
+    _options_default.resources.num_machines = 1
+    # walltime after which the job gets killed (gets parsed to KKR)
+    _options_default.max_wallclock_seconds = 60 * 60
+    _options_default.withmpi = True  # execute KKR with mpi or without
+    _options_default.custom_scheduler_commands = ''  # some additional scheduler commands
 
     # intended to guide user interactively in setting up a valid wf_params node
 
@@ -556,6 +564,13 @@ class kkr_scf_wc(WorkChain):
             'threshold_dos_zero',
             self._wf_default['threshold_dos_zero'],
         )
+        # distance of EMIN to highest core state (used to modify EMIN start)
+        self.ctx.delta_e_min_core_states = wf_dict.get(
+            'delta_e_min_core_states',
+            self._wf_default['delta_e_min_core_states'],
+        )
+
+        # this will be used to store the Fermi level
         self.ctx.efermi = None
 
         # set starting noco angles, gets updated in between the KKR runs if
@@ -761,8 +776,8 @@ class kkr_scf_wc(WorkChain):
         sub_wf_params.description = description
 
         self.report('INFO: run voronoi step')
-        self.report(f'INFO: using calc_params ({params}): {params.get_dict()}')
-        self.report(f'INFO: using wf_parameters ({sub_wf_params}): {sub_wf_params.get_dict()}')
+        self.report(f'INFO: using calc_params ({params})')
+        self.report(f'INFO: using wf_parameters ({sub_wf_params})')
 
         wf_label = 'kkr_startpot (voronoi)'
         wf_desc = 'subworkflow to set up the input of a KKR calculation'
@@ -955,140 +970,22 @@ class kkr_scf_wc(WorkChain):
             for key, val in input_dict.items():
                 para_check.set_value(key, val, silent=True)
 
-            # init new_params dict where updated params are collected
-            new_params = {}
-
             # step 1.2: check if all mandatory keys are there and add defaults if missing
-            missing_list = para_check.get_missing_keys(use_aiida=True)
-            if missing_list != []:
-                kkrdefaults = kkrparams.get_KKRcalc_parameter_defaults()[0]
-                kkrdefaults_updated = []
-                for key_default, val_default in list(kkrdefaults.items()):
-                    if key_default in missing_list:
-                        new_params[key_default] = kkrdefaults.get(key_default)
-                        kkrdefaults_updated.append(key_default)
-                if len(kkrdefaults_updated) > 0:
-                    self.report(f'ERROR: calc_parameters misses keys: {missing_list}')
-                    return self.exit_codes.ERROR_CALC_PARAMTERS_INCOMPLETE  # pylint: disable=no-member
-                self.report(f'updated KKR parameter node with default values: {kkrdefaults_updated}')
+            new_params = self.initialize_params(para_check)
 
             # step 2: change parameter (contained in new_params dictionary)
-            if initial_settings and 'structure' in self.inputs:
-                # make sure to ignore IMIX from input node
-                # (start with simple mixing even if IMIX is set otherwise)
-                # this is enforced whenever voronoi step is starting point
-                # (otherwise you may want to continue a preconverged calculation)
-                last_mixing_scheme = None
-            else:
-                last_mixing_scheme = para_check.get_value('IMIX')
-            if last_mixing_scheme is None:
-                last_mixing_scheme = 0
 
-            strmixfac = self.ctx.strmix
-            brymixfac = self.ctx.brymix
-            nsteps = self.ctx.nsteps
+            # adapt EMIN if core states are too close
+            new_params = self.adapt_emin(new_params)
 
-            # add number of scf steps
-            new_params['NSTEPS'] = nsteps
-
-            # step 2.1 fill new_params dict with values to be updated
-            if decrease_mixing_fac:
-                if last_mixing_scheme == 0:
-                    self.report(f'(strmixfax, mixreduce)= ({strmixfac}, {self.ctx.mixreduce})')
-                    self.report(f'type(strmixfax, mixreduce)= {type(strmixfac)} {type(self.ctx.mixreduce)}')
-                    strmixfac = strmixfac * self.ctx.mixreduce
-                    self.ctx.strmix = strmixfac
-                    label += f'decreased_mix_fac_str (step {self.ctx.loop_count})'
-                    description += f'decreased STRMIX factor by {self.ctx.mixreduce}'
-                else:
-                    self.report(f'(brymixfax, mixreduce)= ({brymixfac}, {self.ctx.mixreduce})')
-                    self.report(f'type(brymixfax, mixreduce)= {type(brymixfac)} {type(self.ctx.mixreduce)}')
-                    brymixfac = brymixfac * self.ctx.mixreduce
-                    self.ctx.brymix = brymixfac
-                    label += 'decreased_mix_fac_bry'
-                    description += f'decreased BRYMIX factor by {self.ctx.mixreduce}'
-
-            # add mixing factor
-            new_params['STRMIX'] = strmixfac
-            new_params['BRYMIX'] = brymixfac
-
-            if switch_agressive_mixing:
-                last_mixing_scheme = 5
-                label += ' switched_to_agressive_mixing'
-                description += f' switched to agressive mixing scheme (IMIX={last_mixing_scheme})'
-
-            # add mixing scheme
-            new_params['IMIX'] = last_mixing_scheme
-            self.ctx.last_mixing_scheme = last_mixing_scheme
-
-            if switch_higher_accuracy:
-                self.ctx.kkr_higher_accuracy = True
-                convergence_settings = self.ctx.convergence_setting_fine
-                label += ' use_higher_accuracy'
-                description += ' using higher accuracy settings goven in convergence_setting_fine'
-            else:
-                convergence_settings = self.ctx.convergence_setting_coarse
-
-            # slightly increase temperature if previous calculation was
-            # unsuccessful for the second time
-            if decrease_mixing_fac and not self.convergence_on_track():
-                self.report(
-                    'INFO: last calculation did not converge and convergence not on track. Try to increase temperature by 50K.'
-                )
-                convergence_settings['tempr'] += 50.
-                label += ' TEMPR+50K'
-                description += ' with increased temperature of 50K'
-
-            # add convegence settings
-            if self.ctx.loop_count == 1 or self.ctx.last_mixing_scheme == 0:
-                new_params['QBOUND'] = self.ctx.threshold_aggressive_mixing
-            else:
-                new_params['QBOUND'] = self.ctx.convergence_criterion
-            new_params['NPOL'] = convergence_settings['npol']
-            new_params['NPT1'] = convergence_settings['n1']
-            new_params['NPT2'] = convergence_settings['n2']
-            new_params['NPT3'] = convergence_settings['n3']
-            new_params['TEMPR'] = convergence_settings['tempr']
-            new_params['BZDIVIDE'] = convergence_settings['kmesh']
+            # adapt mixing and convergence settings
+            new_params, label, description = self.change_conv_para(
+                new_params, para_check, initial_settings, decrease_mixing_fac, switch_agressive_mixing,
+                switch_higher_accuracy, label, description
+            )
 
             # initial magnetization
-            if initial_settings and self.ctx.mag_init:
-                if self.ctx.hfield <= 0:
-                    self.report(
-                        f'\nWARNING: magnetization initialization chosen but hfield is zero. '
-                        f'Automatically change back to default value (hfield={self._wf_default["hfield"]})\n'
-                    )
-                    self.ctx.hfield = self._wf_default['hfield']
-                xinipol = self.ctx.xinit
-                if xinipol is None:
-                    # find structure to determine needed length on xinipol
-                    if 'structure' in self.inputs:
-                        struc = self.inputs.structure
-                    else:
-                        struc, voro_parent = VoronoiCalculation.find_parent_structure(self.ctx.last_remote)
-                    natom = len(get_site_symbols(struc))
-                    xinipol = np.ones(natom)
-                new_params['LINIPOL'] = True
-                new_params['HFIELD'] = self.ctx.hfield
-                new_params['XINIPOL'] = xinipol
-            # turn off initialization after first (successful) iteration
-            elif self.ctx.mag_init and self.ctx.mag_init_step_success:
-                new_params['LINIPOL'] = False
-                new_params['HFIELD'] = 0.0
-            elif not self.ctx.mag_init:
-                self.report("INFO: mag_init is False. Overwrite 'HFIELD' to '0.0' and 'LINIPOL' to 'False'.")
-                # reset mag init to avoid reinitializing
-                new_params['HFIELD'] = 0.0
-                new_params['LINIPOL'] = False
-
-            # set nspin to 2 if mag_init is used
-            if self.ctx.mag_init:
-                nspin_in = para_check.get_value('NSPIN')
-                if nspin_in is None:
-                    nspin_in = 1
-                if nspin_in < 2:
-                    self.report('WARNING: found NSPIN=1 but for maginit needs NPIN=2. Overwrite this automatically')
-                    new_params['NSPIN'] = 2
+            new_params = self.initial_mag(new_params, initial_settings)
 
             # step 2.2 update values
             try:
@@ -1109,7 +1006,187 @@ class kkr_scf_wc(WorkChain):
             self.report('INFO: reuse old settings')
 
         self.report('INFO: done updating kkr param step')
+
         return None
+
+    def initialize_params(self, para_check):
+        """Initialize new_params with missing defaults"""
+        # init new_params dict where updated params are collected
+        new_params = {}
+
+        # find and add missing defaults
+        missing_list = para_check.get_missing_keys(use_aiida=True)
+        if missing_list != []:
+            kkrdefaults = kkrparams.get_KKRcalc_parameter_defaults()[0]
+            kkrdefaults_updated = []
+            for key_default, val_default in list(kkrdefaults.items()):
+                if key_default in missing_list:
+                    new_params[key_default] = kkrdefaults.get(key_default)
+                    kkrdefaults_updated.append(key_default)
+            if len(kkrdefaults_updated) > 0:
+                self.report(f'ERROR: calc_parameters misses keys: {missing_list}')
+                return self.exit_codes.ERROR_CALC_PARAMTERS_INCOMPLETE  # pylint: disable=no-member
+            self.report(f'updated KKR parameter node with default values: {kkrdefaults_updated}')
+
+        return new_params
+
+    def adapt_emin(self, new_params):
+        """Change EMIN if core states are too close."""
+
+        # get parent calculation (either Voronoi or KkrCalculation)
+        parent_calc = self.ctx.last_remote.get_incoming(node_class=orm.CalcJobNode).first().node
+
+        # get highest lying core state
+        parent_calc_out = parent_calc.outputs.output_parameters
+        ecores = parent_calc_out['core_states_group']['energy_highest_lying_core_state_per_atom']
+        ecore_max = max(list(set([ec for ec in ecores if ec is not None])))
+
+        # get emin from Voronoi or KkrCalculation
+        if parent_calc.process_class == VoronoiCalculation:
+            emin_old = parent_calc.outputs.output_parameters['emin']
+        else:
+            emin_old = parent_calc.outputs.output_parameters['energy_contour_group']['emin']
+
+        # find new emin if distance to core states is too small
+        ecore_mindist = self.ctx.delta_e_min_core_states  # in Ry
+        if abs(ecore_max - emin_old) < ecore_mindist:
+            # move emin lower by delta_e (converted to Ry units)
+            emin_new = ecore_max - self.ctx.delta_e * eV2Ry
+            self.report(
+                f'INFO: Core states too close to start of contour.'
+                f'\nChanging EMIN to {emin_new} (ecore_max={ecore_max}, emin_old={emin_old})'
+            )
+            new_params['EMIN'] = emin_new
+
+        return new_params
+
+    def change_conv_para(
+        self, new_params, para_check, initial_settings, decrease_mixing_fac, switch_agressive_mixing,
+        switch_higher_accuracy, label, description
+    ):
+        """Adapt the kkr parameters to change the convergence settings and the mixing"""
+
+        if initial_settings and 'structure' in self.inputs:
+            # make sure to ignore IMIX from input node
+            # (start with simple mixing even if IMIX is set otherwise)
+            # this is enforced whenever voronoi step is starting point
+            # (otherwise you may want to continue a preconverged calculation)
+            last_mixing_scheme = None
+        else:
+            last_mixing_scheme = para_check.get_value('IMIX')
+        if last_mixing_scheme is None:
+            last_mixing_scheme = 0
+
+        strmixfac = self.ctx.strmix
+        brymixfac = self.ctx.brymix
+        nsteps = self.ctx.nsteps
+
+        # add number of scf steps
+        new_params['NSTEPS'] = nsteps
+
+        # step 2.1 fill new_params dict with values to be updated
+        if decrease_mixing_fac:
+            if last_mixing_scheme == 0:
+                self.report(f'(strmixfax, mixreduce)= ({strmixfac}, {self.ctx.mixreduce})')
+                self.report(f'type(strmixfax, mixreduce)= {type(strmixfac)} {type(self.ctx.mixreduce)}')
+                strmixfac = strmixfac * self.ctx.mixreduce
+                self.ctx.strmix = strmixfac
+                label += f'decreased_mix_fac_str (step {self.ctx.loop_count})'
+                description += f'decreased STRMIX factor by {self.ctx.mixreduce}'
+            else:
+                self.report(f'(brymixfax, mixreduce)= ({brymixfac}, {self.ctx.mixreduce})')
+                self.report(f'type(brymixfax, mixreduce)= {type(brymixfac)} {type(self.ctx.mixreduce)}')
+                brymixfac = brymixfac * self.ctx.mixreduce
+                self.ctx.brymix = brymixfac
+                label += 'decreased_mix_fac_bry'
+                description += f'decreased BRYMIX factor by {self.ctx.mixreduce}'
+
+        # add mixing factor
+        new_params['STRMIX'] = strmixfac
+        new_params['BRYMIX'] = brymixfac
+
+        if switch_agressive_mixing:
+            last_mixing_scheme = 5
+            label += ' switched_to_agressive_mixing'
+            description += f' switched to agressive mixing scheme (IMIX={last_mixing_scheme})'
+
+        # add mixing scheme
+        new_params['IMIX'] = last_mixing_scheme
+        self.ctx.last_mixing_scheme = last_mixing_scheme
+
+        if switch_higher_accuracy:
+            self.ctx.kkr_higher_accuracy = True
+            convergence_settings = self.ctx.convergence_setting_fine
+            label += ' use_higher_accuracy'
+            description += ' using higher accuracy settings goven in convergence_setting_fine'
+        else:
+            convergence_settings = self.ctx.convergence_setting_coarse
+
+        # slightly increase temperature if previous calculation was
+        # unsuccessful for the second time
+        if decrease_mixing_fac and not self.convergence_on_track():
+            self.report(
+                'INFO: last calculation did not converge and convergence not on track. Try to increase temperature by 50K.'
+            )
+            convergence_settings['tempr'] += 50.
+            label += ' TEMPR+50K'
+            description += ' with increased temperature of 50K'
+
+        # add convegence settings
+        if self.ctx.loop_count == 1 or self.ctx.last_mixing_scheme == 0:
+            new_params['QBOUND'] = self.ctx.threshold_aggressive_mixing
+        else:
+            new_params['QBOUND'] = self.ctx.convergence_criterion
+        new_params['NPOL'] = convergence_settings['npol']
+        new_params['NPT1'] = convergence_settings['n1']
+        new_params['NPT2'] = convergence_settings['n2']
+        new_params['NPT3'] = convergence_settings['n3']
+        new_params['TEMPR'] = convergence_settings['tempr']
+        new_params['BZDIVIDE'] = convergence_settings['kmesh']
+
+        return new_params, label, description
+
+    def initial_mag(self, new_params, initial_settings):
+        """Add settings for initial magnetization"""
+        if initial_settings and self.ctx.mag_init:
+            if self.ctx.hfield <= 0:
+                self.report(
+                    f'\nWARNING: magnetization initialization chosen but hfield is zero. '
+                    f'Automatically change back to default value (hfield={self._wf_default["hfield"]})\n'
+                )
+                self.ctx.hfield = self._wf_default['hfield']
+            xinipol = self.ctx.xinit
+            if xinipol is None:
+                # find structure to determine needed length on xinipol
+                if 'structure' in self.inputs:
+                    struc = self.inputs.structure
+                else:
+                    struc, voro_parent = VoronoiCalculation.find_parent_structure(self.ctx.last_remote)
+                natom = len(get_site_symbols(struc))
+                xinipol = np.ones(natom)
+            new_params['LINIPOL'] = True
+            new_params['HFIELD'] = self.ctx.hfield
+            new_params['XINIPOL'] = xinipol
+        # turn off initialization after first (successful) iteration
+        elif self.ctx.mag_init and self.ctx.mag_init_step_success:
+            new_params['LINIPOL'] = False
+            new_params['HFIELD'] = 0.0
+        elif not self.ctx.mag_init:
+            self.report("INFO: mag_init is False. Overwrite 'HFIELD' to '0.0' and 'LINIPOL' to 'False'.")
+            # reset mag init to avoid reinitializing
+            new_params['HFIELD'] = 0.0
+            new_params['LINIPOL'] = False
+
+        # set nspin to 2 if mag_init is used
+        if self.ctx.mag_init:
+            nspin_in = new_params.get('NSPIN')
+            if nspin_in is None:
+                nspin_in = 1
+            if nspin_in < 2:
+                self.report('WARNING: found NSPIN=1 but for maginit needs NPIN=2. Overwrite this automatically')
+                new_params['NSPIN'] = 2
+
+        return new_params
 
     def run_kkr(self):
         """
@@ -1595,7 +1672,6 @@ class kkr_scf_wc(WorkChain):
 
             # fix emin/emax to include emin, ef of scf contour
             # remember: efermi, emin and emax are in internal units (Ry) but delta_e is in eV!
-            eV2Ry = 1.0 / get_Ry2eV()
             emin = self.ctx.dos_params['emin']  # from dos params
             # from contour (sets limit of dos emin!)
             emin_cont = self.ctx.last_calc.outputs.output_parameters.get_dict().get('energy_contour_group').get('emin')

@@ -179,10 +179,7 @@ jobs:
     - name: Run pytest
       run: |
         cd tests/
-        # First only run non-workflow and tests that use KKRhost and Voronoi codes in calculations and workflows
-        RUN_VORONOI=True RUN_KKRHOST=True ./run_all.sh
-        # then also run the KKRimp scf test (only KKRimp not the combined workflows where caching does not work yet)
-        SKIP_NOWORK=True RUN_KKRIMP=True ./run_all.sh
+        GITHUB_SUITE=True ./run_all.sh -p
 
     - name: Archive test output artifacts
       uses: actions/upload-artifact@v3
