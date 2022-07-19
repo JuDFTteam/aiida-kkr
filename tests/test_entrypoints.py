@@ -45,7 +45,22 @@ class TestAiida_kkr_entrypoints(object):
         voro_calculation = CalculationFactory('kkr.voro')
         assert voro_calculation == VoronoiCalculation
 
+    def test_KKRnanocalculation_entry_point(self):
+        from aiida.plugins import CalculationFactory
+        from aiida_kkr.calculations.kkrnano import KKRnanoCalculation
+
+        kkrnano_calculation = CalculationFactory('kkr.kkrnano')
+        assert kkrnano_calculation == KKRnanoCalculation
+
     # Data
+    def test_StrucWithPotData_entry_point(self):
+        from aiida.plugins import DataFactory
+        from aiida.orm import Data
+        from aiida_kkr.data.strucwithpot import StrucWithPotData
+
+        strucwithpot_data = DataFactory('kkr.strucwithpot')
+        assert strucwithpot_data == StrucWithPotData
+
     """
     def test_kkrstructuredata_entry_point(self):
         from aiida.plugins import DataFactory
@@ -88,6 +103,13 @@ class TestAiida_kkr_entrypoints(object):
 
         parser = ParserFactory('kkr.kkrimpparser')
         assert parser == KkrimpParser
+
+    def test_kkrnano_parser_entry_point(self):
+        from aiida.plugins import ParserFactory
+        from aiida_kkr.parsers.kkrnano import KKRnanoParser
+
+        parser = ParserFactory('kkr.kkrnanoparser')
+        assert parser == KKRnanoParser
 
     # Workchains
 

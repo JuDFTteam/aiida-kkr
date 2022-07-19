@@ -522,6 +522,8 @@ class plot_kkr(object):
                 return 'combine_imps'
             # extract kkr_imp_sub and plot it
             self.plot_kkrimp_wc(node, **kwargs)
+        elif node.process_label == 'KKRnanoCalculation':
+            raise TypeError(f'KKRnano input not implemented, yet: {type(node)} {node}')
         else:
             raise TypeError(
                 f'input node neither a `Calculation` nor a `WorkChainNode` (i.e. workflow): {type(node)} {node}'

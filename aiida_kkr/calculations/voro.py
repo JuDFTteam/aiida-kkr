@@ -291,7 +291,7 @@ class VoronoiCalculation(CalcJob):
         return success
 
     @classmethod
-    def _get_remote(self, parent_folder):
+    def get_remote(self, parent_folder):
         """
         get remote_folder from input if parent_folder is not already a remote folder
         """
@@ -303,7 +303,7 @@ class VoronoiCalculation(CalcJob):
         return parent_folder_tmp
 
     @classmethod
-    def _get_parent(self, input_folder):
+    def get_parent(self, input_folder):
         """
         get the  parent folder of the calculation. If not parent was found return input folder
         """
@@ -342,9 +342,9 @@ class VoronoiCalculation(CalcJob):
         """
         iiter = 0
         Nmaxiter = 1000
-        parent_folder_tmp = self._get_remote(parent_folder)
+        parent_folder_tmp = self.get_remote(parent_folder)
         while not self._has_struc(parent_folder_tmp) and iiter < Nmaxiter:
-            parent_folder_tmp = self._get_remote(self._get_parent(parent_folder_tmp))
+            parent_folder_tmp = self.get_remote(self.get_parent(parent_folder_tmp))
             iiter += 1
             if iiter % 200 == 0:
                 print(
