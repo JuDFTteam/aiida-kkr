@@ -20,7 +20,7 @@ class Test_common_workfunctions(object):
     """
 
     def test_generate_inputcard_from_structure(self):
-        from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure
+        from aiida_kkr.tools import generate_inputcard_from_structure
         from aiida.orm import StructureData, Dict
 
         s = StructureData(cell=[[0.5, 0.5, 0], [1, 0, 0], [0, 0, 1]])
@@ -65,7 +65,7 @@ class Test_common_workfunctions(object):
 
     def test_check_2Dinput_consistency_1(self):
         # case 1: 3D structure and no 2D params input
-        from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
+        from aiida_kkr.tools import check_2Dinput_consistency
         from aiida.orm import StructureData, Dict
 
         s = StructureData(cell=[[0.5, 0.5, 0], [1, 0, 0], [0, 0, 1]])
@@ -100,7 +100,7 @@ class Test_common_workfunctions(object):
 
     def test_check_2Dinput_consistency_3(self):
         # case 3: 2D structure but incomplete 2D input parameters given
-        from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
+        from aiida_kkr.tools import check_2Dinput_consistency
         from aiida.orm import StructureData, Dict
 
         s = StructureData(cell=[[0.5, 0.5, 0], [1, 0, 0], [0, 0, 1]])
@@ -119,7 +119,7 @@ class Test_common_workfunctions(object):
 
     def test_check_2Dinput_consistency_4(self):
         # case 3: 2D structure but interface parameter set to False
-        from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
+        from aiida_kkr.tools import check_2Dinput_consistency
         from aiida.orm import StructureData, Dict
 
         s = StructureData(cell=[[0.5, 0.5, 0], [1, 0, 0], [0, 0, 1]])
@@ -142,7 +142,7 @@ class Test_common_workfunctions(object):
 
     def test_check_2Dinput_consistency_5(self):
         # case 5: 3D structure but 2D params given
-        from aiida_kkr.tools.common_workfunctions import check_2Dinput_consistency
+        from aiida_kkr.tools import check_2Dinput_consistency
         from aiida.orm import StructureData, Dict
 
         s = StructureData(cell=[[0.5, 0.5, 0], [1, 0, 0], [0, 0, 1]])
@@ -173,7 +173,7 @@ class Test_common_workfunctions(object):
         pass
 
     def test_kick_out_corestates_wf(self):
-        from aiida_kkr.tools.common_workfunctions import kick_out_corestates_wf
+        from aiida_kkr.tools import kick_out_corestates_wf
         from aiida.orm import load_node, Float
         from masci_tools.io.parsers.kkrparser_functions import get_corestates_from_potential
         import numpy as np

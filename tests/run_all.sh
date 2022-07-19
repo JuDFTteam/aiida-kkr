@@ -111,7 +111,7 @@ if [[ ! -z "$RUN_ALL" ]]; then
   pytest --cov-report=$repfmt --cov=./.. --cov-append --ignore=jukkr workflows/ $addopt
 elif [[ ! -z "$GITHUB_SUITE" ]]; then
   pytest --cov-report=$repfmt --cov=./.. --ignore=workflows --ignore=jukkr --mpl -p no:warnings $addopt
-  pytest --cov-report=$repfmt --cov-append --cov=./.. ./workflows/test_vorostart_wc.py \
+  pytest --cov-report=$repfmt --cov-append --cov=./.. -x ./workflows/test_vorostart_wc.py \
 	  ./workflows/test_dos_wc.py \
 	  ./workflows/test_gf_writeout_wc.py \
 	  ./workflows/test_scf_wc_simple.py \
