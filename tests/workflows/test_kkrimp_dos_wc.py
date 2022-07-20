@@ -30,7 +30,7 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     # set workflow settings
     wfd = kkr_imp_dos_wc.get_wf_defaults()
     wfd['clean_impcalc_retrieved'] = False  # deactivate cleaning of unused data to regain cachability
-    wfd['retrieve_kkrflex'] = True  # make export file smaller
+    wfd['retrieve_kkrflex'] = True
     print(wfd)
 
     # set computer options
