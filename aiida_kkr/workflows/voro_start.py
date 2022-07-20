@@ -358,7 +358,7 @@ class kkr_startpot_wc(WorkChain):
 
         # initialize checking booleans
         self.ctx.is_starting_iter = True
-        self.ctx.doscheck_ok = False
+        self.ctx.doscheck_ok = True
         self.ctx.voro_ok = False
         self.ctx.check_dos = wf_dict.get(
             'check_dos',
@@ -790,15 +790,15 @@ class kkr_startpot_wc(WorkChain):
                 if not dos_outdict['successful']:
                     self.report('ERROR: DOS workflow unsuccessful')
                     self.ctx.doscheck_ok = False
-                    return self.exit_codes.ERROR_DOSRUN_FAILED  # pylint: disable=no-member
+                    self.ctx.exit_code = self.exit_codes.ERROR_DOSRUN_FAILED  # pylint: disable=no-member
 
                 if dos_outdict['list_of_errors'] != []:
                     self.report(f'ERROR: DOS wf output contains errors: {dos_outdict["list_of_errors"]}')
                     self.ctx.doscheck_ok = False
-                    return self.exit_codes.ERROR_DOSRUN_FAILED  # pylint: disable=no-member
+                    self.ctx.exit_code = self.exit_codes.ERROR_DOSRUN_FAILED  # pylint: disable=no-member
             except:
                 self.ctx.doscheck_ok = False
-                return self.exit_codes.ERROR_DOSRUN_FAILED  # pylint: disable=no-member
+                self.ctx.exit_code = self.exit_codes.ERROR_DOSRUN_FAILED  # pylint: disable=no-member
 
             # needed for checks
             emin = self.ctx.voro_calc.res.emin
@@ -819,7 +819,7 @@ class kkr_startpot_wc(WorkChain):
                         f' natom={natom}, nspin={nspin}'
                     )
                     self.ctx.doscheck_ok = False
-                    return self.exit_codes.ERROR_DOSRUN_FAILED  # pylint: disable=no-member
+                    self.ctx.exit_code = self.exit_codes.ERROR_DOSRUN_FAILED  # pylint: disable=no-member
 
                 # deal with snpin==1 or 2 cases and check negtive DOS
                 for iatom in range(natom // nspin):
@@ -906,17 +906,17 @@ class kkr_startpot_wc(WorkChain):
         try:
             doscal = self.ctx.doscal.outputs.results_wf
         except AttributeError:
-            self.report('ERROR: Results ParameterNode of DOS calc not found')
+            self.report('WARNING: Results ParameterNode of DOS calc not found')
             doscal = None
         try:
             dosdata = self.ctx.doscal.outputs.dos_data
         except AttributeError:
-            self.report('ERROR: DOS data of DOS calc not found')
+            self.report('WARNING: DOS data of DOS calc not found')
             dosdata = None
         try:
             dosdata_interpol = self.ctx.doscal.outputs.dos_data_interpol
         except AttributeError:
-            self.report('ERROR: interpolated DOS data of DOS calc not found')
+            self.report('WARNING: interpolated DOS data of DOS calc not found')
             dosdata_interpol = None
 
         self.report(f'INFO: last_voro_calc={self.ctx.voro_calc}')

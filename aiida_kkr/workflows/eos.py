@@ -370,14 +370,11 @@ class kkr_eos_wc(WorkChain):
         self.report('INFO: checking voronoi output')
         # get output of kkr_startpot
         out_wc = self.ctx.kkr_startpot
-        try:
-            res = out_wc.outputs.results_vorostart_wc
-            voro_params = out_wc.outputs.last_params_voronoi
-            smallest_voro_remote = out_wc.outputs.last_voronoi_remote
-            smallest_voro_results = out_wc.outputs.last_voronoi_results
-            vorostart_success = res.get_dict()['successful']
-        except AttributeError:
-            vorostart_success = False
+        res = out_wc.outputs.results_vorostart_wc
+        voro_params = out_wc.outputs.last_params_voronoi
+        smallest_voro_remote = out_wc.outputs.last_voronoi_remote
+        smallest_voro_results = out_wc.outputs.last_voronoi_results
+        vorostart_success = res.get_dict().get('successful', False)
 
         if vorostart_success:
             rmt = []
@@ -389,6 +386,7 @@ class kkr_eos_wc(WorkChain):
             rmtcore_min = np.array(rmt) * smallest_voro_results.get_dict().get('alat')
             self.report(f'INFO: extracted rmtcore_min ({rmtcore_min})')
         else:
+            self.report(f'ERROR: kkr_startpot workflow not successful')
             return self.exit_codes.ERROR_VOROSTART_NOT_SUCCESSFUL  # pylint: disable=no-member
 
         # update parameter node with rmtcore setting
@@ -404,6 +402,7 @@ class kkr_eos_wc(WorkChain):
         # store links to context
         self.ctx.params_kkr_run = voro_params_with_rmtcore
         self.ctx.smallest_voro_remote = smallest_voro_remote
+
         return None
 
     def run_kkr_steps(self):
@@ -573,6 +572,7 @@ class kkr_eos_wc(WorkChain):
             's_B': np.std(alldat[:, 2]),
             's_alat': np.std(alldat[:, 3])
         }
+
         return None
 
     def return_results(self):
@@ -651,9 +651,7 @@ def rescale_no_wf(structure, scale) -> orm.StructureData:
     """
 
     scaled_volume = structure.get_cell_volume() * scale.value
-
     scaled_structure = copy.deepcopy(structure.get_pymatgen())
-
     scaled_structure.scale_lattice(scaled_volume)
 
     return orm.StructureData(pymatgen=scaled_structure)
@@ -683,11 +681,13 @@ def get_primitive_structure(structure, return_all):
     auxiliary workfunction to keep provenance
     """
     from aiida.tools import get_explicit_kpoints_path
+
     output = get_explicit_kpoints_path(structure)
     conv_structure = output['conv_structure']
     explicit_kpoints = output['explicit_kpoints']
     parameters = output['parameters']
     primitive_structure = output['primitive_structure']
+
     if return_all:
         return {
             'conv_structure': conv_structure,
@@ -695,4 +695,5 @@ def get_primitive_structure(structure, return_all):
             'parameters': parameters,
             'primitive_structure': primitive_structure
         }
+
     return primitive_structure
