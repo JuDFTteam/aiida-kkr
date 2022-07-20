@@ -113,6 +113,7 @@ elif [[ ! -z "$GITHUB_SUITE" ]]; then
   pytest --cov-report=$repfmt --cov=./.. --ignore=workflows --ignore=jukkr --mpl -p no:warnings $addopt
   pytest --cov-report=$repfmt --cov-append --cov=./.. -x ./workflows/test_vorostart_wc.py \
 	  ./workflows/test_dos_wc.py \
+          ./workflows/test_bs_wc.py \
 	  ./workflows/test_gf_writeout_wc.py \
 	  ./workflows/test_scf_wc_simple.py \
 	  ./workflows/test_kkrimp_sub_wc.py \
@@ -152,12 +153,12 @@ else
   else
     echo "skipping kkr_dos workflow test"
   fi
-  #if [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
-  #  echo "run kkr_bs workflow test"
-  #  pytest --cov-report=$repfmt --cov-append --cov=./.. ./workflows/test_bs_wc.py $addopt
-  #else
-  #  echo "skipping kkr_bs workflow test"
-  #fi
+  if [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
+    echo "run kkr_bs workflow test"
+    pytest --cov-report=$repfmt --cov-append --cov=./.. ./workflows/test_bs_wc.py $addopt
+  else
+    echo "skipping kkr_bs workflow test"
+  fi
   if [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run kkr_gf_writeout workflow test"
     pytest --cov-report=$repfmt --cov-append --cov=./.. ./workflows/test_gf_writeout_wc.py $addopt
