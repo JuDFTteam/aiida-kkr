@@ -149,6 +149,7 @@ jobs:
     - name: Install aiida-kkr
       run: |
         pip install ${{ matrix.aiida.version }} ${{ matrix.masci-tools.version }}
+        pip install git+https://github.com/JuDFTteam/aiida-testing.git@4ddb0e48a8a720e8fca5f8d09576c5aff8c36dbf
         pip install .[testing]
         pip install reentry
         reentry scan
