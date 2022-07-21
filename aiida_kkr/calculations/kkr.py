@@ -25,7 +25,7 @@ from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.12.0'
+__version__ = '0.12.1'
 __contributors__ = ('Jens Bröder', 'Philipp Rüßmann')
 
 verbose = False
@@ -571,8 +571,9 @@ class KkrCalculation(CalcJob):
             ef_set = parameters.get_dict().get('ef_set', None)
             ef_set = parameters.get_dict().get('EF_SET', ef_set)
             if verbose:
+                set_values = kkrparams(**parameters.get_dict()).get_set_values()
                 self.report(
-                    f"efset: {ef_set}  efset_1: {parameters.get_dict().get('ef_set')} efset_2: {parameters.get_dict().get('EF_SET')} params: {parameters.get_dict()}"
+                    f"efset: {ef_set}  efset_1: {parameters.get_dict().get('ef_set')} efset_2: {parameters.get_dict().get('EF_SET')} params: {set_values}"
                 )
             if ef_set is not None:
                 local_copy_list = self._set_ef_value_potential(ef_set, local_copy_list, tempfolder)
@@ -618,7 +619,8 @@ class KkrCalculation(CalcJob):
                 if 'DOS' in stripped_test_opts:
                     retrieve_dos_files = True
         if retrieve_dos_files:
-            print('adding files for dos output', self._COMPLEXDOS, self._DOS_ATOM, self._LMDOS)
+            if verbose:
+                self.report(f'adding files for dos output: {[self._COMPLEXDOS, self._DOS_ATOM, self._LMDOS]}')
             calcinfo.retrieve_list += self._get_dos_filelist(natom, nspin)
 
         # 2. KKRFLEX calculation
@@ -890,7 +892,7 @@ class KkrCalculation(CalcJob):
         if all(fix_dir) and 'FIXMOM' not in runopt:
             runopt.append('FIXMOM')
             change_values.append(['RUNOPT', runopt])
-        elif not all(fix_dir) and 'FIXMOM' in runopt:
+        elif not all(fix_dir) and 'FIXMOM' in [i.upper() for i in runopt]:
             runopt = [i for i in runopt if 'FIXMOM' not in i.upper()]
             change_values.append(['RUNOPT', runopt])
         parameters = _update_params(parameters, change_values)

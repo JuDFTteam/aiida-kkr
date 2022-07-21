@@ -499,11 +499,6 @@ def set_energy_params(econt_new, ef, para_check):
     """
     evscal = get_Ry2eV()
 
-    # always overwrite NPOL, N1, N3, thus add these to econt_new
-    econt_new['NPOL'] = 0
-    econt_new['NPT1'] = 0
-    econt_new['NPT3'] = 0
-
     for key, val in econt_new.items():
         if key in ['kmesh', 'BZDIVIDE', 'KMESH', 'bzdivide']:
             key = 'BZDIVIDE'
