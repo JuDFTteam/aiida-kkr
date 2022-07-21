@@ -42,7 +42,7 @@ def test_eos_wc_Cu_simple(clear_database_before_test, voronoi_local_code, kkrhos
     wfd['settings_kkr_scf']['num_rerun'] = 2
     wfd['settings_kkr_scf']['natom_in_cls_min'] = 20
     wfd['settings_kkr_startpot']['natom_in_cls_min'] = 20
-    wfd['settings_kkr_startpot']['num_rerun'] = 2
+    wfd['settings_kkr_startpot']['num_rerun'] = 3
     wfd['fitfunction'] = 'sj'  # for only three points only sj fit works
 
     KKReos_wf_parameters = Dict(dict=wfd)
@@ -92,7 +92,7 @@ def test_eos_wc_Cu_simple(clear_database_before_test, voronoi_local_code, kkrhos
     print(list(load_node(out['sub_workflow_uuids']['kkr_scf_1']).outputs))
 
     print('gs_scale_factor', out['gs_scale_factor'])
-    assert abs(out['gs_scale_factor'] - 1.0707660727038) < 5 * 10**-7
+    assert abs(out['gs_scale_factor'] - 0.95010136689848) < 5 * 10**-7
 
     print('\ndone with checks\n')
 

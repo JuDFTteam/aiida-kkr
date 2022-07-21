@@ -10,7 +10,6 @@ from contextlib import ExitStack
 
 
 @calcfunction
-# , parent_calc_folder2=None):
 def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs):
     """
     Workfunction to create database structure for aiida_kkr.tools.modify_potential.neworder_potential function
@@ -135,8 +134,8 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs):
                     ''.format(n_parents, '' if n_parents == 0 else 's')
                 )
             else:
-                parent_calc = parent_calcs[0].node
-            if pot2 not in parent_calc.outputs.retrieved.list_object_names():
+                parent_calc2 = parent_calcs[0].node
+            if pot2 not in parent_calc2.outputs.retrieved.list_object_names():
                 raise InputValidationError(
                     'neworder_potential_wf: pot2 does not exist', pot2,
                     parent_calc.outputs.retrieved.list_object_names()
@@ -146,7 +145,9 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs):
         with ExitStack() as stack:
             out_pot_fhandle = open_context_to_stack(stack, tempfolder, out_pot, u'w')
             pot1_fhandle = open_context_to_stack(stack, parent_calc.outputs.retrieved, pot1)
-            pot2_fhandle = open_context_to_stack(stack, parent_calc.outputs.retrieved, pot2)
+            pot2_fhandle = None
+            if pot2 is not None:
+                pot2_fhandle = open_context_to_stack(stack, parent_calc2.outputs.retrieved, pot2)
             # run neworder_potential function
             modify_potential().neworder_potential(
                 pot1_fhandle,
@@ -194,7 +195,7 @@ def extract_potname_from_remote(parent_calc_folder):
     """
     extract the bname of the output potential from a RemoteData folder
     """
-    from aiida_kkr.calculations import KkrCalculation
+    from aiida_kkr.calculations import KkrCalculation, VoronoiCalculation
     from aiida.orm import CalcJobNode
 
     pot_name = None
@@ -206,6 +207,8 @@ def extract_potname_from_remote(parent_calc_folder):
         # now extract the pot_name dependeing on the parent calculation's type
         if parent.process_class == KkrCalculation:
             pot_name = KkrCalculation._OUT_POTENTIAL
+        elif parent.process_class == VoronoiCalculation:
+            pot_name = VoronoiCalculation._OUT_POTENTIAL_voronoi
 
     # return the potential name or raise an error if nothing was found
     if pot_name is not None:

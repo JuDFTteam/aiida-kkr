@@ -25,7 +25,7 @@ def test_kkrimp_full_wc(
     from numpy import array
 
     # settings for workflow
-    options, wfd, voro_aux_settings = kkr_imp_wc.get_wf_defaults()
+    _, wfd, voro_aux_settings = kkr_imp_wc.get_wf_defaults()
 
     wfd['nsteps'] = 20
     wfd['strmix'] = 0.05
@@ -52,7 +52,7 @@ def test_kkrimp_full_wc(
 
     # import parent calculation (converged host system)
     import_with_migration('files/db_dump_kkrflex_create.tar.gz')
-    kkr_calc_remote = load_node('3058bd6c-de0b-400e-aff5-2331a5f5d566').outputs.remote_folder
+    GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
 
     # give workflow label and description
     label = 'kkrimp_scf full Cu host_in_host'
@@ -69,11 +69,12 @@ def test_kkrimp_full_wc(
     builder.voro_aux_parameters = voro_aux_settings
     builder.wf_parameters = wf_inputs
     builder.impurity_info = imp_info
-    builder.remote_data_host = kkr_calc_remote
+    builder.remote_data_host = GF_host_calc.outputs.remote_folder
 
     # now run calculation
     out, node = run_with_cache(builder, data_dir=data_dir)
     print(out)
+    print(list(node.called))
 
     # check outcome
     n = out['workflow_info']
@@ -125,7 +126,7 @@ def test_kkrimp_full_Ag_Cu_onsite(
     imp_info = Dict(dict={'Rcut': 3.5, 'ilayer_center': 0, 'Zimp': [47.]})
 
     # import parent calculation (converged host system)
-    imported_nodes = import_with_migration('data_dir/kkr_scf_wc-nodes-c687c8621b7a63ee5fd678e9c8a4e40c.tar.gz')['Node']
+    imported_nodes = import_with_migration('data_dir/kkr_scf_wc-nodes-db396f0dabbf666d9a247b3dca766421.tar.gz')['Node']
     for _, pk in imported_nodes['new'] + imported_nodes['existing']:
         node = load_node(pk)
         if node.label == 'KKR-scf for Cu bulk':

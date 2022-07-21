@@ -176,7 +176,8 @@ class kkr_imp_wc(WorkChain):
                 cls.run_voroaux,                                                  # calculate the auxiliary impurity potentials
                 cls.construct_startpot),                                          # construct the host-impurity startpotential
             cls.run_kkrimp_scf,                                                 # run the kkrimp_sub workflow to converge the host-imp startpot
-            cls.return_results)                                                 # check if the calculation was successful and return the result nodes
+            cls.return_results,                                                 # check if the calculation was successful and return the result nodes
+            cls.error_handler)
 
         # define the possible exit codes
         spec.exit_code(
@@ -245,6 +246,7 @@ class kkr_imp_wc(WorkChain):
             self.ctx.change_voro_params = {}
 
         # set option parameters from input, or defaults
+        self.ctx.exit_code = None  # collect errors here which are passed on to the error handler in the end
         self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
         self.ctx.max_wallclock_seconds = options_dict.get(
@@ -388,14 +390,16 @@ class kkr_imp_wc(WorkChain):
             except ValueError:
                 inputs_ok = False
                 self.report(self.exit_codes.ERROR_INVALID_INPUT_CODE)  # pylint: disable=no-member
-                return self.exit_codes.ERROR_INVALID_INPUT_CODE  # pylint: disable=no-member
+                self.ctx.exit_code = self.exit_codes.ERROR_INVALID_INPUT_CODE  # pylint: disable=no-member
+                return False
         elif 'kkr' in inputs:
             try:
                 test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
                 inputs_ok = False
                 self.report(self.exit_codes.ERROR_INVALID_INPUT_CODE)  # pylint: disable=no-member
-                return self.exit_codes.ERROR_INVALID_INPUT_CODE  # pylint: disable=no-member
+                self.ctx.exit_code = self.exit_codes.ERROR_INVALID_INPUT_CODE  # pylint: disable=no-member
+                return False
 
         if 'impurity_info' in inputs:
             self.report(f'INFO: found the following impurity info node in input: {inputs.impurity_info.get_dict()}')
@@ -419,7 +423,8 @@ class kkr_imp_wc(WorkChain):
             else:
                 inputs_ok = False
                 self.report(self.exit_codes.ERROR_MISSING_KKRCODE)  # pylint: disable=no-member
-                return self.exit_codes.ERROR_MISSING_KKRCODE  # pylint: disable=no-member
+                self.ctx.exit_code = self.exit_codes.ERROR_MISSING_KKRCODE  # pylint: disable=no-member
+                return False
         elif 'remote_data_gf' in inputs:
             remote_data_gf_node = load_node(inputs.remote_data_gf.pk)
             pk_kkrflex_writeoutcalc = remote_data_gf_node.get_incoming(link_label_filter=u'remote_folder'
@@ -441,7 +446,8 @@ class kkr_imp_wc(WorkChain):
         else:
             inputs_ok = False
             self.report(self.exit_codes.ERROR_MISSING_REMOTE)  # pylint: disable=no-member
-            return self.exit_codes.ERROR_MISSING_REMOTE  # pylint: disable=no-member
+            self.ctx.exit_code = self.exit_codes.ERROR_MISSING_REMOTE  # pylint: disable=no-member
+            return False
 
         self.ctx.do_gf_calc = do_gf_calc
         self.report(f'INFO: validated input successfully: {inputs_ok}. Do GF writeout calc: {self.ctx.do_gf_calc}.')
@@ -503,6 +509,10 @@ class kkr_imp_wc(WorkChain):
         if 'startpot' in self.inputs:
             self.ctx.startpot_kkrimp = self.inputs.startpot
             self.ctx.create_startpot = False
+
+        if self.ctx.exit_code is not None:
+            # skip creation of starting potential by overwriting with True return value
+            return True
 
         return self.ctx.create_startpot
 
@@ -625,7 +635,7 @@ class kkr_imp_wc(WorkChain):
 
         if not self.ctx.last_voro_calc.is_finished_ok:
             self.report(self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE)  # pylint: disable=no-member
-            return self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE  # pylint: disable=no-member
+            self.ctx.exit_code = self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE  # pylint: disable=no-member
 
         # collect all nodes necessary to construct the startpotential
         if self.ctx.do_gf_calc:
@@ -843,6 +853,11 @@ class kkr_imp_wc(WorkChain):
                     # delete all except vor default output file
                     with ret.open(fname) as f:
                         ret.delete_object(fname, force=True)
+
+    def error_handler(self):
+        """Capture errors raised in validate_input"""
+        if self.ctx.exit_code is not None:
+            return self.ctx.exit_code
 
 
 @calcfunction
