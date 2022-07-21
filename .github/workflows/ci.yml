@@ -12,10 +12,10 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Set up Python 3.7
+    - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:
-        python-version: 3.7
+        python-version: 3.8
 
     - name: Cache python dependencies
       id: cache-pip
@@ -58,14 +58,13 @@ jobs:
         restore-keys: |
           pip-pre-commit-
 
-    - name: Set up Python 3.7
+    - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:
-        python-version: 3.7
+        python-version: 3.8
 
     - name: Install python dependencies
       run: |
-        pip install 'git+https://github.com/JuDFTteam/masci-tools.git@develop'
         pip install .[pre-commit]
         pip freeze
 
@@ -153,8 +152,7 @@ jobs:
 
     - name: Install aiida-kkr
       run: |
-        pip install ${{ matrix.aiida.version }}
-        pip install ${{ matrix.masci-tools.version }}
+        pip install ${{ matrix.aiida.version }} ${{ matrix.masci-tools.version }}
         pip install .[testing]
         pip install reentry
         reentry scan

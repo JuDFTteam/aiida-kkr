@@ -71,7 +71,7 @@ jobs:
 
     - name: Install python dependencies
       run: |
-        pip install --use-feature=2020-resolver .[pre-commit]
+        pip install .[pre-commit]
         pip freeze
 
     - name: Run pre-commit
@@ -173,7 +173,7 @@ jobs:
     - name: Run pytest
       run: |
         cd tests/
-        GITHUB_SUITE=True ./run_all.sh -p 2
+        GITHUB_SUITE=True ./run_all.sh
 
   publish:
     name: Publish to PyPi
