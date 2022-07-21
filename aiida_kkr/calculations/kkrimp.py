@@ -5,7 +5,7 @@ Input plug-in for a KKRimp calculation.
 
 from __future__ import absolute_import
 from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode, Dict, RemoteData, SinglefileData
+from aiida.orm import CalcJobNode, Dict, RemoteData, SinglefileData, Bool
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError, UniquenessError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
@@ -17,13 +17,13 @@ from aiida_kkr.tools.common_workfunctions import get_username
 from masci_tools.io.common_functions import search_string, get_ef_from_potfile
 import os
 import tarfile
-from numpy import array, sqrt, sum, where, loadtxt
+from numpy import array, array_equal, sqrt, sum, where, loadtxt
 import six
 from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.11'
+__version__ = '0.7.0'
 __contributors__ = (u'Philipp Rüßmann', u'Fabian Bertoldo')
 
 #TODO: implement 'ilayer_center' consistency check
@@ -182,6 +182,13 @@ The Dict node should be of the form
     Note: The length of the theta, phi and fix_dir lists have to be equal to the number of atoms in the impurity cluster.
 """
         )
+        spec.input(
+            'cleanup_outfiles',
+            valid_type=Bool,
+            required=False,
+            default=lambda: Bool(False),
+            help='Cleanup and compress output (works only in aiida-core<2.0 and breaks caching ability).'
+        )
 
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the KKRimp calculation')
@@ -330,17 +337,28 @@ The Dict node should be of the form
         # the one from the parent calc (except for 'Zimp'). If that's not the
         # case, raise an error
         if found_impurity_inputnode and found_host_parent:
+            check_consistency_imp_info = False
             #TODO: implement also 'ilayer_center' check
-            if imp_info_inputnode.get_dict().get('Rcut') == imp_info.get_dict().get('Rcut'):
+            if 'imp_cls' in imp_info_inputnode.get_dict().keys():
+                input_imp_cls_arr = array(imp_info_inputnode.get_dict()['imp_cls'])
+                parent_imp_cls_arr = array(imp_info.get_dict()['imp_cls'])
+                is_identical = array_equal(input_imp_cls_arr[:, 0:4], parent_imp_cls_arr[:, 0:4])
+
+                if is_identical:
+                    check_consistency_imp_info = True
+                else:
+                    self.report('impurity_info node from input and from previous GF calculation are NOT compatible!.')
+
+            elif imp_info_inputnode.get_dict().get('Rcut') == imp_info.get_dict().get('Rcut'):
                 check_consistency_imp_info = True
                 try:
                     if (
                         imp_info_inputnode.get_dict().get('hcut') == imp_info.get_dict().get('hcut') and
                         imp_info_inputnode.get_dict().get('cylinder_orient')
                         == imp_info.get_dict().get('cylinder_orient') and
-                        imp_info_inputnode.get_dict().get('Rimp_rel') == imp_info.get_dict().get('Rimp_rel') and
-                        imp_info_inputnode.get_dict().get('imp_cls') == imp_info.get_dict().get('imp_cls')
+                        imp_info_inputnode.get_dict().get('Rimp_rel') == imp_info.get_dict().get('Rimp_rel')
                     ):
+
                         self.report('impurity_info node from input and from previous GF calculation are compatible')
                         check_consistency_imp_info = True
                     else:
@@ -369,11 +387,9 @@ The Dict node should be of the form
         # check if host parent was KKRFLEX calculation
         hostfolder = parent_calc.outputs.retrieved
         with hostfolder.open(KkrCalculation._DEFAULT_INPUT_FILE) as fhandle:
-            input_file = fhandle.name
-        params_host_calc = kkrparams(
-            params_type='kkr'
-        )  # initialize kkrparams instance to use read_keywords_from_inputcard
-        params_host_calc.read_keywords_from_inputcard(inputcard=input_file)
+            # use read_keywords_from_inputcard of kkrparams class
+            params_host_calc = kkrparams(params_type='kkr')
+            params_host_calc.read_keywords_from_inputcard(inputcard=fhandle)
 
         if 'RUNOPT' not in list(params_host_calc.get_dict().keys()):
             host_ok = False
@@ -700,6 +716,8 @@ The Dict node should be of the form
         if type(Zimp_list) != list:
             Zimp_list = [Zimp_list]  # fast fix for cases when Zimp is not a list but a single value
         Rimp_rel_list = imp_info_dict.get(u'Rimp_rel', [[0, 0, 0]])
+        self.report(f'DEBUG: Rimp_rel_list: {Rimp_rel_list}.')
+
         for iatom in range(len(Zimp_list)):
             rtmp = array(Rimp_rel_list[iatom])[:3]
             self.report(f'INFO: Rimp_rel {iatom}, {rtmp}')

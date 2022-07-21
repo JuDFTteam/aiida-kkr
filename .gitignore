@@ -47,12 +47,14 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
-aiida_kkr/tests/coverage
-aiida_kkr/tests/inputcard
-aiida_kkr/tests/input.temp_unsorted.txt
-aiida_kkr/tests/input.temp.txt
-aiida_kkr/tests/config.cfg
-aiida_kkr/tests/plot_kkr_*.png
+tests/coverage
+tests/inputcard
+tests/input.temp_unsorted.txt
+tests/input.temp.txt
+tests/config.cfg
+tests/plot_kkr_*.png
+tests/jukkr/*
+tests/files/mod_pot/test1/pot_new
 
 
 # Translations
@@ -121,18 +123,18 @@ venv*/
 .vscode/
 
 # testing files (test runs locally)
-aiida_kkr/tests/.aiida/
-aiida_kkr/tests/inputcard*
-aiida_kkr/tests/jukkr/
-aiida_kkr/tests/meminfo.txt
-aiida_kkr/tests/out*
-aiida_kkr/tests/shapefun
-aiida_kkr/tests/submit_test/
-aiida_kkr/tests/test.sh
-aiida_kkr/tests/test_pot*
-aiida_kkr/tests/venv_test_new/
-aiida_kkr/tests/workflows/jukkr/
-aiida_kkr/tests/workflows/test
+tests/.aiida/
+tests/inputcard*
+tests/jukkr/
+tests/meminfo.txt
+tests/out*
+tests/shapefun
+tests/submit_test/
+tests/test.sh
+tests/test_pot*
+tests/venv_test_new/
+tests/workflows/jukkr/
+tests/workflows/test
 
 # additional things
 id_rsa_travis

@@ -1,4 +1,10 @@
 exclude: "^(doc)|(cookiecutters)|(aiida_kkr/tests)"
+
+ci:
+    autoupdate_schedule: monthly
+    autofix_prs: true
+    skip: [pylint, version-number]
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.4.0

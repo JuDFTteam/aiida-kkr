@@ -65,7 +65,8 @@ jobs:
 
     - name: Install python dependencies
       run: |
-        pip install --use-feature=2020-resolver .[pre-commit]
+        pip install 'git+https://github.com/JuDFTteam/masci-tools.git@develop'
+        pip install .[pre-commit]
         pip freeze
 
     - name: Run pre-commit
@@ -87,7 +88,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9', '3.8', '3.7']
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        aiida: [{version: 'aiida-core==1.6.8', name: '1.6.8'}, {version: 'aiida-core==2.0.1', name: '2.0.1'}]
+        masci-tools: [{version: 'masci-tools', name: ''}]
+        allowed-to-fail: [false]
+        include:
+          # for python 3.9 we also test with the latest aiida-core version and the latest version of masci-tools
+          - python-version: 3.9
+            aiida: {version: 'git+https://github.com/aiidateam/aiida-core.git@main', name: 'latest'}
+            masci-tools: {version: 'git+https://github.com/JuDFTteam/masci-tools.git@develop', name: '-masci-develop'}
+            allowed-to-fail: true
+          - python-version: 3.9
+            aiida: {version: 'aiida-core==1.6.8', name: '1.6.8'}
+            masci-tools: {version: 'git+https://github.com/JuDFTteam/masci-tools.git@develop', name: '-masci-develop'}
+            allowed-to-fail: true
+        exclude:
+          # aiida-core>=2.0 needs at least python 3.8
+          - python-version: 3.7
+            aiida: {version: 'aiida-core==2.0.1', name: '2.0.1'}
+            masci-tools: {version: 'masci-tools', name: ''}
+            allowed-to-fail: false
 
     services:
       postgres:
@@ -133,25 +153,40 @@ jobs:
 
     - name: Install aiida-kkr
       run: |
-        # install aiida-kkr with aiida-core 1.5.2 (used in the generation of the test files, to use 1.6 we need to update the test files or caching won't work)
-        pip install --use-feature=2020-resolver .[testing] -r requirements_aiida-core_1.5.txt
+        pip install ${{ matrix.aiida.version }}
+        pip install ${{ matrix.masci-tools.version }}
+        pip install .[testing]
+        pip install reentry
         reentry scan
         pip freeze
 
-    - name: Run pytest
+    - name: Migrate AiiDA workflow caches
+      if: matrix.aiida.name != '1.6.8'
       run: |
-        cd aiida_kkr/tests/
+        cd ./tests/
+        python migrate_exports.py
+
+    - name: Fake JuKKR installation
+      run: |
+        cd tests/
         # fake installations of the JuKKR codes
         # and make sure kkr.x etc is found in the PATH (even necessary for the fakes)
         mkdir -p jukkr
         cd jukkr && export PATH="$PWD:$PATH"
         touch kkr.x; touch voronoi.exe; touch kkrflex.exe
         chmod +x kkr.x voronoi.exe kkrflex.exe
-        cd ..
-        # run all (tools, calculations, workflows) tests using caching of the results
-        #RUN_ALL='yes' ./run_all.sh
-        # for now run voronoi calculations only, the rest needs fixing
-        RUN_VORONOI='t' ./run_all.sh
+
+    - name: Run pytest
+      run: |
+        cd tests/
+        GITHUB_SUITE=True ./run_all.sh
+
+    - name: Archive test output artifacts
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: test-results-AIIDA__${{ matrix.aiida.name }}__MASCI__${{ matrix.masci-tools.name }}
+        path: tests
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1

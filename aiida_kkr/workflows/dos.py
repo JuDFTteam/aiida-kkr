@@ -4,8 +4,12 @@
 In this module you find the base workflow for a dos calculation and
 some helper methods to do so with AiiDA
 """
-from masci_tools.io.kkr_params import kkrparams
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+from six.moves import range
 from aiida import orm
+from masci_tools.io.kkr_params import kkrparams
 from aiida.engine import WorkChain, if_, ToContext
 from aiida.engine import submit
 from aiida_kkr.tools.common_workfunctions import (

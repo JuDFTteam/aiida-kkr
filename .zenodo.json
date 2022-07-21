@@ -1,84 +1,84 @@
 {
     "upload_type": "software",
-    "language": "eng", 
-    "title": "JuDFTteam/aiida-kkr: AiiDA Plugin for the JuKKR codes", 
+    "language": "eng",
+    "title": "JuDFTteam/aiida-kkr: AiiDA Plugin for the JuKKR codes",
     "license": {
       "id": "MIT"
-    }, 
-    "access_right": "open", 
+    },
+    "access_right": "open",
     "communities": [
       {
         "id": "compmatsci"
       }
-    ], 
+    ],
     "keywords": [
-      "physics", 
-      "materials science", 
-      "electronic-structure", 
-      "python", 
-      "parsers", 
-      "visualization", 
+      "physics",
+      "materials science",
+      "electronic-structure",
+      "python",
+      "parsers",
+      "visualization",
       "utility",
       "AiiDA",
       "KKR",
       "defects",
       "ab initio"
-    ], 
+    ],
     "creators": [
       {
-        "orcid": "0000-0002-6196-2700", 
-        "affiliation": "Forschungszentrum J\u00fclich GmbH", 
+        "orcid": "0000-0002-6196-2700",
+        "affiliation": "Forschungszentrum J\u00fclich GmbH",
         "name": "Philipp R\u00fc\u00dfmann"
       },
       {
         "name": "Fabian Bertoldo"
       },
       {
-        "orcid": "0000-0001-7939-226X", 
-        "affiliation": "Forschungszentrum J\u00fclich GmbH", 
+        "orcid": "0000-0001-7939-226X",
+        "affiliation": "Forschungszentrum J\u00fclich GmbH",
         "name": "Jens Br\u00f6der"
       },
       {
-        "orcid": "0000-0001-5113-3119", 
-        "affiliation": "Forschungszentrum J\u00fclich GmbH", 
+        "orcid": "0000-0001-5113-3119",
+        "affiliation": "Forschungszentrum J\u00fclich GmbH",
         "name": "Johannes Wasmer"
       },
       {
-        "affiliation": "Forschungszentrum J\u00fclich GmbH", 
+        "affiliation": "Forschungszentrum J\u00fclich GmbH",
         "name": "Rubel Mozumder"
       },
       {
-        "orcid": "0000-0001-5034-159X", 
-        "affiliation": "Sandvik Coromant", 
+        "orcid": "0000-0001-5034-159X",
+        "affiliation": "Sandvik Coromant",
         "name": "Jonathan Chico"
       },
       {
-        "orcid": "0000-0001-9987-4733", 
-        "affiliation": "Forschungszentrum J\u00fclich GmbH", 
+        "orcid": "0000-0001-9987-4733",
+        "affiliation": "Forschungszentrum J\u00fclich GmbH",
         "name": "Stefan Bl\u00fcgel"
       }
-    ], 
+    ],
     "subjects": [
       {
-        "term": "electronic structure", 
-        "scheme": "url", 
+        "term": "electronic structure",
+        "scheme": "url",
         "identifier": "https://www.wikidata.org/wiki/Q5358432"
-      }, 
+      },
       {
-        "term": "materials informatics", 
-        "scheme": "url", 
+        "term": "materials informatics",
+        "scheme": "url",
         "identifier": "https://www.wikidata.org/wiki/Q6786605"
       },
       {
         "term": "Korringa-Kohn-Rostoker method",
-        "scheme": "url", 
+        "scheme": "url",
         "identifier": "https://en.wikipedia.org/wiki/Korringa%E2%80%93Kohn%E2%80%93Rostoker_method"
       }
-    ], 
+    ],
     "resource_type": {
-      "type": "software", 
+      "type": "software",
       "title": "Software"
-    }, 
+    },
     "description": "AiiDA plugin for the Jülich KKR codes plus workflows and utility.",
     "related_identifiers": [
       {
@@ -98,4 +98,3 @@
       }
     ]
 }
-

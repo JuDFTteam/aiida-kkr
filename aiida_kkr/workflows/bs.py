@@ -573,7 +573,7 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
     ef = fermi_level.value  # in Ry unit
     total_qdos[:, 0] = (total_qdos[:, 0] - ef) * eVscale
     eng_points = set(total_qdos[:, 0])
-    eng_points = list(eng_points)
+    eng_points = np.sort(list(eng_points))
     no_eng_points = len(eng_points)
 
     qdos_intensity = np.ndarray(shape=(no_eng_points, no_q_vec))
@@ -591,7 +591,7 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
     array.set_array('BlochSpectralFunction', qdos_intensity)
     array.set_array('Kpts', q_vec)
     array.set_array('energy_points', eng_points)
-    if 'labels' in kpoints:
+    if kpoints.labels is not None:
         klbl_dict = dict(kpoints.labels)  # Special k-points
         array.extras['k-labels'] = klbl_dict
 
