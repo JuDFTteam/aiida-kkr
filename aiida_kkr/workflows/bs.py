@@ -14,6 +14,7 @@ from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_pare
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
+from aiida_kkr.tools.extract_kkrhost_noco_angles import extract_noco_angles
 from masci_tools.io.kkr_params import kkrparams
 from masci_tools.io.common_functions import get_Ry2eV
 import numpy as np
@@ -21,7 +22,7 @@ from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 __contributors__ = (u'Rubel Mozumder', u'Philipp Rüßmann')
 
 
@@ -116,6 +117,13 @@ class kkr_bs_wc(WorkChain):
         )
         spec.input('label', valid_type=Str, required=False, help='label for the workflow')
         spec.input('description', valid_type=Str, required=False, help='description for the workflow')
+        spec.input(
+            'initial_noco_angles',
+            valid_type=Dict,
+            required=False,
+            help="""Initial non-collinear angles for the magnetic moments. See KkrCalculation for details.
+            If this is found in the input potentially extracted nonco angles from the parent calulation are overwritten!"""
+        )
 
         # Here outputs are defined
         spec.output('results_wf', valid_type=Dict, required=True)
@@ -238,6 +246,7 @@ class kkr_bs_wc(WorkChain):
         if 'kpoints' in inputs:
             self.ctx.BS_kpoints = inputs.kpoints
             input_ok = True
+            self.ctx.structure_data = 'None (kpoints taken from input)'
         else:
             struc_kkr, remote_voro = VoronoiCalculation.find_parent_structure(self.inputs.remote_data)
             #create an auxiliary structure with unique kind_names, this leads to using the input structure in the seekpath method instead of finding the primitive one
@@ -270,7 +279,7 @@ class kkr_bs_wc(WorkChain):
             if not kpoints_ok:
                 return self.exit_codes.ERROR_INCORRECT_KPOINTS_EXTRACTED  # pylint: disable=no-member
             else:
-                kpts = get_explicit_kpoints_path(struc_kkr).get('explicit_kpoints')
+                kpts = output['explicit_kpoints']
 
             self.ctx.BS_kpoints = kpts
             if isinstance(KpointsData(), type(kpts)):
@@ -326,7 +335,8 @@ class kkr_bs_wc(WorkChain):
                 descr = 'added missing default keys, '
         ##+++ Starts to add the NTP2, EMAX and EMIN from the
         econt_new = self.ctx.BS_params_dict
-        kkr_calc = self.inputs.remote_data.get_incoming().first().node
+        econt_new['kmesh'] = [1, 1, 1]  # overwrite kmesh since the kpoints are used from the input
+        kkr_calc = self.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node
         ef = kkr_calc.outputs.output_parameters.get_dict()['fermi_energy']  # unit in Ry
         self.ctx.fermi_energy = ef  ## in Ry unit
 
@@ -335,6 +345,7 @@ class kkr_bs_wc(WorkChain):
             para_check = set_energy_params(econt_new, ef, para_check)
         except:
             return self.exit_codes.ERROR_CALC_PARAMETERS_INVALID  # pylint: disable=no-member
+
         para_check.set_multiple_values(
             NPT1=0,
             NPT3=0,
@@ -376,6 +387,25 @@ class kkr_bs_wc(WorkChain):
             code, remote, options, label, description, parameters=params, serial=(not self.ctx.withmpi)
         )
         inputs.kpoints = kpoints
+
+        # add nonco angles if found in the parent calculation or in the input
+        if 'initial_noco_angles' in self.inputs:
+            # overwrite nonco_angles from the input if given
+            inputs['initial_noco_angles'] = self.inputs.initial_noco_angles
+            self.report('used nonco angles from input to workflow')
+        else:
+            # extract from the parent calculation
+            parent_calc = remote.get_incoming(node_class=KkrCalculation).first().node
+            if 'initial_noco_angles' in parent_calc.inputs:
+                noco_angles = extract_noco_angles(
+                    fix_dir_threshold=Float(1e-6),  # make small enough
+                    old_noco_angles=parent_calc.inputs.initial_noco_angles,
+                    last_retrieved=parent_calc.outputs.retrieved
+                )
+                # set nonco angles (either from input or from output if it was updated)
+                if noco_angles == {}:
+                    noco_angles = parent_calc.inputs.initial_noco_angles
+                self.report(f'extract nonco angles and use from parent ({noco_angles})')
 
         BS_run = self.submit(KkrCalculation, **inputs)
         self.ctx.last_calc = BS_run
@@ -488,6 +518,22 @@ def set_energy_params(econt_new, ef, para_check):
             key = 'RCLUSTZ'
         para_check.set_value(key, val, silent=True)
 
+    # set the rest of the DOS contour
+    para_check.set_multiple_values(
+        NPT1=0,
+        NPT3=0,
+        NPOL=0,
+        use_semi_circle_contour=False,  # this is needed to get a DOS contour
+    )
+
+    # set KPOIBZ to match BZDIVIDE setting
+    # this is only done if 'KPOIBZ' is not given already in the input
+    bzdiv = para_check.get_value('BZDIVIDE')
+    if bzdiv is not None and 'KPOIBZ' not in econt_new:
+        para_check.set_value('KPOIBZ', np.prod(bzdiv), silent=True)
+    # we need to make sure to deactivate the semi-circle contour, otherwise DOS contour is not used
+    para_check.set_value('<USE_SEMI_CIRCLE_CONTOUR>', False, silent=True)
+
     return para_check
 
 
@@ -522,25 +568,26 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
     ef = fermi_level.value  # in Ry unit
     total_qdos[:, 0] = (total_qdos[:, 0] - ef) * eVscale
     eng_points = set(total_qdos[:, 0])
-    eng_points = list(eng_points)
+    eng_points = np.sort(list(eng_points))
     no_eng_points = len(eng_points)
 
     qdos_intensity = np.ndarray(shape=(no_eng_points, no_q_vec))
     for ne in range(np.shape(qdos_intensity)[0]):
         nk = np.shape(qdos_intensity)[1]
-
-        qdos_intensity[ne, :] = total_qdos[ne * nk:(ne + 1) * nk, 5] / eVscale
+        # sum up all l-channels (5 is only the s-channel!)
+        qdos_intensity[ne, :] = np.sum(total_qdos[ne * nk:(ne + 1) * nk, 5:], axis=1) / eVscale
 
     qdos_intensity = qdos_intensity.T  # setting eng-kpts corresponds to x-y asix
     q_vec = np.asarray(q_vec)  # converting q_vec into array
     eng_points = (np.asarray(eng_points))  # converting eng_popints into array in Ry unit
 
-    klbl_dict = dict(kpoints.labels)  # Special k-points
     # To save into the ArrayData
     array = ArrayData()
     array.set_array('BlochSpectralFunction', qdos_intensity)
     array.set_array('Kpts', q_vec)
     array.set_array('energy_points', eng_points)
-    array.extras['k-labels'] = klbl_dict
+    if kpoints.labels is not None:
+        klbl_dict = dict(kpoints.labels)  # Special k-points
+        array.extras['k-labels'] = klbl_dict
 
     return {'BS_Data': array}

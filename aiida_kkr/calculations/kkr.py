@@ -9,11 +9,12 @@ import numpy as np
 from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData, Bool
 from .voro import VoronoiCalculation
+from ..tools.common_workfunctions import get_natyp
 from aiida.common.utils import classproperty
 from aiida.common.exceptions import InputValidationError, ValidationError
 from aiida.common.datastructures import CalcInfo, CodeInfo
 from aiida.common.exceptions import UniquenessError
-from aiida_kkr.tools.common_workfunctions import (
+from aiida_kkr.tools import (
     generate_inputcard_from_structure, check_2Dinput_consistency, update_params_wf, vca_check, kick_out_corestates
 )
 from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
@@ -24,8 +25,10 @@ from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.12.0'
-__contributors__ = ('Jens Broeder', 'Philipp Rüßmann')
+__version__ = '0.12.1'
+__contributors__ = ('Jens Bröder', 'Philipp Rüßmann')
+
+verbose = False
 
 
 class KkrCalculation(CalcJob):
@@ -94,6 +97,8 @@ class KkrCalculation(CalcJob):
     _SHELLS_DAT = 'shells.dat'
     # deci-out and decimation
     _DECIFILE = 'decifile'
+    # BdG mode
+    _BDG_POT = 'den_lm_ir.%0.3i.%i.txt'
 
     # template.product entry point defined in setup.json
     _default_parser = 'kkr.kkrparser'
@@ -260,33 +265,113 @@ class KkrCalculation(CalcJob):
                 be returned by get_inputs_dict
         """
 
-        has_parent = False
-        local_copy_list = []
+        ########################################
+        ### Create input files in tempfolder ###
 
         # get mandatory input nodes
         parameters = self.inputs.parameters
         code = self.inputs.code
         parent_calc_folder = self.inputs.parent_folder
 
-        # now check for optional nodes
+        # extract parent calculation from input remote folder
+        parent_calc = self._get_parent_calc(parent_calc_folder)
 
-        # for GF writeout
-        if 'impurity_info' in self.inputs:
-            imp_info = self.inputs.impurity_info
-            found_imp_info = True
-        else:
-            imp_info = None
-            found_imp_info = False
+        # check if no parameters are overwritten that should not be set manually
+        self._check_illegal_parameter_overwrite(parent_calc, parameters)
 
-        # for qdos funcitonality
+        # get structure and related inputs from parent voronoi calculation
+        voro_parent, structure, vca_structure, use_alat_input = self._get_structure_inputs(parent_calc, parameters)
+
+        # prepare scoef file if impurity_info was given
+        self._write_scoef_file(tempfolder, parameters, structure, use_alat_input)
+
+        # qdos option, ensure low T, E-contour, qdos run option and write qvec.dat file
         if 'kpoints' in self.inputs:
-            kpath = self.inputs.kpoints
-            found_kpath = True
-        else:
-            found_kpath = False
+            parameters = self._prepare_qdos_calc(parameters, self.inputs.kpoints, structure, tempfolder, use_alat_input)
 
-        # extract parent calculation
+        # write nonco_angle.dat file and adapt RUNOPTS if needed (i.e. add FIXMOM if directions are not relaxed)
+        if 'initial_noco_angles' in self.inputs:
+            parameters = self._use_initial_noco_angles(parameters, structure, tempfolder)
+
+        # activate decimation mode and copy decifile from deciout parent
+        if 'deciout_parent' in self.inputs:
+            parameters = self._use_decimation(parameters, tempfolder)
+
+        # Prepare inputcard from Structure and input parameter data
+        shapes = self._get_shapes_array(parent_calc, voro_parent)
+        with tempfolder.open(self._INPUT_FILE_NAME, u'w') as input_file:
+            natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(
+                parameters,
+                structure,
+                input_file,
+                parent_calc,
+                shapes=shapes,
+                vca_structure=vca_structure,
+                use_input_alat=use_alat_input
+            )
+
+        #################################################
+        ### Copy input files from parent calculations ###
+
+        # add BdG input potential if it is there in the parent calculation output
+        self._copy_BdG_pot(parent_calc.outputs.retrieved, tempfolder)
+
+        # get the local copy list (files copied from parent's retrieved to tempfolder at submission)
+        local_copy_list = self._get_local_copy_list(parent_calc, voro_parent, tempfolder, parameters)
+        # TODO use remote_copy_list or even symlinks if we can copy files between remote working dirs
+
+        #############################################################################
+        ### Get list of files that we want to retrieve after the calculation ends ###
+
+        # Retrieve list needs some logic, retrieve certain files,
+        # only if certain input keys are specified....
+        retrieve_list = self._get_default_retrieve_list()
+
+        # for special cases add files to retireve list:
+
+        # 1. dos calculation, add *dos* files if NPOL==0
+        retrieve_list += self._get_dos_filelist(parameters, natom, nspin)
+
+        # 2. KKRFLEX calculation
+        retrieve_list += self._get_kkrflex_filelist(parameters)
+
+        # 3. qdos calculation output
+        retrieve_list += self._get_qdos_filelist(parameters, natom, nspin)
+
+        # 4. Jij calculation outputs
+        retrieve_list += self._get_Jij_filelist(parameters, natom)
+
+        # 5. deci-out (input file for decimation calculation)
+        retrieve_list += self._get_deci_file(parameters)
+
+        # 6. BdG output files (anomalous density and (q)dos files with _eh etc. endings)
+        retrieve_list += self._get_BdG_filelist(parameters, natom, nspin)
+
+        ####################################################
+        ### Collect all inputs and put into the CalcInfo ###
+
+        # Prepare CalcInfo to be returned to aiida
+        calcinfo = CalcInfo()
+        calcinfo.uuid = self.uuid
+        calcinfo.local_copy_list = local_copy_list
+        calcinfo.remote_copy_list = []
+        calcinfo.retrieve_list = retrieve_list
+
+        # now set calcinfo and return
+        codeinfo = CodeInfo()
+        codeinfo.cmdline_params = []
+        codeinfo.code_uuid = code.uuid
+        codeinfo.stdout_name = self._DEFAULT_OUTPUT_FILE
+        calcinfo.codes_info = [codeinfo]
+
+        return calcinfo
+
+    def _get_parent_calc(self, parent_calc_folder):
+        """Get the parent calculation from the remote folder that is given as input"""
+
         parent_calcs = parent_calc_folder.get_incoming(node_class=CalcJobNode)
+
+        # check if parent is unique
         n_parents = len(parent_calcs.all_link_labels())
         if n_parents != 1:
             raise UniquenessError(
@@ -295,12 +380,13 @@ class KkrCalculation(CalcJob):
                 ''.format(n_parents, '' if n_parents == 0 else 's')
             )
             # TODO change to exit code
-        if n_parents == 1:
-            parent_calc = parent_calcs.first().node
-            has_parent = True
 
-        # check if parent is either Voronoi or previous KKR calculation
-        #self._check_valid_parent(parent_calc)
+        parent_calc = parent_calcs.first().node
+
+        return parent_calc
+
+    def _check_illegal_parameter_overwrite(self, parent_calc, parameters):
+        """check if no keys are illegally overwritten (i.e. compare with keys in self._do_never_modify)"""
 
         # extract parent input parameter dict for following check
         try:
@@ -309,7 +395,7 @@ class KkrCalculation(CalcJob):
             self.logger.error(f'Failed trying to find input parameter of parent {parent_calc}')
             raise InputValidationError('No parameter node found of parent calculation.')
 
-        # check if no keys are illegally overwritten (i.e. compare with keys in self._do_never_modify)
+        # now go though list of parameters which are overwritten and check if that is forbidden
         for key in list(parameters.get_dict().keys()):
             value = parameters.get_dict()[key]
             #self.logger.info("Checking {} {}".format(key, value))
@@ -349,10 +435,8 @@ class KkrCalculation(CalcJob):
                             f'You are trying to modify a keyword that is not allowed to be changed! (key={key}, oldvalue={oldvalue}, newvalue={value})'
                         )
 
-        #TODO check for remote folder (starting from folder data not implemented yet)
-        # if voronoi calc check if folder from db given, or get folder from rep.
-        # Parent calc does not has to be on the same computer.
-        # so far we copy every thing from local computer ggf if kkr we want to copy remotely
+    def _get_structure_inputs(self, parent_calc, parameters):
+        """extract structure, voronoi parent calculation and some structure properties"""
 
         # get StructureData node from Parent if Voronoi
         structure = None
@@ -371,14 +455,28 @@ class KkrCalculation(CalcJob):
         use_alat_input = parameters.get_dict().get('use_input_alat', False)
         use_alat_input = parameters.get_dict().get('USE_INPUT_ALAT', use_alat_input)
 
-        # prepare scoef file if impurity_info was given
+        # Check for 2D case
+        twoDimcheck, msg = check_2Dinput_consistency(structure, parameters)
+        if not twoDimcheck:
+            raise InputValidationError(msg)
+
+        return voro_parent, structure, vca_structure, use_alat_input
+
+    def _write_scoef_file(self, tempfolder, parameters, structure, use_alat_input):
+        """Write the scoef file for KKRFLEX writeout"""
+
+        # for GF writeout
+        if 'impurity_info' in self.inputs:
+            imp_info = self.inputs.impurity_info
+            found_imp_info = True
+        else:
+            imp_info = None
+            found_imp_info = False
+
         write_scoef = False
         runopt = parameters.get_dict().get('RUNOPT', None)
-        kkrflex_opt = False
 
         if runopt is not None and 'KKRFLEX' in runopt:
-            kkrflex_opt = True
-        if kkrflex_opt:
             write_scoef = True
         elif found_imp_info:
             self.logger.info('Found impurity_info in inputs of the calculation, automatically add runopt KKRFLEX')
@@ -466,125 +564,97 @@ class KkrCalculation(CalcJob):
             self.logger.info('Need to write scoef file but no impurity_info given!')
             raise ValidationError('Found RUNOPT KKRFLEX but no impurity_info in inputs')
 
-        # Check for 2D case
-        twoDimcheck, msg = check_2Dinput_consistency(structure, parameters)
-        if not twoDimcheck:
-            raise InputValidationError(msg)
+    def _get_shapes_array(self, parent_calc, voro_parent):
+        """Get the shapes array from the parent calcualtion or the voronoi parent"""
 
-        # set shapes array either from parent voronoi run or read from inputcard in kkrimporter calculation
+        # set shapes array either from parent voronoi run
         if parent_calc.process_label == 'VoronoiCalculation' or parent_calc.process_label == 'KkrCalculation':
             # get shapes array from voronoi parent
             shapes = voro_parent.outputs.output_parameters.get_dict().get('shapes')
         else:
             # extract shapes from input parameters node constructed by kkrimporter calculation
             shapes = voro_parent.inputs.parameters.get_dict().get('<SHAPE>')
+
         self.logger.info(f'Extracted shapes: {shapes}')
 
-        # qdos option, ensure low T, E-contour, qdos run option and write qvec.dat file
-        if found_kpath:
-            parameters = self._prepare_qdos_calc(parameters, kpath, structure, tempfolder, use_alat_input)
+        return shapes
 
-        # write nonco_angle.dat file and adapt RUNOPTS if needed (i.e. add FIXMOM if directions are not relaxed)
-        if 'initial_noco_angles' in self.inputs:
-            parameters = self._use_initial_noco_angles(parameters, structure, tempfolder)
+    def _get_local_copy_list(self, parent_calc, voro_parent, tempfolder, parameters):
+        """Decide what files to copy based on settings to the code (e.g. KKRFLEX option needs scoef)"""
+        # copy the right files #TODO check first if file, exists and throw
+        # warning, now this will throw an error
+        outfolder = parent_calc.outputs.retrieved
 
-        # activate decimation mode and copy decifile from deciout parent
-        if 'deciout_parent' in self.inputs:
-            parameters = self._use_decimation(parameters, tempfolder)
-
-        # Prepare inputcard from Structure and input parameter data
-        with tempfolder.open(self._INPUT_FILE_NAME, u'w') as input_file:
-            natom, nspin, newsosol, warnings_write_inputcard = generate_inputcard_from_structure(
-                parameters,
-                structure,
-                input_file,
-                parent_calc,
-                shapes=shapes,
-                vca_structure=vca_structure,
-                use_input_alat=use_alat_input
-            )
-
-        #################
-        # Decide what files to copy based on settings to the code (e.g. KKRFLEX option needs scoef)
-        if has_parent:
-            # copy the right files #TODO check first if file, exists and throw
-            # warning, now this will throw an error
-            outfolder = parent_calc.outputs.retrieved
-
-            copylist = []
-            if parent_calc.process_class == KkrCalculation:
-                copylist = [self._OUT_POTENTIAL]
-                # TODO ggf copy remotely from remote node if present ...
-
-            elif parent_calc.process_class == VoronoiCalculation:
-                copylist = [parent_calc.process_class._SHAPEFUN]
-                # copy either overwrite potential or voronoi output potential
-                # (voronoi caclualtion retreives only one of the two)
-                if parent_calc.process_class._POTENTIAL_IN_OVERWRITE in outfolder.list_object_names():
-                    copylist.append(parent_calc.process_class._POTENTIAL_IN_OVERWRITE)
-                else:
-                    copylist.append(parent_calc.process_class._OUT_POTENTIAL_voronoi)
-
+        copylist = []
+        if parent_calc.process_class == KkrCalculation:
+            copylist = [self._OUT_POTENTIAL]
+            # TODO ggf copy remotely from remote node if present ...
+        elif parent_calc.process_class == VoronoiCalculation:
+            copylist = [parent_calc.process_class._SHAPEFUN]
+            # copy either overwrite potential or voronoi output potential
+            # (voronoi caclualtion retreives only one of the two)
+            if parent_calc.process_class._POTENTIAL_IN_OVERWRITE in outfolder.list_object_names():
+                copylist.append(parent_calc.process_class._POTENTIAL_IN_OVERWRITE)
+            else:
+                copylist.append(parent_calc.process_class._OUT_POTENTIAL_voronoi)
+        else:  #  (if parent_calc.process_class == KkrImporterCalculation:)
             #change copylist in case the calculation starts from an imported calculation
-            else:  #if parent_calc.process_class == KkrImporterCalculation:
-                if self._OUT_POTENTIAL in outfolder.list_object_names():
-                    copylist.append(self._OUT_POTENTIAL)
-                else:
-                    copylist.append(self._POTENTIAL)
-                if self._SHAPEFUN in outfolder.list_object_names():
-                    copylist.append(self._SHAPEFUN)
+            if self._OUT_POTENTIAL in outfolder.list_object_names():
+                copylist.append(self._OUT_POTENTIAL)
+            else:
+                copylist.append(self._POTENTIAL)
+            if self._SHAPEFUN in outfolder.list_object_names():
+                copylist.append(self._SHAPEFUN)
 
-            # create local_copy_list from copylist and change some names automatically
-            for file1 in copylist:
-                # deal with special case that file is written to another name
-                if (
-                    file1 == 'output.pot' or file1 == self._OUT_POTENTIAL or (
-                        parent_calc.process_class == VoronoiCalculation and
-                        file1 == parent_calc.process_class._POTENTIAL_IN_OVERWRITE
-                    )
-                ):
-                    filename = self._POTENTIAL
-                else:
-                    filename = file1
-                # now add to copy list
-                local_copy_list.append((outfolder.uuid, file1, filename))
+        # create local_copy_list from copylist and change some names automatically
+        local_copy_list = []
+        for file1 in copylist:
+            # deal with special case that file is written to another name
+            if (
+                file1 == 'output.pot' or file1 == self._OUT_POTENTIAL or (
+                    parent_calc.process_class == VoronoiCalculation and
+                    file1 == parent_calc.process_class._POTENTIAL_IN_OVERWRITE
+                )
+            ):
+                filename = self._POTENTIAL
+            else:
+                filename = file1
+            # now add to copy list
+            local_copy_list.append((outfolder.uuid, file1, filename))
 
-                # add shapefun file from voronoi parent if needed
-                if self._SHAPEFUN not in copylist:
-                    try:
-                        struc, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
-                    except ValueError:
-                        return self.exit_codes.ERROR_NO_SHAPEFUN_FOUND  # pylint: disable=no-member
-                    # copy shapefun from retrieved of voro calc
-                    voro_retrieved = voro_parent.outputs.retrieved
-                    local_copy_list.append((voro_retrieved.uuid, VoronoiCalculation._SHAPEFUN, self._SHAPEFUN))
+            # add shapefun file from voronoi parent if needed
+            if self._SHAPEFUN not in copylist:
+                try:
+                    struc, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
+                except ValueError:
+                    return self.exit_codes.ERROR_NO_SHAPEFUN_FOUND  # pylint: disable=no-member
+                # copy shapefun from retrieved of voro calc
+                voro_retrieved = voro_parent.outputs.retrieved
+                local_copy_list.append((voro_retrieved.uuid, VoronoiCalculation._SHAPEFUN, self._SHAPEFUN))
 
-            # check if core state lie within energy contour and take them out if needed
-            local_copy_list = self._kick_out_corestates_kkrhost(local_copy_list, tempfolder)
+        # check if core state lie within energy contour and take them out if needed
+        local_copy_list = self._kick_out_corestates_kkrhost(local_copy_list, tempfolder)
 
-            # for set-ef option (needs to be done AFTER kicking out core states):
-            ef_set = parameters.get_dict().get('ef_set', None)
-            ef_set = parameters.get_dict().get('EF_SET', ef_set)
+        # for set-ef option (needs to be done AFTER kicking out core states):
+        ef_set = parameters.get_dict().get('ef_set', None)
+        ef_set = parameters.get_dict().get('EF_SET', ef_set)
+        if verbose:
             set_values = kkrparams(**parameters.get_dict()).get_set_values()
-            #self.report(
-            #        f"efset: {ef_set}  efset_1: {parameters.get_dict().get('ef_set')} efset_2: {parameters.get_dict().get('EF_SET')}"
-            #)
-            self.report(f'params: {set_values}')
-            if ef_set is not None:
-                local_copy_list = self._set_ef_value_potential(ef_set, local_copy_list, tempfolder)
+            self.report(
+                f"efset: {ef_set}  efset_1: {parameters.get_dict().get('ef_set')} efset_2: {parameters.get_dict().get('EF_SET')} params: {set_values}"
+            )
+        if ef_set is not None:
+            local_copy_list = self._set_ef_value_potential(ef_set, local_copy_list, tempfolder)
 
-            # TODO different copy lists, depending on the keywors input
-            self.logger.info(f'local copy list: {local_copy_list}')
+        # TODO different copy lists, depending on the keywors input
+        self.logger.info(f'local copy list: {local_copy_list}')
 
-        # Prepare CalcInfo to be returned to aiida
-        calcinfo = CalcInfo()
-        calcinfo.uuid = self.uuid
-        calcinfo.local_copy_list = local_copy_list
-        calcinfo.remote_copy_list = []
+        return local_copy_list
 
-        # TODO retrieve list needs some logic, retrieve certain files,
-        # only if certain input keys are specified....
-        calcinfo.retrieve_list = [
+    def _get_default_retrieve_list(self):
+        """initialize retrieve list with these files"""
+
+        ret_list = [
             self._DEFAULT_OUTPUT_FILE,
             self._INPUT_FILE_NAME,
             self._SCOEF,
@@ -597,35 +667,50 @@ class KkrCalculation(CalcJob):
             self._OUT_TIMING_000,
         ]
 
-        # for special cases add files to retireve list:
+        return ret_list
 
-        # 1. dos calculation, add *dos* files if NPOL==0
+    def _get_dos_filelist(self, parameters, natom, nspin, addition=''):
+        """return file list of DOS output files to add to retrieve list """
+
         retrieve_dos_files = False
+        add_files = []
+
         if 'NPOL' in list(parameters.get_dict().keys()):
             if parameters.get_dict()['NPOL'] == 0:
                 retrieve_dos_files = True
+
         if 'TESTOPT' in list(parameters.get_dict().keys()):
             testopts = parameters.get_dict()['TESTOPT']
             if testopts is not None:
                 stripped_test_opts = [i.strip() for i in testopts]
                 if 'DOS' in stripped_test_opts:
                     retrieve_dos_files = True
-        if retrieve_dos_files:
-            add_files = [self._COMPLEXDOS]
-            for iatom in range(natom):
-                add_files.append(self._DOS_ATOM % (iatom + 1))
-                for ispin in range(nspin):
-                    add_files.append((self._LMDOS % (iatom + 1, ispin + 1)).replace(' ', '0'))
-            calcinfo.retrieve_list += add_files
 
-        # 2. KKRFLEX calculation
+        if retrieve_dos_files:
+            if verbose:
+                self.report(f'adding files for dos output: {[self._COMPLEXDOS, self._DOS_ATOM, self._LMDOS]}')
+
+            add_files = [self._COMPLEXDOS + addition]
+            for iatom in range(natom):
+                add_files.append(self._DOS_ATOM % (iatom + 1) + addition)
+                for ispin in range(nspin):
+                    add_files.append((self._LMDOS % (iatom + 1, ispin + 1)).replace(' ', '0') + addition)
+
+        return add_files
+
+    def _get_kkrflex_filelist(self, parameters):
+        """Add kkrflex_* files to the retrieve list if needed"""
+
         retrieve_kkrflex_files = False
+        add_files = []
+
         if 'RUNOPT' in list(parameters.get_dict().keys()):
             runopts = parameters.get_dict()['RUNOPT']
             if runopts is not None:
                 stripped_run_opts = [i.strip() for i in runopts]
                 if 'KKRFLEX' in stripped_run_opts:
                     retrieve_kkrflex_files = True
+
         if retrieve_kkrflex_files:
             if 'retrieve_kkrflex' in self.inputs and self.inputs.retrieve_kkrflex.value:
                 # retrieve all kkrflex files
@@ -633,61 +718,99 @@ class KkrCalculation(CalcJob):
             else:
                 # do not retrieve kkrflex_tmat and kkrflex_green, they are kept on the remote and used from there
                 add_files = [self._KKRFLEX_ATOMINFO, self._KKRFLEX_INTERCELL_REF, self._KKRFLEX_INTERCELL_CMOMS]
-            calcinfo.retrieve_list += add_files
 
-        # 3. qdos claculation
+        return add_files
+
+    def _get_qdos_filelist(self, parameters, natom, nspin, addition=''):
+        """Add qdos output files to retrieve list if needed"""
+
         retrieve_qdos_files = False
+        add_files = []
+
         if 'RUNOPT' in list(parameters.get_dict().keys()):
             runopts = parameters.get_dict()['RUNOPT']
             if runopts is not None:
                 stripped_run_opts = [i.strip() for i in runopts]
                 if 'qdos' in stripped_run_opts:
                     retrieve_qdos_files = True
+
         if retrieve_qdos_files:
             add_files = [self._QVEC]
             for iatom in range(natom):
                 for ispin in range(nspin):
                     add_files.append((self._QDOS_ATOM % (iatom + 1, ispin + 1)).replace(' ', '0'))
-                    add_files.append((self._QDOS_ATOM_OLD % (iatom + 1, ispin + 1)).replace(' ', '0')
-                                     )  # try to retrieve both old and new version of the files
+                    # try to retrieve both old and new version of the files
+                    add_files.append((self._QDOS_ATOM_OLD % (iatom + 1, ispin + 1)).replace(' ', '0'))
                 # retrieve also qdos_sx,y,z files if written out
                 add_files.append((self._QDOS_SX % (iatom + 1)).replace(' ', '0'))
                 add_files.append((self._QDOS_SY % (iatom + 1)).replace(' ', '0'))
                 add_files.append((self._QDOS_SZ % (iatom + 1)).replace(' ', '0'))
-            calcinfo.retrieve_list += add_files
 
-        # 4. Jij calculation
+        return add_files
+
+    def _get_Jij_filelist(self, parameters, natom):
+        """Add Jij output files to retrieve list"""
         retrieve_Jij_files = False
+        add_files = []
+
         if 'RUNOPT' in list(parameters.get_dict().keys()):
             runopts = parameters.get_dict()['RUNOPT']
             if runopts is not None:
                 stripped_run_opts = [i.strip() for i in runopts]
                 if 'XCPL' in stripped_run_opts:
                     retrieve_Jij_files = True
+
         if retrieve_Jij_files:
             add_files = [self._SHELLS_DAT] + [self._Jij_ATOM % iatom for iatom in range(1, natom + 1)]
-            calcinfo.retrieve_list += add_files
 
-        # 5. deci-out
+        return add_files
+
+    def _get_deci_file(self, parameters):
+        """Add deci-out file to retrieve list"""
+
         retrieve_decifile = False
+        add_files = []
+
         if 'RUNOPT' in list(parameters.get_dict().keys()):
             runopts = parameters.get_dict()['RUNOPT']
             if runopts is not None:
                 stripped_run_opts = [i.strip() for i in runopts]
                 if 'deci-out' in stripped_run_opts:
                     retrieve_decifile = True
+
         if retrieve_decifile:
             add_files = [self._DECIFILE]
-            calcinfo.retrieve_list += add_files
 
-        # now set calcinfo and return
-        codeinfo = CodeInfo()
-        codeinfo.cmdline_params = []
-        codeinfo.code_uuid = code.uuid
-        codeinfo.stdout_name = self._DEFAULT_OUTPUT_FILE
-        calcinfo.codes_info = [codeinfo]
+        return add_files
 
-        return calcinfo
+    def _get_BdG_filelist(self, parameters, natom, nspin):
+        """Add list of BdG output files to retrieve list"""
+
+        retrieve_BdG_files = False
+        add_files = []
+
+        use_BdG_dict = {
+            k.upper().replace('<', '').replace('>', ''): v
+            for k, v in parameters.get_dict().items()
+            if 'USE_BDG' == k.upper().replace('<', '').replace('>', '')
+        }
+        retrieve_BdG_files = use_BdG_dict.get('USE_BDG', False)
+
+        if verbose:
+            self.report(f'retrieve BdG? {retrieve_BdG_files}')
+
+        if retrieve_BdG_files:
+            for iatom in range(natom):
+                for ispin in range(nspin):
+                    print('adding files for BdG mode')
+                    add_files += [self._BDG_POT % (iatom + 1, ispin + 1)]
+
+            #also retrieve BdG DOS files for anomalous density and hole part
+            for BdGadd in ['_eh', '_he', '_hole']:
+                add_files += self._get_dos_filelist(natom, nspin, parameters, BdGadd)
+                add_files += self._get_qdos_filelist(parameters, natom, nspin, BdGadd)
+
+        return add_files
 
     def _set_parent_remotedata(self, remotedata):
         """
@@ -845,7 +968,7 @@ class KkrCalculation(CalcJob):
 
         # extract fix_dir flag and set FIXMOM RUNOPT in parameters accordingly
         fix_dir = self.inputs.initial_noco_angles['fix_dir']
-        natom = len(structure.sites)
+        natom = get_natyp(structure)
         if len(fix_dir) != natom:
             raise InputValidationError(
                 'Error: `fix_dir` list in `initial_noco_angles` input node needs to have the same length as number of atoms!'
@@ -859,8 +982,8 @@ class KkrCalculation(CalcJob):
         if all(fix_dir) and 'FIXMOM' not in runopt:
             runopt.append('FIXMOM')
             change_values.append(['RUNOPT', runopt])
-        elif not all(fix_dir) and 'FIXMOM' in runopt:
-            runopt.pop('FIXMOM')
+        elif not all(fix_dir) and 'FIXMOM' in [i.upper() for i in runopt]:
+            runopt = [i for i in runopt if 'FIXMOM' not in i.upper()]
             change_values.append(['RUNOPT', runopt])
         parameters = _update_params(parameters, change_values)
 
@@ -932,6 +1055,21 @@ class KkrCalculation(CalcJob):
             decifile_handle.writelines(decifile_txt)
 
         return parameters
+
+    def _copy_BdG_pot(self, retrieved, tempfolder):
+        """
+        Activate BdG mode and copy den_lm_ir files of the previous output to the input of this calculation.
+        """
+
+        BDG_POT_FILES = [i for i in retrieved.list_object_names() if self._BDG_POT.split('.')[0] in i]
+
+        # add 'den-lm_ir' files to input
+        for BdG_pot in BDG_POT_FILES:
+            self.report(f'Copy BdG potential {BdG_pot}')
+            with retrieved.open(BdG_pot, 'r') as file_handle:
+                file_txt = file_handle.readlines()
+            with tempfolder.open(BdG_pot, 'w') as file_handle:
+                file_handle.writelines(file_txt)
 
 
 def _update_params(parameters, change_values):

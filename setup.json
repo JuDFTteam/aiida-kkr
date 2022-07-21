@@ -9,10 +9,10 @@
     "classifiers": [
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Development Status :: 4 - Beta",
         "Environment :: Plugins",
         "Intended Audience :: Science/Research",
@@ -20,11 +20,11 @@
         "Natural Language :: English",
         "Framework :: AiiDA"
     ],
-    "version": "1.1.11-dev5",
+    "version": "1.1.11.post1",
     "reentry_register": true,
     "install_requires": [
         "aiida-core >= 1.0.0b6,<3.0.0",
-        "masci-tools >= 0.4.8.dev0,<1.0.0",
+        "masci-tools >= 0.4.8.dev5,<1.0.0",
         "seekpath >= 1.9.2",
         "ase",
         "pymatgen"
@@ -38,11 +38,11 @@
         ],
 	"testing": [
             "pgtest >= 1.3.0",
+	    "pytest-xdist",
             "pytest-cov >= 2.5.0",
             "pytest-mpl >= 0.10",
             "pytest-timeout >= 1.3.3",
-	    "pytest-regressions >= 1.0",
-	    "aiida-testing @ git+https://github.com/JuDFTteam/aiida-testing.git@export_cache",
+            "pytest-regressions >= 1.0",
 	    "MarkupSafe < 2.1.0"
 	],
         "docs": [
@@ -61,15 +61,18 @@
             "kkr.kkr = aiida_kkr.calculations.kkr:KkrCalculation",
             "kkr.kkrimporter = aiida_kkr.calculations.kkrimporter:KkrImporterCalculation",
             "kkr.voro = aiida_kkr.calculations.voro:VoronoiCalculation",
-            "kkr.kkrimp = aiida_kkr.calculations.kkrimp:KkrimpCalculation"
+            "kkr.kkrimp = aiida_kkr.calculations.kkrimp:KkrimpCalculation",
+            "kkr.kkrnano = aiida_kkr.calculations.kkrnano:KKRnanoCalculation"
             ],
         "aiida.parsers": [
             "kkr.voroparser = aiida_kkr.parsers.voro:VoronoiParser",
             "kkr.kkrparser = aiida_kkr.parsers.kkr:KkrParser",
             "kkr.kkrimporterparser = aiida_kkr.parsers.kkrimporter:KkrImporterParser",
-            "kkr.kkrimpparser = aiida_kkr.parsers.kkrimp:KkrimpParser"
+            "kkr.kkrimpparser = aiida_kkr.parsers.kkrimp:KkrimpParser",
+            "kkr.kkrnanoparser = aiida_kkr.parsers.kkrnano:KKRnanoParser"
             ],
         "aiida.data": [
+            "kkr.strucwithpot = aiida_kkr.data.strucwithpot:StrucWithPotData"
             ],
         "aiida.workflows":[
             "kkr.scf = aiida_kkr.workflows.kkr_scf:kkr_scf_wc",

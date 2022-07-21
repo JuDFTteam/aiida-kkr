@@ -81,10 +81,10 @@ class KkrParser(Parser):
             txt = file.readlines()
             itmp = search_string('RUNOPT', txt)
             if itmp >= 0:
-                runopts = txt[itmp + 1]
+                runopts = txt[itmp + 1].lower()
                 if 'qdos' in runopts:
                     skip_mode = True
-                if 'KKRFLEX' in runopts:
+                if 'kkrflex' in runopts:
                     only_000_present = True
 
         # now collect the rest of the files

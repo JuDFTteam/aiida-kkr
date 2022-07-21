@@ -1,0 +1,198 @@
+name: continuous-deployment
+
+# deploy on creating a release tag vX.Y.Z
+# will only be published to PyPi if the tests pass
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+
+  docs:
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Cache python dependencies
+      id: cache-pip
+      uses: actions/cache@v1
+      with:
+        path: ~/.cache/pip
+        key: pip-docs-${{ hashFiles('**/setup.json') }}
+        restore-keys: |
+          pip-docs-
+
+    - name: Install python dependencies
+      run: |
+        pip install -e .[docs]
+
+    - name: Install Latex compiler
+      run: |
+        sudo apt-get install -y latexmk dvipng texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended
+
+    - name: Build documentation
+      env:
+        READTHEDOCS: 'True'
+      run: |
+        SPHINXOPTS='-nW' make -C docs html
+
+
+  pre-commit:
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Cache python dependencies
+      id: cache-pip
+      uses: actions/cache@v1
+      with:
+        path: ~/.cache/pip
+        key: pip-pre-commit-${{ hashFiles('**/setup.json') }}
+        restore-keys: |
+          pip-pre-commit-
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Install python dependencies
+      run: |
+        pip install .[pre-commit]
+        pip freeze
+
+    - name: Run pre-commit
+      run: |
+        pre-commit run --all-files || (git status --short; git diff ; exit 1)
+
+    # pylint in pre-commit only checks for errors, here we check for refactoring potential, warnings etc.
+    - name: Run pylint strict
+      continue-on-error: true
+      run: |
+        pylint aiida_kkr/
+
+
+  tests:
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        aiida: [{version: 'aiida-core==1.6.8', name: '1.6.8'}, {version: 'aiida-core==2.0.1', name: '2.0.1'}]
+        masci-tools: [{version: 'masci-tools', name: ''}]
+        allowed-to-fail: [false]
+        exclude:
+          # aiida-core>=2.0 needs at least python 3.8
+          - python-version: 3.7
+            aiida: {version: 'aiida-core==2.0.1', name: '2.0.1'}
+            masci-tools: {version: 'masci-tools', name: ''}
+            allowed-to-fail: false
+
+    services:
+      postgres:
+        image: postgres:10
+        env:
+          POSTGRES_DB: test_${{ matrix.backend }}
+          POSTGRES_PASSWORD: ''
+          POSTGRES_HOST_AUTH_METHOD: trust
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      rabbitmq:
+        image: rabbitmq:latest
+        ports:
+          - 5672:5672
+      slurm:
+        image: xenonmiddleware/slurm:17
+        ports:
+          - 5001:22
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install system dependencies
+      run: |
+        sudo apt update
+        sudo apt install postgresql graphviz
+
+    - name: Upgrade pip and setuptools
+      # It is crucial to update `setuptools` or the installation of `pymatgen` can break
+      run: |
+        pip install --upgrade pip setuptools wheel
+        pip --version
+
+    - name: Install aiida-kkr
+      run: |
+        pip install ${{ matrix.aiida.version }} ${{ matrix.masci-tools.version }}
+        pip install git+https://github.com/JuDFTteam/aiida-testing.git@4ddb0e48a8a720e8fca5f8d09576c5aff8c36dbf
+        pip install .[testing]
+        pip install reentry
+        reentry scan
+        pip freeze
+
+    - name: Migrate AiiDA workflow caches
+      if: matrix.aiida.name != '1.6.8'
+      run: |
+        cd ./tests/
+        python migrate_exports.py
+
+    - name: Fake JuKKR installation
+      run: |
+        cd tests/
+        # fake installations of the JuKKR codes
+        # and make sure kkr.x etc is found in the PATH (even necessary for the fakes)
+        mkdir -p jukkr
+        cd jukkr && export PATH="$PWD:$PATH"
+        touch kkr.x; touch voronoi.exe; touch kkrflex.exe
+        chmod +x kkr.x voronoi.exe kkrflex.exe
+
+    - name: Run pytest
+      run: |
+        cd tests/
+        GITHUB_SUITE=True ./run_all.sh
+
+  publish:
+    name: Publish to PyPi
+    needs: [docs, tests, pre-commit]
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - name: Build package
+        run: |
+          pip install wheel
+          python setup.py sdist bdist_wheel
+      - name: Publish to PyPi
+        uses: pypa/gh-action-pypi-publish@v1.1.0
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_KEY }}

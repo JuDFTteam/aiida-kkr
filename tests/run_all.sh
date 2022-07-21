@@ -22,6 +22,7 @@ usage(){
   echo "  'RUN_KKRHOST': run kkrhost tests";
   echo "  'RUN_KKRIMP': run kkrimp tests";
   echo "  'RUN_EOS': run eos workflow test";
+  echo "  'GITHUB_SUITE': run tests as which should run on github action";
   echo
   echo "Setting that control the pytest run (also set as environment variables):";
   echo "  'HTML': create html coverage report";
@@ -31,12 +32,14 @@ usage(){
 }
 
 addopt=""
-while getopts vh option; do
+while getopts ":vhp:" option; do
   case $option in
     v) # add debug options for this script
        set -x # add debug output
        # Add verbosity flags '-sv' to pytest run
        addopt=" -sv " && echo "Found -v flag: adding option '$addopt' to pytest execution" ;;
+    p) # run tests in parallel (specify number of cores with -p N)
+       addopt=" -n $OPTARG " && echo "Found -p flag: adding option '$addopt' for parallel pytest execution using $OPTARG cores" ;;
     h) # Display help
        usage
   esac
@@ -61,9 +64,9 @@ else
   set -e # force stop on first error
 fi
 echo "== Test selection =="
-if [[ ! -z "$RUN_ALL" ]]; then
-  echo "Running all test (needs all KKR executables, set by 'RUN_ALL' env)"
-else
+if [[ ! -z "$GITHUB_SUITE" ]]; then
+	echo "Running all test which should work on github action (unset 'GITHUB_SUITE' to prevent this)"
+elif [[ ! -z "$RUN_ALL" ]]; then
   if [[ -z "$SKIP_NOWORK" ]]; then
     echo "run non-workflow tests (prevent this with 'SKIP_NOWORK' env)"
   else
@@ -106,6 +109,15 @@ if [[ ! -z "$RUN_ALL" ]]; then
 
   # now workflow tests
   pytest --cov-report=$repfmt --cov=./.. --cov-append --ignore=jukkr workflows/ $addopt
+elif [[ ! -z "$GITHUB_SUITE" ]]; then
+  pytest --cov-report=$repfmt --cov=./.. --ignore=workflows --ignore=jukkr --mpl -p no:warnings $addopt
+  pytest --cov-report=$repfmt --cov-append --cov=./.. -x ./workflows/test_vorostart_wc.py \
+	  ./workflows/test_dos_wc.py \
+	  ./workflows/test_gf_writeout_wc.py \
+	  ./workflows/test_scf_wc_simple.py \
+	  ./workflows/test_eos.py \
+	  ./workflows/test_kkrimp_sub_wc.py \
+	  $addopt
 else
   # tests without running actual calculations
   if [[ -z "$SKIP_NOWORK" ]] && [[ -z "$NO_RMQ" ]]; then
@@ -141,12 +153,12 @@ else
   else
     echo "skipping kkr_dos workflow test"
   fi
-  #if [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
-  #  echo "run kkr_bs workflow test"
-  #  pytest --cov-report=$repfmt --cov-append --cov=./.. ./workflows/test_bs_wc.py $addopt
-  #else
-  #  echo "skipping kkr_bs workflow test"
-  #fi
+  if [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
+    echo "run kkr_bs workflow test"
+    pytest --cov-report=$repfmt --cov-append --cov=./.. ./workflows/test_bs_wc.py $addopt
+  else
+    echo "skipping kkr_bs workflow test"
+  fi
   if [[ ! -z "$RUN_KKRHOST" ]] && [[ -z "$NO_RMQ" ]]; then
     echo "run kkr_gf_writeout workflow test"
     pytest --cov-report=$repfmt --cov-append --cov=./.. ./workflows/test_gf_writeout_wc.py $addopt

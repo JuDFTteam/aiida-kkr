@@ -28,3 +28,10 @@ KKRimp
    :members:
    :private-members:
    :special-members:
+
+KKRnano
+-------
+.. automodule:: aiida_kkr.calculations.kkrnano
+   :members:
+   :private-members:
+   :special-members:

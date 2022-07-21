@@ -5,15 +5,39 @@ contains plot_kkr class for node visualization
 from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
+import numpy as np
+import matplotlib.pyplot as plt
 from builtins import object, str
 from six.moves import range
-import numpy as np
+from ..tools.common_workfunctions import get_natyp
 from masci_tools.io.common_functions import search_string
+import numpy as np
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.7.0'
 __contributors__ = ('Philipp Rüßmann')
+
+
+def remove_empty_atoms(show_empty_atoms, structure, silent=False):
+    # check if empty sphere need to be removed for plotting (ase structgure cannot be constructed for alloys or vacancies)
+    #print('in remove empty atoms:', structure.has_vacancies, ('X' in [i.kind_name for i in structure.sites]) )
+    if structure.has_vacancies or ('X' in [i.kind_name for i in structure.sites]):
+        #print("structure has vacancies, need to remove empty sites for plotting")
+        from aiida.orm import StructureData
+        stmp = StructureData(cell=structure.cell)
+        for site in structure.sites:
+            k = structure.get_kind(site.kind_name)
+            pos = site.position
+            if not (k.has_vacancies or 'X' in site.kind_name):
+                stmp.append_atom(position=pos, symbols=k.symbol)
+            elif show_empty_atoms:
+                stmp.append_atom(position=pos, symbols='X')
+            elif not silent:
+                print('removing atom', site)
+        stmp.set_pbc(structure.pbc)
+        structure = stmp
+    return structure
 
 
 def _in_notebook():
@@ -90,6 +114,12 @@ def strucplot_ase_notebook(struc, **kwargs):
     atom_opacity = kwargs.get('atom_opacity', 0.95)
     static = kwargs.get('static', False)
     rotations = kwargs.get('rotations', '-80x,-20y,-5z')
+
+    if 'show_empty_atoms' in kwargs:
+        show_empty_atoms = kwargs.pop('show_empty_atoms')
+    else:
+        show_empty_atoms = False
+    struc = remove_empty_atoms(show_empty_atoms, struc, kwargs.get('silent', False))
 
     # check if static needs to be enforced
     static = _check_tk_gui(static)
@@ -279,7 +309,7 @@ def plot_imp_cluster(kkrimp_calc_node, **kwargs):
         print('saved static plot in svg format to ', filename)
         strucview_imp.saveas(filename)
     else:
-        ase_view_imp.make_gui(
+        ase_view_imp.make_gui(  # pylint: disable=unexpected-keyword-arg
             ase_atoms_impcls,
             center_in_uc=True,
         )
@@ -373,7 +403,7 @@ class plot_kkr(object):
         groups_dict = {}
 
         for node in nodes:
-            node = self.get_node(node)
+            node = get_node(node)
             nodeclass = self.classify_and_plot_node(node, return_name_only=True)
             if nodeclass not in list(groups_dict.keys()):
                 groups_dict[nodeclass] = []
@@ -395,7 +425,7 @@ class plot_kkr(object):
         if groupname in ['kkr', 'scf']:
             figure()
         for node in nodeslist:
-            node = self.get_node(node)
+            node = get_node(node)
             print(groupname)
             # open new figure for each plot in these groups
             if groupname in ['eos', 'dos', 'startpot']:
@@ -427,7 +457,7 @@ class plot_kkr(object):
         if 'noshow' in list(kwargs.keys()):
             noshow = kwargs.pop('noshow')  # this is now removed from kwargs
 
-        node = self.get_node(node)
+        node = get_node(node)
 
         # print input and output nodes
         if not silent:
@@ -447,7 +477,7 @@ class plot_kkr(object):
         from aiida.plugins import DataFactory
         from aiida.orm import CalculationNode
 
-        node = self.get_node(node)
+        node = get_node(node)
 
         # basic aiida nodes
         if isinstance(node, DataFactory('structure')):
@@ -522,29 +552,14 @@ class plot_kkr(object):
                 return 'combine_imps'
             # extract kkr_imp_sub and plot it
             self.plot_kkrimp_wc(node, **kwargs)
+        elif node.process_label == 'KKRnanoCalculation':
+            raise TypeError(f'KKRnano input not implemented, yet: {type(node)} {node}')
         else:
             raise TypeError(
                 f'input node neither a `Calculation` nor a `WorkChainNode` (i.e. workflow): {type(node)} {node}'
             )
 
     ### helper functions (structure plot, rms plot, dos plot, data extraction ...) ###
-
-    def get_node(self, node):
-        """Get node from pk or uuid"""
-        from aiida.orm import load_node, Node
-        # load node if pk or uuid is given
-        if type(node) == int:
-            node = load_node(node)
-        elif type(node) == type(''):
-            node = load_node(node)
-        elif isinstance(node, Node):
-            pass
-        else:
-            raise TypeError(
-                "input node should either be the nodes pk (int), it's uuid (str) or the node itself (aiida.orm.Node). Got type(node)={}"
-                .format(type(node))
-            )
-        return node
 
     def print_clean_inouts(self, node):
         """print inputs and outputs of nodes without showing 'CALL' and 'CREATE' links in workflows."""
@@ -600,21 +615,7 @@ class plot_kkr(object):
             show_empty_atoms = kwargs.pop('show_empty_atoms')
         else:
             show_empty_atoms = False
-        # check if empty sphere need to be removed for plotting (ase structgure cannot be constructed for alloys or vacancies)
-        if structure.has_vacancies:
-            print('structure has vacancies, need to remove empty sites for plotting')
-            stmp = StructureData(cell=structure.cell)
-            for site in structure.sites:
-                k = structure.get_kind(site.kind_name)
-                pos = site.position
-                if not k.has_vacancies:
-                    stmp.append_atom(position=pos, symbols=k.symbol)
-                elif show_empty_atoms:
-                    stmp.append_atom(position=pos, symbols='X')
-                else:
-                    print('removing atom', site)
-            stmp.set_pbc(structure.pbc)
-            structure = stmp
+        structure = remove_empty_atoms(show_empty_atoms, structure, kwargs.get('silent', False))
 
         if _has_ase_notebook() and 'viewer' not in kwargs:
             # by default use ase_notebook if it is available
@@ -784,7 +785,7 @@ class plot_kkr(object):
             figure()
 
         # allow to overwrite name for second quantity, plotted on second y axis
-        name_second_y = 'charge_neutrality'
+        name_second_y = 'charge neutrality'
         if rename_second is not None:
             name_second_y = rename_second
 
@@ -834,7 +835,6 @@ class plot_kkr(object):
     def get_rms_kkrcalc(self, node, title=None):
         """extract rms etc from kkr Calculation. Works for both finished and still running Calculations."""
         from aiida.engine import ProcessState
-        from aiida.common.folders import SandboxFolder
 
         rms, neutr, etot, efermi = [], [], [], []
         ptitle = ''
@@ -848,56 +848,7 @@ class plot_kkr(object):
                 rms = o['convergence_group'][u'rms_all_iterations']
                 ptitle = 'Time per iteration: ' + str(o['timings_group'].get('Time in Iteration')) + ' s'
         elif node.process_state in [ProcessState.WAITING, ProcessState.FINISHED, ProcessState.RUNNING]:
-            # extract info needed to open transport
-            c = node.inputs.code
-            comp = c.computer
-            authinfo = comp.get_authinfo(c.user)
-            transport = authinfo.get_transport()
-
-            out_kkr = ''
-
-            # now get contents of out_kkr using remote call of 'cat'
-            with SandboxFolder() as tempfolder:
-                with tempfolder.open('tempfile', 'w') as f:
-                    try:
-                        node.outputs.remote_folder.getfile('out_kkr', f.name)
-                        has_outfile = True
-                    except:
-                        has_outfile = False
-                if has_outfile:
-                    with tempfolder.open('tempfile', 'r') as f:
-                        out_kkr = f.readlines()
-
-            # now extract rms, charge neutrality, total energy and value of Fermi energy
-            if has_outfile:
-                itmp = 0
-                while itmp >= 0:
-                    itmp = search_string('rms', out_kkr)
-                    if itmp >= 0:
-                        tmpline = out_kkr.pop(itmp)
-                        tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
-                        rms.append(tmpval)
-                itmp = 0
-                while itmp >= 0:
-                    itmp = search_string('charge neutrality', out_kkr)
-                    if itmp >= 0:
-                        tmpline = out_kkr.pop(itmp)
-                        tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
-                        neutr.append(tmpval)
-                itmp = 0
-                while itmp >= 0:
-                    itmp = search_string('TOTAL ENERGY in ryd', out_kkr)
-                    if itmp >= 0:
-                        tmpline = out_kkr.pop(itmp)
-                        tmpval = float(tmpline.split(':')[1].split()[0].replace('D', 'e'))
-                        etot.append(tmpval)
-                itmp = 0
-                while itmp >= 0:
-                    itmp = search_string('E FERMI', out_kkr)
-                    if itmp >= 0:
-                        tmpline = out_kkr.pop(itmp)
-                        tmpval = float(tmpline.split('FERMI')[1].split()[0].replace('D', 'e'))
-                        efermi.append(tmpval)
+            rms, neutr, etot, efermi = get_rms_kkrcalc_from_remote(node)
         else:
             print('no rms extracted', node.process_state)
 
@@ -1290,6 +1241,8 @@ class plot_kkr(object):
 
             if calcnode.is_finished_ok:
                 natoms = len(calcnode.outputs.output_parameters.get_dict().get('charge_core_states_per_atom'))
+                from aiida_kkr.tools import find_parent_structure
+                natoms = get_natyp(find_parent_structure(calcnode))
                 self.dosplot(
                     d,
                     natoms,
@@ -1350,7 +1303,7 @@ class plot_kkr(object):
                 ptitle = kwargs.pop('ptitle')
             else:
                 ptitle = f'pk= {node.pk}'
-            self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
+            self.dosplot(d, get_natyp(struc), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
             title(ptitle)
             # maybe save as file
             save_fig_to_file(kwargs, 'plot_kkr_out_dos.png')
@@ -1387,7 +1340,22 @@ class plot_kkr(object):
             nofig = kwargs.get('nofig', False)
             if not nofig:
                 fig = plt.figure(figsize=(5, 5))
-            plt.pcolormesh(x, y, np.log(abs(BSF.T)), cmap=plt.cm.viridis, edgecolor='face', rasterized=True)  # pylint: disable=no-member
+
+            # maybe change the colormap
+            cmap = kwargs.get('cmap', plt.cm.viridis)  # pylint: disable=no-member
+
+            # maybe scale and shift the x values
+            xscale = kwargs.get('xscale', 1.0)
+            xshift = kwargs.get('xshift', 0.0)
+            x = (x + xshift) * xscale
+
+            # maybe scale and shift the y values
+            yscale = kwargs.get('yscale', 1.0)
+            yshift = kwargs.get('yshift', 0.0)
+            y = (y + yshift) * yscale
+
+            # now create the plot
+            plt.pcolormesh(x, y, np.log(abs(BSF.T)), cmap=cmap, edgecolor='face', rasterized=True)
             plt.ylabel('E-E_F (eV)')
             plt.xlabel('')
 
@@ -1525,7 +1493,6 @@ class plot_kkr(object):
         """plot outputs of a kkr_scf_wc workflow"""
         from aiida.orm import CalcJobNode, load_node
         from aiida_kkr.calculations.kkr import KkrCalculation
-        from aiida_kkr.tools import find_parent_structure
         from numpy import sort
         from matplotlib.pyplot import axvline, axhline, subplot, figure, title
 
@@ -1533,6 +1500,7 @@ class plot_kkr(object):
         if 'structure' in node.inputs:
             struc = node.inputs.structure
         else:
+            from aiida_kkr.tools import find_parent_structure
             struc = find_parent_structure(node.inputs.remote_data)
 
         try:
@@ -1654,7 +1622,7 @@ class plot_kkr(object):
             else:
                 ptitle = f'pk= {node.pk}'
             self.dosplot(d, len(struc.sites), nofig, all_atoms, l_channels, sum_spins, switch_xy, False, **kwargs)
-            title(ptitle)
+            plt.title(ptitle)
             # maybe save as file
             save_fig_to_file(kwargs, 'plot_kkr_out_dos.png')
 
@@ -1816,6 +1784,101 @@ class plot_kkr(object):
                     print(f'{abs(1 - v02 / v0)} {abs(1 - e02 / e0)} {abs(1 - B2 / B)}')
         except:
             pass  # do nothing if no eos data there
+
+
+def get_node(node):
+    """Get node from pk or uuid"""
+    from aiida.orm import load_node, Node
+    # load node if pk or uuid is given
+    if type(node) == int:
+        node = load_node(node)
+    elif type(node) == type(''):
+        node = load_node(node)
+    elif isinstance(node, Node):
+        pass
+    else:
+        raise TypeError(
+            "input node should either be the nodes pk (int), it's uuid (str) or the node itself (aiida.orm.Node). Got type(node)={}"
+            .format(type(node))
+        )
+    return node
+
+
+def get_rms_kkrcalc_from_remote(node, **kwargs):
+    """
+    connect to remote folder and extract the rms etc from the out_kkr file
+    if kwargs are given, a dict is retuned for each of the search keys
+    """
+    from aiida.common.folders import SandboxFolder
+    from masci_tools.io.common_functions import search_string
+    # extract info needed to open transport
+    #c = node.inputs.code
+    #comp = c.computer
+    #authinfo = comp.get_authinfo(c.user)
+    #transport = authinfo.get_transport()
+    transport = node.get_transport()
+
+    out_kkr = ''
+    rms, neutr, etot, efermi = [], [], [], []
+    return_dict = {}
+
+    # now get contents of out_kkr using remote call of 'cat'
+    with SandboxFolder() as tempfolder:
+        with tempfolder.open('tempfile', 'w') as f:
+            try:
+                node.outputs.remote_folder.getfile('out_kkr', f.name)
+                has_outfile = True
+            except:
+                has_outfile = False
+        if has_outfile:
+            with tempfolder.open('tempfile', 'r') as f:
+                out_kkr = f.readlines()
+
+    # now extract rms, charge neutrality, total energy and value of Fermi energy
+    if has_outfile:
+        itmp = 0
+        while itmp >= 0:
+            itmp = search_string('rms', out_kkr)
+            if itmp >= 0:
+                tmpline = out_kkr.pop(itmp)
+                tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
+                rms.append(tmpval)
+        itmp = 0
+        while itmp >= 0:
+            itmp = search_string('charge neutrality', out_kkr)
+            if itmp >= 0:
+                tmpline = out_kkr.pop(itmp)
+                tmpval = float(tmpline.split('=')[1].split()[0].replace('D', 'e'))
+                neutr.append(tmpval)
+        itmp = 0
+        while itmp >= 0:
+            itmp = search_string('TOTAL ENERGY in ryd', out_kkr)
+            if itmp >= 0:
+                tmpline = out_kkr.pop(itmp)
+                tmpval = float(tmpline.split(':')[1].split()[0].replace('D', 'e'))
+                etot.append(tmpval)
+        itmp = 0
+        while itmp >= 0:
+            itmp = search_string('E FERMI', out_kkr)
+            if itmp >= 0:
+                tmpline = out_kkr.pop(itmp)
+                tmpval = float(tmpline.split('FERMI')[1].split()[0].replace('D', 'e'))
+                efermi.append(tmpval)
+        # search for all additinoal keys
+        for key in kwargs:
+            return_dict[key] = []
+            itmp = 0
+            while itmp >= 0:
+                itmp = search_string(key, out_kkr)
+                if itmp >= 0:
+                    tmpline = out_kkr.pop(itmp)
+                    tmpval = float(tmpline.split(key)[1])
+                return_dict[key].append(tmpval)
+
+    if return_dict == {}:
+        return rms, neutr, etot, efermi
+    else:
+        return rms, neutr, etot, efermi, return_dict
 
 
 def get_ef_from_parent(node):

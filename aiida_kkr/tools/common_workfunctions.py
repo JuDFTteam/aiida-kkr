@@ -13,14 +13,9 @@ from aiida.orm import Dict
 from masci_tools.io.kkr_params import kkrparams
 from six.moves import range
 from builtins import str
-from .kick_out_core_states import *
-from .neworder_potential import *
 
-# Ignored keys:
-# - Special keys that are used for special cases but are not part of the KKR parameter set.
-# - Keys which were part of the KKR parameter set in earlier masci-tools / aiida-kkr versions,
-#   but have been removed or renamed, and are included here for backwards compatibility.
-_ignored_keys = ['ef_set', 'use_input_alat', '<decouple_spins_cheby>', '<newversion_bdg>']
+# keys that are used by aiida-kkr some something else than KKR parameters
+_ignored_keys = ['ef_set', 'use_input_alat', '<NEWVERSION_BDG>', '<DECOUPLE_SPINS_CHEBY>']
 _ignored_keys += [i.upper() for i in _ignored_keys]
 
 
@@ -63,7 +58,7 @@ def update_params_wf(parameternode, updatenode, **link_inputs):
     return new_parameternode
 
 
-def update_params(node, nodename=None, nodedesc=None, **kwargs):
+def update_params(node, nodename=None, nodedesc=None, strict=False, **kwargs):
     """
     Update parameter node given with the values given as kwargs.
     Returns new node.
@@ -102,11 +97,18 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
 
     # check if input dict contains only values for KKR parameters
     if not add_direct:
+        remove_keys = []
         for key in inp_params:
             if key not in list(params.values.keys()) and key not in _ignored_keys:
-                msg = f'Invalid key "{key}" in input calc_parameters node.'
-                print(msg)
-                raise InputValidationError(msg)
+                print(f'WARNING: Input node contains invalid key "{key}"')
+                if strict:
+                    raise InputValidationError(f'invalid key "{key}" in input parameter node')
+                else:
+                    # print a warning and remove the key
+                    print(f'ignore this key/value pair: {key}: {inp_params.get(key)}')
+                    remove_keys.append(key)
+        for key in remove_keys:
+            inp_params.pop(key)
 
     # copy values from input node
     for key in inp_params:
@@ -562,16 +564,6 @@ def generate_inputcard_from_structure(
     charges = array(charges)
     positions = array(positions)
 
-    # workaround for voronoi calculation with Zatom=83 (Bi potential not there!)
-    if isvoronoi:
-        from numpy import where
-        mask_replace_Bi_Pb = where(charges == 83)
-        if len(mask_replace_Bi_Pb[0]) > 0:
-            charges[mask_replace_Bi_Pb] = 82
-            wmess = 'Bi potential not available, using Pb instead!!!'
-            print(f'WARNING: {wmess}')
-            warnings.append(wmess)
-
     ######################################
     # Prepare keywords for kkr from input structure
 
@@ -940,3 +932,13 @@ def get_username(computer):
         raise ValueError('Error getting the username from the computer!')
 
     return remote_user
+
+
+def get_natyp(structure):
+    """Count number of atom types (>NAEZ for CPA) for the structure"""
+    counter = 0  # for CPA
+    for site in structure.sites:
+        sitekind = structure.get_kind(site.kind_name)
+        for ikind in range(len(sitekind.symbols)):
+            counter += 1
+    return counter

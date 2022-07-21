@@ -17,7 +17,7 @@ from six.moves import range
 
 
 @pytest.mark.timeout(240, method='thread')
-def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache):
+def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache, ndarrays_regression):
     """
     minimal bandstructure calualtion for Cu bulk
     """
@@ -29,7 +29,6 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     from masci_tools.io.kkr_params import kkrparams
     from aiida_kkr.workflows.bs import kkr_bs_wc
     import numpy as np
-    from aiida.engine import run
 
     print(f'AiiDA version: {get_version()}')
     Dict = DataFactory('dict')
@@ -67,13 +66,11 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     builder = kkr_bs_wc.get_builder()
     builder.metadata.description = descr
     builder.metadata.label = label
-    # builder.kkr = KKRCode #kkrhost_local_code
     builder.kkr = kkrhost_local_code
     builder.wf_parameters = params_bs
     builder.options = options
     builder.remote_data = kkr_calc_remote
 
-    #out = run(builder)
     # run the calculation using cached data is available
     out, _ = run_with_cache(builder, data_dir=data_dir)
 
@@ -83,31 +80,10 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     n = n.get_dict()
     assert n.get('successful')
     assert n.get('list_of_errors') == []
-    d = out['BS_Data']
-    kpts = d.get_array('Kpts')
-    eng_points = d.get_array('energy_points')
-    BlochSpectral = d.get_array('BlochSpectralFunction')
-    # if files need to be recreated, uncomment this
-    #np.save('files/db_dump_bs/test_spectral_new',      BlochSpectral)
-    #np.save('files/db_dump_bs/test_Kpts_new',          kpts)
-    #np.save('files/db_dump_bs/test_energy_points_new', eng_points)
-
-    # Loading the data from the previous calc (run manually) with the same config
-    test_BSF = np.load('files/db_dump_bs/test_spectral')
-    test_Kpts = np.load('files/db_dump_bs/test_Kpts')
-    test_eng = np.load('files/db_dump_bs/test_energy_points')
-    # Define the error boundary
-    dos_limt = abs(np.amin(BlochSpectral) * 1E-2)
-    eng_min = abs(np.amin(eng_points) * 1E-7)
-
-    differ_BSF = np.subtract(BlochSpectral, test_BSF)
-    shape_differ_BSF = np.shape(differ_BSF)
-    # shape(differ_BSF) =~ (kpts*eng) =~ (y*x)
-    for i in range(shape_differ_BSF[0]):
-        assert sum(abs(kpts[i, :] - test_Kpts[i, :])) < 1e-7
-        for j in range(shape_differ_BSF[1]):
-            # here to inspect the density validity
-            assert dos_limt > abs(differ_BSF[i, j])
-            if i == 0:
-                # here to inspect the energy validity
-                assert eng_min > abs(eng_points[j] - test_eng[j])
+    # check band structure data arrays
+    check_dict = {
+        'Kpts': out['BS_Data'].get_array('Kpts'),
+        'energy_points': out['BS_Data'].get_array('energy_points'),
+        'BlochSpectralFunction': out['BS_Data'].get_array('BlochSpectralFunction'),
+    }
+    ndarrays_regression.check(check_dict)

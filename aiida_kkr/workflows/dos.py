@@ -4,8 +4,12 @@
 In this module you find the base workflow for a dos calculation and
 some helper methods to do so with AiiDA
 """
-from masci_tools.io.kkr_params import kkrparams
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+from six.moves import range
 from aiida import orm
+from masci_tools.io.kkr_params import kkrparams
 from aiida.engine import WorkChain, if_, ToContext
 from aiida.engine import submit
 from aiida_kkr.tools.common_workfunctions import (
@@ -16,14 +20,15 @@ from aiida_kkr.tools.common_workfunctions import (
 )
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
-from aiida.engine import CalcJob, calcfunction
 from aiida.common.exceptions import InputValidationError
+from aiida_kkr.tools.parse_dos import parse_dosfiles
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
+from aiida_kkr.tools.extract_kkrhost_noco_angles import extract_noco_angles
 from aiida_kkr.workflows.bs import set_energy_params
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.8.1'
+__version__ = '0.8.2'
 __contributors__ = u'Philipp Rüßmann'
 
 
@@ -89,39 +94,35 @@ class kkr_dos_wc(WorkChain):
             valid_type=orm.Dict,
             required=False,
             default=lambda: orm.Dict(dict=cls._wf_default),
+            help='Workflow parameter (see `kkr_dos_wc.get_wf_defaults()`).'
         )
         spec.input(
             'options',
             valid_type=orm.Dict,
             required=False,
             default=lambda: orm.Dict(dict=cls._wf_default),
+            help='Computer options used by the workflow.'
         )
         spec.input(
-            'remote_data',
-            valid_type=orm.RemoteData,
-            required=True,
+            'remote_data', valid_type=orm.RemoteData, required=True, help='RemoteData node of the parent calculation.'
         )
+        spec.input('kkr', valid_type=orm.Code, required=True, help='KKRhost Code node used to run the DOS calculation.')
         spec.input(
-            'kkr',
-            valid_type=orm.Code,
-            required=True,
+            'initial_noco_angles',
+            valid_type=orm.Dict,
+            required=False,
+            help="""Initial non-collinear angles for the magnetic moments. See KkrCalculation for details.
+            If this is found in the input potentially extracted nonco angles from the parent calulation are overwritten!"""
         )
 
         # define outputs
-        spec.output(
-            'results_wf',
-            valid_type=orm.Dict,
-            required=True,
-        )
-        spec.output(
-            'dos_data',
-            valid_type=orm.XyData,
-            required=False,
-        )
+        spec.output('results_wf', valid_type=orm.Dict, required=True, help='Results collected by the workflow.')
+        spec.output('dos_data', valid_type=orm.XyData, required=False, help='XyData node of the parsed DOS output.')
         spec.output(
             'dos_data_interpol',
             valid_type=orm.XyData,
             required=False,
+            help='XyData node of the parsed DOS output, interpolated onto the real axis.'
         )
 
         # Here the structure of the workflow is defined
@@ -334,7 +335,7 @@ class kkr_dos_wc(WorkChain):
         econt_new['NPOL'] = 0
         econt_new['NPT1'] = 0
         econt_new['NPT3'] = 0
-        parent_calc = self.inputs.remote_data.get_incoming().first().node
+        parent_calc = self.inputs.remote_data.get_incoming(node_class=orm.CalcJobNode).first().node
         if parent_calc.process_label == 'VoronoiCalculation':
             # for the voronoi calculation we need to calculate the Fermi level since it is not in the output parameters directly
             voro_out_para = parent_calc.outputs.output_parameters.get_dict()
@@ -371,18 +372,34 @@ class kkr_dos_wc(WorkChain):
             'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
             'resources': self.ctx.resources,
             'queue_name': self.ctx.queue
-        }  # ,
+        }
         if self.ctx.custom_scheduler_commands:
             options['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
+
         inputs = get_inputs_kkr(
-            code,
-            remote,
-            options,
-            label,
-            description,
-            parameters=params,
-            serial=(not self.ctx.withmpi),
+            code, remote, options, label, description, parameters=params, serial=(not self.ctx.withmpi)
         )
+
+        # add nonco angles if found in the parent calculation or in the input
+        if 'initial_noco_angles' in self.inputs:
+            # overwrite nonco_angles from the input if given
+            inputs['initial_noco_angles'] = self.inputs.initial_noco_angles
+            self.report('used nonco angles from input to workflow')
+        else:
+            # extract from the parent calculation
+            parent_calc = remote.get_incoming(node_class=orm.CalcJobNode).first().node
+            if 'initial_noco_angles' in parent_calc.inputs:
+                noco_angles = extract_noco_angles(
+                    fix_dir_threshold=orm.Float(1e-6),  # make small enough
+                    old_noco_angles=parent_calc.inputs.initial_noco_angles,
+                    last_retrieved=parent_calc.outputs.retrieved
+                )
+                # set nonco angles (either from input or from output if it was updated)
+                self.report(noco_angles)
+                if noco_angles == {}:
+                    noco_angles = parent_calc.inputs.initial_noco_angles
+                inputs['initial_noco_angles'] = noco_angles
+                self.report(f'extract nonco angles and use from parent ({noco_angles})')
 
         # run the DOS calculation
         self.report('INFO: doing calculation')
@@ -472,51 +489,3 @@ class kkr_dos_wc(WorkChain):
             self.out(link_name, node)
 
         self.report('INFO: done with DOS workflow!\n')
-
-
-@calcfunction
-def parse_dosfiles(dos_retrieved):
-    """
-    parse dos files to XyData nodes
-    """
-    from masci_tools.io.common_functions import interpolate_dos
-    from masci_tools.io.common_functions import get_Ry2eV
-
-    eVscale = get_Ry2eV()
-
-    with dos_retrieved.open('complex.dos') as dosfolder:
-        ef, dos, dos_int = interpolate_dos(dosfolder, return_original=True)
-
-    # convert to eV units
-    dos[:, :, 0] = (dos[:, :, 0] - ef) * eVscale
-    dos[:, :, 1:] = dos[:, :, 1:] / eVscale
-    dos_int[:, :, 0] = (dos_int[:, :, 0] - ef) * eVscale
-    dos_int[:, :, 1:] = dos_int[:, :, 1:] / eVscale
-
-    # create output nodes
-    dosnode = orm.XyData()
-    dosnode.set_x(dos[:, :, 0], 'E-EF', 'eV')
-    name = ['tot', 's', 'p', 'd', 'f', 'g']
-    name = name[:len(dos[0, 0, 1:]) - 1] + ['ns']
-    ylists = [[], [], []]
-    for line, _name in enumerate(name):
-        ylists[0].append(dos[:, :, 1 + line])
-        ylists[1].append(f'dos {_name}')
-        ylists[2].append('states/eV')
-    dosnode.set_y(ylists[0], ylists[1], ylists[2])
-    dosnode.label = 'dos_data'
-    dosnode.description = 'Array data containing uniterpolated DOS (i.e. dos at finite imaginary part of energy). 3D array with (atoms, energy point, l-channel) dimensions.'
-
-    # now create XyData node for interpolated data
-    dosnode2 = orm.XyData()
-    dosnode2.set_x(dos_int[:, :, 0], 'E-EF', 'eV')
-    ylists = [[], [], []]
-    for line, _name in enumerate(name):
-        ylists[0].append(dos_int[:, :, 1 + line])
-        ylists[1].append(f'interpolated dos {_name}')
-        ylists[2].append('states/eV')
-    dosnode2.set_y(ylists[0], ylists[1], ylists[2])
-    dosnode2.label = 'dos_interpol_data'
-    dosnode2.description = 'Array data containing interpolated DOS (i.e. dos at real axis). 3D array with (atoms, energy point, l-channel) dimensions.'
-
-    return {'dos_data': dosnode, 'dos_data_interpol': dosnode2}

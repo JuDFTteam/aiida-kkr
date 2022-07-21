@@ -2,4 +2,4 @@
 AiiDA KKR
 """
 
-__version__ = '1.1.11-dev5'
+__version__ = '1.1.11.post1'

@@ -14,20 +14,26 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
     """
+    from numpy import array, loadtxt
+    from masci_tools.io.kkr_params import kkrparams
     from aiida.orm import Code, load_node, Dict, StructureData
     from aiida.orm.querybuilder import QueryBuilder
-    from masci_tools.io.kkr_params import kkrparams
+    from aiida.manage.caching import enable_caching
+    from aiida_kkr.tools import neworder_potential_wf
     from aiida_kkr.workflows.kkr_imp_dos import kkr_imp_dos_wc
-    from numpy import array
 
     # import precomputed GF host writeout
-    import_with_migration('files/db_dump_kkrflex_create.tar.gz')
-    GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
+    import_with_migration('data_dir/kkr_flex_wc-nodes-94b44d25a7af0e584343419207f3a7e1.tar.gz')
+    gf_workflow = load_node('0adfe62d-05aa-4c79-90ca-86b1753612a2')
+    GF_host_calc = gf_workflow.called[1]
 
+    # set workflow settings
     wfd = kkr_imp_dos_wc.get_wf_defaults()
     wfd['clean_impcalc_retrieved'] = False  # deactivate cleaning of unused data to regain cachability
+    wfd['retrieve_kkrflex'] = True
     print(wfd)
 
+    # set computer options
     options = {
         'queue_name': queuename,
         'resources': {
@@ -40,14 +46,11 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     options = Dict(dict=options)
 
     # now create a SingleFileData node containing the impurity starting potential
-    from aiida_kkr.tools.common_workfunctions import neworder_potential_wf
-    from numpy import loadtxt
     with GF_host_calc.outputs.retrieved.open('scoef') as _f:
         neworder_pot1 = [int(i) for i in loadtxt(_f, skiprows=1)[:, 3] - 1]
     settings_dict = {'pot1': 'out_potential', 'out_pot': 'potential_imp', 'neworder': neworder_pot1}
     settings = Dict(dict=settings_dict)
 
-    from aiida.manage.caching import enable_caching
     with enable_caching():  # should enable caching globally in this python interpreter
         startpot_imp_sfd = neworder_potential_wf(
             settings_node=settings, parent_calc_folder=GF_host_calc.outputs.remote_folder

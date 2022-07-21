@@ -17,7 +17,7 @@ from aiida_kkr.tools.common_workfunctions import get_username
 from masci_tools.io.common_functions import search_string, get_ef_from_potfile
 import os
 import tarfile
-from numpy import array, sqrt, sum, where, loadtxt
+from numpy import array, array_equal, sqrt, sum, where, loadtxt
 import six
 from six.moves import range
 
@@ -337,17 +337,28 @@ The Dict node should be of the form
         # the one from the parent calc (except for 'Zimp'). If that's not the
         # case, raise an error
         if found_impurity_inputnode and found_host_parent:
+            check_consistency_imp_info = False
             #TODO: implement also 'ilayer_center' check
-            if imp_info_inputnode.get_dict().get('Rcut') == imp_info.get_dict().get('Rcut'):
+            if 'imp_cls' in imp_info_inputnode.get_dict().keys():
+                input_imp_cls_arr = array(imp_info_inputnode.get_dict()['imp_cls'])
+                parent_imp_cls_arr = array(imp_info.get_dict()['imp_cls'])
+                is_identical = array_equal(input_imp_cls_arr[:, 0:4], parent_imp_cls_arr[:, 0:4])
+
+                if is_identical:
+                    check_consistency_imp_info = True
+                else:
+                    self.report('impurity_info node from input and from previous GF calculation are NOT compatible!.')
+
+            elif imp_info_inputnode.get_dict().get('Rcut') == imp_info.get_dict().get('Rcut'):
                 check_consistency_imp_info = True
                 try:
                     if (
                         imp_info_inputnode.get_dict().get('hcut') == imp_info.get_dict().get('hcut') and
                         imp_info_inputnode.get_dict().get('cylinder_orient')
                         == imp_info.get_dict().get('cylinder_orient') and
-                        imp_info_inputnode.get_dict().get('Rimp_rel') == imp_info.get_dict().get('Rimp_rel') and
-                        imp_info_inputnode.get_dict().get('imp_cls') == imp_info.get_dict().get('imp_cls')
+                        imp_info_inputnode.get_dict().get('Rimp_rel') == imp_info.get_dict().get('Rimp_rel')
                     ):
+
                         self.report('impurity_info node from input and from previous GF calculation are compatible')
                         check_consistency_imp_info = True
                     else:
@@ -705,6 +716,8 @@ The Dict node should be of the form
         if type(Zimp_list) != list:
             Zimp_list = [Zimp_list]  # fast fix for cases when Zimp is not a list but a single value
         Rimp_rel_list = imp_info_dict.get(u'Rimp_rel', [[0, 0, 0]])
+        self.report(f'DEBUG: Rimp_rel_list: {Rimp_rel_list}.')
+
         for iatom in range(len(Zimp_list)):
             rtmp = array(Rimp_rel_list[iatom])[:3]
             self.report(f'INFO: Rimp_rel {iatom}, {rtmp}')
