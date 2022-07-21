@@ -9,10 +9,10 @@
     "classifiers": [
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Development Status :: 4 - Beta",
         "Environment :: Plugins",
         "Intended Audience :: Science/Research",
@@ -20,11 +20,11 @@
         "Natural Language :: English",
         "Framework :: AiiDA"
     ],
-    "version": "1.1.11-dev5",
+    "version": "1.1.11-dev6",
     "reentry_register": true,
     "install_requires": [
         "aiida-core >= 1.0.0b6,<3.0.0",
-        "masci-tools >= 0.4.8.dev0,<1.0.0",
+        "masci-tools >= 0.4.8.dev5,<1.0.0",
         "seekpath >= 1.9.2",
         "ase",
         "pymatgen"
@@ -42,9 +42,9 @@
             "pytest-cov >= 2.5.0",
             "pytest-mpl >= 0.10",
             "pytest-timeout >= 1.3.3",
-	    "pytest-regressions >= 1.0",
-	    "aiida-testing @ git+https://github.com/JuDFTteam/aiida-testing.git@export_cache",
-	    "MarkupSafe < 2.1.0"
+            "pytest-regressions >= 1.0",
+	        "aiida-testing @ git+https://github.com/JuDFTteam/aiida-testing.git@export_cache",
+	        "MarkupSafe < 2.1.0"
 	],
         "docs": [
             "Sphinx >= 1.8.2",

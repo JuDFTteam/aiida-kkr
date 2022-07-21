@@ -58,7 +58,7 @@ def update_params_wf(parameternode, updatenode, **link_inputs):
     return new_parameternode
 
 
-def update_params(node, nodename=None, nodedesc=None, **kwargs):
+def update_params(node, nodename=None, nodedesc=None, strict=False, **kwargs):
     """
     Update parameter node given with the values given as kwargs.
     Returns new node.
@@ -97,11 +97,18 @@ def update_params(node, nodename=None, nodedesc=None, **kwargs):
 
     # check if input dict contains only values for KKR parameters
     if not add_direct:
+        remove_keys = []
         for key in inp_params:
             if key not in list(params.values.keys()) and key not in _ignored_keys:
-                msg = f'Invalid key "{key}" in input calc_parameters node.'
-                print(msg)
-                raise InputValidationError(msg)
+                print(f'WARNING: Input node contains invalid key "{key}"')
+                if strict:
+                    raise InputValidationError(f'invalid key "{key}" in input parameter node')
+                else:
+                    # print a warning and remove the key
+                    print(f'ignore this key/value pair: {key}: {inp_params.get(key)}')
+                    remove_keys.append(key)
+        for key in remove_keys:
+            inp_params.pop(key)
 
     # copy values from input node
     for key in inp_params:

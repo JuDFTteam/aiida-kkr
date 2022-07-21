@@ -23,11 +23,12 @@ from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida.common.exceptions import InputValidationError
 from aiida_kkr.tools.parse_dos import parse_dosfiles
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
+from aiida_kkr.tools.extract_kkrhost_noco_angles import extract_noco_angles
 from aiida_kkr.workflows.bs import set_energy_params
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.8.1'
+__version__ = '0.8.2'
 __contributors__ = u'Philipp Rüßmann'
 
 
@@ -93,39 +94,35 @@ class kkr_dos_wc(WorkChain):
             valid_type=orm.Dict,
             required=False,
             default=lambda: orm.Dict(dict=cls._wf_default),
+            help='Workflow parameter (see `kkr_dos_wc.get_wf_defaults()`).'
         )
         spec.input(
             'options',
             valid_type=orm.Dict,
             required=False,
             default=lambda: orm.Dict(dict=cls._wf_default),
+            help='Computer options used by the workflow.'
         )
         spec.input(
-            'remote_data',
-            valid_type=orm.RemoteData,
-            required=True,
+            'remote_data', valid_type=orm.RemoteData, required=True, help='RemoteData node of the parent calculation.'
         )
+        spec.input('kkr', valid_type=orm.Code, required=True, help='KKRhost Code node used to run the DOS calculation.')
         spec.input(
-            'kkr',
-            valid_type=orm.Code,
-            required=True,
+            'initial_noco_angles',
+            valid_type=orm.Dict,
+            required=False,
+            help="""Initial non-collinear angles for the magnetic moments. See KkrCalculation for details.
+            If this is found in the input potentially extracted nonco angles from the parent calulation are overwritten!"""
         )
 
         # define outputs
-        spec.output(
-            'results_wf',
-            valid_type=orm.Dict,
-            required=True,
-        )
-        spec.output(
-            'dos_data',
-            valid_type=orm.XyData,
-            required=False,
-        )
+        spec.output('results_wf', valid_type=orm.Dict, required=True, help='Results collected by the workflow.')
+        spec.output('dos_data', valid_type=orm.XyData, required=False, help='XyData node of the parsed DOS output.')
         spec.output(
             'dos_data_interpol',
             valid_type=orm.XyData,
             required=False,
+            help='XyData node of the parsed DOS output, interpolated onto the real axis.'
         )
 
         # Here the structure of the workflow is defined
@@ -375,18 +372,34 @@ class kkr_dos_wc(WorkChain):
             'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
             'resources': self.ctx.resources,
             'queue_name': self.ctx.queue
-        }  # ,
+        }
         if self.ctx.custom_scheduler_commands:
             options['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
+
         inputs = get_inputs_kkr(
-            code,
-            remote,
-            options,
-            label,
-            description,
-            parameters=params,
-            serial=(not self.ctx.withmpi),
+            code, remote, options, label, description, parameters=params, serial=(not self.ctx.withmpi)
         )
+
+        # add nonco angles if found in the parent calculation or in the input
+        if 'initial_noco_angles' in self.inputs:
+            # overwrite nonco_angles from the input if given
+            inputs['initial_noco_angles'] = self.inputs.initial_noco_angles
+            self.report('used nonco angles from input to workflow')
+        else:
+            # extract from the parent calculation
+            parent_calc = remote.get_incoming(node_class=orm.CalcJobNode).first().node
+            if 'initial_noco_angles' in parent_calc.inputs:
+                noco_angles = extract_noco_angles(
+                    fix_dir_threshold=orm.Float(1e-6),  # make small enough
+                    old_noco_angles=parent_calc.inputs.initial_noco_angles,
+                    last_retrieved=parent_calc.outputs.retrieved
+                )
+                # set nonco angles (either from input or from output if it was updated)
+                self.report(noco_angles)
+                if noco_angles == {}:
+                    noco_angles = parent_calc.inputs.initial_noco_angles
+                inputs['initial_noco_angles'] = noco_angles
+                self.report(f'extract nonco angles and use from parent ({noco_angles})')
 
         # run the DOS calculation
         self.report('INFO: doing calculation')
