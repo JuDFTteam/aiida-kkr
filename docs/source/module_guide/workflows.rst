@@ -26,24 +26,17 @@ Density of states
    :members:
    :private-members:
    :special-members:
+   
+Bandstructure
+-------------
+.. automodule:: aiida_kkr.workflows.bs
+   :members:
+   :private-members:
+   :special-members:
 
 Equation of states
 ------------------
 .. automodule:: aiida_kkr.workflows.eos
-   :members:
-   :private-members:
-   :special-members:
-
-Check KKR parameter convergence
--------------------------------
-.. automodule:: aiida_kkr.workflows.check_para_convergence
-   :members:
-   :private-members:
-   :special-members:
-   
-Find magnetic ground state
---------------------------
-.. automodule:: aiida_kkr.workflows.check_magnetic_state
    :members:
    :private-members:
    :special-members:

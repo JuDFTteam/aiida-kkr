@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 
 [tool.poetry]
 name = "aiida-kkr"
-version = "1.1.10"
+version = "1.1.11"
 description = "AiiDA plugin for the KKR code"
 authors = ["Philipp Rüssmann <p.ruessmann@fz-juelich.de>",
            "Jens Bröder <j.broeder@fz-juelich.de>",
@@ -21,11 +21,11 @@ keywords = ["material science",
 classifiers = ["Development Status :: 4 - Beta",
                "Intended Audience :: Science/Research",
                "License :: OSI Approved :: MIT License",
-               "Programming Language :: Python :: 2.7",
                "Programming Language :: Python :: 3",
-               "Programming Language :: Python :: 3.5",
-               "Programming Language :: Python :: 3.6",
                "Programming Language :: Python :: 3.7",
+               "Programming Language :: Python :: 3.8",
+               "Programming Language :: Python :: 3.9",
+               "Programming Language :: Python :: 3.10",
                "Environment :: Plugins",
                "Natural Language :: English",
                "Topic :: Scientific/Engineering :: Physics",
@@ -34,7 +34,7 @@ classifiers = ["Development Status :: 4 - Beta",
 [tool.poetry.dependencies]
 aiida-core = "^1.0.0b6"
 python = "^2.7"
-masci-tools = "^0.3.10"
+masci-tools = ">=0.4.8.dev5,<1.0.0"
 seekpath = "*"
 pgtest = "*"
 pytest-cov = "^2.5.0"
@@ -44,3 +44,4 @@ sphinx = "*"
 sphinx_rtd_theme = "*"
 bumpversion = "*"
 ase = "*"
+pymatgen = "*"

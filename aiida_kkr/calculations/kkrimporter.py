@@ -5,7 +5,7 @@ Plug-in to import a KKR calculation. This is based on the PwImmigrantCalculation
 
 from __future__ import absolute_import
 import os
-from aiida.plugins import DataFactory
+from aiida.orm import RemoteData, Dict, StructureData
 #from aiida.engine.calculation.job import _input_subfolder
 #from aiida.common.utils import classproperty
 #from aiida.common.folders import SandboxFolder
@@ -17,19 +17,10 @@ from .kkr import KkrCalculation
 #from aiida_kkr.tools.common_workfunctions import structure_from_params
 #from six.moves import range
 
-
-#define aiida structures from DataFactory of aiida
-RemoteData = DataFactory('remote')
-Dict = DataFactory('dict')
-StructureData = DataFactory('structure')
-
-
-__copyright__ = (u"Copyright (c), 2017, Forschungszentrum Jülich GmbH, "
-                 "IAS-1/PGI-1, Germany. All rights reserved.")
-__license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.2"
-__contributors__ = ("Philipp Rüßmann")
-
+__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__license__ = 'MIT license, see LICENSE.txt file'
+__version__ = '0.2'
+__contributors__ = ('Philipp Rüßmann')
 
 
 class KkrImporterCalculation(KkrCalculation):

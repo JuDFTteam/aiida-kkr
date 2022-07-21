@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 """
 Tools for the impurity caluclation plugin and its workflows
 """
@@ -12,13 +11,17 @@ from builtins import object, str
 from six.moves import range
 from six.moves import input
 from masci_tools.io.common_functions import open_general
+from masci_tools.io.common_functions import search_string
+import numpy as np
+from masci_tools.io.common_functions import get_alat_from_bravais
+from masci_tools.io.common_functions import vec_to_angles
+from aiida.common.constants import elements as PeriodicTableElements
+from aiida.common.exceptions import InputValidationError
 
-
-__copyright__ = (u"Copyright (c), 2018, Forschungszentrum Jülich GmbH,"
-                 "IAS-1/PGI-1, Germany. All rights reserved.")
-__license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.6.0"
-__contributors__ = u"Philipp Rüßmann"
+__copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH,' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__license__ = 'MIT license, see LICENSE.txt file'
+__version__ = '0.7.0'
+__contributors__ = u'Philipp Rüßmann'
 
 
 class modify_potential(object):
@@ -27,42 +30,46 @@ class modify_potential(object):
     """
 
     def _check_potstart(self, str1, mode='pot', shape_ver='new'):
-        if mode=='shape':
-            if shape_ver=='new':
-                check1='Shape number' in str1
+        if mode == 'shape':
+            if shape_ver == 'new':
+                check1 = 'Shape number' in str1
             else:
-                check1= (len(str1)==11)
+                check1 = (len(str1) == 11)
         else:
-            check1='exc:' in str1
+            check1 = 'exc:' in str1
         return check1
 
     def _read_input(self, filepath):
         with open_general(filepath) as f:
             data = f.readlines()
-            filepathname = f.name
-        
-        if 'shapefun' in filepathname:
-            mode = 'shape'
-        else:
-            mode = 'pot'
+
+        # check if mode is shapefun or potential
+        mode = 'shape'
+        for line in data:
+            if 'exc:' in line:
+                mode = 'pot'
+                break
 
         # read file
-        index1=[];index2=[]
+        index1 = []
+        index2 = []
         for i in range(len(data)):
-          if self._check_potstart(data[i], mode=mode):
-            index1.append(i)
-            if len(index1)>1: index2.append(i-1)
+            if self._check_potstart(data[i], mode=mode):
+                index1.append(i)
+                if len(index1) > 1:
+                    index2.append(i - 1)
         index2.append(i)
 
         # read shapefun if old style is used
-        if mode=='shape' and len(index1)<1:
-            index1=[];index2=[]
+        if mode == 'shape' and len(index1) < 1:
+            index1 = []
+            index2 = []
             for i in range(len(data)):
                 if self._check_potstart(data[i], mode=mode, shape_ver='old'):
                     index1.append(i)
-                if len(index1)>1: index2.append(i-1)
+                if len(index1) > 1:
+                    index2.append(i - 1)
                 index2.append(i)
-
         """
         print(index1)
         print(index2)
@@ -85,31 +92,34 @@ class modify_potential(object):
         """
         index1, index2, data = self._read_input(shapefun_path)
 
-        order=list(range(len(index1)))
+        order = list(range(len(index1)))
 
         natomtemp = int(open_general(scoefpath).readlines()[0])
-        filedata=open_general(scoefpath).readlines()[1:natomtemp+1]
-        listnew=[]
+        with open_general(scoefpath) as f:
+            filedata = f.readlines()[1:natomtemp + 1]
+        listnew = []
         for line in filedata:
-            if (len(line.split())>1):
-                listnew.append(atom2shapes[int(line.split()[3])-1]-1)
+            if (len(line.split()) > 1):
+                listnew.append(atom2shapes[int(line.split()[3]) - 1] - 1)
         order = listnew
 
-        datanew=[]
+        datanew = []
         for i in range(len(order)):
-          for ii in range(index1[order[i]], index2[order[i]]+1  ):
-            datanew.append(data[ii])
+            for ii in range(index1[order[i]], index2[order[i]] + 1):
+                datanew.append(data[ii])
 
         # add header to shapefun_new
         tmp = datanew
         datanew = []
-        datanew.append('   %i\n' %(len(order)))
+        datanew.append('   %i\n' % (len(order)))
         datanew.append('  1.000000000000E+00\n')
         datanew += tmp
-        with open_general(shapefun_new,'w') as f:
+        with open_general(shapefun_new, 'w') as f:
             f.writelines(datanew)
 
-    def neworder_potential(self, potfile_in, potfile_out, neworder, potfile_2=None, replace_from_pot2=None):
+    def neworder_potential(
+        self, potfile_in, potfile_out, neworder, potfile_2=None, replace_from_pot2=None, debug=False
+    ):
         """
         Read potential file and new potential using a list describing the order of the new potential.
         If a second potential is given as input together with an index list, then the corresponding of
@@ -133,18 +143,45 @@ class modify_potential(object):
         :usage:
             1. modify_potential().neworder_potential(<path_to_input_pot>, <path_to_output_pot>, [])
         """
-        from numpy import array, shape
 
+        # read potfile
+        if debug:
+            print(f'potfile: {potfile_in}')
         index1, index2, data = self._read_input(potfile_in)
+        if debug:
+            print(index1, index2)
+            # add label to potname
+            ii = 0
+            for i in range(len(data)):
+                line = data[i]
+                if 'exc:' in line:
+                    line = line.replace('     exc:', '%.4i exc:' % ii)
+                    data[i] = line
+                    ii += 1
 
+        # read potfile2
         if potfile_2 is not None:
+            if debug:
+                print(f'potfile2: {potfile_2}')
             index12, index22, data2 = self._read_input(potfile_2)
+            if debug:
+                print(index12, index22)
+                # add label to potname
+                ii = 0
+                for i in range(len(data2)):
+                    line = data2[i]
+                    if 'exc:' in line:
+                        line = line.replace('     exc:', '%.4i exc:' % ii)
+                        data2[i] = line
+                        ii += 1
             # check if also replace_from_pot2 is given correctly
             if replace_from_pot2 is None:
                 raise ValueError('replace_from_pot2 not given')
             else:
-                replace_from_pot2 = array(replace_from_pot2)
-                if shape(replace_from_pot2)[1]!=2:
+                replace_from_pot2 = np.array(replace_from_pot2)
+                if debug:
+                    print('replace list:', replace_from_pot2)
+                if np.shape(replace_from_pot2)[1] != 2:
                     raise ValueError('replace_from_pot2 needs to be a 2D array!')
         else:
             if replace_from_pot2 is not None:
@@ -153,562 +190,37 @@ class modify_potential(object):
         # set order in which potential file is written
         # ensure that numbers are integers:
         order = [int(i) for i in neworder]
+        if debug:
+            print('neworder:', order)
 
-        datanew=[]
+        # create output potential
+        datanew = []
         for i in range(len(order)):
             # check if new position is replaced with position from old pot
-            if replace_from_pot2 is not None and i in replace_from_pot2[:,0]:
-                    replace_index = replace_from_pot2[replace_from_pot2[:,0]==i][0][1]
-                    for ii in range(index12[replace_index], index22[replace_index]+1 ):
-                        datanew.append(data2[ii])
-            else: # otherwise take new potntial according to input list
-                    for ii in range(index1[order[i]], index2[order[i]]+1 ):
-                        datanew.append(data[ii])
+            if replace_from_pot2 is not None and i in replace_from_pot2[:, 0]:
+                replace_index = replace_from_pot2[replace_from_pot2[:, 0] == i][0][1]
+                if debug:
+                    print(i, replace_index)
+                for count, ii in enumerate(range(index12[replace_index], index22[replace_index] + 1)):
+                    if count == 0 and debug:
+                        print(data2[ii])
+                    datanew.append(data2[ii])
+            else:  # otherwise take new potntial according to input list
+                if debug:
+                    print(i)
+                for count, ii in enumerate(range(index1[order[i]], index2[order[i]] + 1)):
+                    if count == 0 and debug:
+                        print(data[ii])
+                    datanew.append(data[ii])
 
         # write out new potential
-        with open_general(potfile_out,'w') as f:
+        with open_general(potfile_out, 'w') as f:
             f.writelines(datanew)
-
-
-
-
-class kkrimp_parser_functions(object):
-    """
-    Class of parser functions for KKRimp calculation
-
-    :usage: success, msg_list, out_dict = parse_kkrimp_outputfile().parse_kkrimp_outputfile(out_dict, files)
-    """
-
-    ### some helper functions ###
-
-    def _get_econt_info(self, out_log):
-        """
-        extract energy contour information from out_log file
-        :param out_log: file that is parsed
-        :retuns: econt (dict), dictionary containing the energy contour info
-        :note: econt contains the following keys
-            * 'emin', bottom of energy contour
-            * 'Nepts', number of points in energy contour
-            * 'epts', list of complex valued energy points
-            * 'weights', list of complex valued weights for energy integration
-        """
-        from masci_tools.io.common_functions import search_string
-        from numpy import array
-        f = open_general(out_log)
-        tmptxt = f.readlines()
-        f.close()
-        econt = {}
-        itmp = search_string('[read_energy] number of energy points', tmptxt)
-        if itmp>=0: econt['Nepts'] = int(tmptxt.pop(itmp).split()[-1])
-        itmp = search_string('energies and weights are:', tmptxt)
-        if itmp>=0:
-            tmp = []
-            for ie in range(econt['Nepts']):
-                tmpline = tmptxt[itmp+4+ie].split()[1:]
-                tmp.append([float(tmpline[0]), float(tmpline[1]), float(tmpline[2]), float(tmpline[3])])
-            tmp = array(tmp)
-            econt['epts'] = tmp[:,:2]
-            econt['weights'] = tmp[:,2:]
-            econt['emin'] = tmp[0,0]
-        return econt
-
-
-    def _get_scfinfo(self, file):
-        """
-        extract scf infos (nunmber of iterations, max number of iterations, mixing info) from file
-        :param file:
-        :returns: niter (int), nitermax (int), converged (bool), nmax_reached (bool), mixinfo (dict)
-        :note: mixinfo contains information on mixing scheme and mixing factor used in the calculation
-        """
-        from masci_tools.io.common_functions import search_string
-        f = open_general(file)
-        tmptxt = f.readlines()
-        f.close()
-        # get rms and number of iterations
-        itmp, niter, rms = 0, -1, -1
-        while itmp >= 0:
-            itmp = search_string('average rms-error', tmptxt)
-            if itmp >= 0:
-                tmp = tmptxt.pop(itmp).replace('D', 'E').split()
-                niter = int(tmp[1])
-                rms = float(tmp[-1])
-        # get max number of scf steps
-        itmp = search_string('SCFSTEPS', tmptxt)
-        if itmp >= 0:
-            nitermax = int(tmptxt.pop(itmp).split()[-1])
-        # get qbound
-        itmp = search_string('QBOUND', tmptxt)
-        if itmp >= 0:
-            qbound = float(tmptxt.pop(itmp).split()[-1])
-        # get imix
-        itmp = search_string('IMIX', tmptxt)
-        if itmp >= 0:
-            imix = int(tmptxt.pop(itmp).split()[-1])
-        # get mixfac
-        itmp = search_string('MIXFAC', tmptxt)
-        if itmp >= 0:
-            mixfac = float(tmptxt.pop(itmp).split()[-1])
-        # get fcm
-        itmp = search_string('FCM', tmptxt)
-        if itmp >= 0:
-            fcm = float(tmptxt.pop(itmp).split()[-1])
-        # set mixinfo
-        mixinfo = [imix, mixfac, qbound, fcm]
-        # set converged and nmax_reached logicals
-        converged, nmax_reached = False, False
-        if nitermax==niter: nmax_reached = True
-        if rms<qbound: converged = True
-        # return values
-        return niter, nitermax, converged, nmax_reached, mixinfo
-
-
-    def _get_newsosol(self, file):
-        """
-        Check if spin orbit coupling solver is used
-        :param file: absolute path to out_log.000.txt of KKRimp calculation
-        :returns: True(False) if SOC solver is (not) used
-        """
-        from masci_tools.io.common_functions import search_string
-        f = open_general(file)
-        tmptxt = f.readlines()
-        f.close()
-        itmp = search_string('Spin orbit coupling used?', tmptxt)
-        itmp = int(tmptxt.pop(itmp).split()[-1])
-        if itmp==1:
-            newsosol = True
-        else:
-            newsosol = False
-        return newsosol
-
-
-    def _get_natom(self, file):
-        """
-        Extract number of atoms in impurity cluster
-        :param file: file that is parsed to find number of atoms
-        :returns: natom (int), number of atoms in impurity cluster
-        """
-        from masci_tools.io.common_functions import search_string
-        f = open_general(file)
-        tmptxt = f.readlines()
-        f.close()
-        itmp = search_string('NATOM is', tmptxt)
-        natom = int(tmptxt.pop(itmp).split()[-1])
-        return natom
-
-
-    def _get_magtot(self, file, natom):
-        """
-        Extract total magnetic moment of all atoms in imp. cluster,
-        magnetic moment for each atom in the cluster and magn. moment
-        for all atoms and all iterations of the calculation
-        :param file: file that is parsed to find magnetic moments
-        :param natom: number of atoms in the cluster
-        :returns: magn. moment for all atoms in the cluster for the last iteration (saved in z-comp. of 3d vector)
-                  magn. moment for all atoms in the cluster for all iterations (saved in z-comp. of 3d vector)
-                  total magnetic moments of all atoms for last iteration
-        """
-        from masci_tools.io.common_functions import search_string
-        import numpy as np
-
-        f = open_general(file)
-        tmptxt = f.readlines()
-        f.close()
-        itmp = 0
-        spinmom_all = []
-        while itmp >= 0:
-           itmp = search_string('spin magnetic moment =', tmptxt)
-           if itmp >= 0:
-               spinmom_all.append(float(tmptxt.pop(itmp).split()[-1]))
-        # if no spin
-        spinmom = spinmom_all[len(spinmom_all)-natom:]
-        print (spinmom_all, natom, spinmom)
-        spinmom_vec = np.array([[0, 0, spinmom[0]]])
-        spinmom_vec_all = np.array([[0, 0, spinmom_all[0]]])
-        for i in range(1, natom):
-            spinmom_vec = np.append(spinmom_vec, [[0, 0, spinmom[i]]], axis=0)
-        for i in range(1, len(spinmom_all)):
-            spinmom_vec_all = np.append(spinmom_vec_all, [[0, 0, spinmom_all[i]]], axis=0)
-        magtot = sum(spinmom)
-
-        return spinmom_vec, spinmom_vec_all, magtot
-
-
-    def _extract_timings(self, outfile):
-        """
-        Extract timings for the different parts in the KKRimp code
-        :param outfile: timing file of the KKRimp run
-        :returns: res (dict) timings in seconds, averaged over iterations
-        """
-        from masci_tools.io.common_functions import search_string
-        f = open_general(outfile)
-        tmptxt = f.readlines()
-        f.close()
-        search_keys = ['time until scf starts',
-                       'vpot->tmat',
-                       'gref->gmat',
-                       'gonsite->density',
-                       'energyloop',
-                       'Iteration number',
-                       'Total running time']
-
-        res = {}
-        for isearch in search_keys:
-            tmpval = []
-            itmp = 0
-            while itmp>=0:
-                itmp = search_string(isearch, tmptxt)
-                if itmp>=0:
-                    tmpval.append(float(tmptxt.pop(itmp).split()[-1]))
-            if len(tmpval)>0:
-                res[isearch] = tmpval
-        # average over iterations
-        niter = len(res.get(search_keys[-2], []))
-        if niter>0:
-            for key in search_keys[1:6]:
-                if key in res.keys():
-                    res[key] = sum(res[key])/niter
-            for key in [search_keys[0], search_keys[-1]]:
-                if key in res.keys():
-                    res[key] = res[key][0]
-        return res
-
-
-    def _get_nspin(self, file, natom):
-        """
-        Extract nspin from file
-        :param file: file that is parsed
-        :returns: 1 if calculation is paramagnetic, 2 otherwise
-        """
-        from masci_tools.io.common_functions import search_string
-        f = open_general(file)
-        tmptxt = f.readlines()
-        f.close()
-        itmp = search_string('NSPIN', tmptxt)
-        nspin = int(tmptxt.pop(itmp).split()[-1])
-        return nspin
-
-
-    def _get_spinmom_per_atom(self, file, natom):
-        """
-        Extract spin moment for all atoms
-        :param file: file that is parsed
-        :param natom: number of atoms in impurity cluster
-        :returns: spinmom_at (array of spin moments for all atoms and the last iteration),
-                  spinmom_at_all (array of spin moments for all atoms and iterations),
-                  spinmom_at_tot (total spinmoment for the last iteration)
-        """
-        import numpy as np
-        from math import sqrt
-
-        f = open_general(file)
-        lines = f.readlines()
-        startline = len(lines) - natom
-        spinmom_at = np.array([lines[startline].split()])
-        spinmom_at_all = np.array([lines[1].split()])
-        for i in range(1, natom):
-            spinmom_at = np.append(spinmom_at, [lines[startline+i].split()], axis=0)
-        for j in range(2, len(lines)):
-            spinmom_at_all = np.append(spinmom_at_all, [lines[j].split()], axis=0)
-        spinmom_at_tot = 0
-        for i in range(0, natom):
-            spinmom_at_tot += sqrt(float(spinmom_at[i][0])**2+float(spinmom_at[i][1])**2+float(spinmom_at[i][2])**2)
-
-        return spinmom_at, spinmom_at_all, spinmom_at_tot
-
-
-    def _get_orbmom_per_atom(self, file, natom):
-        """
-        Extract orbital moment for all atoms (orbmom_at: all atoms in last iteration,
-        orbmom_at_all: all atoms in all iterations). For each atom there are six values:
-        first -> x-component real part, second -> x-component imaginary part,
-        third -> y-component real part, ... sixth -> z-component imaginary part.
-        :param file: file that is parsed
-        :param natom: number of atoms in impurity cluster
-        :returns: orbmom_at (list), orbital moments for all atoms
-        """
-        import numpy as np
-
-        f = open_general(file)
-        lines = f.readlines()
-        startline = len(lines) - natom
-        orbmom_at = np.array([lines[startline].split()])
-        orbmom_at_all = np.array([lines[1].split()])
-        for i in range(1, natom):
-            orbmom_at = np.append(orbmom_at, [lines[startline+i].split()], axis=0)
-        for j in range(2, len(lines)):
-            orbmom_at_all = np.append(orbmom_at_all, [lines[j].split()], axis=0)
-
-        return orbmom_at, orbmom_at_all
-
-
-    def _get_EF_potfile(self, potfile):
-        """
-        Extract EF value from potential file
-        :param potfile: file that is parsed
-        :returns: EF (float), value of the Fermi energy in Ry
-        """
-        f = open_general(potfile)
-        tmptxt = f.readlines()
-        f.close()
-        EF = float(tmptxt[3].split()[1])
-        return EF
-
-
-    def _get_Etot(self, file):
-        """
-        Extract total energy file
-        :param file: file that is parsed
-        :returns: Etot (list), values of the total energy in Ry for all iterations
-        """
-        from masci_tools.io.common_functions import search_string
-        f = open_general(file)
-        tmptxt = f.readlines()
-        f.close()
-        itmp = 0
-        Etot = []
-        while itmp >= 0:
-            itmp = search_string('TOTAL ENERGY', tmptxt)
-            if itmp >= 0:
-                Etot.append(float(tmptxt.pop(itmp).split()[-1]))
-        return Etot
-
-
-    def _get_energies_atom(self, file1, file2, natom):
-        """
-        Extract single particle and total energies in Ry for all atoms from file 1 and file 2
-        :param file1: file containing all single particle energies
-        :param file2: file containing all total energies
-        :returns: esp_at (list), etot_at (list)
-        """
-        from numpy import loadtxt
-        esp = loadtxt(file1)
-        etot = loadtxt(file2)
-        esp_at = esp[-natom:,1]
-        etot_at = etot[-natom:,1]
-        return esp_at, etot_at
-
-
-    ### end helper functions ###
-
-
-    def parse_kkrimp_outputfile(self, out_dict, file_dict):
-        """
-        Main parser function for kkrimp, read information from files in file_dict and fills out_dict
-        :param out_dict: dictionary that is filled with parsed output of the KKRimp calculation
-        :param file_dict: dictionary of files that are parsed
-        :returns: success (bool), msg_list(list of error/warning messages of parser), out_dict (filled dict of parsed output)
-        :note: file_dict should contain the following keys
-            * 'outfile', the std_out of the KKRimp calculation
-            * 'out_log', the out_log.000.txt file
-            * 'out_pot', the output potential
-            * 'out_enersp_at', the out_energysp_per_atom_eV file
-            * 'out_enertot_at', the out_energytotal_per_atom_eV file
-            * 'out_timing', the timing file
-            * 'kkrflex_llyfac', the file for the Lloyd factor
-            * 'kkrflex_angles', the nonco_angles file for the KKRimp calculation
-            * 'out_spinmoms', the output spin moments file
-            * 'out_orbmoms', the output orbital moments file
-        """
-        from masci_tools.io.parsers.kkrparser_functions import get_rms, find_warnings, get_charges_per_atom, get_core_states
-        from masci_tools.io.common_functions import get_version_info, get_Ry2eV
-
-        Ry2eV = get_Ry2eV()
-        msg_list = []
-        files = file_dict
-
-        try:
-            code_version, compile_options, serial_number = get_version_info(files['out_log'])
-            tmp_dict = {}
-            tmp_dict['code_version'] = code_version
-            tmp_dict['compile_options'] = compile_options
-            tmp_dict['calculation_serial_number'] = serial_number
-            out_dict['code_info_group'] = tmp_dict
-        except:
-            msg = "Error parsing output of KKRimp: Version Info"
-            msg_list.append(msg)
-
-        tmp_dict = {} # used to group convergence info (rms, rms per atom, charge neutrality)
-        # also initialize convegence_group where all info stored for all iterations is kept
-        out_dict['convergence_group'] = tmp_dict
-        try:
-            result, result_atoms_last = get_rms(files['outfile'], files['out_log'])
-            tmp_dict['rms'] = result[-1]
-            tmp_dict['rms_all_iterations'] = result
-            tmp_dict['rms_per_atom'] = result_atoms_last
-            tmp_dict['rms_unit'] = 'unitless'
-            out_dict['convergence_group'] = tmp_dict
-        except:
-            msg = "Error parsing output of KKRimp: rms-error"
-            msg_list.append(msg)
-
-        try:
-            natom = self._get_natom(files['out_log'])
-            nspin = self._get_nspin(files['out_log'], natom)
-            newsosol = self._get_newsosol(files['out_log'])
-            out_dict['nspin'] = nspin
-            out_dict['number_of_atoms_in_unit_cell'] = natom
-            out_dict['use_newsosol'] = newsosol
-        except:
-            msg = "Error parsing output of KKRimp: nspin/natom"
-            msg_list.append(msg)
-
-        tmp_dict = {} # used to group magnetism info (spin and orbital moments)
-        try:
-            if nspin>1 and newsosol:
-                spinmom_vec, spinmom_vec_all, magtot = self._get_spinmom_per_atom(files['out_spinmoms'], natom)
-                tmp_dict['total_spin_moment'] = magtot
-                out_dict['convergence_group']['spin_moment_per_atom'] = spinmom_vec
-                out_dict['convergence_group']['spin_moment_per_atom_all_iterations'] = spinmom_vec_all
-                tmp_dict['total_spin_moment_unit'] = 'mu_Bohr'
-                out_dict['magnetism_group'] = tmp_dict
-            elif nspin>1:
-                spinmom_vec, spinmom_vec_all, magtot = self._get_magtot(files['out_log'], natom)
-                tmp_dict['total_spin_moment'] = magtot
-                out_dict['convergence_group']['spin_moment_per_atom'] = spinmom_vec
-                out_dict['convergence_group']['spin_moment_per_atom_all_iterations'] = spinmom_vec_all
-                tmp_dict['total_spin_moment_unit'] = 'mu_Bohr'
-                out_dict['magnetism_group'] = tmp_dict
-        except:
-            msg = "Error parsing output of KKRimp: spin moment per atom"
-            msg_list.append(msg)
-
-        # add orbital moments to magnetism group in parser output
-        try:
-            if nspin>1 and newsosol and files['out_orbmoms'] is not None:
-                orbmom_atom, orbmom_atom_all = self._get_orbmom_per_atom(files['out_orbmoms'], natom)
-                tmp_dict['orbital_moment_per_atom'] = orbmom_atom
-                out_dict['convergence_group']['orbital_moment_per_atom_all_iterations'] = orbmom_atom_all
-                tmp_dict['orbital_moment_unit'] = 'mu_Bohr'
-                out_dict['magnetism_group'] = tmp_dict
-        except:
-            msg = "Error parsing output of KKRimp: orbital moment"
-            msg_list.append(msg)
-
-        try:
-            result = self._get_EF_potfile(files['out_pot'])
-            out_dict['fermi_energy'] = result
-            out_dict['fermi_energy_units'] = 'Ry'
-        except:
-            msg = "Error parsing output of KKRimp: EF"
-            msg_list.append(msg)
-
-        try:
-            result = self._get_Etot(files['out_log'])
-            out_dict['energy'] = result[-1]*Ry2eV
-            out_dict['energy_unit'] = 'eV'
-            out_dict['total_energy_Ry'] = result[-1]
-            out_dict['total_energy_Ry_unit'] = 'Rydberg'
-            out_dict['convergence_group']['total_energy_Ry_all_iterations'] = result
-        except:
-            msg = "Error parsing output of KKRimp: total energy"
-            msg_list.append(msg)
-
-        try:
-            result = find_warnings(files['outfile'])
-            tmp_dict = {}
-            tmp_dict['number_of_warnings'] = len(result)
-            tmp_dict['warnings_list'] = result
-            out_dict['warnings_group'] = tmp_dict
-        except:
-            msg = "Error parsing output of KKRimp: search for warnings"
-            msg_list.append(msg)
-
-        try:
-            result = self._extract_timings(files['out_timing'])
-            out_dict['timings_group'] = result
-            out_dict['timings_unit'] = 'seconds'
-        except:
-            msg = "Error parsing output of KKRimp: timings"
-            msg_list.append(msg)
-
-        try:
-            esp_at, etot_at = self._get_energies_atom(files['out_enersp_at'], files['out_enertot_at'], natom)
-            out_dict['single_particle_energies'] = esp_at*Ry2eV
-            out_dict['single_particle_energies_unit'] = 'eV'
-            out_dict['total_energies_atom'] = etot_at*Ry2eV
-            out_dict['total_energies_atom_unit'] = 'eV'
-        except:
-            msg = "Error parsing output of KKRimp: single particle energies"
-            msg_list.append(msg)
-
-        try:
-            result_WS, result_tot, result_C = get_charges_per_atom(files['out_log'])
-            niter = len(out_dict['convergence_group']['rms_all_iterations'])
-            natyp = int(len(result_tot)/niter)
-            out_dict['total_charge_per_atom'] = result_WS[-natyp:]
-            out_dict['charge_core_states_per_atom'] = result_C[-natyp:]
-            # this check deals with the DOS case where output is slightly different
-            if len(result_WS) == len(result_C):
-                out_dict['charge_valence_states_per_atom'] = result_WS[-natyp:]-result_C[-natyp:]
-            out_dict['total_charge_per_atom_unit'] = 'electron charge'
-            out_dict['charge_core_states_per_atom_unit'] = 'electron charge'
-            out_dict['charge_valence_states_per_atom_unit'] = 'electron charge'
-        except:
-            msg = "Error parsing output of KKRimp: charges"
-            msg_list.append(msg)
-
-        try:
-            econt = self._get_econt_info(files['out_log'])
-            tmp_dict = {}
-            tmp_dict['emin'] = econt.get('emin')
-            tmp_dict['emin_unit'] = 'Rydberg'
-            tmp_dict['number_of_energy_points'] = econt.get('Nepts')
-            tmp_dict['epoints_contour'] = econt.get('epts')
-            tmp_dict['epoints_contour_unit'] = 'Rydberg'
-            tmp_dict['epoints_weights'] = econt.get('weights')
-            out_dict['energy_contour_group'] = tmp_dict
-        except:
-            msg = "Error parsing output of KKRimp: energy contour"
-            msg_list.append(msg)
-
-        try:
-            ncore, emax, lmax, descr_max = get_core_states(files['out_pot'])
-            tmp_dict = {}
-            tmp_dict['number_of_core_states_per_atom'] = ncore
-            tmp_dict['energy_highest_lying_core_state_per_atom'] = emax
-            tmp_dict['energy_highest_lying_core_state_per_atom_unit'] = 'Rydberg'
-            tmp_dict['descr_highest_lying_core_state_per_atom'] = descr_max
-            out_dict['core_states_group'] = tmp_dict
-        except:
-            msg = "Error parsing output of KKRimp: core_states"
-            msg_list.append(msg)
-
-        try:
-            niter, nitermax, converged, nmax_reached, mixinfo = self._get_scfinfo(files['out_log'])
-            out_dict['convergence_group']['number_of_iterations'] = niter
-            out_dict['convergence_group']['number_of_iterations_max'] = nitermax
-            out_dict['convergence_group']['calculation_converged'] = converged
-            out_dict['convergence_group']['nsteps_exhausted'] = nmax_reached
-            out_dict['convergence_group']['imix'] = mixinfo[0]
-            out_dict['convergence_group']['strmix'] = mixinfo[1]
-            out_dict['convergence_group']['qbound'] = mixinfo[2]
-            out_dict['convergence_group']['fcm'] = mixinfo[3]
-            out_dict['convergence_group']['brymix'] = mixinfo[1]
-        except:
-            msg = "Error parsing output of KKRimp: scfinfo"
-            msg_list.append(msg)
-
-        #convert arrays to lists
-        from numpy import ndarray
-        for key in list(out_dict.keys()):
-            if type(out_dict[key])==ndarray:
-                out_dict[key] = list(out_dict[key])
-            elif type(out_dict[key])==dict:
-                for subkey in list(out_dict[key].keys()):
-                    if type(out_dict[key][subkey])==ndarray:
-                        out_dict[key][subkey] = (out_dict[key][subkey]).tolist()
-
-
-        # return output with error messages if there are any
-        if len(msg_list)>0:
-            return False, msg_list, out_dict
-        else:
-            return True, [], out_dict
 
 
 ####################################################################################
 # for create scoef functions
-import numpy as np
+
 
 def get_structure_data(structure):
     """
@@ -727,23 +239,18 @@ def get_structure_data(structure):
     :note:
     """
 
-    #import packages
-    from aiida.common.constants import elements as PeriodicTableElements
-    import numpy as np
-
     #get the connection between coordination number and element symbol
-    _atomic_numbers = {data['symbol']:num for num,
-                data in PeriodicTableElements.items()}
+    _atomic_numbers = {data['symbol']: num for num, data in PeriodicTableElements.items()}
 
     #initialize the array that will be returned later (it will be a (# of atoms in the cell) x 6-matrix)
-    a = np.zeros((len(structure.sites),6))
-    k = 0 #running index for filling up the array with data correctly
-    charges = [] #will be needed to return the charge number for the different atoms later
+    a = np.zeros((len(structure.sites), 6))
+    k = 0  #running index for filling up the array with data correctly
+    charges = []  #will be needed to return the charge number for the different atoms later
 
     #loop to fill up the a-array with positions, index, charge and a 0. for every atom in the cell
     sites = structure.sites
-    n = len(structure.sites) + 1 #needed to do the indexing of atoms
-    m = len(structure.sites) #needed to do the indexing of atoms
+    n = len(structure.sites) + 1  #needed to do the indexing of atoms
+    m = len(structure.sites)  #needed to do the indexing of atoms
     for site in sites:
         for j in range(3):
             a[k][j] = site.position[j]
@@ -760,6 +267,7 @@ def get_structure_data(structure):
         k = k + 1
 
     return a
+
 
 def select_reference(structure_array, i):
     """
@@ -781,11 +289,8 @@ def select_reference(structure_array, i):
     :note: the first atom in the structure_array is labelled with 0, the second with 1, ...
     """
 
-    #import packages
-    import numpy as np
-
     #initialize new array for data centered around atom i
-    x = np.zeros((len(structure_array),6))
+    x = np.zeros((len(structure_array), 6))
 
     #take the positions of atom i as new origin
     x_ref = np.array([structure_array[i][0], structure_array[i][1], structure_array[i][2], 0, 0, 0])
@@ -797,6 +302,7 @@ def select_reference(structure_array, i):
             x[k][j] = structure_array[k][j] - x_ref[j]
 
     return x
+
 
 def get_distance(structure_array, i, j):
     """
@@ -810,16 +316,14 @@ def get_distance(structure_array, i, j):
     :note:
     """
 
-    #import math package for square root calculation
-    import math
-
     #calculate x-, y-, z-components of distance of i and j
     del_x = structure_array[i][0] - structure_array[j][0]
     del_y = structure_array[i][1] - structure_array[j][1]
     del_z = structure_array[i][2] - structure_array[j][2]
 
     #return absolute value of the distance of atom i and j
-    return math.sqrt(del_x*del_x + del_y*del_y + del_z*del_z)
+    return np.sqrt(del_x * del_x + del_y * del_y + del_z * del_z)
+
 
 def rotate_onto_z(structure, structure_array, vector):
     """
@@ -833,14 +337,10 @@ def rotate_onto_z(structure, structure_array, vector):
     :return: rotated system, now the 'orient'-axis is aligned with the z-axis
     """
 
-    from masci_tools.io.common_functions import vec_to_angles
-    import math
-    import numpy as np
-
     #get angles, from vector
     angles = vec_to_angles(vector)
-    theta = angles[1]
-    phi = angles[2]
+    theta = np.array(angles[1])
+    phi = np.array(angles[2])
 
     #initialize needed arrays
     x_res = np.delete(structure_array, np.s_[3:6], 1)
@@ -850,13 +350,9 @@ def rotate_onto_z(structure, structure_array, vector):
     #define rotation matrices
     #========================
     #rotation around z-axis with angle phi
-    R_z = np.array([[math.cos(-phi), -math.sin(-phi), 0.],
-                    [math.sin(-phi), math.cos(-phi), 0.],
-                    [0., 0., 1]])
+    R_z = np.array([[np.cos(-phi), -np.sin(-phi), 0.], [np.sin(-phi), np.cos(-phi), 0.], [0., 0., 1]])
     #rotation around y-axis with angle theta
-    R_y = np.array([[math.cos(-theta), 0, math.sin(-theta)],
-                    [0., 1., 0.],
-                    [-math.sin(-theta), 0., math.cos(-theta)]])
+    R_y = np.array([[np.cos(-theta), 0, np.sin(-theta)], [0., 1., 0.], [-np.sin(-theta), 0., np.cos(-theta)]])
 
     #first rotate around z-axis
     for i in range(len(structure_array)):
@@ -864,6 +360,7 @@ def rotate_onto_z(structure, structure_array, vector):
         x_temp_2[i] = np.dot(R_y, x_temp_1[i])
 
     return x_temp_2
+
 
 def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical', h=0., vector=[0., 0., 1.]):
     """
@@ -890,21 +387,16 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
            - different cluster forms (spherical, cylinder, ...), add default parameters, better solution for 'orient'
     """
 
-    #import packages
-    import numpy as np
-    import math
-
     # make sure we take the correct cell length for 2D structures
     if not structure.pbc[2]:
         allpos = np.array([isite.position for isite in structure.sites])
-        maxpos = allpos[allpos[:,2]==max(allpos[:,2])]
+        maxpos = allpos[allpos[:, 2] == max(allpos[:, 2])]
         c3 = maxpos[0]
-        c3[2]+=10 # make sure there is no overlap
+        c3[2] += 10  # make sure there is no overlap
         sl3 = np.sum(np.sqrt(c3**2))
     else:
         sl3 = structure.cell_lengths[2]
         c3 = structure.cell[2]
-    
 
     #obtain cutoff distance from radius and h
     dist_cut = max(radius, h)
@@ -917,15 +409,15 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
     #========================================================
     #spherical approach (same distance in all three directions)
     if clust_shape == 'spherical':
-        box_1 = int(radius/structure.cell_lengths[0] + 1)
-        box_2 = int(radius/structure.cell_lengths[1] + 1)
-        box_3 = int(radius/sl3 + 1)
+        box_1 = int(radius / structure.cell_lengths[0] + 3)
+        box_2 = int(radius / structure.cell_lengths[1] + 3)
+        box_3 = int(radius / sl3 + 3)
     #cylindrical shape (different distances for the different directions)
     elif clust_shape == 'cylindrical':
-        maxval = max(h/2., radius)
-        box_1 = int(maxval/structure.cell_lengths[0] + 1)
-        box_2 = int(maxval/structure.cell_lengths[1] + 1)
-        box_3 = int(maxval/sl3 + 1)
+        maxval = max(h / 2., radius)
+        box_1 = int(maxval / structure.cell_lengths[0] + 3)
+        box_2 = int(maxval / structure.cell_lengths[1] + 3)
+        box_3 = int(maxval / sl3 + 3)
     #================================================================================================================
 
     #create array of all the atoms in an expanded system
@@ -936,10 +428,14 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
         for n in range(-box, box + 1):
             for m in range(-box, box + 1):
                 for l in range(-box, box + 1):
-                    x_temp = np.append(x_temp, [[x[j][0] + (n*cell[0][0] + m*cell[1][0] + l*cell[2][0]),
-                                                 x[j][1] + (n*cell[0][1] + m*cell[1][1] + l*cell[2][1]),
-                                                 x[j][2] + (n*cell[0][2] + m*cell[1][2] + l*cell[2][2]),
-                                                 x[j][3], x[j][4], 0.]], axis = 0)
+                    x_temp = np.append(
+                        x_temp, [[
+                            x[j][0] + (n * cell[0][0] + m * cell[1][0] + l * cell[2][0]), x[j][1] +
+                            (n * cell[0][1] + m * cell[1][1] + l * cell[2][1]), x[j][2] +
+                            (n * cell[0][2] + m * cell[1][2] + l * cell[2][2]), x[j][3], x[j][4], 0.
+                        ]],
+                        axis=0
+                    )
 
     #x_temp now contains all the atoms and their positions regardless if they are bigger or smaller than the cutoff
     x_new = x_temp
@@ -956,10 +452,10 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
     if clust_shape == 'spherical':
         for j in range(len(x_temp)):
             if x_new[j][5] <= dist_cut and x_new[j][5] > 0.:
-                x_res = np.append(x_res, [[x_temp[j][0],
-                                             x_temp[j][1],
-                                             x_temp[j][2],
-                                             x_temp[j][3], x_temp[j][4], x_new[j][5]]], axis=0)
+                x_res = np.append(
+                    x_res, [[x_temp[j][0], x_temp[j][1], x_temp[j][2], x_temp[j][3], x_temp[j][4], x_new[j][5]]],
+                    axis=0
+                )
     elif clust_shape == 'cylindrical':
         for j in range(len(x_temp)):
             #rotate system into help system that is aligned with the z-axis
@@ -967,16 +463,17 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
 
             #calculate in plane distance and vertical distance
             vert_dist = np.absolute(x_help[j][2])
-            inplane_dist = math.sqrt(x_help[j][0]**2 + x_help[j][1]**2)
+            inplane_dist = np.sqrt(x_help[j][0]**2 + x_help[j][1]**2)
             #print(vert_dist, inplane_dist)
-            if vert_dist <= h/2. and inplane_dist <= radius and x_new[j][5] > 0.:
-                x_res = np.append(x_res, [[x_temp[j][0],
-                                             x_temp[j][1],
-                                             x_temp[j][2],
-                                             x_temp[j][3], x_temp[j][4], x_new[j][5]]], axis=0)
+            if vert_dist <= h / 2. and inplane_dist <= radius and x_new[j][5] > 0.:
+                x_res = np.append(
+                    x_res, [[x_temp[j][0], x_temp[j][1], x_temp[j][2], x_temp[j][3], x_temp[j][4], x_new[j][5]]],
+                    axis=0
+                )
 
     #return an unordered array of all the atoms which are within the cutoff distance with respect to atom i
     return x_res
+
 
 def write_scoef(x_res, path):
     """
@@ -990,31 +487,29 @@ def write_scoef(x_res, path):
              indices, charges and distances in the subsequent lines.
     """
 
-    #sort the data from x_res with respect to distance to the centered atom
-    m = x_res[:,-1].argsort()
-    x_res = x_res[m]
-
     #write data of x_res into the 'scoef'-file
     with open_general(path, 'w') as file:
-        file.write(str("{0:4d}".format(len(x_res))))
-        file.write("\n")
+        file.write(str(f'{len(x_res):4d}'))
+        file.write('\n')
         for i in range(len(x_res)):
-            file.write(str("{0:26.19e}".format(x_res[i][0])))
-            file.write(" ")
-            file.write(str("{0:26.19e}".format(x_res[i][1])))
-            file.write(" ")
-            file.write(str("{0:26.19e}".format(x_res[i][2])))
-            file.write(" ")
-            file.write(str("{0:4d}".format(int(x_res[i][3]))))
-            file.write(" ")
-            file.write(str("{0:4.1f}".format(x_res[i][4])))
-            file.write(" ")
-            file.write(str("{0:26.19e}".format(x_res[i][5])))
-            file.write("\n")
+            file.write(str(f'{x_res[i][0]:26.19e}'))
+            file.write(' ')
+            file.write(str(f'{x_res[i][1]:26.19e}'))
+            file.write(' ')
+            file.write(str(f'{x_res[i][2]:26.19e}'))
+            file.write(' ')
+            file.write(str(f'{int(x_res[i][3]):4d}'))
+            file.write(' ')
+            file.write(str(f'{x_res[i][4]:4.1f}'))
+            file.write(' ')
+            file.write(str(f'{x_res[i][5]:26.19e}'))
+            file.write('\n')
 
-def make_scoef(structure, radius, path, h=-1., vector=[0., 0., 1.], i=0, alat_input=None):
+
+def create_scoef_array(structure, radius, h=-1, vector=[0., 0., 1.], i=0, alat_input=None):
     """
-    Creates the 'scoef' file for a certain structure. Needed to conduct an impurity KKR calculation.
+    Creates the arrays that should be written into the 'scoef' file for a certain structure.
+    Needed to conduct an impurity KKR calculation.
 
     :param structure: input structure of the StructureData type.
     :param radius: input cutoff radius in Ang. units.
@@ -1025,8 +520,6 @@ def make_scoef(structure, radius, path, h=-1., vector=[0., 0., 1.], i=0, alat_in
     :param i: atom index around which the cluster should be centered. Default: 0 (first atom in the structure).
     :param alat_input: input lattice constant in Ang. If `None` use the lattice constant that is automatically found. Otherwise rescale everything.
     """
-    from masci_tools.io.common_functions import get_alat_from_bravais, get_aBohr2Ang
-    from numpy import array
 
     #shape of the cluster is specified
     if h < 0.:
@@ -1041,15 +534,61 @@ def make_scoef(structure, radius, path, h=-1., vector=[0., 0., 1.], i=0, alat_in
     c = find_neighbors(structure, structure_array, i, radius, clust_shape, h, vector)
 
     # convert to internal units (units of the lattice constant)
-    alat = get_alat_from_bravais(array(structure.cell), structure.pbc[2])
+    alat = get_alat_from_bravais(np.array(structure.cell), structure.pbc[2])
     if alat_input is not None:
         # use input lattice constant instead of automatically found alat
         alat = alat_input
     # now take out alat factor
-    c[:,:3] = c[:,:3] / alat # rescale atom positions
-    c[:,-1] = c[:,-1] / alat # rescale distances
+    c[:, :3] = c[:, :3] / alat  # rescale atom positions
+    c[:, -1] = c[:, -1] / alat  # rescale distances
 
+    #sort the data from c with respect to distance to the centered atom
+    m = c[:, -1].argsort()
+    c = c[m]
+
+    return c
+
+
+def make_scoef(structure, radius, path, h=-1., vector=[0., 0., 1.], i=0, alat_input=None):
+    """
+    Creates the 'scoef' file for a certain structure. Needed to conduct an impurity KKR calculation.
+
+    :param structure: input structure of the StructureData type.
+    :param radius: input cutoff radius in Ang. units.
+    :param h: height of the cutoff cylinder (negative for spherical cluster shape). For negative values, clust_shape
+              will be automatically assumed as 'spherical'. If there will be given a h > 0, the clust_shape
+              will be 'cylindrical'.
+    :param vector: orientation vector of the cylinder (just for clust_shape='cylindrical').
+    :param i: atom index around which the cluster should be centered. Default: 0 (first atom in the structure).
+    :param alat_input: input lattice constant in Ang. If `None` use the lattice constant that is automatically found. Otherwise rescale everything.
+    """
+
+    # returns sorted cluster array
+    c = create_scoef_array(structure, radius, h, vector, i, alat_input)
 
     #writes out the 'scoef'-file
     write_scoef(c, path)
+
     return c
+
+
+def write_scoef_full_imp_cls(imp_info_node, path, rescale_alat=None):
+    """
+    write scoef file from imp_cls info in imp_info_node
+    """
+    # get dictionay from node
+    imp_info = imp_info_node.get_dict()
+
+    # consistency check
+    if 'imp_cls' not in list(imp_info.keys()):
+        raise InputValidationError("imp_info node does not contain 'imp_cls'")
+
+    imp_cls = np.array(imp_info.get('imp_cls'))
+
+    # rescale if alat_input is used
+    if rescale_alat is not None:
+        imp_cls[:, :3] *= rescale_alat
+        imp_cls[:, -1] *= rescale_alat
+
+    # write scoef file
+    write_scoef(imp_cls, path)

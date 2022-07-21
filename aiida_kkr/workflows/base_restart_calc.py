@@ -5,16 +5,19 @@ In this module you find the base workflow that defines the restart
 caclulation functionality.
 """
 
+from __future__ import absolute_import
 from aiida_kkr.calculations import KkrimpCalculation, VoronoiCalculation, KkrCalculation
+from six.moves import map
+from aiida.engine import WorkChain
+from aiida.orm import CalcJobNode
 
-__copyright__ = (u"Copyright (c), 2019, Forschungszentrum Jülich GmbH, "
-                 "IAS-1/PGI-1, Germany. All rights reserved.")
-__license__ = "MIT license, see LICENSE.txt file"
-__version__ = "0.1"
-__contributors__ = u"Philipp Rüßmann"
-
+__copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__license__ = 'MIT license, see LICENSE.txt file'
+__version__ = '0.1'
+__contributors__ = u'Philipp Rüßmann'
 
 # similar to base restart workflow of aiida-quantumespresso
+
 
 class base_restart_calc(WorkChain):
     """
@@ -29,7 +32,7 @@ class base_restart_calc(WorkChain):
       * _clean_workdir_restart_calc = False
 
     Then you should make sure to run prepare_new_restart_calc each time you want to do a new calculation (with restarts).
-    
+
     Make sure self.ctx.last_calc is being set to the calculation you want to be able to resubmit.
 
     If you want to cleanup all called claculations after running you should have a call to `cleanup_all_calcs_work` in your workflow.
@@ -47,7 +50,7 @@ class base_restart_calc(WorkChain):
                 cls.my_custom_run_function),
             # now the calculation should have finished, eventually after being restarted to overcome cluster problems
             ...
-            # if we want to cleanup the work directories (`my_workflow` class needs to 
+            # if we want to cleanup the work directories (`my_workflow` class needs to
             # `set _clean_workdir_restart_calc` to True if the work directories are supposed to be removed!)
             cls.cleanup_all_calcs_work
         )
@@ -66,8 +69,11 @@ class base_restart_calc(WorkChain):
         super(base_restart_calc, cls).define(spec)
 
         # define general exit codes for restart of calculations
-        spec.exit_code(100, 'ERROR_ITERATION_RETURNED_NO_CALCULATION', 
-                       message='the run_calculation step did not successfully add a calculation node to the context')
+        spec.exit_code(
+            100,
+            'ERROR_ITERATION_RETURNED_NO_CALCULATION',
+            message='the run_calculation step did not successfully add a calculation node to the context'
+        )
 
     def prepare_new_restart_calc(self):
         """initialize counters etc. used within inspect_restart_calc_done"""
@@ -82,7 +88,7 @@ class base_restart_calc(WorkChain):
             return True
 
         #  stop after _max_iter_restart_calc iterations
-        if self.ctx.restart_iteration>self._max_iter_restart_calc:
+        if self.ctx.restart_iteration > self._max_iter_restart_calc:
             self.cleanup_calc_work()
             return False
 
@@ -91,7 +97,7 @@ class base_restart_calc(WorkChain):
             last_calculation = self.ctx.last_calc
         except:
             self.report('')
-            return self.exit_codes.ERROR_ITERATION_RETURNED_NO_CALCULATION
+            return self.exit_codes.ERROR_ITERATION_RETURNED_NO_CALCULATION  # pylint: disable=no-member
 
         # now inspect last calculation
         if last_calculation.is_finished_ok:
@@ -100,7 +106,7 @@ class base_restart_calc(WorkChain):
             return False
         else:
             # check if this is the second consecutive failure
-            if self.ctx.last_calc_restart_failed = True:
+            if self.ctx.last_calc_restart_failed:
                 self.cleanup_calc_work()
                 return False
 
@@ -127,7 +133,6 @@ class base_restart_calc(WorkChain):
                         cleaned_calcs.append(called_descendant.pk)
                     except (IOError, OSError, KeyError):
                         pass
-    
-            if cleaned_calcs:
-                self.report('cleaned remote folders of calculations: {}'.format(' '.join(map(str, cleaned_calcs))))
 
+            if cleaned_calcs:
+                self.report(f"cleaned remote folders of calculations: {' '.join(map(str, cleaned_calcs))}")
