@@ -869,7 +869,7 @@ class KkrCalculation(CalcJob):
             self.report(f'set ef {ef_set} in potential starting in line {ipotstart}')
             tmpline = txt[ipotstart + 3]
             tmpline = tmpline.split()
-            newline = '%10.5f%20.14f%20.14f\n' % (float(tmpline[0]), ef_set, float(tmpline[-1]))
+            newline = f'{float(tmpline[0]):10.5f}{ef_set:20.14f}{float(tmpline[-1]):20.14f}\n'
 
             txt[ipotstart + 3] = newline
 
@@ -952,7 +952,7 @@ class KkrCalculation(CalcJob):
             alat_input = alat
         kpath_array = kpath_array * (alat_input / alat) / get_Ang2aBohr() / (2 * np.pi / alat)
         # now write file
-        qvec = ['%i\n' % len(kpath_array)]
+        qvec = [f'{len(kpath_array)}\n']
         qvec += [f'{kpt[0]:e} {kpt[1]:e} {kpt[2]:e}\n' for kpt in kpath_array]
         with tempfolder.open(self._QVEC, 'w') as qvecfile:
             qvecfile.writelines(qvec)
