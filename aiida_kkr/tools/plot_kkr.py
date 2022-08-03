@@ -1937,7 +1937,7 @@ def get_qdos_data_from_node(node, qdos_filenames):
 
     if 'saved_dispersion_data' in node.extras:
         # only return the existing numpy array if it exists
-        data = node.extras['saved_dispersion_data']
+        data = np.array(node.extras['saved_dispersion_data'])
     else:
         # read qdos data and store as extra
         for i, fname in enumerate(qdos_filenames):
