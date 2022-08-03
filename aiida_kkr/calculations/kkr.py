@@ -807,7 +807,7 @@ class KkrCalculation(CalcJob):
 
             #also retrieve BdG DOS files for anomalous density and hole part
             for BdGadd in ['_eh', '_he', '_hole']:
-                add_files += self._get_dos_filelist(natom, nspin, parameters, BdGadd)
+                add_files += self._get_dos_filelist(parameters, natom, nspin, BdGadd)
                 add_files += self._get_qdos_filelist(parameters, natom, nspin, BdGadd)
 
         return add_files
