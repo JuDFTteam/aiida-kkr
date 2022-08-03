@@ -619,7 +619,7 @@ class plot_kkr(object):
 
         if _has_ase_notebook() and 'viewer' not in kwargs:
             # by default use ase_notebook if it is available
-            self.sview = strucplot_ase_notebook(structure, **kwargs)
+            self.sview = strucplot_ase_notebook(structure, show_empty_atoms=show_empty_atoms, **kwargs)
         else:
             # use ase's view function instead
 
