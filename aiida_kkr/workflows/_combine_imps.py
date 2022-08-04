@@ -100,11 +100,9 @@ class combine_imps_wc(WorkChain):
         super(combine_imps_wc, cls).define(spec)
 
         # expose these inputs from sub-workflows
-        spec.expose_inputs(kkr_imp_sub_wc, namespace='scf', include=(
-            'kkrimp',
-            'options',
-            'wf_parameters',
-        ))
+        spec.expose_inputs(
+            kkr_imp_sub_wc, namespace='scf', include=('kkrimp', 'options', 'wf_parameters', 'params_overwrite')
+        )
         spec.expose_inputs(
             kkr_flex_wc,
             namespace='host_gf',

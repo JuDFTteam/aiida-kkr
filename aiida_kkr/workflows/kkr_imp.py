@@ -92,6 +92,19 @@ class kkr_imp_wc(WorkChain):
 
         super(kkr_imp_wc, cls).define(spec)
 
+        # expose inputs of sub workflow
+        # TODO also expose the other inputs in next release, but put deprecation warnings in first
+        spec.expose_inputs(
+            kkr_imp_sub_wc,
+            namespace='scf',
+            include=(
+                # 'kkrimp',
+                # 'options',
+                # 'wf_parameters',
+                'params_overwrite'
+            )
+        )
+
         # define the inputs of the workflow
         spec.input('kkr', valid_type=Code, required=True, help='KKRhost code used to run GF writeout step.')
         spec.input(
@@ -762,6 +775,8 @@ class kkr_imp_wc(WorkChain):
         builder.remote_data = gf_remote
         if 'remote_data_gf_Efshift' in self.inputs:
             builder.remote_data_Efshift = self.inputs.remote_data_gf_Efshift
+        if 'params_overwrite' in self.inputs.scf:
+            builder.params_overwrite = self.inputs.scf.params_overwrite
         builder.wf_parameters = kkrimp_params
         future = self.submit(builder)
 
