@@ -78,7 +78,7 @@ class kkr_bs_wc(WorkChain):
         """
         if not silent:
             print(f'Version of the kkr_bs_wc workflow: {self._wf_version}')
-        return self._wf_default
+        return self._wf_default.copy()
 
     @classmethod
     def define(cls, spec):

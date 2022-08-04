@@ -78,7 +78,7 @@ class kkr_flex_wc(WorkChain):
         """
 
         print(f'Version of workflow: {self._workflowversion}')
-        return self._wf_default
+        return self._wf_default.copy()
 
     @classmethod
     def define(cls, spec):

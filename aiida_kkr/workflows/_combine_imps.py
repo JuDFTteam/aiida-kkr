@@ -88,7 +88,7 @@ class combine_imps_wc(WorkChain):
         """
         if not silent:
             print(f'Version of workflow: {cls._workflowversion}')
-        return cls._wf_default
+        return cls._wf_default.copy()
 
     @classmethod
     def define(cls, spec):

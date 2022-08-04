@@ -105,7 +105,7 @@ class kkr_decimation_wc(WorkChain):
         """
         if not silent:
             print(f'Version of workflow: {self._workflowversion}')
-        return self._wf_default
+        return self._wf_default.copy()
 
     @classmethod
     def define(cls, spec):

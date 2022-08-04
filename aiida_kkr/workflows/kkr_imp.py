@@ -82,7 +82,7 @@ class kkr_imp_wc(WorkChain):
         """
         if not silent:
             print(f'Version of workflow: {self._workflowversion}')
-        return self._options_default, self._wf_default, self._voro_aux_default
+        return self._options_default.copy(), self._wf_default.copy(), self._voro_aux_default.copy()
 
     @classmethod
     def define(cls, spec):
