@@ -111,7 +111,7 @@ class modify_potential(object):
         # add header to shapefun_new
         tmp = datanew
         datanew = []
-        datanew.append('   %i\n' % (len(order)))
+        datanew.append(f'   {len(order)}\n')
         datanew.append('  1.000000000000E+00\n')
         datanew += tmp
         with open_general(shapefun_new, 'w') as f:

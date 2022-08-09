@@ -233,7 +233,7 @@ def test_and_get_codenode(codenode, expected_code_type, use_exceptions=False):
                 'Pass as further parameter a valid code label.\n'
                 'Valid labels with a {} executable are:\n'.format(expected_code_type)
             )
-            msg += '\n'.join('* {}'.format(label) for label in valid_code_labels)
+            msg += '\n'.join(f'* {label}' for label in valid_code_labels)
 
             if use_exceptions:
                 raise ValueError(msg)
