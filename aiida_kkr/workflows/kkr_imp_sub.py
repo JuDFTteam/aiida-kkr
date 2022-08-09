@@ -17,7 +17,8 @@ from six.moves import range
 import tarfile, os
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
-__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.9.4'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann')

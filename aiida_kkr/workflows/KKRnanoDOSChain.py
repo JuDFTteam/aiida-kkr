@@ -4,7 +4,8 @@ from aiida.plugins.factories import CalculationFactory
 from aiida_kkr.calculations.kkrnano import KKRnanoCalculation
 from aiida_kkr.data.strucwithpot import StrucWithPotData
 
-__copyright__ = (u'Copyright (c), 2021, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2021, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.0.1'
 __contributors__ = ('Markus Struckmann')

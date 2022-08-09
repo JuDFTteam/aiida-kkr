@@ -22,7 +22,8 @@ from aiida_kkr.tools.common_workfunctions import get_username
 from aiida_kkr.workflows.dos import kkr_dos_wc
 import os
 
-__copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.5.5'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
@@ -257,7 +258,8 @@ class kkr_flex_wc(WorkChain):
             try:
                 test_and_get_codenode(inputs.kkr, 'kkr.kkr', use_exceptions=True)
             except ValueError:
-                error = ('The code you provided for kkr does not ' 'use the plugin kkr.kkr')
+                error = ('The code you provided for kkr does not '
+                         'use the plugin kkr.kkr')
                 self.ctx.errors.append(error)
                 input_ok = False
                 return self.exit_codes.ERROR_INVALID_INPUT_KKR  # pylint: disable=no-member

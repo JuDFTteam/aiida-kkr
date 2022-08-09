@@ -6,7 +6,8 @@ from aiida_kkr.calculations.voro import VoronoiCalculation
 
 import os
 
-__copyright__ = (u'Copyright (c), 2022, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2022, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.0.1'
 __contributors__ = ('Markus Struckmann')

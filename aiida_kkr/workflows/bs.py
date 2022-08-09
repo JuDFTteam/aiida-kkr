@@ -20,7 +20,8 @@ from masci_tools.io.common_functions import get_Ry2eV
 import numpy as np
 from six.moves import range
 
-__copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.1.2'
 __contributors__ = (u'Rubel Mozumder', u'Philipp Rüßmann')
@@ -512,7 +513,8 @@ def set_energy_params(econt_new, ef, para_check):
         elif key in ['emax', 'EMAX']:
             key = 'EMAX'
             val = (ef + val / evscal)  # Converting to the Ry (unit of the energy)
-        elif key in ['tempr' 'TEMPR']:
+        elif key in ['tempr'
+                     'TEMPR']:
             key = 'TEMPR'
         elif key in ['RCLUSTZ', 'rclustz']:
             key = 'RCLUSTZ'

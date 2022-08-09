@@ -13,7 +13,8 @@ from ..tools.common_workfunctions import get_natyp
 from masci_tools.io.common_functions import search_string
 import numpy as np
 
-__copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.7.0'
 __contributors__ = ('Philipp Rüßmann')

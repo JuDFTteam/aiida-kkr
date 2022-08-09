@@ -14,7 +14,8 @@ from aiida.common.exceptions import UniquenessError, NotExistent
 import os
 import six
 
-__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.5.3'
 __contributors__ = ('Jens Broeder', 'Philipp Rüßmann')
@@ -147,7 +148,8 @@ class VoronoiCalculation(CalcJob):
         else:
             overwrite_potential = False
             if not found_structure:
-                raise InputValidationError('Neither structure nor parent_KKR specified for this ' 'calculation')
+                raise InputValidationError('Neither structure nor parent_KKR specified for this '
+                                           'calculation')
 
         # check if overwrite potential is given explicitly
         if 'potential_overwrite' in self.inputs:

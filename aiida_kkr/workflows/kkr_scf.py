@@ -30,7 +30,8 @@ from aiida_kkr.tools.common_workfunctions import (
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.dos import kkr_dos_wc
 
-__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.11.0'
 __contributors__ = (u'Jens Broeder', u'Philipp Rüßmann')
@@ -1549,7 +1550,8 @@ class kkr_scf_wc(WorkChain):
             )
         else:  # Termination ok, but not converged yet...
             if self.ctx.abort:  # some error occured, donot use the output.
-                self.report('STATUS/ERROR: I abort, see logs and ' 'erros/warning/hints in output_kkr_scf_wc_para')
+                self.report('STATUS/ERROR: I abort, see logs and '
+                            'erros/warning/hints in output_kkr_scf_wc_para')
             else:
                 self.report(
                     'STATUS/WARNING: Done, the maximum number of runs '
@@ -1862,7 +1864,8 @@ def create_scf_result_node(**kwargs):
     if has_last_outpara:
         outputnode = outpara
         outputnode.label = 'workflow_Results'
-        outputnode.description = ('Contains self-consistency results and ' 'information of an kkr_scf_wc run.')
+        outputnode.description = ('Contains self-consistency results and '
+                                  'information of an kkr_scf_wc run.')
         outdict['output_kkr_scf_wc_ParameterResults'] = outputnode
 
     if has_last_calc_out_dict:
@@ -1904,13 +1907,15 @@ def create_scf_result_node(**kwargs):
     if has_starting_dos:
         outputnode = start_dosdata_interpol_dict
         outputnode.label = 'starting_dosdata_interpol'
-        outputnode.description = ('Contains the interpolated DOS data note, computed ' 'from the starting portential.')
+        outputnode.description = ('Contains the interpolated DOS data note, computed '
+                                  'from the starting portential.')
         outdict['starting_dosdata_interpol'] = outputnode
 
     if has_final_dos:
         outputnode = final_dosdata_interpol_dict
         outputnode.label = 'final_dosdata_interpol'
-        outputnode.description = ('Contains the interpolated DOS data note, computed ' 'from the converged potential.')
+        outputnode.description = ('Contains the interpolated DOS data note, computed '
+                                  'from the converged potential.')
         outdict['final_dosdata_interpol'] = outputnode
 
     return outdict

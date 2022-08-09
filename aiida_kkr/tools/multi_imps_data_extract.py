@@ -82,7 +82,8 @@ class CoupleImpurityData(object):
         if issubclass(node.process_class, combine_imps_wc):
             self.ExtractData(node)
         else:
-            raise TypeError(f'The node {node.uuid} is not a' f'combine_imps_wc subclass')
+            raise TypeError(f'The node {node.uuid} is not a'
+                            f'combine_imps_wc subclass')
 
         self.ExtractData(node)
 
@@ -124,7 +125,8 @@ class CoupleImpurityData(object):
         try:
             jij_data = node.outputs.JijData.get_array('JijData')
         except KeyError:
-            raise KeyError(f'The combine_impurity_calc uuid: {node.uuid}' f' did execute the Jij calculation.')
+            raise KeyError(f'The combine_impurity_calc uuid: {node.uuid}'
+                           f' did execute the Jij calculation.')
 
         else:
             jij_info = node.outputs.JijInfo.get_dict()['text']
@@ -337,11 +339,13 @@ class MultiImpuritiesData(object):
         if issubclass(node_list[0].process_class, combine_imps_wc):
             obj = cls(node=node_list[0])
         else:
-            raise TypeError(f'The node {node_list[0].uuid} is not a' f'combine_imps_wc subclass')
+            raise TypeError(f'The node {node_list[0].uuid} is not a'
+                            f'combine_imps_wc subclass')
 
         for node in node_list[1:]:
             if not issubclass(node_list[0].process_class, combine_imps_wc):
-                raise TypeError(f'The node {node} in the node list not' f' a {combine_imps_wc} class.')
+                raise TypeError(f'The node {node} in the node list not'
+                                f' a {combine_imps_wc} class.')
         obj.AppendDataMultipleNode(node_list=node_list[1:])
 
         return obj

@@ -16,7 +16,8 @@ from aiida_kkr.workflows import kkr_imp_sub_wc
 from masci_tools.io.common_functions import get_alat_from_bravais
 from six.moves import range
 
-__copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.3.2'
 __contributors__ = (u'Philipp Rüßmann')

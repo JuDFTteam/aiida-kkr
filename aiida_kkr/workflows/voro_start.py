@@ -697,7 +697,8 @@ class kkr_startpot_wc(WorkChain):
             emin_new = emin_out - self.ctx.delta_e * eV2Ry
             emin_new = (emin_new - self.ctx.efermi) / eV2Ry  # convert to relative eV units
             self.ctx.dos_params_dict['emin'] = emin_new
-            self.report(f'INFO: set emin for dos automatically' f' to {emin_out - self.ctx.delta_e * eV2Ry} Ry')
+            self.report(f'INFO: set emin for dos automatically'
+                        f' to {emin_out - self.ctx.delta_e * eV2Ry} Ry')
 
         emax = self.ctx.dos_params_dict['emax']
         self.report(f'INFO: emax dos input: {emax}, efermi voronoi output: {self.ctx.efermi}')
