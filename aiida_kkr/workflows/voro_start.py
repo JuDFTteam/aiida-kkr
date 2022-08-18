@@ -991,7 +991,7 @@ class kkr_startpot_wc(WorkChain):
         structure = self.ctx.structure
 
         # first find cluster radius in Ang. units
-        r_cls_ang, _ = find_cluster_radius(structure, ncls_target)[0]
+        r_cls_ang = find_cluster_radius(structure, ncls_target)[0]
 
         cell = np.array(structure.cell)
         alat = get_alat_from_bravais(cell, structure.pbc[2])
