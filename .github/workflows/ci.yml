@@ -176,13 +176,13 @@ jobs:
         chmod +x kkr.x voronoi.exe kkrflex.exe
 
     - name: Run pytest
-      if: ${{ ! matrix.allowed_to_fail }}
+      if: ${{ ! matrix.allowed-to-fail }}
       run: |
         cd tests/
         GITHUB_SUITE=True ./run_all.sh
 
     - name: Run pytest allow failure
-      if: ${{ matrix.allowed_to_fail }}
+      if: ${{ matrix.allowed-to-fail }}
       run: |
         cd tests/
         GITHUB_SUITE=True ./run_all.sh || exit 0
