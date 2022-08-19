@@ -12,7 +12,6 @@ from __future__ import absolute_import
 from aiida.parsers.parser import Parser
 from aiida.orm import Dict, CalcJobNode
 from aiida_kkr.calculations.kkrnano import KKRnanoCalculation
-#from aiida_kkr.tools import find_parent_structure
 from masci_tools.io.common_functions import (search_string, open_general)
 import numpy as np
 from io import StringIO

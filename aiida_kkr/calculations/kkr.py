@@ -19,6 +19,7 @@ from aiida_kkr.tools import (
 )
 from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
 from aiida_kkr.tools.tools_kkrimp import make_scoef, write_scoef_full_imp_cls
+from aiida_kkr.tools.find_parent import find_parent_structure
 from masci_tools.io.kkr_params import __kkr_default_params__, kkrparams
 import six
 from six.moves import range
@@ -443,7 +444,7 @@ class KkrCalculation(CalcJob):
         structure = None
         self.logger.info('KkrCalculation: Get structure node from voronoi parent')
         try:
-            structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
+            structure, voro_parent = find_parent_structure(parent_calc)
         except:
             self.logger.error(f'KkrCalculation: Could not get structure from Voronoi parent ({parent_calc}).')
             raise ValidationError(f'Cound not find structure node from parent {parent_calc}')
@@ -626,7 +627,7 @@ class KkrCalculation(CalcJob):
             # add shapefun file from voronoi parent if needed
             if self._SHAPEFUN not in copylist:
                 try:
-                    struc, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
+                    struc, voro_parent = find_parent_structure(parent_calc)
                 except ValueError:
                     return self.exit_codes.ERROR_NO_SHAPEFUN_FOUND  # pylint: disable=no-member
                 # copy shapefun from retrieved of voro calc
