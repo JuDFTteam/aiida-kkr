@@ -172,6 +172,13 @@ class TestAiida_kkr_entrypoints(object):
         wf = WorkflowFactory('kkr.gf_writeout')
         assert wf == kkr_flex_wc
 
+    def test_decimation_entry_point(self):
+        from aiida_kkr.workflows import kkr_decimation_wc
+        from aiida.plugins import WorkflowFactory
+
+        wf = WorkflowFactory('kkr.decimation')
+        assert wf == kkr_decimation_wc
+
     def test_kkrimp_workchain_entry_point(self):
         from aiida_kkr.workflows.kkr_imp import kkr_imp_wc
         from aiida.plugins import WorkflowFactory
