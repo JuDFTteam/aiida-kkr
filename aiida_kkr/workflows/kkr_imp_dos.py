@@ -22,7 +22,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.9'
+__version__ = '0.6.10'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 
 #TODO: improve workflow output node structure
@@ -61,7 +61,6 @@ class kkr_imp_dos_wc(WorkChain):
     }  # execute KKR with mpi or without
 
     _wf_default = {
-        'ef_shift': 0.,  # set custom absolute E_F (in eV)
         'clean_impcalc_retrieved': True,  # remove output of KKRimp calculation after successful parsing of DOS files
         'jij_run': False,  # calculate Jij's energy resolved
         'lmdos': False,  # caculate l,m or only l-resolved DOS
@@ -238,7 +237,6 @@ class kkr_imp_dos_wc(WorkChain):
         )
 
         # set workflow parameters for the KKR imputrity calculations
-        self.ctx.ef_shift = wf_dict.get('ef_shift', self._wf_default['ef_shift'])
         self.ctx.lmdos = wf_dict.get('lmdos', self._wf_default['lmdos'])
         self.ctx.retrieve_kkrflex = wf_dict.get('retrieve_kkrflex', self._wf_default['retrieve_kkrflex'])
 
@@ -391,7 +389,6 @@ label: {self.ctx.label_wf}
             imp_info = self.ctx.imp_info
 
             wf_params_gf = {
-                'ef_shift': self.ctx.ef_shift,
                 'dos_run': True,
                 'dos_params': self.ctx.dos_params_dict,
             }
