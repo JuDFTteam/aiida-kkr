@@ -115,6 +115,7 @@ elif [[ ! -z "$GITHUB_SUITE" ]]; then
 	  ./workflows/test_dos_wc.py \
 	  ./workflows/test_gf_writeout_wc.py \
 	  ./workflows/test_scf_wc_simple.py \
+	  ./workflows/test_jij_wc.py \
 	  ./workflows/test_eos.py \
 	  ./workflows/test_kkrimp_sub_wc.py \
 	  $addopt

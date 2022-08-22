@@ -1,8 +1,7 @@
 from aiida.orm import CalcJobNode, Dict, StructureData, SinglefileData, load_node, Data
 from aiida.common.exceptions import InputValidationError
 from aiida.common import NotExistent
-#from aiida_kkr.tools import find_parent_structure #deprecated
-from aiida_kkr.calculations.voro import VoronoiCalculation
+from aiida_kkr.tools.find_parent import find_parent_structure, get_parent, get_remote
 
 import os
 
@@ -173,7 +172,7 @@ and lists of SingleFileData potential and shape files have to be provided.'
         """
         #TODO: Check if input is valid
 
-        structure = VoronoiCalculation.find_parent_structure(calcnode)[0]
+        structure = find_parent_structure(calcnode)[0]
         cwd = os.getcwd()
 
         #shapefun
@@ -275,7 +274,7 @@ and lists of SingleFileData potential and shape files have to be provided.'
             raise InputValidationError(
                 'Only the convert step output can be processed! If this has not been done, yet, the parameter `builder.convert=Bool(False)` can be used and the process be run with 1 MPI, to obtain ASCII-potential files'
             )
-        structure = VoronoiCalculation.find_parent_structure(calcnode)[0]
+        structure = find_parent_structure(calcnode)[0]
         pot_list = []
         for item in calcnode.outputs.retrieved.list_object_names():
             if item.find('vpot') == 0:
@@ -299,32 +298,6 @@ and lists of SingleFileData potential and shape files have to be provided.'
 
         return structure, shape_list, pot_list
 
-    def _get_remote(self, parent_folder):
-        """
-        get remote_folder from input if parent_folder is not already a remote folder
-        """
-        parent_folder_tmp0 = parent_folder
-        try:
-            parent_folder_tmp = parent_folder_tmp0.get_incoming().get_node_by_label('remote_folder')
-        except NotExistent:
-            parent_folder_tmp = parent_folder_tmp0
-        return parent_folder_tmp
-
-    #TODO remove redundancy aiida_kkr/calculations/voro.py -> There a private file
-    def _get_parent(self, input_folder):
-        """
-        get the  parent folder of the calculation. If not parent was found return input folder
-        """
-        input_folder_tmp0 = input_folder
-        try:
-            parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_calc_folder')
-        except NotExistent:
-            try:
-                parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_folder')
-            except NotExistent:
-                parent_folder_tmp = input_folder_tmp0
-        return parent_folder_tmp
-
     def find_parent_shapefun(self, parent_folder):
         """
         Find the shape files recursively in chain of parent calculations, either to be extracted from "shapefun" file or "shapes" files
@@ -332,15 +305,13 @@ and lists of SingleFileData potential and shape files have to be provided.'
         iiter = 0
         Nmaxiter = 1000
 
-        parent_folder_tmp = self._get_parent(parent_folder)
+        parent_folder_tmp = get_parent(parent_folder)
 
         print(parent_folder_tmp)
         parent_folder_tmp_listdir = parent_folder_tmp.listdir(
         )  #requires remote ssh connection, therefore much quicker this way
         while not 'shape.0000001' in parent_folder_tmp_listdir and not 'shapefun' in parent_folder_tmp_listdir and iiter < Nmaxiter:
-            parent_folder_tmp = self._get_remote(
-                self._get_parent(parent_folder_tmp)
-            )  #at this point the result is a CalcNode!
+            parent_folder_tmp = get_remote(get_parent(parent_folder_tmp))  #at this point the result is a CalcNode!
             parent_folder_tmp_listdir = parent_folder_tmp.outputs.remote_folder.listdir()
             iiter += 1
             print(parent_folder_tmp)

@@ -2,22 +2,21 @@
 """
 Input plug-in for a KKRnano calculation.
 """
-from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode, Dict, Bool, Float, RemoteData, StructureData
-from aiida_kkr.data.strucwithpot import StrucWithPotData
-from aiida.common.datastructures import (CalcInfo, CodeInfo)
-from masci_tools.io.common_functions import get_Ang2aBohr
-from aiida.common import NotExistent
-from aiida.common.exceptions import InputValidationError, UniquenessError
-
-from aiida_kkr.calculations.voro import VoronoiCalculation
 
 import numpy as np
+from masci_tools.io.common_functions import get_Ang2aBohr
+from aiida.orm import CalcJobNode, Dict, Bool, Float, RemoteData, StructureData
+from aiida.engine import CalcJob
+from aiida.common import NotExistent
+from aiida.common.datastructures import (CalcInfo, CodeInfo)
+from aiida.common.exceptions import InputValidationError, UniquenessError
+from aiida_kkr.tools.find_parent import get_remote, get_parent
+from aiida_kkr.data.strucwithpot import StrucWithPotData
 
 __copyright__ = (u'Copyright (c), 2021, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 __contributors__ = ('Markus Struckmann', 'Philipp Rüßmann')
 
 
@@ -704,9 +703,9 @@ length should be {} )'.format(str(type(default_entry)), str(len(default_value)))
         """
         iiter = 0
         Nmaxiter = 1000
-        parent_folder_tmp = VoronoiCalculation.get_remote(parent_folder)
+        parent_folder_tmp = get_remote(parent_folder)
         while not self._has_struc(parent_folder_tmp) and iiter < Nmaxiter:
-            parent_folder_tmp = VoronoiCalculation.get_remote(VoronoiCalculation.get_parent(parent_folder_tmp))
+            parent_folder_tmp = get_remote(get_parent(parent_folder_tmp))
             iiter += 1
             if iiter % 200 == 0:
                 print(

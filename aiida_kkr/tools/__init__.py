@@ -17,6 +17,7 @@ from masci_tools.io.kkr_params import kkrparams
 from .multi_imps_data_extract import MultiImpuritiesData
 from .kick_out_core_states import *
 from .neworder_potential import *
+from .find_parent import get_calc_from_remote, get_remote, get_parent
 
 
 # expose structure finder from VoronoiCalculation
@@ -29,8 +30,11 @@ def find_parent_structure(calc_or_remote, return_voro=False):
     :param calc_or_remote: CalcJobNode or RemoteData node of VoronoiCalculation or KkrCalculation
     :return struc: parent StructureData node
     """
-    from aiida_kkr.calculations.voro import VoronoiCalculation
+    from .find_parent import find_parent_structure
 
-    struc, voro_calc = VoronoiCalculation.find_parent_structure(calc_or_remote)
+    struc, voro_calc = find_parent_structure(calc_or_remote)
 
-    return struc
+    if return_voro:
+        return struc, voro_calc
+    else:
+        return struc

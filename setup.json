@@ -86,7 +86,8 @@
             "kkr.imp = aiida_kkr.workflows.kkr_imp:kkr_imp_wc",
             "kkr.imp_sub = aiida_kkr.workflows.kkr_imp_sub:kkr_imp_sub_wc",
             "kkr.imp_dos = aiida_kkr.workflows.kkr_imp_dos:kkr_imp_dos_wc",
-            "kkr.decimation = aiida_kkr.workflows._decimation:kkr_decimation_wc"
+            "kkr.decimation = aiida_kkr.workflows._decimation:kkr_decimation_wc",
+            "kkr.jij = aiida_kkr.workflows.jijs:kkr_jij_wc"
 	    ],
         "console_scripts": [
             "aiida-kkr = aiida_kkr.cmdline:cmd_root"

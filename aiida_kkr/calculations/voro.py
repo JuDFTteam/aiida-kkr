@@ -10,7 +10,7 @@ from aiida.common.utils import classproperty
 from aiida.common.exceptions import (InputValidationError, ValidationError)
 from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency, vca_check
-from aiida.common.exceptions import UniquenessError, NotExistent
+from aiida.common.exceptions import UniquenessError
 import os
 import six
 
@@ -276,85 +276,10 @@ class VoronoiCalculation(CalcJob):
         return is_KKR
 
     @classmethod
-    def _get_struc(self, parent_calc):
-        """
-        Get structure from a parent_folder (result of a calculation, typically a remote folder)
-        """
-        return parent_calc.inputs.structure
-
-    @classmethod
-    def _has_struc(self, parent_folder):
-        """
-        Check if parent_folder has structure information in its input
-        """
-        success = True
-        if 'structure' not in parent_folder.get_incoming().all_link_labels():
-            success = False
-        return success
-
-    @classmethod
-    def get_remote(self, parent_folder):
-        """
-        get remote_folder from input if parent_folder is not already a remote folder
-        """
-        parent_folder_tmp0 = parent_folder
-        try:
-            parent_folder_tmp = parent_folder_tmp0.get_incoming().get_node_by_label('remote_folder')
-        except NotExistent:
-            parent_folder_tmp = parent_folder_tmp0
-        return parent_folder_tmp
-
-    @classmethod
-    def get_parent(self, input_folder):
-        """
-        get the  parent folder of the calculation. If not parent was found return input folder
-        """
-        input_folder_tmp0 = input_folder
-
-        # first option: parent_calc_folder (KkrimpCalculation)
-        try:
-            parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_calc_folder')
-            return_input = False
-        except NotExistent:
-            return_input = True
-
-        # second option: parent_folder (KkrCalculation)
-        try:
-            parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_folder')
-            return_input = False
-        except NotExistent:
-            return_input = return_input & True
-
-        # third option: parent_KKR option (special mode of VoronoiCalculation)
-        try:
-            parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_KKR')
-            return_input = False
-        except NotExistent:
-            return_input = return_input & True
-
-        if return_input:
-            parent_folder_tmp = input_folder_tmp0
-
-        return parent_folder_tmp
-
-    @classmethod
     def find_parent_structure(self, parent_folder):
         """
         Find the Structure node recuresively in chain of parent calculations (structure node is input to voronoi calculation)
+        This is a copy of the find_parent_structure that moved to tools.find_parent to keep backwards compatibility.
         """
-        iiter = 0
-        Nmaxiter = 1000
-        parent_folder_tmp = self.get_remote(parent_folder)
-        while not self._has_struc(parent_folder_tmp) and iiter < Nmaxiter:
-            parent_folder_tmp = self.get_remote(self.get_parent(parent_folder_tmp))
-            iiter += 1
-            if iiter % 200 == 0:
-                print(
-                    'Warning: find_parent_structure takes quite long (already searched {} ancestors). Stop after {}'.
-                    format(iiter, Nmaxiter)
-                )
-        if self._has_struc(parent_folder_tmp):
-            struc = self._get_struc(parent_folder_tmp)
-            return struc, parent_folder_tmp
-        else:
-            raise ValueError('structure not found')
+        from aiida_kkr.tools.find_parent import find_parent_structure
+        return find_parent_structure(parent_folder)
