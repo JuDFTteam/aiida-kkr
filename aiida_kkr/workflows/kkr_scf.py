@@ -1311,6 +1311,7 @@ class kkr_scf_wc(WorkChain):
                 self.ctx.neutr_all_steps += neutr_all_iter_last_calc
 
             # check if calculation converged
+            self.ctx.kkr_converged = True
             if rms_max > self.ctx.convergence_criterion:
                 self.ctx.kkr_converged = False
 
