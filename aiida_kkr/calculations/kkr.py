@@ -26,7 +26,7 @@ from six.moves import range
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.12.1'
+__version__ = '0.12.2'
 __contributors__ = ('Jens Bröder', 'Philipp Rüßmann')
 
 verbose = False
@@ -739,13 +739,13 @@ class KkrCalculation(CalcJob):
             add_files = [self._QVEC]
             for iatom in range(natom):
                 for ispin in range(nspin):
-                    add_files.append((self._QDOS_ATOM % (iatom + 1, ispin + 1)).replace(' ', '0'))
+                    add_files.append((self._QDOS_ATOM % (iatom + 1, ispin + 1)).replace(' ', '0') + addition)
                     # try to retrieve both old and new version of the files
-                    add_files.append((self._QDOS_ATOM_OLD % (iatom + 1, ispin + 1)).replace(' ', '0'))
+                    add_files.append((self._QDOS_ATOM_OLD % (iatom + 1, ispin + 1)).replace(' ', '0') + addition)
                 # retrieve also qdos_sx,y,z files if written out
-                add_files.append((self._QDOS_SX % (iatom + 1)).replace(' ', '0'))
-                add_files.append((self._QDOS_SY % (iatom + 1)).replace(' ', '0'))
-                add_files.append((self._QDOS_SZ % (iatom + 1)).replace(' ', '0'))
+                add_files.append((self._QDOS_SX % (iatom + 1)).replace(' ', '0') + addition)
+                add_files.append((self._QDOS_SY % (iatom + 1)).replace(' ', '0') + addition)
+                add_files.append((self._QDOS_SZ % (iatom + 1)).replace(' ', '0') + addition)
 
         return add_files
 
