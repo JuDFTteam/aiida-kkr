@@ -19,13 +19,15 @@ from aiida_kkr.tools import (
 )
 from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
 from aiida_kkr.tools.tools_kkrimp import make_scoef, write_scoef_full_imp_cls
+from aiida_kkr.tools.find_parent import find_parent_structure
 from masci_tools.io.kkr_params import __kkr_default_params__, kkrparams
 import six
 from six.moves import range
 
-__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.12.1'
+__version__ = '0.12.2'
 __contributors__ = ('Jens Bröder', 'Philipp Rüßmann')
 
 verbose = False
@@ -442,7 +444,7 @@ class KkrCalculation(CalcJob):
         structure = None
         self.logger.info('KkrCalculation: Get structure node from voronoi parent')
         try:
-            structure, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
+            structure, voro_parent = find_parent_structure(parent_calc)
         except:
             self.logger.error(f'KkrCalculation: Could not get structure from Voronoi parent ({parent_calc}).')
             raise ValidationError(f'Cound not find structure node from parent {parent_calc}')
@@ -625,7 +627,7 @@ class KkrCalculation(CalcJob):
             # add shapefun file from voronoi parent if needed
             if self._SHAPEFUN not in copylist:
                 try:
-                    struc, voro_parent = VoronoiCalculation.find_parent_structure(parent_calc)
+                    struc, voro_parent = find_parent_structure(parent_calc)
                 except ValueError:
                     return self.exit_codes.ERROR_NO_SHAPEFUN_FOUND  # pylint: disable=no-member
                 # copy shapefun from retrieved of voro calc
@@ -738,13 +740,13 @@ class KkrCalculation(CalcJob):
             add_files = [self._QVEC]
             for iatom in range(natom):
                 for ispin in range(nspin):
-                    add_files.append((self._QDOS_ATOM % (iatom + 1, ispin + 1)).replace(' ', '0'))
+                    add_files.append((self._QDOS_ATOM % (iatom + 1, ispin + 1)).replace(' ', '0') + addition)
                     # try to retrieve both old and new version of the files
-                    add_files.append((self._QDOS_ATOM_OLD % (iatom + 1, ispin + 1)).replace(' ', '0'))
+                    add_files.append((self._QDOS_ATOM_OLD % (iatom + 1, ispin + 1)).replace(' ', '0') + addition)
                 # retrieve also qdos_sx,y,z files if written out
-                add_files.append((self._QDOS_SX % (iatom + 1)).replace(' ', '0'))
-                add_files.append((self._QDOS_SY % (iatom + 1)).replace(' ', '0'))
-                add_files.append((self._QDOS_SZ % (iatom + 1)).replace(' ', '0'))
+                add_files.append((self._QDOS_SX % (iatom + 1)).replace(' ', '0') + addition)
+                add_files.append((self._QDOS_SY % (iatom + 1)).replace(' ', '0') + addition)
+                add_files.append((self._QDOS_SZ % (iatom + 1)).replace(' ', '0') + addition)
 
         return add_files
 
@@ -807,7 +809,7 @@ class KkrCalculation(CalcJob):
 
             #also retrieve BdG DOS files for anomalous density and hole part
             for BdGadd in ['_eh', '_he', '_hole']:
-                add_files += self._get_dos_filelist(natom, nspin, parameters, BdGadd)
+                add_files += self._get_dos_filelist(parameters, natom, nspin, BdGadd)
                 add_files += self._get_qdos_filelist(parameters, natom, nspin, BdGadd)
 
         return add_files
@@ -869,7 +871,7 @@ class KkrCalculation(CalcJob):
             self.report(f'set ef {ef_set} in potential starting in line {ipotstart}')
             tmpline = txt[ipotstart + 3]
             tmpline = tmpline.split()
-            newline = '%10.5f%20.14f%20.14f\n' % (float(tmpline[0]), ef_set, float(tmpline[-1]))
+            newline = f'{float(tmpline[0]):10.5f}{ef_set:20.14f}{float(tmpline[-1]):20.14f}\n'
 
             txt[ipotstart + 3] = newline
 
@@ -952,7 +954,7 @@ class KkrCalculation(CalcJob):
             alat_input = alat
         kpath_array = kpath_array * (alat_input / alat) / get_Ang2aBohr() / (2 * np.pi / alat)
         # now write file
-        qvec = ['%i\n' % len(kpath_array)]
+        qvec = [f'{len(kpath_array)}\n']
         qvec += [f'{kpt[0]:e} {kpt[1]:e} {kpt[2]:e}\n' for kpt in kpath_array]
         with tempfolder.open(self._QVEC, 'w') as qvecfile:
             qvecfile.writelines(qvec)

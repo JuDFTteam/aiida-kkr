@@ -313,7 +313,9 @@ Now we create a new KKR calculation and set input nodes::
         * ``imp_cls`` (list of [float, float, float, int] entries, *optional*) full list of impurity cluster positions and layer indices *(x, y, z, ilayer)*, overwrites auto generation using ``Rcut`` and ``hcut`` settings
                        
         .. warning:: ``imp_cls`` functionality not implemented yet
-            
+
+.. note:: The ``retrieve_kkrflex`` node can be used to control wether or not the `kkrflex_*` files are copied back to the retrieved folder or only stay on the remote folder (saves space in the file repo).
+
     
 The calculation can then be submitted::
 

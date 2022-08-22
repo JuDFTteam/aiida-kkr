@@ -5,7 +5,8 @@ these are calcfunctions used to store nodes which ensures the data provenance
 from __future__ import absolute_import
 from aiida.engine import calcfunction
 
-__copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.1.0'
 __contributors__ = (u'Philipp Ruessmann')

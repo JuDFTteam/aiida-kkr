@@ -233,7 +233,7 @@ def test_and_get_codenode(codenode, expected_code_type, use_exceptions=False):
                 'Pass as further parameter a valid code label.\n'
                 'Valid labels with a {} executable are:\n'.format(expected_code_type)
             )
-            msg += '\n'.join('* {}'.format(label) for label in valid_code_labels)
+            msg += '\n'.join(f'* {label}' for label in valid_code_labels)
 
             if use_exceptions:
                 raise ValueError(msg)
@@ -853,61 +853,6 @@ def vca_check(structure, parameters):
             vca_structure = True
 
     return vca_structure
-
-
-def find_cluster_radius(structure, nclsmin, n_max_box=50, nbins=100):
-    """
-    Takes structure information (cell and site positions) and computes the minimal cluster radius needed
-    such that all clusters around all atoms contain more than `nclsmin` atoms.
-
-    :note: Here we assume spherical clusters around the atoms!
-
-    :param structure: input structure for which the clusters are analyzed
-    :param nclsmin: minimal number of atoms in the screening cluster
-    :param n_max_box: maximal number of supercells in 3D volume
-    :param nbins: number of bins in which the cluster number is analyzed
-
-    :returns: minimal cluster radius needed in Angstroem
-    :returns: minimal cluster radius needed in units of the lattice constant
-    """
-    import numpy as np
-    from masci_tools.io.common_functions import get_alat_from_bravais
-
-    # extract values needed from structure
-    cell = np.array(structure.cell)
-    pos = np.array([site.position for site in structure.sites])
-
-    # settings for supercell box
-    box = int((n_max_box / len(pos))**(1 / 3.) + 0.5)
-    # print('maximal number of atoms in box (time number of atoms in unit cell):', (box*2+1)**3)
-
-    # find all positions in the supercell
-    all_pos_box = np.zeros_like(pos)
-    for i in range(-box, box + 1):
-        for j in range(-box, box + 1):
-            for k in range(-box, box + 1):
-                for site in pos:
-                    tmppos = site + i * cell[0] + j * cell[1] + k * cell[2]
-                    all_pos_box = np.append(all_pos_box, [tmppos], axis=0)
-    all_pos_box = all_pos_box[len(pos):]
-
-    # computer number of atoms in the clusters
-    # Attention: assumes spherical clusters!
-    rclsmax_ang = -1
-    for site in pos:
-        tmpdiff = np.sort(np.sqrt(np.sum((all_pos_box - site)**2, axis=1)))[1:]
-        rmax = tmpdiff.max()
-        clssizes = [len(tmpdiff[tmpdiff < i * rmax]) for i in np.linspace(0, 1, nbins)]
-        rclsmax_atom = (np.linspace(0, 1, nbins) * rmax)[np.where(np.array(clssizes) < nclsmin)[0].max() + 1]
-        if rclsmax_atom > rclsmax_ang:
-            rclsmax_ang = rclsmax_atom
-
-    # convert also to alat units
-    rclsmax_alat = rclsmax_ang / get_alat_from_bravais(cell, structure.pbc[2])
-
-    # now the minimal cluster radius needed to get the spherical screening clusters around the atoms larger than
-    # nclsmin atoms is found and can be returned
-    return rclsmax_ang, rclsmax_alat
 
 
 def get_username(computer):

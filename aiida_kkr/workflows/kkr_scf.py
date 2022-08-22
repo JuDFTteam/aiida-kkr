@@ -30,9 +30,10 @@ from aiida_kkr.tools.common_workfunctions import (
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
 from aiida_kkr.workflows.dos import kkr_dos_wc
 
-__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.11.0'
+__version__ = '0.11.1'
 __contributors__ = (u'Jens Broeder', u'Philipp Rüßmann')
 
 eV2Ry = 1.0 / get_Ry2eV()
@@ -96,12 +97,17 @@ class kkr_scf_wc(WorkChain):
     _wf_default.convergence_criterion = 10**-8
     # reduce mixing factor by this factor if calculation fails due to too large mixing
     _wf_default.mixreduce = 0.5
+    # temperature increasing steps if workflow fails
+    _wf_default.tempr_increase = 50.
     # threshold after which agressive mixing is used
     _wf_default.threshold_aggressive_mixing = 8 * 10**-3
     _wf_default.strmix = 0.03  # mixing factor of simple mixing
     _wf_default.brymix = 0.05  # mixing factor of aggressive mixing
     # number of iterations done per KKR calculation
     _wf_default.nsteps = 50
+    # wether or not pre-convergnce on a coarse energy and k-point grid should be done
+    _wf_default.coarse_preconvergence = True
+    # convergence settings for coarse preconvergence
     _wf_default.convergence_setting_coarse = AttributeDict()  # setting of the coarse preconvergence
     _wf_default.convergence_setting_coarse.npol = 7
     _wf_default.convergence_setting_coarse.n1 = 3
@@ -166,7 +172,7 @@ class kkr_scf_wc(WorkChain):
         """
         if not silent:
             print(f'Version of workflow: {cls._workflowversion}')
-        return cls._wf_default, cls._options_default
+        return cls._wf_default, cls._options_default.copy()
 
     @classmethod
     def define(cls, spec):
@@ -420,7 +426,6 @@ class kkr_scf_wc(WorkChain):
         self.ctx.calcs = []
         self.ctx.abort = False
         # flags used internally to check whether the individual steps were successful
-        self.ctx.kkr_converged = False
         self.ctx.dos_ok = False
         self.ctx.voro_step_success = False
         self.ctx.kkr_step_success = False
@@ -514,6 +519,10 @@ class kkr_scf_wc(WorkChain):
             'convergence_criterion',
             self._wf_default['convergence_criterion'],
         )
+        self.ctx.coarse_preconvergence = wf_dict.get(
+            'coarse_preconvergence',
+            self._wf_default['coarse_preconvergence'],
+        )
         self.ctx.convergence_setting_coarse = wf_dict.get(
             'convergence_setting_coarse',
             self._wf_default['convergence_setting_coarse'],
@@ -525,6 +534,10 @@ class kkr_scf_wc(WorkChain):
         self.ctx.mixreduce = wf_dict.get(
             'mixreduce',
             self._wf_default['mixreduce'],
+        )
+        self.ctx.tempr_increase = wf_dict.get(
+            'tempr_increase',
+            self._wf_default['tempr_increase'],
         )
         self.ctx.nsteps = wf_dict.get(
             'nsteps',
@@ -607,9 +620,11 @@ class kkr_scf_wc(WorkChain):
             f'Convergence criterion: {self.ctx.convergence_criterion}\n'
             f'threshold_aggressive_mixing: {self.ctx.threshold_aggressive_mixing}\n'
             f'threshold_switch_high_accuracy: {self.ctx.threshold_switch_high_accuracy}\n'
+            f'use coarse preconvergence: {self.ctx.coarse_preconvergence}\n'
             f'convergence_setting_coarse: {self.ctx.convergence_setting_coarse}\n'
             f'convergence_setting_fine: {self.ctx.convergence_setting_fine}\n'
             f'factor reduced mixing if failing calculation: {self.ctx.mixreduce}\n'
+            f'temperature increasing value if failing calculation: {self.ctx.tempr_increase}\n'
             f'\nAdditional parameter\n'
             f'check DOS between runs: {self.ctx.check_dos}\n'
             f'DOS parameters: {self.ctx.dos_params}\n'
@@ -949,6 +964,10 @@ class kkr_scf_wc(WorkChain):
         else:
             initial_settings = True
 
+        # check if coarse pre-convergence is done
+        if not self.ctx.coarse_preconvergence:
+            switch_higher_accuracy = True
+
         # if needed update parameters
         if (
             decrease_mixing_fac or switch_agressive_mixing or switch_higher_accuracy or initial_settings or
@@ -1129,9 +1148,9 @@ class kkr_scf_wc(WorkChain):
             self.report(
                 'INFO: last calculation did not converge and convergence not on track. Try to increase temperature by 50K.'
             )
-            convergence_settings['tempr'] += 50.
-            label += ' TEMPR+50K'
-            description += ' with increased temperature of 50K'
+            convergence_settings['tempr'] += self.ctx.tempr_increase
+            label += ' TEMPR_increased'
+            description += f' with increased temperature of {self.ctx.tempr_increase}K'
 
         # add convegence settings
         if self.ctx.loop_count == 1 or self.ctx.last_mixing_scheme == 0:
@@ -1263,8 +1282,6 @@ class kkr_scf_wc(WorkChain):
         self.report(f'INFO: last_remote: {self.ctx.last_remote}')
 
         if self.ctx.kkr_step_success and found_last_calc_output:
-            # check convergence
-            self.ctx.kkr_converged = last_calc_output['convergence_group']['calculation_converged']
             # check rms, compare spin and charge values and take bigger one
             rms_charge = last_calc_output['convergence_group']['rms']
             # returning 0 if not found allows to reuse older verisons (e.g. in caching)
@@ -1292,7 +1309,14 @@ class kkr_scf_wc(WorkChain):
             if self.ctx.kkr_step_success and self.convergence_on_track():
                 self.ctx.rms_all_steps += rms_all_iter_last_calc
                 self.ctx.neutr_all_steps += neutr_all_iter_last_calc
+
+            # check if calculation converged
+            self.ctx.kkr_converged = True
+            if rms_max > self.ctx.convergence_criterion:
+                self.ctx.kkr_converged = False
+
         else:
+            # if last step did not succeed we know the calculation did not converge
             self.ctx.kkr_converged = False
 
         self.report(f'INFO: kkr_converged: {self.ctx.kkr_converged}')
@@ -1549,7 +1573,8 @@ class kkr_scf_wc(WorkChain):
             )
         else:  # Termination ok, but not converged yet...
             if self.ctx.abort:  # some error occured, donot use the output.
-                self.report('STATUS/ERROR: I abort, see logs and ' 'erros/warning/hints in output_kkr_scf_wc_para')
+                self.report('STATUS/ERROR: I abort, see logs and '
+                            'erros/warning/hints in output_kkr_scf_wc_para')
             else:
                 self.report(
                     'STATUS/WARNING: Done, the maximum number of runs '
@@ -1862,7 +1887,8 @@ def create_scf_result_node(**kwargs):
     if has_last_outpara:
         outputnode = outpara
         outputnode.label = 'workflow_Results'
-        outputnode.description = ('Contains self-consistency results and ' 'information of an kkr_scf_wc run.')
+        outputnode.description = ('Contains self-consistency results and '
+                                  'information of an kkr_scf_wc run.')
         outdict['output_kkr_scf_wc_ParameterResults'] = outputnode
 
     if has_last_calc_out_dict:
@@ -1904,13 +1930,15 @@ def create_scf_result_node(**kwargs):
     if has_starting_dos:
         outputnode = start_dosdata_interpol_dict
         outputnode.label = 'starting_dosdata_interpol'
-        outputnode.description = ('Contains the interpolated DOS data note, computed ' 'from the starting portential.')
+        outputnode.description = ('Contains the interpolated DOS data note, computed '
+                                  'from the starting portential.')
         outdict['starting_dosdata_interpol'] = outputnode
 
     if has_final_dos:
         outputnode = final_dosdata_interpol_dict
         outputnode.label = 'final_dosdata_interpol'
-        outputnode.description = ('Contains the interpolated DOS data note, computed ' 'from the converged potential.')
+        outputnode.description = ('Contains the interpolated DOS data note, computed '
+                                  'from the converged potential.')
         outdict['final_dosdata_interpol'] = outputnode
 
     return outdict

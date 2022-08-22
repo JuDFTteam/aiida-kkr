@@ -14,3 +14,4 @@ from .kkr_imp import kkr_imp_wc
 from .kkr_imp_dos import kkr_imp_dos_wc
 from ._combine_imps import combine_imps_wc
 from ._decimation import kkr_decimation_wc
+from .jijs import kkr_jij_wc

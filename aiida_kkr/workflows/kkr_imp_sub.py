@@ -17,7 +17,8 @@ from six.moves import range
 import tarfile, os
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
-__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.9.4'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann')
@@ -105,7 +106,7 @@ class kkr_imp_sub_wc(WorkChain):
         """
         if not silent:
             print(f'Version of workflow: {self._workflowversion}')
-        return self._wf_default
+        return self._wf_default.copy()
 
     @classmethod
     def define(cls, spec):
@@ -126,6 +127,12 @@ class kkr_imp_sub_wc(WorkChain):
         spec.input('wf_parameters', valid_type=Dict, required=False, default=lambda: Dict(dict=cls._wf_default))
         spec.input(
             'settings_LDAU', valid_type=Dict, required=False, help='LDA+U settings. See KKRimpCalculation for details.'
+        )
+        spec.input(
+            'params_overwrite',
+            valid_type=Dict,
+            required=False,
+            help='Dict of parameters that are given to the KKRimpCalculation. Overwrites automatically set values!'
         )
 
         # Here the structure of the workflow is defined
@@ -289,9 +296,6 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.hfield = wf_dict.get('hfield', self._wf_default['hfield'])
         self.ctx.xinit = wf_dict.get('init_pos', self._wf_default['init_pos'])
         self.ctx.mag_init_step_success = False
-
-        # accuracy parameter
-        self.ctx.mesh_params = wf_dict.get('accuracy_params', self._wf_default['accuracy_params'])
 
         # DOS
         self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
@@ -522,6 +526,8 @@ class kkr_imp_sub_wc(WorkChain):
                 if not self.ctx.kkr_higher_accuracy:
                     if self.ctx.kkr_converged:  # or last_rms < self.ctx.threshold_switch_high_accuracy:
                         switch_higher_accuracy = True
+
+
 #                        self.report("INFO: rms low enough, switch to higher accuracy settings")
         else:
             initial_settings = True
@@ -568,8 +574,7 @@ class kkr_imp_sub_wc(WorkChain):
                         new_params[key_default] = kkrdefaults.get(key_default)
                         kkrdefaults_updated.append(key_default)
                 if len(kkrdefaults_updated) > 0:
-                    message = 'ERROR: no default param found'
-                    self.report(message)
+                    self.report('ERROR: no default param found')
                     return self.exit_codes.ERROR_MISSING_PARAMS  # pylint: disable=no-member
                 else:
                     message = f'updated KKR parameter node with default values: {kkrdefaults_updated}'
@@ -631,6 +636,7 @@ class kkr_imp_sub_wc(WorkChain):
                 new_params['TESTFLAG'] = testflags
                 new_params['SPINORBIT'] = 1
                 new_params['NCOLL'] = 1
+                # TODO add deprecation warning and remove these lines (can be set with params_overwrite instead)
                 if self.ctx.mesh_params.get('RADIUS_LOGPANELS', None) is not None:
                     new_params['RADIUS_LOGPANELS'] = self.ctx.mesh_params['RADIUS_LOGPANELS']
                 if self.ctx.mesh_params.get('NCHEB', None) is not None:
@@ -662,14 +668,7 @@ class kkr_imp_sub_wc(WorkChain):
             if switch_higher_accuracy:
                 self.ctx.kkr_higher_accuracy = True
 
-
-#                convergence_settings = self.ctx.convergence_setting_fine
-#                label += ' use_higher_accuracy'
-#                description += ' using higher accuracy settings goven in convergence_setting_fine'
-#            else:
-#                convergence_settings = self.ctx.convergence_setting_coarse
-
-# add convergence settings
+            # add convergence settings
             if self.ctx.loop_count == 1 or self.ctx.last_mixing_scheme == 0:
                 new_params['QBOUND'] = self.ctx.threshold_aggressive_mixing
             else:
@@ -702,6 +701,11 @@ class kkr_imp_sub_wc(WorkChain):
             message = f'new_params: {new_params}'
             self.report(message)
 
+            # overwrite values from additional input node
+            if 'params_overwrite' in self.inputs:
+                print('use params_overwrite', self.inputs.params_overwrite.get_dict())
+                self._overwrite_parameters_from_input(new_params)
+
             # step 2.2 update values
             try:
                 for key, val in new_params.items():
@@ -714,14 +718,9 @@ class kkr_imp_sub_wc(WorkChain):
             # step 3:
             message = f'INFO: update parameters to: {para_check.get_set_values()}'
             self.report(message)
-
-            #test
-            self.ctx.last_params = Dict(dict={})
-
             updatenode = Dict(dict=para_check.get_dict())
             updatenode.label = label
             updatenode.description = description
-
             paranode_new = updatenode  #update_params_wf(self.ctx.last_params, updatenode)
             self.ctx.last_params = paranode_new
         else:
@@ -1232,6 +1231,17 @@ class kkr_imp_sub_wc(WorkChain):
         # now clean all sfd files that are not needed anymore
         for sfd_to_clean in sfds_to_clean:
             clean_sfd(sfd_to_clean)
+
+    def _overwrite_parameters_from_input(self, new_params):
+        """Overwrite input parameters for KKRimpCalculation if found in input"""
+        params_overwrite = self.inputs.params_overwrite.get_dict()
+        for key, val in params_overwrite.items():
+            if key in new_params:
+                self.report('ATTENTION: overwriting parameter from "params_overwrite" input')
+                self.report(f'key: {key}')
+                self.report(f'old value: {new_params[key]}')
+                self.report(f'overwritten value: {val}')
+            new_params[key] = val
 
 
 def remove_out_pot_impcalcs(successful, pks_all_calcs, dry_run=False):

@@ -124,7 +124,7 @@ class Test_kkr_calculation(object):
         """
         test kkrflex file writeout (GF writeout for impurity calculation)
         """
-        from aiida.orm import load_node, Dict
+        from aiida.orm import load_node, Dict, Bool
         from masci_tools.io.kkr_params import kkrparams
         from aiida_kkr.calculations.kkr import KkrCalculation
 
@@ -150,6 +150,7 @@ class Test_kkr_calculation(object):
         builder.parameters = params_node
         builder.parent_folder = kkr_calc.outputs.remote_folder
         builder.impurity_info = imp_info
+        builder.retrieve_kkrflex = Bool(False)
         builder.metadata.dry_run = dry_run
         out = run(builder)
         print(out)

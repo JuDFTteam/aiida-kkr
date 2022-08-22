@@ -14,7 +14,8 @@ from aiida_kkr.tools import kkrparams
 import numpy as np
 from masci_tools.io.common_functions import get_Ry2eV
 
-__copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.1.0'
 __contributors__ = u'Philipp Rüßmann'
@@ -105,7 +106,7 @@ class kkr_decimation_wc(WorkChain):
         """
         if not silent:
             print(f'Version of workflow: {self._workflowversion}')
-        return self._wf_default
+        return self._wf_default.copy()
 
     @classmethod
     def define(cls, spec):

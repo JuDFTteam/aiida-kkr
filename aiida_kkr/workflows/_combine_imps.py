@@ -18,7 +18,8 @@ import tarfile
 import numpy as np
 from masci_tools.io.common_functions import get_Ry2eV
 
-__copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.3.1'
 __contributors__ = (u'Philipp Rüßmann , Rubel Mozumder')
@@ -88,7 +89,7 @@ class combine_imps_wc(WorkChain):
         """
         if not silent:
             print(f'Version of workflow: {cls._workflowversion}')
-        return cls._wf_default
+        return cls._wf_default.copy()
 
     @classmethod
     def define(cls, spec):
@@ -100,11 +101,9 @@ class combine_imps_wc(WorkChain):
         super(combine_imps_wc, cls).define(spec)
 
         # expose these inputs from sub-workflows
-        spec.expose_inputs(kkr_imp_sub_wc, namespace='scf', include=(
-            'kkrimp',
-            'options',
-            'wf_parameters',
-        ))
+        spec.expose_inputs(
+            kkr_imp_sub_wc, namespace='scf', include=('kkrimp', 'options', 'wf_parameters', 'params_overwrite')
+        )
         spec.expose_inputs(
             kkr_flex_wc,
             namespace='host_gf',
