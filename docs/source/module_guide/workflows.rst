@@ -48,6 +48,14 @@ Find Green Function writeout for KKRimp
    :private-members:
    :special-members:
    
+KKRhost Jij calculation
+-----------------------
+.. automodule:: aiida_kkr.workflows.jijs
+   :members:
+   :private-members:
+   :special-members:
+   
+   
 KKRimp self-consistency
 -----------------------
 .. automodule:: aiida_kkr.workflows.kkr_imp_sub
