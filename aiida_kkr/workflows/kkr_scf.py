@@ -426,7 +426,6 @@ class kkr_scf_wc(WorkChain):
         self.ctx.calcs = []
         self.ctx.abort = False
         # flags used internally to check whether the individual steps were successful
-        self.ctx.kkr_converged = False
         self.ctx.dos_ok = False
         self.ctx.voro_step_success = False
         self.ctx.kkr_step_success = False
@@ -1283,8 +1282,6 @@ class kkr_scf_wc(WorkChain):
         self.report(f'INFO: last_remote: {self.ctx.last_remote}')
 
         if self.ctx.kkr_step_success and found_last_calc_output:
-            # check convergence
-            self.ctx.kkr_converged = last_calc_output['convergence_group']['calculation_converged']
             # check rms, compare spin and charge values and take bigger one
             rms_charge = last_calc_output['convergence_group']['rms']
             # returning 0 if not found allows to reuse older verisons (e.g. in caching)
@@ -1312,7 +1309,13 @@ class kkr_scf_wc(WorkChain):
             if self.ctx.kkr_step_success and self.convergence_on_track():
                 self.ctx.rms_all_steps += rms_all_iter_last_calc
                 self.ctx.neutr_all_steps += neutr_all_iter_last_calc
+
+            # check if calculation converged
+            if rms_max > self.ctx.convergence_criterion:
+                self.ctx.kkr_converged = False
+
         else:
+            # if last step did not succeed we know the calculation did not converge
             self.ctx.kkr_converged = False
 
         self.report(f'INFO: kkr_converged: {self.ctx.kkr_converged}')
