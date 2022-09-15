@@ -1,1 +1,1 @@
-# It will calculate host BdG calculatin 
+# It will calculate host BdG calculatin
