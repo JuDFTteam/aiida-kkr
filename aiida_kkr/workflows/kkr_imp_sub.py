@@ -290,6 +290,7 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.nsteps = wf_dict.get('nsteps', self._wf_default['nsteps'])
         self.ctx.broyden_num = wf_dict.get('broyden-number', self._wf_default['broyden-number'])
         self.ctx.nsimplemixfirst = wf_dict.get('nsimplemixfirst', self._wf_default['nsimplemixfirst'])
+        self.ctx.mesh_params = wf_dict.get('accuracy_params', {})
 
         # initial magnetization
         self.ctx.mag_init = wf_dict.get('mag_init', self._wf_default['mag_init'])
