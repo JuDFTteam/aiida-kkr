@@ -202,11 +202,11 @@ class KkrParser(Parser):
                 self.logger.info('take output of parser run 2')
                 success, msg_list, out_dict = success2, msg_list2, out_dict2
 
-        # TODO discriminate between real errors and warnings 
+        # TODO discriminate between real errors and warnings
         msg_list = [i for i in msg_list if 'single particle energies' not in i]
-        if len(msg_list)==0:
-            success= True
-        
+        if len(msg_list) == 0:
+            success = True
+
         out_dict['parser_errors'] = msg_list
         # add file open errors to parser output of error messages
         for (err_cat, f_err) in file_errors:
