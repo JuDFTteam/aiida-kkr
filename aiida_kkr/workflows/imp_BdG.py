@@ -242,10 +242,6 @@ class kkrimp_BdG_wc(WorkChain):
         return ToContext(last_imp_calc_BdG=imp_calc_BdG)
 
     def results(self):
-<<<<<<< HEAD
         result = self.ctx.last_imp_calc_BdG
         self.out('results_wf', result)
-=======
-        result = self.ctx.imp_calc_BdG
-        self.out('results_wf', result)
->>>>>>> aeb7373c1f756e7ea17d05d9140fecb4b814a437
+
