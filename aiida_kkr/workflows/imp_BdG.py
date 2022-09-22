@@ -235,5 +235,5 @@ class kkrimp_BdG_wc(WorkChain):
         return ToContext(last_imp_calc_BdG=imp_calc_BdG)
         
     def results(self):
-        result = self.ctx.imp_calc_BdG
+        result = self.ctx.last_imp_calc_BdG
         self.out('results_wf', result)
