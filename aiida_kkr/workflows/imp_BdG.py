@@ -244,4 +244,3 @@ class kkrimp_BdG_wc(WorkChain):
     def results(self):
         result = self.ctx.last_imp_calc_BdG
         self.out('results_wf', result)
-
