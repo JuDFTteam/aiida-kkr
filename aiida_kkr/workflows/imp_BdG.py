@@ -107,10 +107,10 @@ class kkrimp_BdG_wc(WorkChain):
         spec.expose_inputs(kkr_imp_wc, namespace='BdG_scf', include=('startpot', 'remote_data_gf'))
 
         # Here outputs are defined
-        
+
         #spec.output('results_wf', valid_type=WorkChainNode)
         #spec.output('total_energy')
-        spec.output('workflow_info', valid_type=Dict) 
+        spec.output('workflow_info', valid_type=Dict)
         spec.output('output_parameters', valid_type=Dict)
 
         # Here outlines are being specified
@@ -218,7 +218,7 @@ class kkrimp_BdG_wc(WorkChain):
         builder.voronoi = self.inputs.voronoi
         builder.kkr = self.inputs.kkr
         builder.kkrimp = self.inputs.kkrimp
-        
+
         if 'startpot' in self.inputs.BdG_scf:
             builder.startpot = self.inputs.BdG_scf.startpot
         else:
@@ -240,7 +240,7 @@ class kkrimp_BdG_wc(WorkChain):
         builder.scf.params_overwrite = Dict(dict={'USE_BdG': True, 'USE_E_SYMM_BdG': True})
 
         imp_calc_BdG = self.submit(builder)
-        
+
         return ToContext(last_imp_calc_BdG=imp_calc_BdG)
 
     def results(self):
