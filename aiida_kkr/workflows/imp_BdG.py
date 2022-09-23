@@ -1,7 +1,7 @@
 # Workflow for impurity BdG calculation from converged normal state impurity portential and BdG host calculation
 
 from aiida.engine import WorkChain, ToContext
-from aiida.orm import Dict, RemoteData, Code, CalcJobNode, WorkChainNode
+from aiida.orm import Dict, RemoteData, Code, CalcJobNode, WorkChainNode, Float
 from aiida_kkr.workflows import kkr_imp_wc
 from aiida_kkr.tools.find_parent import get_calc_from_remote
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
@@ -107,7 +107,11 @@ class kkrimp_BdG_wc(WorkChain):
         spec.expose_inputs(kkr_imp_wc, namespace='BdG_scf', include=('startpot', 'remote_data_gf'))
 
         # Here outputs are defined
-        spec.output('results_wf', valid_type=WorkChainNode, required=True)
+        
+        #spec.output('results_wf', valid_type=WorkChainNode)
+        #spec.output('total_energy')
+        spec.output('workflow_info', valid_type=Dict) 
+        spec.output('output_parameters', valid_type=Dict)
 
         # Here outlines are being specified
         spec.outline(
@@ -185,7 +189,6 @@ class kkrimp_BdG_wc(WorkChain):
             builder.kkrimp = self.inputs.kkrimp
             builder.options = self.inputs.options
             builder.remote_data_host = self.inputs.remote_data_host
-            #builder.metadata.label = 'Fe imp on Nb110'
 
             settings = kkr_imp_wc.get_wf_defaults()[1]
             settings['strmix'] = 0.01
@@ -215,7 +218,7 @@ class kkrimp_BdG_wc(WorkChain):
         builder.voronoi = self.inputs.voronoi
         builder.kkr = self.inputs.kkr
         builder.kkrimp = self.inputs.kkrimp
-        #
+        
         if 'startpot' in self.inputs.BdG_scf:
             builder.startpot = self.inputs.BdG_scf.startpot
         else:
@@ -226,7 +229,6 @@ class kkrimp_BdG_wc(WorkChain):
 
         builder.remote_data_host = self.inputs.remote_data_host_BdG
         builder.options = self.inputs.options
-        #builder.metadata.label = 'Fe imp on Nb110'
 
         settings = kkr_imp_wc.get_wf_defaults()[1]
         settings['strmix'] = 0.01
@@ -238,10 +240,12 @@ class kkrimp_BdG_wc(WorkChain):
         builder.scf.params_overwrite = Dict(dict={'USE_BdG': True, 'USE_E_SYMM_BdG': True})
 
         imp_calc_BdG = self.submit(builder)
-        #self.ctx.imp_calc_BdG = imp_calc_BdG
+        
         return ToContext(last_imp_calc_BdG=imp_calc_BdG)
 
     def results(self):
-        result = self.ctx.last_imp_calc_BdG
-        self.out('results_wf', result)
-
+        #self.out('results_wf', self.ctx.last_imp_calc_BdG)
+        self.out('workflow_info',self.ctx.last_imp_calc_BdG.outputs.workflow_info)
+        self.out('output_parameters', self.ctx.last_imp_calc_BdG.outputs.last_calc_output_parameters)
+        #tot_energy = self.ctx.last_imp_calc_BdG.outputs.last_calc_output_parameters.get_attribute('energy')
+        #self.out('total_energy', tot_energy)
