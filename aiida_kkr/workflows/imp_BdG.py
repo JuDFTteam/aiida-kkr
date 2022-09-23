@@ -245,7 +245,7 @@ class kkrimp_BdG_wc(WorkChain):
 
     def results(self):
         #self.out('results_wf', self.ctx.last_imp_calc_BdG)
-        self.out('workflow_info',self.ctx.last_imp_calc_BdG.outputs.workflow_info)
+        self.out('workflow_info', self.ctx.last_imp_calc_BdG.outputs.workflow_info)
         self.out('output_parameters', self.ctx.last_imp_calc_BdG.outputs.last_calc_output_parameters)
         #tot_energy = self.ctx.last_imp_calc_BdG.outputs.last_calc_output_parameters.get_attribute('energy')
         #self.out('total_energy', tot_energy)
