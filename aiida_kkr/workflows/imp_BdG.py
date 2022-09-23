@@ -244,8 +244,13 @@ class kkrimp_BdG_wc(WorkChain):
         return ToContext(last_imp_calc_BdG=imp_calc_BdG)
 
     def results(self):
+<<<<<<< HEAD
         #self.out('results_wf', self.ctx.last_imp_calc_BdG)
         self.out('workflow_info',self.ctx.last_imp_calc_BdG.outputs.workflow_info)
         self.out('output_parameters', self.ctx.last_imp_calc_BdG.outputs.last_calc_output_parameters)
         #tot_energy = self.ctx.last_imp_calc_BdG.outputs.last_calc_output_parameters.get_attribute('energy')
         #self.out('total_energy', tot_energy)
+=======
+        result = self.ctx.last_imp_calc_BdG
+        self.out('results_wf', result)
+>>>>>>> 33683b5137286b16ea9a77bcd0c4b1022cc2dc89
