@@ -102,7 +102,7 @@ class KkrCalculation(CalcJob):
     _DECIFILE = 'decifile'
     # BdG mode
     _BDG_POT = 'den_lm_ir.%0.3i.%i.txt'
-    _BDG_CHI_NS = 'den_lm_ir_ns.npy'
+    _BDG_CHI_NS = 'den_lm_ns_*.npy'
 
     # template.product entry point defined in setup.json
     _default_parser = 'kkr.kkrparser'
