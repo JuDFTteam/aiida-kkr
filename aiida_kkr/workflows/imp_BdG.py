@@ -264,12 +264,8 @@ class kkrimp_BdG_wc(WorkChain):
         builder.impurity_info = self.inputs.impurity_info
 
         builder.wf_parameters = Dict(dict=kkr_imp_dos_wc.get_wf_defaults())
-<<<<<<< HEAD
         builder.BdG.params_overwrite = Dict(dict={'USE_BdG': True, 'USE_E_SYMM_BdG': True})
-        
-=======
 
->>>>>>> e38531495918afde4f6c96f2def519ebc2083dd1
         DOS_calc = self.submit(builder)
 
     def results(self):
