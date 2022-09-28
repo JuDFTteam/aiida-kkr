@@ -833,7 +833,7 @@ class KkrCalculation(CalcJob):
                     print('adding files for BdG mode')
                     add_files += [self._BDG_POT % (iatom + 1, ispin + 1)]
             # radially-averaged anomalous density matrix (for triplet components etc.)
-            add_files.append(_BDG_CHI_NS)
+            add_files.append(self._BDG_CHI_NS)
 
             #also retrieve BdG DOS files for anomalous density and hole part
             for BdGadd in ['_eh', '_he', '_hole']:
