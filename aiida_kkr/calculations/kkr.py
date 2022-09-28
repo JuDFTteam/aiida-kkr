@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.12.3'
+__version__ = '0.12.4'
 __contributors__ = ('Jens Bröder', 'Philipp Rüßmann')
 
 verbose = False
@@ -102,6 +102,7 @@ class KkrCalculation(CalcJob):
     _DECIFILE = 'decifile'
     # BdG mode
     _BDG_POT = 'den_lm_ir.%0.3i.%i.txt'
+    _BDG_CHI_NS = 'den_lm_ir_ns.npy'
 
     # template.product entry point defined in setup.json
     _default_parser = 'kkr.kkrparser'
@@ -826,10 +827,13 @@ class KkrCalculation(CalcJob):
             self.report(f'retrieve BdG? {retrieve_BdG_files}')
 
         if retrieve_BdG_files:
+            # anomalous density files for all atoms if present
             for iatom in range(natom):
                 for ispin in range(nspin):
                     print('adding files for BdG mode')
                     add_files += [self._BDG_POT % (iatom + 1, ispin + 1)]
+            # radially-averaged anomalous density matrix (for triplet components etc.)
+            add_files.append(_BDG_CHI_NS)
 
             #also retrieve BdG DOS files for anomalous density and hole part
             for BdGadd in ['_eh', '_he', '_hole']:
