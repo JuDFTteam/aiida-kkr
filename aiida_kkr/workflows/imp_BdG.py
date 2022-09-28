@@ -102,7 +102,7 @@ class kkrimp_BdG_wc(WorkChain):
             required=True,
             help='Voronoi code used to create the impurity starting potential.'
         )
-        
+
         spec.input(
             'calc_DOS',
             valid_type=Bool,
@@ -128,8 +128,7 @@ class kkrimp_BdG_wc(WorkChain):
             cls.validate_input,
             cls.imp_pot_calc,
             cls.imp_BdG_calc,
-            if_(cls.do_calc_DOS)(
-                cls.DOS_calc),
+            if_(cls.do_calc_DOS)(cls.DOS_calc),
             cls.results
         )
 
@@ -239,35 +238,34 @@ class kkrimp_BdG_wc(WorkChain):
         imp_calc_BdG = self.submit(builder)
 
         return ToContext(last_imp_calc_BdG=imp_calc_BdG)
-    
+
     def do_calc_DOS(self):
-        
+
         if self.inputs.calc_DOS:
             return True
-    
+
     def DOS_calc(self):
         """
         DOS calculation
         """
         from aiida_kkr.workflows import kkr_imp_dos_wc
-        
+
         builder = kkr_imp_dos_wc.get_builder()
-        
+
         builder.kkr = self.inputs.kkr
         builder.kkrimp = self.inputs.kkrimp
         builder.options = self.inputs.options
-        
+
         #added last
         #builder.host_remote = self.inputs.remote_data_host_BdG
         #builder.kkrimp_remote = self.ctx.last_imp_calc.outputs.remote_data_gf
-        
+
         builder.imp_pot_sfd = self.ctx.last_imp_calc_BdG.outputs.converged_potential
         builder.impurity_info = self.inputs.impurity_info
-        
+
         builder.wf_parameters = Dict(dict=kkr_imp_dos_wc.get_wf_defaults())
-        
+
         DOS_calc = self.submit(builder)
-        
 
     def results(self):
         #self.out('results_wf', self.ctx.last_imp_calc_BdG)

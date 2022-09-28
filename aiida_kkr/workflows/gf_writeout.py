@@ -372,7 +372,7 @@ class kkr_flex_wc(WorkChain):
                     )
                 )
                 updatedict['ef_set'] = ef_new
-        
+
         #TODO : put the two following lines in a consistant way in  respect to the previous loops
         new_params = kkrparams()
         new_params = set_energy_params(updatedict, ef, new_params)
