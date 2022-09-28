@@ -1,7 +1,7 @@
 # Workflow for impurity BdG calculation from converged normal state impurity portential and BdG host calculation
 
-from aiida.engine import WorkChain, ToContext
-from aiida.orm import Dict, RemoteData, Code, CalcJobNode, WorkChainNode, Float
+from aiida.engine import WorkChain, ToContext, if_
+from aiida.orm import Dict, RemoteData, Code, CalcJobNode, WorkChainNode, Float, Bool
 from aiida_kkr.workflows import kkr_imp_wc
 from aiida_kkr.tools.find_parent import get_calc_from_remote
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
@@ -102,6 +102,14 @@ class kkrimp_BdG_wc(WorkChain):
             required=True,
             help='Voronoi code used to create the impurity starting potential.'
         )
+        
+        spec.input(
+            'calc_DOS',
+            valid_type=Bool,
+            required=False,
+            default=lambda: Bool(False),
+            help='Set this to TRUE to calculate DOS'
+        )
 
         spec.expose_inputs(kkr_imp_wc, namespace='imp_scf', include=('startpot', 'wf_parameters'))
         spec.expose_inputs(kkr_imp_wc, namespace='BdG_scf', include=('startpot', 'remote_data_gf'))
@@ -120,6 +128,8 @@ class kkrimp_BdG_wc(WorkChain):
             cls.validate_input,
             cls.imp_pot_calc,
             cls.imp_BdG_calc,
+            if_(cls.do_calc_DOS)(
+                cls.DOS_calc),
             cls.results
         )
 
@@ -189,22 +199,9 @@ class kkrimp_BdG_wc(WorkChain):
             builder.kkrimp = self.inputs.kkrimp
             builder.options = self.inputs.options
             builder.remote_data_host = self.inputs.remote_data_host
-
-            settings = kkr_imp_wc.get_wf_defaults()[1]
-            settings['strmix'] = 0.01
-            settings['aggrmix'] = 0.01
-            #settings['nsteps'] = 200
-            settings['nsteps'] = 2
-            settings['mag_init'] = True
-
-            #remove the following line that is there for testing purposes
-            settings['kkr_runmax'] = 1
-
-            builder.wf_parameters = Dict(dict=settings)
-            # builder.wf_parameters = self.inputs.imp_scf.wf_parameters
+            builder.wf_parameters = self.inputs.imp_scf.wf_parameters
 
             imp_calc = self.submit(builder)
-            #self.ctx.imp_calc = imp_calc
 
             return ToContext(last_imp_calc=imp_calc)
 
@@ -242,6 +239,35 @@ class kkrimp_BdG_wc(WorkChain):
         imp_calc_BdG = self.submit(builder)
 
         return ToContext(last_imp_calc_BdG=imp_calc_BdG)
+    
+    def do_calc_DOS(self):
+        
+        if self.inputs.calc_DOS:
+            return True
+    
+    def DOS_calc(self):
+        """
+        DOS calculation
+        """
+        from aiida_kkr.workflows import kkr_imp_dos_wc
+        
+        builder = kkr_imp_dos_wc.get_builder()
+        
+        builder.kkr = self.inputs.kkr
+        builder.kkrimp = self.inputs.kkrimp
+        builder.options = self.inputs.options
+        
+        #added last
+        #builder.host_remote = self.inputs.remote_data_host_BdG
+        #builder.kkrimp_remote = self.ctx.last_imp_calc.outputs.remote_data_gf
+        
+        builder.imp_pot_sfd = self.ctx.last_imp_calc_BdG.outputs.converged_potential
+        builder.impurity_info = self.inputs.impurity_info
+        
+        builder.wf_parameters = Dict(dict=kkr_imp_dos_wc.get_wf_defaults())
+        
+        DOS_calc = self.submit(builder)
+        
 
     def results(self):
         #self.out('results_wf', self.ctx.last_imp_calc_BdG)

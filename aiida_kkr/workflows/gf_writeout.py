@@ -20,6 +20,7 @@ from aiida.common.exceptions import InputValidationError
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 from aiida_kkr.tools.common_workfunctions import get_username
 from aiida_kkr.workflows.dos import kkr_dos_wc
+from aiida_kkr.workflows.bs import set_energy_params
 import os
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
@@ -371,9 +372,13 @@ class kkr_flex_wc(WorkChain):
                     )
                 )
                 updatedict['ef_set'] = ef_new
+        
+        #TODO : put the two following lines in a consistant way in  respect to the previous loops
+        new_params = kkrparams()
+        new_params = set_energy_params(updatedict, ef, new_params)
 
         #construct the final param node containing all of the params
-        updatenode = Dict(dict=updatedict)
+        updatenode = Dict(dict=new_params)
         updatenode.label = label + 'KKRparam_flex'
         updatenode.description = descr + 'KKR parameter node extracted from parent parameters and wf_parameter and options input node.'
         paranode_flex = update_params_wf(self.ctx.input_params_KKR, updatenode, **input_links)
