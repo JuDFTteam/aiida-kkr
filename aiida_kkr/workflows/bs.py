@@ -23,7 +23,7 @@ from six.moves import range
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.2'
+__version__ = '0.1.4'
 __contributors__ = (u'Rubel Mozumder', u'Philipp Rüßmann')
 
 
@@ -124,6 +124,13 @@ class kkr_bs_wc(WorkChain):
             required=False,
             help="""Initial non-collinear angles for the magnetic moments. See KkrCalculation for details.
             If this is found in the input potentially extracted nonco angles from the parent calulation are overwritten!"""
+        )
+        # maybe overwrite some settings from the KKRhost convergence run
+        spec.input(
+            'params_kkr_overwrite',
+            valid_type=Dict,
+            required=False,
+            help='Overwrite some input parameters of the parent KKR calculation.'
         )
 
         # Here outputs are defined
@@ -251,7 +258,11 @@ class kkr_bs_wc(WorkChain):
         else:
             struc_kkr, remote_voro = VoronoiCalculation.find_parent_structure(self.inputs.remote_data)
             #create an auxiliary structure with unique kind_names, this leads to using the input structure in the seekpath method instead of finding the primitive one
-            saux = StructureData(cell=struc_kkr.cell)
+            cell = np.array(struc_kkr.cell)
+            if not struc_kkr.pbc[2]:
+                # 2D structure, make sure the third bravais vector points along z
+                cell[2] = np.cross(cell[0], cell[1])
+            saux = StructureData(cell=cell)
             for isite, site in enumerate(struc_kkr.sites):
                 kind = struc_kkr.get_kind(site.kind_name)
                 saux.append_atom(
@@ -306,6 +317,13 @@ class kkr_bs_wc(WorkChain):
         set kkr parameters for the bandstructure (i.e. qdos) calculation
         """
         params = self.ctx.input_params_KKR
+
+        # maybe overwrite some inputs
+        if 'params_kkr_overwrite' in self.inputs:
+            self.report(f'found params_kkr_overwrite: {self.inputs.params_kkr_overwrite.get_dict()}')
+            updatenode = self.inputs.params_kkr_overwrite
+            updatenode.label = 'params overwrite'
+            params = update_params_wf(params, updatenode)
 
         input_dict = params.get_dict()
         para_check = kkrparams()

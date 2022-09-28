@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.12.2'
+__version__ = '0.12.3'
 __contributors__ = ('Jens Bröder', 'Philipp Rüßmann')
 
 verbose = False
@@ -55,6 +55,7 @@ class KkrCalculation(CalcJob):
     # List of optional input files (may be mandatory for some settings in inputcard)
     _SHAPEFUN = 'shapefun'  # mandatory if nonspherical calculation
     _SCOEF = 'scoef'  # mandatory for KKRFLEX calculation and some functionalities
+    _BFIELD = 'bfield.dat'  # mandatory if <NONCOBFIELD>= True
     _NONCO_ANGLES = 'nonco_angle.dat'  # mandatory if noncollinear directions are used that are not (theta, phi)= (0,0) for all atoms
     _NONCO_ANGLES_IMP = 'nonco_angle_imp.dat'  # mandatory for GREENIMP option (scattering code)
     _SHAPEFUN_IMP = 'shapefun_imp'  # mandatory for GREENIMP option (scattering code)
@@ -216,6 +217,25 @@ class KkrCalculation(CalcJob):
             """
         )
         spec.input(
+            'bfield',
+            valid_type=Dict,
+            required=False,
+            help="""Non-collinear exteral B-field used for constraint calculations.
+
+            The Dict node should be of the form
+            initial_noco_angles = Dict(dict={
+                'theta': [theta_at1, theta_at2, ..., theta_atN],
+                # list theta values in degrees (0..180)
+                'phi': [phi_at1, phi_at2, ..., phi_atN],
+                # list phi values in degrees (0..360)
+                'magnitude': [magnitude at_1, ..., magnitude at_N]
+                # list of magnitude of the applied fields in Ry units
+            })
+            Note: The length of the theta, phi and magnitude lists have to be
+            equal to the number of atoms.
+            """
+        )
+        spec.input(
             'deciout_parent',
             valid_type=RemoteData,
             required=False,
@@ -294,6 +314,10 @@ class KkrCalculation(CalcJob):
         # write nonco_angle.dat file and adapt RUNOPTS if needed (i.e. add FIXMOM if directions are not relaxed)
         if 'initial_noco_angles' in self.inputs:
             parameters = self._use_initial_noco_angles(parameters, structure, tempfolder)
+
+        # write bfield.dat file and add '<NONCOBFIELD>= True' to input parameters
+        if 'bfield' in self.inputs:
+            parameters = self._use_nonco_bfield(parameters, structure, tempfolder)
 
         # activate decimation mode and copy decifile from deciout parent
         if 'deciout_parent' in self.inputs:
@@ -1012,6 +1036,51 @@ class KkrCalculation(CalcJob):
                     )
                 # write line
                 noco_angle_file.write(f'   {theta}    {phi}    {fix_dir[iatom]}\n')
+
+        return parameters
+
+    def _use_nonco_bfield(self, parameters, structure, tempfolder):
+        """
+        Set external non-collinear bfield (writes bfield.dat to tempfolder) used in constraint calculations.
+        """
+        self.report('Found `bfield` input node, writing nonco_angle.dat file')
+
+        # extract number of atoms for length comparison
+        natom = get_natyp(structure)
+
+        change_values = [['<NONCOBFIELD>', True]]
+        parameters = _update_params(parameters, change_values)
+
+        # extract magnitude, theta and phi values from input node
+        mags = self.inputs.bfield['magnitude']
+        if len(mags) != natom:
+            raise InputValidationError(
+                'Error: `magnitude` list in `bfield` input node needs to have the same length as number of atoms!'
+            )
+        thetas = self.inputs.bfield['theta']
+        if len(thetas) != natom:
+            raise InputValidationError(
+                'Error: `theta` list in `bfield` input node needs to have the same length as number of atoms!'
+            )
+        phis = self.inputs.bfield['phi']
+        if len(phis) != natom:
+            raise InputValidationError(
+                'Error: `phi` list in `bfield` input node needs to have the same length as number of atoms!'
+            )
+
+        # now write kkrflex_angle file
+        with tempfolder.open(self._BFIELD, 'w') as bfield_file:
+            bfield_file.write('# theta [deg]  phi [deg]  magnitude [Ry]\n')
+            for iatom in range(natom):
+                theta, phi = thetas[iatom], phis[iatom]
+                magnitude = mags[iatom]
+                # check consistency
+                if theta < 0. or theta > 180.:
+                    raise InputValidationError(
+                        f'Error: theta value out of range (0..180): iatom={iatom}, theta={theta}'
+                    )
+                # write line
+                bfield_file.write(f'   {theta}    {phi}    {magnitude}\n')
 
         return parameters
 
