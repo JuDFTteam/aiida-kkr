@@ -360,7 +360,7 @@ class kkr_flex_wc(WorkChain):
                     'IEMXD': self.ctx.dos_params_dict['nepts'],
                     'TEMPR': self.ctx.dos_params_dict['tempr']
                 }.items():
-                    updatedict[key] = val                    
+                    updatedict[key] = val
                 new_params = kkrparams()
                 new_params = set_energy_params(updatedict, ef, new_params)
                 updatedict = new_params

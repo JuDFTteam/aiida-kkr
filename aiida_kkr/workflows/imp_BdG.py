@@ -172,13 +172,13 @@ class kkrimp_BdG_wc(WorkChain):
         try:
             test_and_get_codenode(self.inputs.kkrimp, 'kkr.kkrimp', use_exceptions=True)
         except ValueError:
-            return self.exit_codes.ERROR_KKRIMPCODE_NOT_CORRECT
+            return self.exit_codes.ERROR_KKRIMPCODE_NOT_CORRECT  # pylint: disable=no-member
 
         # validate for voronoi code
         try:
             test_and_get_codenode(self.inputs.voronoi, 'kkr.voro', use_exceptions=True)
         except ValueError:
-            return self.exit_codes.ERROR_VORONOICODE_NOT_CORRECT
+            return self.exit_codes.ERROR_VORONOICODE_NOT_CORRECT  # pylint: disable=no-member
 
         # save parent calculation
         input_remote = self.inputs.remote_data_host
@@ -236,7 +236,7 @@ class kkrimp_BdG_wc(WorkChain):
         settings['kkr_runmax'] = 1
         settings['mag_init'] = True
         builder.wf_parameters = Dict(dict=settings)
-        builder.scf.params_overwrite = Dict(dict={'USE_BdG': True, 'USE_E_SYMM_BdG': True})
+        builder.scf.params_overwrite = Dict(dict={'USE_BdG': True, 'USE_E_SYMM_BdG': True})  # pylint: disable=no-member
 
         imp_calc_BdG = self.submit(builder)
 
@@ -267,11 +267,10 @@ class kkrimp_BdG_wc(WorkChain):
         builder.impurity_info = self.inputs.impurity_info
 
         builder.wf_parameters = Dict(dict=kkr_imp_dos_wc.get_wf_defaults())
-        
-        builder.BdG.params_overwrite = Dict(dict={'USE_BdG': True, 'USE_E_SYMM_BdG': True})
+        builder.BdG.params_overwrite = Dict(dict={'USE_BdG': True, 'USE_E_SYMM_BdG': True})  # pylint: disable=no-member
 
         DOS_calc = self.submit(builder)
-        
+
         return ToContext(DOS_node=DOS_calc)
 
     def results(self):
@@ -283,6 +282,6 @@ class kkrimp_BdG_wc(WorkChain):
         if self.inputs.calc_DOS:
             self.out('dos_data', self.ctx.DOS_node.outputs.dos_data)
             self.out('dos_data_interpol', self.ctx.DOS_node.outputs.dos_data_interpol)
-            
+
         if 'startpot' not in self.inputs.BdG_scf:
             self.out('impurity_potential', self.ctx.last_imp_calc.outputs.converged_potential)
