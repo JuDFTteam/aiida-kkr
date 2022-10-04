@@ -147,12 +147,8 @@ class kkr_imp_dos_wc(WorkChain):
             required=False,
             help='Settings for LDA+U run (see KkrimpCalculation for details).'
         )
-        
-        spec.expose_inputs(
-            kkr_imp_sub_wc,
-            namespace='BdG',
-            include=('params_overwrite')
-        )
+
+        spec.expose_inputs(kkr_imp_sub_wc, namespace='BdG', include=('params_overwrite'))
 
         # specify the outputs
         spec.output('workflow_info', valid_type=Dict)
@@ -498,7 +494,7 @@ label: {self.ctx.label_wf}
         if 'settings_LDAU' in self.inputs:
             self.report('Add settings_LDAU input node')
             builder.settings_LDAU = self.inputs.settings_LDAU
-            
+
         if 'params_overwrite' in self.inputs.BdG:
             builder.params_overwrite = self.inputs.BdG.params_overwrite
 

@@ -2,7 +2,7 @@
 
 from aiida.engine import WorkChain, ToContext, if_
 from aiida.orm import Dict, RemoteData, Code, CalcJobNode, WorkChainNode, Float, Bool, XyData, SinglefileData
-from aiida_kkr.workflows import kkr_imp_wc
+from aiida_kkr.workflows import kkr_imp_wc, kkr_imp_dos_wc
 from aiida_kkr.tools.find_parent import get_calc_from_remote
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
 
@@ -113,6 +113,7 @@ class kkrimp_BdG_wc(WorkChain):
 
         spec.expose_inputs(kkr_imp_wc, namespace='imp_scf', include=('startpot', 'wf_parameters'))
         spec.expose_inputs(kkr_imp_wc, namespace='BdG_scf', include=('startpot', 'remote_data_gf'))
+        spec.expose_inputs(kkr_imp_dos_wc, namespace='dos_params', include=('wf_parameters'))
 
         # Here outputs are defined
 
@@ -120,9 +121,10 @@ class kkrimp_BdG_wc(WorkChain):
         #spec.output('total_energy')
         spec.output('workflow_info', valid_type=Dict)
         spec.output('output_parameters', valid_type=Dict)
-        spec.output('dos_data', valid_type=XyData)
-        spec.output('dos_data_interpol', valid_type=XyData)
-        spec.output('impurity_potential', required=False, valid_type=SinglefileData)
+        spec.output('dos_data', required=False, valid_type=XyData)
+        spec.output('dos_data_interpol', required=False, valid_type=XyData)
+        spec.output('impurity_potential', valid_type=SinglefileData)
+        spec.output('gf_host_BdG', valid_type=RemoteData)
 
         # Here outlines are being specified
         spec.outline(
@@ -172,13 +174,13 @@ class kkrimp_BdG_wc(WorkChain):
         try:
             test_and_get_codenode(self.inputs.kkrimp, 'kkr.kkrimp', use_exceptions=True)
         except ValueError:
-            return self.exit_codes.ERROR_KKRIMPCODE_NOT_CORRECT
+            return self.exit_codes.ERROR_KKRIMPCODE_NOT_CORRECT  # pylint: disable=no-member
 
         # validate for voronoi code
         try:
             test_and_get_codenode(self.inputs.voronoi, 'kkr.voro', use_exceptions=True)
         except ValueError:
-            return self.exit_codes.ERROR_VORONOICODE_NOT_CORRECT
+            return self.exit_codes.ERROR_VORONOICODE_NOT_CORRECT  # pylint: disable=no-member
 
         # save parent calculation
         input_remote = self.inputs.remote_data_host
@@ -236,7 +238,7 @@ class kkrimp_BdG_wc(WorkChain):
         settings['kkr_runmax'] = 1
         settings['mag_init'] = True
         builder.wf_parameters = Dict(dict=settings)
-        builder.scf.params_overwrite = Dict(dict={'USE_BdG': True, 'USE_E_SYMM_BdG': True})
+        builder.scf.params_overwrite = Dict(dict={'USE_BdG': True, 'USE_E_SYMM_BdG': True})  # pylint: disable=no-member
 
         imp_calc_BdG = self.submit(builder)
 
@@ -267,11 +269,14 @@ class kkrimp_BdG_wc(WorkChain):
         builder.impurity_info = self.inputs.impurity_info
 
         builder.wf_parameters = Dict(dict=kkr_imp_dos_wc.get_wf_defaults())
-        
-        builder.BdG.params_overwrite = Dict(dict={'USE_BdG': True, 'USE_E_SYMM_BdG': True})
+
+        if 'wf_parameters' in self.inputs.dos_params:
+            builder.wf_parameters = self.inputs.dos_params.wf_parameters
+
+        builder.BdG.params_overwrite = Dict(dict={'USE_BdG': True, 'USE_E_SYMM_BdG': True})  # pylint: disable=no-member
 
         DOS_calc = self.submit(builder)
-        
+
         return ToContext(DOS_node=DOS_calc)
 
     def results(self):
@@ -283,6 +288,13 @@ class kkrimp_BdG_wc(WorkChain):
         if self.inputs.calc_DOS:
             self.out('dos_data', self.ctx.DOS_node.outputs.dos_data)
             self.out('dos_data_interpol', self.ctx.DOS_node.outputs.dos_data_interpol)
-            
+
+        if 'remote_data_gf' not in self.inputs.BdG_scf:
+            self.out('gf_host_BdG', self.ctx.last_imp_calc_BdG.outputs.remote_data_gf)
+        else:
+            self.out('gf_host_BdG', self.inputs.BdG_scf.remote_data_gf)
+
         if 'startpot' not in self.inputs.BdG_scf:
             self.out('impurity_potential', self.ctx.last_imp_calc.outputs.converged_potential)
+        else:
+            self.out('impurity_potential', self.inputs.BdG_scf.startpot)
