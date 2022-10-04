@@ -360,7 +360,10 @@ class kkr_flex_wc(WorkChain):
                     'IEMXD': self.ctx.dos_params_dict['nepts'],
                     'TEMPR': self.ctx.dos_params_dict['tempr']
                 }.items():
-                    updatedict[key] = val
+                    updatedict[key] = val                    
+                new_params = kkrparams()
+                new_params = set_energy_params(updatedict, ef, new_params)
+                updatedict = new_params
             elif self.ctx.ef_shift != 0:
                 # get Fermi energy shift in eV
                 ef_shift = self.ctx.ef_shift  #set new E_F in eV
@@ -373,12 +376,8 @@ class kkr_flex_wc(WorkChain):
                 )
                 updatedict['ef_set'] = ef_new
 
-        #TODO : put the two following lines in a consistant way in  respect to the previous loops
-        new_params = kkrparams()
-        new_params = set_energy_params(updatedict, ef, new_params)
-
         #construct the final param node containing all of the params
-        updatenode = Dict(dict=new_params)
+        updatenode = Dict(dict=updatedict)
         updatenode.label = label + 'KKRparam_flex'
         updatenode.description = descr + 'KKR parameter node extracted from parent parameters and wf_parameter and options input node.'
         paranode_flex = update_params_wf(self.ctx.input_params_KKR, updatenode, **input_links)

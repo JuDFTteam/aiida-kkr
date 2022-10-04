@@ -1,7 +1,7 @@
 # Workflow for impurity BdG calculation from converged normal state impurity portential and BdG host calculation
 
 from aiida.engine import WorkChain, ToContext, if_
-from aiida.orm import Dict, RemoteData, Code, CalcJobNode, WorkChainNode, Float, Bool
+from aiida.orm import Dict, RemoteData, Code, CalcJobNode, WorkChainNode, Float, Bool, XyData, SinglefileData
 from aiida_kkr.workflows import kkr_imp_wc
 from aiida_kkr.tools.find_parent import get_calc_from_remote
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
@@ -120,6 +120,9 @@ class kkrimp_BdG_wc(WorkChain):
         #spec.output('total_energy')
         spec.output('workflow_info', valid_type=Dict)
         spec.output('output_parameters', valid_type=Dict)
+        spec.output('dos_data', valid_type=XyData)
+        spec.output('dos_data_interpol', valid_type=XyData)
+        spec.output('impurity_potential', required=False, valid_type=SinglefileData)
 
         # Here outlines are being specified
         spec.outline(
@@ -264,9 +267,12 @@ class kkrimp_BdG_wc(WorkChain):
         builder.impurity_info = self.inputs.impurity_info
 
         builder.wf_parameters = Dict(dict=kkr_imp_dos_wc.get_wf_defaults())
+        
         builder.BdG.params_overwrite = Dict(dict={'USE_BdG': True, 'USE_E_SYMM_BdG': True})
 
         DOS_calc = self.submit(builder)
+        
+        return ToContext(DOS_node=DOS_calc)
 
     def results(self):
         #self.out('results_wf', self.ctx.last_imp_calc_BdG)
@@ -274,3 +280,9 @@ class kkrimp_BdG_wc(WorkChain):
         self.out('output_parameters', self.ctx.last_imp_calc_BdG.outputs.last_calc_output_parameters)
         #tot_energy = self.ctx.last_imp_calc_BdG.outputs.last_calc_output_parameters.get_attribute('energy')
         #self.out('total_energy', tot_energy)
+        if self.inputs.calc_DOS:
+            self.out('dos_data', self.ctx.DOS_node.outputs.dos_data)
+            self.out('dos_data_interpol', self.ctx.DOS_node.outputs.dos_data_interpol)
+            
+        if 'startpot' not in self.inputs.BdG_scf:
+            self.out('impurity_potential', self.ctx.last_imp_calc.outputs.converged_potential)
