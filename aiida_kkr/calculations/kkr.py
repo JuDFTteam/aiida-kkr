@@ -7,7 +7,7 @@ from __future__ import unicode_literals
 import os
 import numpy as np
 from aiida.engine import CalcJob
-from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData, Bool
+from aiida.orm import CalcJobNode, load_node, RemoteData, Dict, StructureData, KpointsData, Bool, FolderData
 from .voro import VoronoiCalculation
 from ..tools.common_workfunctions import get_natyp
 from aiida.common.utils import classproperty
@@ -27,7 +27,7 @@ from six.moves import range
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.12.4'
+__version__ = '0.12.5'
 __contributors__ = ('Jens Bröder', 'Philipp Rüßmann')
 
 verbose = False
@@ -250,6 +250,15 @@ class KkrCalculation(CalcJob):
             help="""For a GF writeout calculation, determine whether or not
             the kkrflex_* files are copied to the retrieved (can clutter the
             database) or are ony left in the remote folder."""
+        )
+        spec.input(
+            'anomalous_density',
+            valid_type=FolderData,
+            required=False,
+            help="""FolderData that contains anomalous density input files for
+            the KKRhost BdG calculation. If these are not give the code looks
+            for them in the retrieved of the parent calculation and takes them
+            from there."""
         )
 
         # define outputs
@@ -1136,13 +1145,26 @@ class KkrCalculation(CalcJob):
         Activate BdG mode and copy den_lm_ir files of the previous output to the input of this calculation.
         """
 
-        BDG_POT_FILES = [i for i in retrieved.list_object_names() if self._BDG_POT.split('.')[0] in i]
+        if 'anomalous_density' in self.inputs:
+            # this means we have a FolderData input that contains the
+            # anomalous density files
+            adens_folder = self.inputs.anomalous_density
+        else:
+            # if no anomalous density is given as an input node we check
+            # if there are any anomalous density files in the parent retrieved
+            # and take them from there if present
+            adens_folder = retrieved
+
+        # list of den_lm_ir files (anomalous density per atom)
+        BDG_POT_FILES = [i for i in adens_folder.list_object_names() if self._BDG_POT.split('.')[0] in i]
 
         # add 'den-lm_ir' files to input
         for BdG_pot in BDG_POT_FILES:
-            self.report(f'Copy BdG potential {BdG_pot}')
-            with retrieved.open(BdG_pot, 'r') as file_handle:
+            self.report(f'Copy BdG potential {BdG_pot} from {adens_folder.uuid}')
+            # read from parent
+            with adens_folder.open(BdG_pot, 'r') as file_handle:
                 file_txt = file_handle.readlines()
+            # write to tempfolder
             with tempfolder.open(BdG_pot, 'w') as file_handle:
                 file_handle.writelines(file_txt)
 
