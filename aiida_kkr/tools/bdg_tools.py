@@ -3,6 +3,7 @@ Helper tools that deal with the anomalous density of the BdG formalism in KKR
 """
 
 from aiida.engine import calcfunction
+from aiida.orm import FolderData
 
 
 @calcfunction
@@ -20,7 +21,7 @@ def get_anomalous_density_data(retrieved, rename_files=None):
     """
     BdG_files = [i for i in retrieved.list_object_names() if 'den_lm_ir' in i]
 
-    anomalous_density = orm.FolderData()
+    anomalous_density = FolderData()
     for fname in BdG_files:
         with retrieved.open(fname, 'r') as _fin:
             # default is to use the same name as in the input
