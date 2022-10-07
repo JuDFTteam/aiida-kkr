@@ -531,8 +531,7 @@ def set_energy_params(econt_new, ef, para_check):
         elif key in ['emax', 'EMAX']:
             key = 'EMAX'
             val = (ef + val / evscal)  # Converting to the Ry (unit of the energy)
-        elif key in ['tempr'
-                     'TEMPR']:
+        elif key in ['tempr', 'TEMPR']:
             key = 'TEMPR'
         elif key in ['RCLUSTZ', 'rclustz']:
             key = 'RCLUSTZ'

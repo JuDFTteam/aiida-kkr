@@ -11,6 +11,7 @@ from aiida.engine import WorkChain, ToContext, calcfunction
 from aiida.orm import Code, Dict, Int, Float, RemoteData, KpointsData, XyData, StructureData, FolderData
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
 from aiida_kkr.tools import kkrparams, get_anomalous_density_data
+from aiida_kkr.workflows.bs import set_energy_params
 
 import numpy as np
 from masci_tools.io.common_functions import get_Ry2eV
@@ -354,20 +355,14 @@ class kkr_decimation_wc(WorkChain):
             else:
                 params_new = self.ctx.params_overwrite.get_dict()
             # set dos contour from dos_params
-            params_new['NPOL'] = 0
-            params_new['NPT1'] = 0
-            params_new['NPT2'] = self.ctx.dos_params['nepts']
-            params_new['IEMXD'] = self.ctx.dos_params['nepts']
-            params_new['NPT3'] = 0
-            params_new['TEMPR'] = self.ctx.dos_params['tempr']
             ef_ry = self.ctx.slab_calc.outputs.output_parameters['fermi_energy']
-            params_new['EMIN'] = ef_ry + self.ctx.dos_params['emin_EF'] * _eV2Ry
-            params_new['EMAX'] = ef_ry + self.ctx.dos_params['emax_EF'] * _eV2Ry
-            params_new['BZDIVIDE'] = self.ctx.dos_params['kmesh']
+            _rename = {'emin_EF': 'emin', 'emax_EF': 'emax'}
+            econt_new = {_rename.get(k, k.lower()): v for k, v in self.ctx.dos_params.items()}
             if qdos_mode:
-                if params_new['TEMPR'] > 100.:
-                    params_new['TEMPR'] = 50.
-                params_new['BZDIVIDE'] = [1, 1, 1]
+                if econt_new['tempr'] > 100.:
+                    econt_new['tempr'] = 50.
+                econt_new['kmesh'] = [1, 1, 1]
+            params_new = set_energy_params(econt_new, ef_ry, kkrparams(**params_new))
             self.ctx.params_overwrite = Dict(dict=params_new)
 
         alat_slab = self.ctx.slab_calc.outputs.output_parameters['alat_internal']
