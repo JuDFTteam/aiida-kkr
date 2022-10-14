@@ -256,7 +256,7 @@ class kkrimp_BdG_wc(WorkChain):
                     builder.kkr = self.inputs.imp_scf.gf_writeout.kkr
                 if 'params_kkr_overwrite' in self.inputs.imp_scf.gf_writeout:
                     builder.params_kkr_overwrite = self.inputs.imp_scf.gf_writeout.params_kkr_overwrite
-            builder.gf_writeout.kkr = builder.kkr
+            builder.gf_writeout.kkr = builder.kkr  # pylint: disable=no-member
 
             imp_calc = self.submit(builder)
 
@@ -288,7 +288,7 @@ class kkrimp_BdG_wc(WorkChain):
             if 'params_kkr_overwrite' in self.inputs.BdG_scf.gf_writeout:
                 builder.params_kkr_overwrite = self.inputs.BdG_scf.gf_writeout.params_kkr_overwrite
         if 'kkr' in self.inputs:
-            builder.gf_writeout.kkr = builder.kkr
+            builder.gf_writeout.kkr = builder.kkr  # pylint: disable=no-member
 
         builder.remote_data_host = self.inputs.remote_data_host_BdG
         builder.options = self.inputs.options
@@ -360,7 +360,7 @@ class kkrimp_BdG_wc(WorkChain):
             if 'params_kkr_overwrite' in self.inputs.dos.gf_writeout:
                 builder.params_kkr_overwrite = self.inputs.dos.gf_writeout.params_kkr_overwrite
         if 'kkr' in self.inputs:
-            builder.gf_writeout.kkr = builder.kkr
+            builder.gf_writeout.kkr = builder.kkr  # pylint: disable=no-member
         if 'gf_dos_remote' in self.inputs.dos:
             builder.gf_dos_remote = self.inputs.dos.gf_dos_remote
 
