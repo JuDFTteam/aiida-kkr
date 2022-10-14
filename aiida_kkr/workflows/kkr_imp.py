@@ -21,7 +21,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.9.0'
+__version__ = '0.9.1'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -107,7 +107,7 @@ class kkr_imp_wc(WorkChain):
         )
 
         # define the inputs of the workflow
-        spec.input('kkr', valid_type=Code, required=True, help='KKRhost code used to run GF writeout step.')
+        spec.input('kkr', valid_type=Code, required=False, help='KKRhost code used to run GF writeout step.')
         spec.input(
             'voronoi',
             valid_type=Code,
@@ -180,6 +180,7 @@ class kkr_imp_wc(WorkChain):
             required=False,
             help='Set starting potential (e.g. from preconverged calculation'
         )
+        spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite'))
 
         # structure of the workflow
         spec.outline(
@@ -710,10 +711,8 @@ class kkr_imp_wc(WorkChain):
         settings_description = f'starting potential for impurity info: {imp_info}'
         settings = Dict(
             dict={
-                'pot1': potname_converged,
                 'out_pot': potname_imp,
                 'neworder': neworder_pot1,
-                'pot2': potname_impvorostart,
                 'replace_newpos': replacelist_pot2,
                 'label': settings_label,
                 'description': settings_description
