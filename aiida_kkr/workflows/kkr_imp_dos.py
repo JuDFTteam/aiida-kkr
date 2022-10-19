@@ -378,6 +378,9 @@ label: {self.ctx.label_wf}
             )
             self.report(message)
 
+        if 'host_remote' in self.inputs:
+            self.ctx.conv_host_remote = self.inputs.host_remote
+
         return gf_writeout_calc
 
     def _check_gf_writeout_inputs(self, inputs_ok, gf_writeout_calc):

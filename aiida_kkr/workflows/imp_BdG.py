@@ -125,37 +125,17 @@ class kkrimp_BdG_wc(WorkChain):
         )
 
         # expose inputs for impurity normal state scf
-        spec.expose_inputs(
-            kkr_imp_wc, namespace='imp_scf', include=('startpot', 'wf_parameters', 'gf_writeout.params_kkr_overwrite')
-        )
-        spec.input(
-            'imp_scf.gf_writeout.kkr',
-            valid_type=Code,
-            required=False,
-            help='KKRhost code, needed for the GF writeout step.'
-        )
+        spec.expose_inputs(kkr_imp_wc, namespace='imp_scf', include=('startpot', 'wf_parameters', 'gf_writeout'))
+        spec.input['imp_scf']['gf_writeout']['kkr'].required = False
+
         # inputs for impurity BdG scf
-        spec.expose_inputs(
-            kkr_imp_wc, namespace='BdG_scf', include=('startpot', 'remote_data_gf', 'gf_writeout.params_kkr_overwrite')
-        )
-        spec.input(
-            'BdG_scf.gf_writeout.kkr',
-            valid_type=Code,
-            required=False,
-            help='KKRhost code, needed for the GF writeout step.'
-        )
+        spec.expose_inputs(kkr_imp_wc, namespace='BdG_scf', include=('startpot', 'remote_data_gf', 'gf_writeout'))
+        spec.input['BdG_scf']['gf_writeout']['kkr'].required = False
+
         # inputs for impurity dos
-        spec.expose_inputs(
-            kkr_imp_dos_wc,
-            namespace='dos',
-            include=('wf_parameters', 'gf_dos_remote', 'gf_writeout.params_kkr_overwrite')
-        )
-        spec.input(
-            'dos.gf_writeout.kkr',
-            valid_type=Code,
-            required=False,
-            help='KKRhost code, needed for the GF writeout step.'
-        )
+        spec.expose_inputs(kkr_imp_dos_wc, namespace='dos', include=('wf_parameters', 'gf_dos_remote', 'gf_writeout'))
+        spec.input['dos']['gf_writeout']['kkr'].required = False
+        spec.input['dos']['gf_writeout']['host_remote'].required = False
 
         # Here outputs are defined
 
@@ -359,6 +339,8 @@ class kkrimp_BdG_wc(WorkChain):
                 builder.kkr = self.inputs.dos.gf_writeout.kkr
             if 'params_kkr_overwrite' in self.inputs.dos.gf_writeout:
                 builder.params_kkr_overwrite = self.inputs.dos.gf_writeout.params_kkr_overwrite
+            if 'host_remote' in self.inputs.dos.gf_writeout:
+                builder.host_remote = self.inputs.dos.gf_writeout.host_remote
         if 'kkr' in self.inputs:
             builder.gf_writeout.kkr = builder.kkr  # pylint: disable=no-member
         if 'gf_dos_remote' in self.inputs.dos:
