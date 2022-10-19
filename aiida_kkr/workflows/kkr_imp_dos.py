@@ -149,7 +149,7 @@ class kkr_imp_dos_wc(WorkChain):
         )
 
         spec.expose_inputs(kkr_imp_sub_wc, namespace='BdG', include=('params_overwrite'))
-        spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite'))
+        spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite', 'remote_data', 'kkr'))
 
         # specify the outputs
         spec.output('workflow_info', valid_type=Dict)

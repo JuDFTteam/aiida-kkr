@@ -126,16 +126,16 @@ class kkrimp_BdG_wc(WorkChain):
 
         # expose inputs for impurity normal state scf
         spec.expose_inputs(kkr_imp_wc, namespace='imp_scf', include=('startpot', 'wf_parameters', 'gf_writeout'))
-        spec.input['imp_scf']['gf_writeout']['kkr'].required = False
+        spec.inputs['imp_scf']['gf_writeout']['kkr'].required = False
 
         # inputs for impurity BdG scf
         spec.expose_inputs(kkr_imp_wc, namespace='BdG_scf', include=('startpot', 'remote_data_gf', 'gf_writeout'))
-        spec.input['BdG_scf']['gf_writeout']['kkr'].required = False
+        spec.inputs['BdG_scf']['gf_writeout']['kkr'].required = False
 
         # inputs for impurity dos
         spec.expose_inputs(kkr_imp_dos_wc, namespace='dos', include=('wf_parameters', 'gf_dos_remote', 'gf_writeout'))
-        spec.input['dos']['gf_writeout']['kkr'].required = False
-        spec.input['dos']['gf_writeout']['host_remote'].required = False
+        spec.inputs['dos']['gf_writeout']['kkr'].required = False
+        spec.inputs['dos']['gf_writeout']['remote_data'].required = False
 
         # Here outputs are defined
 
