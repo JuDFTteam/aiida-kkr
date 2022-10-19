@@ -134,8 +134,20 @@ class kkrimp_BdG_wc(WorkChain):
 
         # inputs for impurity dos
         spec.expose_inputs(kkr_imp_dos_wc, namespace='dos', include=('wf_parameters', 'gf_dos_remote', 'gf_writeout'))
-        spec.inputs['dos']['gf_writeout']['kkr'].required = False
-        spec.inputs['dos']['gf_writeout']['remote_data'].required = False
+
+        spec.input(
+            'dos.gf_writeout.host_remote',
+            valid_type=RemoteData,
+            required=False,
+            help='Parent calculation from where the GF writeout starts. '
+        )
+
+        spec.input(
+            'dos.gf_writeout.kkr',
+            valid_type=Code,
+            required=False,
+            help='KKRhost code used to create DOS kkrflex files'
+        )
 
         # Here outputs are defined
 
