@@ -564,7 +564,8 @@ class kkr_decimation_wc(WorkChain):
         adens = None
 
         # first check if calculation is in BdG mode
-        is_BdG = self.ctx.dsubstrate.get_dict().get('USE_BDG', False)
+        dd = self.ctx.dsubstrate.get_dict()
+        is_BdG = dd.get('USE_BDG', dd.get('<USE_BDG>', False))
         self.report(f'is BdG? {is_BdG}')  # debug output
 
         if is_BdG:
@@ -580,7 +581,7 @@ class kkr_decimation_wc(WorkChain):
                     # next nrbasis atoms after nplayer*nprinc are the substrate atoms
                     # format: (index in slab, index in substrate)
                     # Note: AiiDA needs the key in the dict to be a string instead of an integer
-                    [(str(nplayer * nprinc + i), i + 1) for i in range(nrbasis)]
+                    [(str(nplayer * nprinc + i + 1), i + 1) for i in range(nrbasis)]
                 )
             )
             # copy and relabel the anomalous density files
@@ -595,11 +596,23 @@ class kkr_decimation_wc(WorkChain):
         adens = None
 
         # first check if calculation is in BdG mode
-        is_BdG = self.ctx.ddecimation.get_dict().get('USE_BDG', False)
+        dd = self.ctx.ddecimation.get_dict()
+        is_BdG = dd.get('USE_BDG', dd.get('<USE_BDG>', False))
+
 
         if is_BdG:
             # now copy the anomalous density files to a FolderData that can be the input to the KkrCalculation
-            adens = get_anomalous_density_data(self.ctx.slab_calc.outputs.retrieved)
+            retrieved = self.ctx.slab_calc.outputs.retrieved
+            nplayer = self.ctx.nplayer
+            nprinc = self.ctx.nprinc
+            rename_files = Dict(
+                dict=dict(
+                    # the first nplayer*nprinc are the decimation region
+                    [(str(i + 1), i + 1) for i in range(nplayer * nprinc)]
+                )
+            )
+            # copy only the files in the renaming list, others are ignored and not copied
+            adens = get_anomalous_density_data(retrieved, rename_files)
 
         return is_BdG, adens
 
