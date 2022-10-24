@@ -69,19 +69,19 @@ class kkrimp_BdG_wc(WorkChain):
             'Computer options (walltime etc.) passed onto KkrCalculation, fall back to settings from parent calculation if not given'
         )
 
-        spec.input(
-            'remote_data_host',
-            valid_type=RemoteData,
-            required=False,
-            help='Parent folder of previously converged host normal state KkrCalculation'
-        )
+        # spec.input(
+        #     'remote_data_host',
+        #     valid_type=RemoteData,
+        #     required=False,
+        #     help='Parent folder of previously converged host normal state KkrCalculation'
+        # )
 
-        spec.input(
-            'remote_data_host_BdG',
-            valid_type=RemoteData,
-            required=False,
-            help='Parent folder of previously converged BdG KkrCalculation'
-        )
+        # spec.input(
+        #     'remote_data_host_BdG',
+        #     valid_type=RemoteData,
+        #     required=False,
+        #     help='Parent folder of previously converged BdG KkrCalculation'
+        # )
 
         spec.input(
             'impurity_info',
@@ -128,9 +128,20 @@ class kkrimp_BdG_wc(WorkChain):
         spec.expose_inputs(kkr_imp_wc, namespace='imp_scf', include=('startpot', 'wf_parameters', 'gf_writeout'))
         spec.inputs['imp_scf']['gf_writeout']['kkr'].required = False
 
+        spec.input(
+            'imp_scf.remote_data_host',
+            valid_type=RemoteData,
+            required=False,
+            help='Parent folder of previously converged host normal state KkrCalculation'
+        )
+
         # inputs for impurity BdG scf
         spec.expose_inputs(kkr_imp_wc, namespace='BdG_scf', include=('startpot', 'remote_data_gf', 'gf_writeout'))
         spec.inputs['BdG_scf']['gf_writeout']['kkr'].required = False
+
+        spec.input(
+            'BdG_scf.remote_data_host', required=False, help='Parent folder of previously converged BdG KkrCalculation'
+        )
 
         # inputs for impurity dos
         spec.expose_inputs(kkr_imp_dos_wc, namespace='dos', include=('wf_parameters', 'gf_dos_remote', 'gf_writeout'))
@@ -219,19 +230,19 @@ class kkrimp_BdG_wc(WorkChain):
                 return self.exit_codes.ERROR_VORONOICODE_NOT_CORRECT  # pylint: disable=no-member
 
         # save parent calculation
-        if 'remote_data_host' in self.inputs:
-            input_remote = self.inputs.remote_data_host
-            parents = input_remote.get_incoming(node_class=CalcJobNode).all()
-            if len(parents) != 1:
-                # check if parent is unique
-                return self.exit_codes.ERROR_INVALID_PARENT  # pylint: disable=no-member
-            self.ctx.parent_calc = get_calc_from_remote(input_remote)
+        # if 'remote_data_host' in self.inputs:
+        #     input_remote = self.inputs.remote_data_host
+        #     parents = input_remote.get_incoming(node_class=CalcJobNode).all()
+        #     if len(parents) != 1:
+        #         # check if parent is unique
+        #         return self.exit_codes.ERROR_INVALID_PARENT  # pylint: disable=no-member
+        #     self.ctx.parent_calc = get_calc_from_remote(input_remote)
 
     def imp_pot_calc(self):
         """
         run normal state impurity scf calculation
         """
-        if 'startpot' not in self.inputs.BdG_scf:
+        if 'startpot' not in self.inputs.imp_scf:
 
             builder = kkr_imp_wc.get_builder()
 
@@ -240,7 +251,7 @@ class kkrimp_BdG_wc(WorkChain):
             builder.kkr = self.inputs.kkr
             builder.kkrimp = self.inputs.kkrimp
             builder.options = self.inputs.options
-            builder.remote_data_host = self.inputs.remote_data_host
+            builder.remote_data_host = self.inputs.imp_scf.remote_data_host  # Maybe this should be changed to = self.ctx.parent_calc
             builder.wf_parameters = self.inputs.imp_scf.wf_parameters
 
             if 'gf_writeout' in self.inputs.imp_scf:
@@ -266,8 +277,8 @@ class kkrimp_BdG_wc(WorkChain):
         builder.kkr = self.inputs.kkr
         builder.kkrimp = self.inputs.kkrimp
 
-        if 'startpot' in self.inputs.BdG_scf:
-            builder.startpot = self.inputs.BdG_scf.startpot
+        if 'startpot' in self.inputs.imp_scf:
+            builder.startpot = self.inputs.imp_scf.startpot
         else:
             builder.startpot = self.ctx.last_imp_calc.outputs.converged_potential
 
@@ -282,7 +293,7 @@ class kkrimp_BdG_wc(WorkChain):
         if 'kkr' in self.inputs:
             builder.gf_writeout.kkr = builder.kkr  # pylint: disable=no-member
 
-        builder.remote_data_host = self.inputs.remote_data_host_BdG
+        builder.remote_data_host = self.inputs.BdG_scf.remote_data_host
         builder.options = self.inputs.options
 
         settings = kkr_imp_wc.get_wf_defaults()[1]
@@ -332,7 +343,14 @@ class kkrimp_BdG_wc(WorkChain):
         if 'startpot' in self.inputs.BdG_scf:
             builder.imp_pot_sfd = self.inputs.BdG_scf.startpot
         else:
-            builder.imp_pot_sfd = self.ctx.last_imp_calc_BdG.outputs.converged_potential
+            if not self.inputs.calc_DOS:
+                builder.imp_pot_sfd = self.ctx.last_imp_calc_BdG.outputs.converged_potential
+            else:
+                if 'startpot' in self.inputs.imp_scf:
+                    builder.imp_pot_sfd = self.inputs.imp_scf.startpot
+                else:
+                    builder.imp_pot_sfd = self.ctx.last_imp_calc.outputs.converged_potential
+
         if 'impurity_info' in self.inputs:
             builder.impurity_info = self.inputs.impurity_info
 
@@ -380,7 +398,7 @@ class kkrimp_BdG_wc(WorkChain):
             else:
                 self.out('gf_host_BdG', self.inputs.BdG_scf.remote_data_gf)
 
-        if 'startpot' not in self.inputs.BdG_scf:
+        if 'startpot' not in self.inputs.imp_scf:
             self.out('impurity_potential', self.ctx.last_imp_calc.outputs.converged_potential)
         else:
-            self.out('impurity_potential', self.inputs.BdG_scf.startpot)
+            self.out('impurity_potential', self.inputs.imp_scf.startpot)
