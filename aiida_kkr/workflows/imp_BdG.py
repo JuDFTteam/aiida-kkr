@@ -69,20 +69,6 @@ class kkrimp_BdG_wc(WorkChain):
             'Computer options (walltime etc.) passed onto KkrCalculation, fall back to settings from parent calculation if not given'
         )
 
-        # spec.input(
-        #     'remote_data_host',
-        #     valid_type=RemoteData,
-        #     required=False,
-        #     help='Parent folder of previously converged host normal state KkrCalculation'
-        # )
-
-        # spec.input(
-        #     'remote_data_host_BdG',
-        #     valid_type=RemoteData,
-        #     required=False,
-        #     help='Parent folder of previously converged BdG KkrCalculation'
-        # )
-
         spec.input(
             'impurity_info',
             valid_type=Dict,
@@ -117,11 +103,12 @@ class kkrimp_BdG_wc(WorkChain):
             default=lambda: Dict(
                 dict={
                     # 'DELTA_BDG': 1e-4, # 1.36 meV # could be set in the future?
+                    'USE_BdG': True,
                     'USE_E_SYMM_BDG': True,
                     # 'FIX_NONCO_ANGLES': True, # could be set in the future?
                 }
             ),
-            help='.'
+            help='Define BdG parameters'
         )
 
         # expose inputs for impurity normal state scf
@@ -162,8 +149,6 @@ class kkrimp_BdG_wc(WorkChain):
 
         # Here outputs are defined
 
-        #spec.output('results_wf', valid_type=WorkChainNode)
-        #spec.output('total_energy')
         spec.output('workflow_info', valid_type=Dict, required=False)
         spec.output('output_parameters', valid_type=Dict, required=False)
         spec.output('dos_data', required=False, valid_type=XyData)
@@ -229,15 +214,6 @@ class kkrimp_BdG_wc(WorkChain):
             except ValueError:
                 return self.exit_codes.ERROR_VORONOICODE_NOT_CORRECT  # pylint: disable=no-member
 
-        # save parent calculation
-        # if 'remote_data_host' in self.inputs:
-        #     input_remote = self.inputs.remote_data_host
-        #     parents = input_remote.get_incoming(node_class=CalcJobNode).all()
-        #     if len(parents) != 1:
-        #         # check if parent is unique
-        #         return self.exit_codes.ERROR_INVALID_PARENT  # pylint: disable=no-member
-        #     self.ctx.parent_calc = get_calc_from_remote(input_remote)
-
     def imp_pot_calc(self):
         """
         run normal state impurity scf calculation
@@ -251,7 +227,7 @@ class kkrimp_BdG_wc(WorkChain):
             builder.kkr = self.inputs.kkr
             builder.kkrimp = self.inputs.kkrimp
             builder.options = self.inputs.options
-            builder.remote_data_host = self.inputs.imp_scf.remote_data_host  # Maybe this should be changed to = self.ctx.parent_calc
+            builder.remote_data_host = self.inputs.imp_scf.remote_data_host
             builder.wf_parameters = self.inputs.imp_scf.wf_parameters
 
             if 'gf_writeout' in self.inputs.imp_scf:
@@ -304,7 +280,6 @@ class kkrimp_BdG_wc(WorkChain):
         settings['mag_init'] = True
         builder.wf_parameters = Dict(dict=settings)
         BdG_params = self.inputs.BdG_settings.get_dict()
-        BdG_params['USE_BdG'] = True
         builder.scf.params_overwrite = Dict(dict=BdG_params)  # pylint: disable=no-member
 
         imp_calc_BdG = self.submit(builder)
@@ -360,7 +335,6 @@ class kkrimp_BdG_wc(WorkChain):
             builder.wf_parameters = self.inputs.dos.wf_parameters
 
         BdG_params = self.inputs.BdG_settings.get_dict()
-        BdG_params['USE_BdG'] = True
         builder.BdG.params_overwrite = Dict(dict=BdG_params)  # pylint: disable=no-member
 
         if 'gf_writeout' in self.inputs.dos:
@@ -388,11 +362,8 @@ class kkrimp_BdG_wc(WorkChain):
             self.out('dos_data', self.ctx.DOS_node.outputs.dos_data)
             self.out('dos_data_interpol', self.ctx.DOS_node.outputs.dos_data_interpol)
         else:
-            #self.out('results_wf', self.ctx.last_imp_calc_BdG)
             self.out('workflow_info', self.ctx.last_imp_calc_BdG.outputs.workflow_info)
             self.out('output_parameters', self.ctx.last_imp_calc_BdG.outputs.last_calc_output_parameters)
-            #tot_energy = self.ctx.last_imp_calc_BdG.outputs.last_calc_output_parameters.get_attribute('energy')
-            #self.out('total_energy', tot_energy)
             if 'remote_data_gf' not in self.inputs.BdG_scf:
                 self.out('gf_host_BdG', self.ctx.last_imp_calc_BdG.outputs.remote_data_gf)
             else:
