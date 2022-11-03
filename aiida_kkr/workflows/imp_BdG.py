@@ -161,8 +161,8 @@ class kkrimp_BdG_wc(WorkChain):
             # For initialiging workflow
             cls.start,
             cls.validate_input,
-            cls.imp_pot_calc,
-            if_(cls.skip_BdG_scf)(cls.imp_BdG_calc),
+            if_(cls.do_imp_pot_calc)(cls.imp_pot_calc),
+            if_(cls.do_BdG_scf)(cls.imp_BdG_calc),
             if_(cls.do_calc_DOS)(cls.DOS_calc),
             cls.results
         )
@@ -214,32 +214,38 @@ class kkrimp_BdG_wc(WorkChain):
             except ValueError:
                 return self.exit_codes.ERROR_VORONOICODE_NOT_CORRECT  # pylint: disable=no-member
 
+    def do_imp_pot_calc(self):
+        """
+        run impurity potential calculation only if impurity potential not provided already
+        """
+        if not 'startpot' in self.inputs.imp_scf:
+            return True
+
     def imp_pot_calc(self):
         """
         run normal state impurity scf calculation
         """
-        if 'startpot' not in self.inputs.imp_scf:
 
-            builder = kkr_imp_wc.get_builder()
+        builder = kkr_imp_wc.get_builder()
 
-            builder.impurity_info = self.inputs.impurity_info
-            builder.voronoi = self.inputs.voronoi
-            builder.kkr = self.inputs.kkr
-            builder.kkrimp = self.inputs.kkrimp
-            builder.options = self.inputs.options
-            builder.remote_data_host = self.inputs.imp_scf.remote_data_host
-            builder.wf_parameters = self.inputs.imp_scf.wf_parameters
+        builder.impurity_info = self.inputs.impurity_info
+        builder.voronoi = self.inputs.voronoi
+        builder.kkr = self.inputs.kkr
+        builder.kkrimp = self.inputs.kkrimp
+        builder.options = self.inputs.options
+        builder.remote_data_host = self.inputs.imp_scf.remote_data_host
+        builder.wf_parameters = self.inputs.imp_scf.wf_parameters
 
-            if 'gf_writeout' in self.inputs.imp_scf:
-                if 'kkr' in self.inputs.imp_scf.gf_writeout:
-                    builder.kkr = self.inputs.imp_scf.gf_writeout.kkr
-                if 'params_kkr_overwrite' in self.inputs.imp_scf.gf_writeout:
-                    builder.params_kkr_overwrite = self.inputs.imp_scf.gf_writeout.params_kkr_overwrite
-            builder.gf_writeout.kkr = builder.kkr  # pylint: disable=no-member
+        if 'gf_writeout' in self.inputs.imp_scf:
+            if 'kkr' in self.inputs.imp_scf.gf_writeout:
+                builder.kkr = self.inputs.imp_scf.gf_writeout.kkr
+            if 'params_kkr_overwrite' in self.inputs.imp_scf.gf_writeout:
+                builder.params_kkr_overwrite = self.inputs.imp_scf.gf_writeout.params_kkr_overwrite
+        builder.gf_writeout.kkr = builder.kkr  # pylint: disable=no-member
 
-            imp_calc = self.submit(builder)
+        imp_calc = self.submit(builder)
 
-            return ToContext(last_imp_calc=imp_calc)
+        return ToContext(last_imp_calc=imp_calc)
 
     def imp_BdG_calc(self):
         """
@@ -286,11 +292,11 @@ class kkrimp_BdG_wc(WorkChain):
 
         return ToContext(last_imp_calc_BdG=imp_calc_BdG)
 
-    def skip_BdG_scf(self):
+    def do_BdG_scf(self):
         """
-        skip BdG scf step if DOS calculation should be done
+        run BdG scf step only if BdG impurity potential not provided and DOS calculation is not planned
         """
-        if not self.inputs.calc_DOS:
+        if (not 'startpot' in self.inputs.BdG_scf) and (not self.inputs.calc_DOS):
             return True
 
     def do_calc_DOS(self):
@@ -362,12 +368,13 @@ class kkrimp_BdG_wc(WorkChain):
             self.out('dos_data', self.ctx.DOS_node.outputs.dos_data)
             self.out('dos_data_interpol', self.ctx.DOS_node.outputs.dos_data_interpol)
         else:
-            self.out('workflow_info', self.ctx.last_imp_calc_BdG.outputs.workflow_info)
-            self.out('output_parameters', self.ctx.last_imp_calc_BdG.outputs.last_calc_output_parameters)
-            if 'remote_data_gf' not in self.inputs.BdG_scf:
-                self.out('gf_host_BdG', self.ctx.last_imp_calc_BdG.outputs.remote_data_gf)
-            else:
-                self.out('gf_host_BdG', self.inputs.BdG_scf.remote_data_gf)
+            if 'startpot' not in self.inputs.BdG_scf:
+                self.out('workflow_info', self.ctx.last_imp_calc_BdG.outputs.workflow_info)
+                self.out('output_parameters', self.ctx.last_imp_calc_BdG.outputs.last_calc_output_parameters)
+                if 'remote_data_gf' not in self.inputs.BdG_scf:
+                    self.out('gf_host_BdG', self.ctx.last_imp_calc_BdG.outputs.remote_data_gf)
+                else:
+                    self.out('gf_host_BdG', self.inputs.BdG_scf.remote_data_gf)
 
         if 'startpot' not in self.inputs.imp_scf:
             self.out('impurity_potential', self.ctx.last_imp_calc.outputs.converged_potential)
