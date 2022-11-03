@@ -255,7 +255,10 @@ class kkr_bs_wc(WorkChain):
             for isite, site in enumerate(struc_kkr.sites):
                 kind = struc_kkr.get_kind(site.kind_name)
                 saux.append_atom(
-                    name='atom' + str(isite) + ':' + site.kind_name, symbols=kind.symbol, position=site.position
+                    name='atom' + str(isite) + ':' + site.kind_name,
+                    symbols=kind.symbols,
+                    weights=kind.weights,
+                    position=site.position
                 )
             # use auxiliary structure inside k-point generator
             output = get_explicit_kpoints_path(saux)
