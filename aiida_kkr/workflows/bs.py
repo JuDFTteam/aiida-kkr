@@ -23,7 +23,7 @@ from six.moves import range
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.4'
+__version__ = '0.1.5'
 __contributors__ = (u'Rubel Mozumder', u'Philipp Rüßmann')
 
 
@@ -61,6 +61,7 @@ class kkr_bs_wc(WorkChain):
         'nepts': 96,  # number of energy points
         'RCLUSTZ': None,  # can be used to increase the cluster radius if a value is set here
         'tempr': 50.,  # smearing temperature in K
+        'kmesh': None, # k-point integration mesh, only useful for CPA calculation
     }
 
     _options_default = {
@@ -69,7 +70,10 @@ class kkr_bs_wc(WorkChain):
             'num_machines': 1
         },
         'withmpi': True,
-        'queue_name': ''
+        'queue_name': '',
+        'prepend_text': '',
+        'append_text': '',
+        'additional_retrieve_list': None
     }
 
     @classmethod
@@ -188,6 +192,9 @@ class kkr_bs_wc(WorkChain):
         if options_dict == {}:
             self.report('INFO: Using default wf Options')
             options_dict = self._options_default
+        self.ctx.append_text = options_dict.get('append_text', self._options_default['append_text'])
+        self.ctx.prepend_text = options_dict.get('prepend_text', self._options_default['prepend_text'])
+        self.ctx.additional_retrieve_list = options_dict.get('additional_retrieve_list', self._options_default['additional_retrieve_list'])
         self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
         self.ctx.max_wallclock_seconds = options_dict.get(
@@ -250,13 +257,18 @@ class kkr_bs_wc(WorkChain):
             output_remote = last_calc.outputs.remote_folder
 
             self.inputs.remote_data = output_remote
+
+        # extract structure
+        struc_kkr, _ = VoronoiCalculation.find_parent_structure(self.inputs.remote_data)
+        # save if structure is an alloy
+        self.ctx.struc_is_alloy = struc_kkr.is_alloy
+
         # To validate for kpoints
         if 'kpoints' in inputs:
             self.ctx.BS_kpoints = inputs.kpoints
             input_ok = True
             self.ctx.structure_data = 'None (kpoints taken from input)'
         else:
-            struc_kkr, remote_voro = VoronoiCalculation.find_parent_structure(self.inputs.remote_data)
             #create an auxiliary structure with unique kind_names, this leads to using the input structure in the seekpath method instead of finding the primitive one
             cell = np.array(struc_kkr.cell)
             if not struc_kkr.pbc[2]:
@@ -266,7 +278,10 @@ class kkr_bs_wc(WorkChain):
             for isite, site in enumerate(struc_kkr.sites):
                 kind = struc_kkr.get_kind(site.kind_name)
                 saux.append_atom(
-                    name='atom' + str(isite) + ':' + site.kind_name, symbols=kind.symbol, position=site.position
+                    name='atom' + str(isite) + ':' + site.kind_name,
+                    symbols=kind.symbols,
+                    weights=kind.weights,
+                    position=site.position
                 )
             # use auxiliary structure inside k-point generator
             output = get_explicit_kpoints_path(saux)
@@ -354,7 +369,9 @@ class kkr_bs_wc(WorkChain):
                 descr = 'added missing default keys, '
         ##+++ Starts to add the NTP2, EMAX and EMIN from the
         econt_new = self.ctx.BS_params_dict
-        econt_new['kmesh'] = [1, 1, 1]  # overwrite kmesh since the kpoints are used from the input
+        if self.ctx.struc_is_alloy:
+            if econt_new['kmesh'] is None:
+                econt_new['kmesh'] = [1, 1, 1]  # overwrite kmesh since the kpoints are used from the input
         kkr_calc = self.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node
         ef = kkr_calc.outputs.output_parameters.get_dict()['fermi_energy']  # unit in Ry
         self.ctx.fermi_energy = ef  ## in Ry unit
@@ -400,6 +417,12 @@ class kkr_bs_wc(WorkChain):
         }
         if self.ctx.custom_scheduler_commands:
             options['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
+        if self.ctx.append_text:
+            options['append_text'] = self.ctx.append_text
+        if self.ctx.prepend_text:
+            options['prepend_text'] = self.ctx.prepend_text
+        if self.ctx.additional_retrieve_list:
+            options['additional_retrieve_list'] = self.ctx.additional_retrieve_list
 
         # get inputs for band structure calculation
         inputs = get_inputs_kkr(
