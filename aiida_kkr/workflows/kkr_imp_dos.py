@@ -22,7 +22,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.11'
+__version__ = '0.6.12'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 
 #TODO: improve workflow output node structure
@@ -63,7 +63,7 @@ class kkr_imp_dos_wc(WorkChain):
     _wf_default = {
         'clean_impcalc_retrieved': True,  # remove output of KKRimp calculation after successful parsing of DOS files
         'jij_run': False,  # calculate Jij's energy resolved
-        'lmdos': False,  # caculate l,m or only l-resolved DOS
+        'lmdos': False,  # calculate also (l,m) or only l-resolved DOS
         'retrieve_kkrflex': True,  # retrieve kkrflex files to repository or leave on remote computer only
     }
     # add defaults of dos_params since they are passed onto that workflow
@@ -589,6 +589,9 @@ label: {self.ctx.label_wf}
             if dos_extracted:
                 self.out('dos_data', dosXyDatas['dos_data'])
                 self.out('dos_data_interpol', dosXyDatas['dos_data_interpol'])
+                if self.ctx.lmdos:
+                    self.out('dos_data_lm', dosXyDatas['dos_data_lm'])
+                    self.out('dos_data_interpol_lm', dosXyDatas['dos_data_interpol_lm'])
                 # maybe cleanup retrieved folder of DOS calculation
                 if self.ctx.cleanup_impcalc_output:
                     message = 'INFO: cleanup after storing of DOS data'
@@ -688,7 +691,11 @@ label: {self.ctx.label_wf}
             last_calc_output_params = last_calc.outputs.output_parameters
             natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')
             # parse dosfiles using nspin, EF and Natom inputs
-            dosXyDatas = parse_impdosfiles(Str(folder_abspath), Int(natom), Int(self.ctx.nspin), Float(ef))
+            dosXyDatas = parse_impdosfiles(Str(folder_abspath), Int(natom), Int(self.ctx.nspin), Float(ef), Bool(False))
+            if self.ctx.lmdos:
+                dosXyDatas2 = parse_impdosfiles(Str(folder_abspath), Int(natom), Int(self.ctx.nspin), Float(ef), Bool(True))
+                dosXyDatas['dos_data_lm'] = dosXyDatas2['dos_data']
+                dosXyDatas['dos_data_interpol_lm'] = dosXyDatas2['dos_data_interpol']
             dos_extracted = True
         else:
             dos_extracted = False
@@ -698,7 +705,7 @@ label: {self.ctx.label_wf}
 
 
 @calcfunction
-def parse_impdosfiles(dos_abspath, natom, nspin, ef):
+def parse_impdosfiles(dos_abspath, natom, nspin, ef, use_lmdos):
     """
     Read `out_ldos*` files and create XyData node with l-resolved DOS (+node for interpolated DOS if files are found)
 
@@ -725,10 +732,13 @@ def parse_impdosfiles(dos_abspath, natom, nspin, ef):
     dos, dos_int = [], []
     for iatom in range(1, natom.value + 1):
         for ispin in range(1, nspin.value + 1):
-            with open(abspath + 'out_ldos.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+            name0 = 'out_ldos'
+            if use_lmdos.value:
+                name0 = 'out_lmdos'
+            with open(abspath + name0 + '.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                 tmp = loadtxt(dosfile)
                 dos.append(tmp)
-            with open(abspath + 'out_ldos.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+            with open(abspath + name0 + '.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                 tmp = loadtxt(dosfile)
                 dos_int.append(tmp)
     dos, dos_int = array(dos), array(dos_int)
@@ -747,6 +757,12 @@ def parse_impdosfiles(dos_abspath, natom, nspin, ef):
     dosnode.set_x(dos[:, :, 0], 'E-EF', 'eV')
 
     name = ['tot', 's', 'p', 'd', 'f', 'g']
+    if use_lmdos.value:
+        name = ['tot', 's',
+                'p1', 'p2', 'p3',
+                'd1', 'd2', 'd3', 'd4', 'd5',
+                'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7',
+                'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9']
     name = name[:len(dos[0, 0, 1:]) - 1] + ['ns']
 
     ylists = [[], [], []]
