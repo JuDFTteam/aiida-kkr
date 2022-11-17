@@ -5,7 +5,7 @@ In this module you find the base workflow for a impurity DOS calculation and
 some helper methods to do so with AiiDA
 """
 from __future__ import print_function, absolute_import
-from aiida.orm import Code, load_node, CalcJobNode, Float, Int, Str, Dict, RemoteData, SinglefileData, XyData
+from aiida.orm import Code, load_node, CalcJobNode, Float, Int, Str, Dict, RemoteData, SinglefileData, XyData, Bool
 from aiida.plugins import DataFactory
 from aiida.engine import if_, ToContext, WorkChain, calcfunction
 from aiida.common import LinkType
@@ -157,6 +157,8 @@ class kkr_imp_dos_wc(WorkChain):
         spec.output('last_calc_info', valid_type=Dict)
         spec.output('dos_data', valid_type=XyData)
         spec.output('dos_data_interpol', valid_type=XyData)
+        spec.output('dos_data_lm', valid_type=XyData, required = False)
+        spec.output('dos_data_interpol_lm', valid_type=XyData, required = False)
         spec.output('gf_dos_remote', valid_type=XyData, required=False, help='RemoteData node of the computed host GF.')
 
         # Here the structure of the workflow is defined
