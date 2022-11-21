@@ -10,14 +10,16 @@ from aiida_kkr.calculations import KkrCalculation
 from aiida.engine import WorkChain, ToContext, calcfunction
 from aiida.orm import Code, Dict, Int, Float, RemoteData, KpointsData, XyData, StructureData, FolderData
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
-from aiida_kkr.tools import kkrparams
+from aiida_kkr.tools import kkrparams, get_anomalous_density_data
+from aiida_kkr.workflows.bs import set_energy_params
+
 import numpy as np
 from masci_tools.io.common_functions import get_Ry2eV
 
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.0'
+__version__ = '0.2.1'
 __contributors__ = u'Philipp Rüßmann'
 
 _eV2Ry = 1.0 / get_Ry2eV()
@@ -48,15 +50,22 @@ class kkr_decimation_wc(WorkChain):
                           'kmesh': [50, 50, 50]}, # k-mesh used in dos calculation
            }
 
-    :param wf_parameters: (Dict); Workchain specifications
-    :param options: (Dict); specifications for the computer (used in decimation step only)
-    :param remote_data: (RemoteData), mandatory; either parent slab or previous decimation calculation
-    :param kkr: (Code), mandatory; KKR code for running deci-out and decimation steps
-    :param voronoi: (Code), mandatory if starting from slab calculation; voronoi code for auxiliary calculations
+    :param wf_parameters: Dict node with workchain parameters (see kkr_decimation_wc.get_wf_defaults())
+    :param options: Dict node with specifications for the computer (used in decimation step only)
+    :param remote_data: mandatory RemoteData node of either a parent slab or previous decimation calculation
+    :param kkr: mandatory Code node with KKR code for running deci-out and decimation steps
+    :param voronoi: Code node that is mandatory if starting from slab calculation. Is the voronoi code for auxiliary calculations
+    :param kpoints: KpointsData node that triggers a band structure calculation. The kpoints specify the k-point path along which the bandstructure is computed with the qdos mode of KKRhost.
+    :param calc_parameters: Dict node that contains KKR parameters which overwrites settings from the slab parent.
 
-    :return results: (Dict), Information of workflow results
-        like Success, last result node, list with convergence behavior
-    :return deci_calc: (RemoteData), Remote data of decimation calculation, used to reuse decimation setup if calculation is continued (e.g. for DOS after scf)
+    :returns structure_decimate: StructureData node of the structure of the decimation region.
+    :returns structure_substrate: StructureData node of the structure of thesubstrate lattice continuation.
+    :returns out_params_calc_deci_out: Dict node of the output parameters of the deci-out calculation.
+    :returns out_params_calc_decimate: Dict node of the output parameters of the decimation calculation.
+    :returns out_remote_calc_decimate: RemoteData node of the decimation calculation.
+    :returns out_retrieved_calc_decimate: retrieved FolderData node of the decimation calculation.
+    :returns dos_data: XyData node with the DOS data at finite imaginary part in the energy contour. Only present in DOS mode.
+    :returns dos_data_interpol: XyData node with the interpolated DOS data onto the real axis. Only present in DOS mode.
     """
 
     _workflowversion = __version__
@@ -215,6 +224,14 @@ class kkr_decimation_wc(WorkChain):
         spec.exit_code(
             302, 'ERROR_VORONOICODE_NOT_CORRECT', 'The code you provided for voronoi does not use the plugin kkr.voro'
         )
+        spec.exit_code(
+            303, 'ERROR_VORO_SUBST_FAILED', 'The voronoi step for the starting potential of the substrate failed.'
+        )
+        spec.exit_code(
+            304, 'ERROR_VORO_DECI_FAILED',
+            'The voronoi step for the starting potential of the decimation region failed.'
+        )
+        spec.exit_code(305, 'ERROR_DECIOUT_FAILED', 'The deci-out step (writeout of continuation GF) failed.')
 
     ###################################################################################################################
     # functions from outline
@@ -225,7 +242,7 @@ class kkr_decimation_wc(WorkChain):
         """
         self.report(f'INFO: started KKR decimation workflow version {self._workflowversion}')
 
-        ####### init    #######
+        ####### init #######
 
         # input para
         wf_dict = self.inputs.wf_parameters.get_dict()
@@ -309,10 +326,12 @@ class kkr_decimation_wc(WorkChain):
             deci_calc = deci_remote.get_incoming(node_class=KkrCalculation).first().node
 
             struc_substrate, voro_substrate = VoronoiCalculation.find_parent_structure(deci_calc.inputs.deciout_parent)
-            self.ctx.struc_substrate, self.ctx.voroaux_substrate = struc_substrate, voro_substrate
+            self.ctx.struc_substrate = struc_substrate
+            self.ctx.voroaux_substrate = voro_substrate
 
             struc_deci, voro_deci = VoronoiCalculation.find_parent_structure(deci_remote)
-            self.ctx.struc_decimation, self.ctx.voroaux_decimation = struc_deci, voro_deci
+            self.ctx.struc_decimation = struc_deci
+            self.ctx.voroaux_decimation = voro_deci
 
             self.ctx.startpot_substrate = voro_substrate.inputs.potential_overwrite
             self.ctx.startpot_decimate = voro_deci.inputs.potential_overwrite
@@ -327,36 +346,30 @@ class kkr_decimation_wc(WorkChain):
             self.ctx.params_overwrite = self.inputs.calc_parameters
 
         # take care of qdos or dos modes
-        qdos_mode = 0
+        qdos_mode = False
         if 'kpoints' in self.inputs:
-            qdos_mode = 1
-        if qdos_mode == 1 or self.ctx.dosmode:
+            qdos_mode = True
+        if qdos_mode or self.ctx.dosmode:
             if self.ctx.params_overwrite is None:
                 params_new = {}
             else:
                 params_new = self.ctx.params_overwrite.get_dict()
             # set dos contour from dos_params
-            params_new['NPOL'] = 0
-            params_new['NPT1'] = 0
-            params_new['NPT2'] = self.ctx.dos_params['nepts']
-            params_new['IEMXD'] = self.ctx.dos_params['nepts']
-            params_new['NPT3'] = 0
-            params_new['TEMPR'] = self.ctx.dos_params['tempr']
             ef_ry = self.ctx.slab_calc.outputs.output_parameters['fermi_energy']
-            params_new['EMIN'] = ef_ry + self.ctx.dos_params['emin_EF'] * _eV2Ry
-            params_new['EMAX'] = ef_ry + self.ctx.dos_params['emax_EF'] * _eV2Ry
-            params_new['BZDIVIDE'] = self.ctx.dos_params['kmesh']
-            if qdos_mode == 1:
-                if params_new['TEMPR'] > 100.:
-                    params_new['TEMPR'] = 50.
-                params_new['BZDIVIDE'] = [1, 1, 1]
+            _rename = {'emin_EF': 'emin', 'emax_EF': 'emax'}
+            econt_new = {_rename.get(k, k.lower()): v for k, v in self.ctx.dos_params.items()}
+            if qdos_mode:
+                if econt_new['tempr'] > 100.:
+                    econt_new['tempr'] = 50.
+                econt_new['kmesh'] = [1, 1, 1]
+            params_new = set_energy_params(econt_new, ef_ry, kkrparams(**params_new))
             self.ctx.params_overwrite = Dict(dict=params_new)
 
         alat_slab = self.ctx.slab_calc.outputs.output_parameters['alat_internal']
 
         out = make_decimation_param_nodes(
-            self.ctx.slab_calc.inputs.parameters, Float(alat_slab), self.ctx.struc_decimation, Int(self.ctx.nkz),
-            self.ctx.params_overwrite
+            self.ctx.slab_calc.inputs.parameters, Float(alat_slab), self.ctx.struc_decimation, self.ctx.struc_substrate,
+            Int(self.ctx.nkz), self.ctx.params_overwrite
         )
 
         self.ctx.dsubstrate = out['dsubstrate']
@@ -376,56 +389,67 @@ class kkr_decimation_wc(WorkChain):
         run auxiliary voronoi steps if needed
         """
         # only needed if parent is not already a decimation calculation
-        if not self.ctx.parent_is_deci:
-            # set up voronoi calculation for substrate
-            builder = VoronoiCalculation.get_builder()
-            builder.code = self.inputs.voronoi
-            builder.parameters = self.ctx.dsubstrate
-            builder.structure = self.ctx.struc_substrate
-            builder.metadata.label = 'auxiliary_voronoi_substrate'  # pylint: disable=no-member
-            builder.metadata.options = self.ctx.options  # pylint: disable=no-member
-            builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
-            builder.potential_overwrite = self.ctx.startpot_substrate
-
-            # submit voroaux for substrate calculation
-            future_substrate = self.submit(builder)
-            self.report(f'INFO: running voroaux for substrate (pk: {future_substrate.pk})')
-
-            # set up voronoi calculation for decimation
-            builder = VoronoiCalculation.get_builder()
-            builder.code = self.inputs.voronoi
-            builder.parameters = self.ctx.ddecimation
-            builder.structure = self.ctx.struc_decimation
-            builder.metadata.label = 'auxiliary_voronoi_decimation'  # pylint: disable=no-member
-            builder.metadata.options = self.ctx.options  # pylint: disable=no-member
-            builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
-            builder.potential_overwrite = self.ctx.startpot_decimation
-
-            # submit voroaux for substrate calculation
-            future_decimation = self.submit(builder)
-            self.report(f'INFO: running voroaux for decimation region (pk: {future_decimation.pk})')
-
-            return ToContext(voroaux_substrate=future_substrate, voroaux_decimation=future_decimation)
-
-        else:
+        if self.ctx.parent_is_deci:
             self.report('Skip voroaux steps due to previous decimation input')
+            return
+
+        # set up voronoi calculation for substrate
+        builder = VoronoiCalculation.get_builder()
+        builder.code = self.inputs.voronoi
+        builder.parameters = self.ctx.dsubstrate
+        builder.structure = self.ctx.struc_substrate
+        builder.metadata.label = 'auxiliary_voronoi_substrate'  # pylint: disable=no-member
+        builder.metadata.options = self.ctx.options  # pylint: disable=no-member
+        builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
+        builder.potential_overwrite = self.ctx.startpot_substrate
+
+        # submit voroaux for substrate calculation
+        future_substrate = self.submit(builder)
+        self.report(f'INFO: running voroaux for substrate (pk: {future_substrate.pk})')
+
+        # set up voronoi calculation for decimation
+        builder = VoronoiCalculation.get_builder()
+        builder.code = self.inputs.voronoi
+        builder.parameters = self.ctx.ddecimation
+        builder.structure = self.ctx.struc_decimation
+        builder.metadata.label = 'auxiliary_voronoi_decimation'  # pylint: disable=no-member
+        builder.metadata.options = self.ctx.options  # pylint: disable=no-member
+        builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
+        builder.potential_overwrite = self.ctx.startpot_decimation
+
+        # submit voroaux for substrate calculation
+        future_decimation = self.submit(builder)
+        self.report(f'INFO: running voroaux for decimation region (pk: {future_decimation.pk})')
+
+        return ToContext(voroaux_substrate=future_substrate, voroaux_decimation=future_decimation)
 
     def run_deciout(self):
         """
         run KKR calculation for deci-out step
         """
+        if not self.ctx.voroaux_substrate.is_finished_ok:
+            return self.exit_codes.ERROR_VORO_SUBST_FAILED  # pylint: disable=no-member
+
         builder = KkrCalculation.get_builder()
         builder.code = self.inputs.kkr
         builder.parameters = self.ctx.dsubstrate
         builder.metadata.options = self.ctx.options  # pylint: disable=no-member
-        # force serial run:
+
+        # force serial run, otherwise KKRhost code does not work:
         builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
         builder.metadata.label = 'deci-out'  # pylint: disable=no-member
         builder.parent_folder = self.ctx.voroaux_substrate.outputs.remote_folder
+
         # create and set initial nonco_angles if needed
         if 'initial_noco_angles' in self.ctx.slab_calc.inputs:
             builder.initial_noco_angles = self.ctx.noco_angles_substrate
 
+        # for BdG mode we have to set the correct anomalous density
+        is_BdG, adens = self._get_adens_substrate()
+        if is_BdG:
+            builder.anomalous_density = adens
+
+        # finally submit calculation
         future = self.submit(builder)
         self.report(f'INFO: running deci-out step (pk: {future.pk})')
 
@@ -435,6 +459,11 @@ class kkr_decimation_wc(WorkChain):
         """
         run KKR calculation for decimation step
         """
+        if not self.ctx.deciout_calc.is_finished_ok:
+            return self.exit_codes.ERROR_DECIOUT_FAILED  # pylint: disable=no-member
+        if not self.ctx.voroaux_decimation.is_finished_ok:
+            return self.exit_codes.ERROR_VORO_DECI_FAILED  # pylint: disable=no-member
+
         builder = KkrCalculation.get_builder()
         builder.code = self.inputs.kkr
         builder.parameters = self.ctx.ddecimation
@@ -445,12 +474,19 @@ class kkr_decimation_wc(WorkChain):
         if 'kpoints' in self.inputs:
             builder.kpoints = self.inputs.kpoints
             self.report('INFO: detected kpoints input: run qdos calculation')
+
         # create and set initial nonco_angles if needed
         if 'initial_noco_angles' in self.ctx.slab_calc.inputs:
             builder.initial_noco_angles = self.ctx.noco_angles_decimation
 
+        # for BdG mode we have to set the correct anomalous density
+        is_BdG, adens = self._get_adens_decimate()
+        if is_BdG:
+            builder.anomalous_density = adens
+
+        # finally submit calculation
         future = self.submit(builder)
-        self.report(f'INFO: running deci-out step (pk: {future.pk})')
+        self.report(f'INFO: running decimation step (pk: {future.pk})')
 
         return ToContext(decimation_calc=future)
 
@@ -521,6 +557,65 @@ class kkr_decimation_wc(WorkChain):
         self.ctx.startpot_substrate = startpot_substrate
         self.ctx.startpot_decimation = startpot_deci
 
+    def _get_adens_substrate(self):
+        """
+        Extract the correct anomalous density which is used for the substrate
+        """
+        adens = None
+
+        # first check if calculation is in BdG mode
+        dd = self.ctx.dsubstrate.get_dict()
+        is_BdG = dd.get('USE_BDG', dd.get('<USE_BDG>', False))
+        self.report(f'is BdG? {is_BdG}')  # debug output
+
+        if is_BdG:
+            # now get the atom indices from the slab parent and relabel
+            # then starting with atom index 1 (remember that Fortran starts counting at 1 and not 0)
+            retrieved = self.ctx.slab_calc.outputs.retrieved
+            params = self.ctx.slab_calc.inputs.parameters.get_dict()
+            nrbasis = params.get('<NRBASIS>', params.get('NRBASIS'))
+            nplayer = self.ctx.nplayer
+            nprinc = self.ctx.nprinc
+            rename_files = Dict(
+                dict=dict(
+                    # next nrbasis atoms after nplayer*nprinc are the substrate atoms
+                    # format: (index in slab, index in substrate)
+                    # Note: AiiDA needs the key in the dict to be a string instead of an integer
+                    [(str(nplayer * nprinc + i + 1), i + 1) for i in range(nrbasis)]
+                )
+            )
+            # copy and relabel the anomalous density files
+            adens = get_anomalous_density_data(retrieved, rename_files)
+
+        return is_BdG, adens
+
+    def _get_adens_decimate(self):
+        """
+        Extract the correct anomalous density which is used for the decimation region
+        """
+        adens = None
+
+        # first check if calculation is in BdG mode
+        dd = self.ctx.ddecimation.get_dict()
+        is_BdG = dd.get('USE_BDG', dd.get('<USE_BDG>', False))
+
+
+        if is_BdG:
+            # now copy the anomalous density files to a FolderData that can be the input to the KkrCalculation
+            retrieved = self.ctx.slab_calc.outputs.retrieved
+            nplayer = self.ctx.nplayer
+            nprinc = self.ctx.nprinc
+            rename_files = Dict(
+                dict=dict(
+                    # the first nplayer*nprinc are the decimation region
+                    [(str(i + 1), i + 1) for i in range(nplayer * nprinc)]
+                )
+            )
+            # copy only the files in the renaming list, others are ignored and not copied
+            adens = get_anomalous_density_data(retrieved, rename_files)
+
+        return is_BdG, adens
+
 
 ###################################################################################################################
 
@@ -587,21 +682,17 @@ def get_substrate_structure(nprinc, nplayer, slab_calc):
     return struc_substrate
 
 
-@calcfunction
-def make_decimation_param_nodes(slab_calc_params, slab_alat, struc_deci, nkz, params_overwrite=None):
+def _make_d_substrate(d, params_overwrite, slab_alat, nkz):
     """
-    Create parameter nodes for deci-out and
+    Create the input parameters for the substrate calculation
     """
-    # prepare decimation params
-    d = {k: v for k, v in slab_calc_params.get_dict().items() if v is not None}
-
-    # make kkr params for substrate calculation (i.e. deci-out mode, needs to run in serial!)
     dsubstrate = d.copy()
     for k in kkr_decimation_wc._keys2d:
         if k in dsubstrate:
             dsubstrate.pop(k)
     dsubstrate = kkrparams(**dsubstrate)
     dsubstrate.set_value('NSTEPS', 1)
+
     # add deci-out option
     runopts = dsubstrate.get_value('RUNOPT')
     if runopts is None:
@@ -609,29 +700,38 @@ def make_decimation_param_nodes(slab_calc_params, slab_alat, struc_deci, nkz, pa
     runopts = [i for i in runopts if i != 'DECIMATE']  # remove decimate flag
     runopts += ['deci-out']
     dsubstrate.set_value('RUNOPT', runopts)
+
     # increase BZDIVIDE[2] if needed
     bzdiv = dsubstrate.get_value('BZDIVIDE')
     if bzdiv is not None:
         bzdiv[2] = nkz.value
         dsubstrate.set_value('BZDIVIDE', bzdiv)
+
     # overwrite params from input node
     if params_overwrite is not None:
         for k, v in params_overwrite.get_dict().items():
             dsubstrate.set_value(k, v)
+
     # use alat from slab calculation
     dsubstrate = {
         k: v for k, v in dsubstrate.get_dict().items() if v is not None
     }  # clean up removing None values from dict
     dsubstrate['ALATBASIS'] = slab_alat.value
     dsubstrate['use_input_alat'] = True
-    # now create Dict node with params
-    dsubstrate = Dict(dict=dsubstrate)
 
+    return dsubstrate
+
+
+def _make_d_deci(d, struc_deci, params_overwrite, slab_alat):
+    """
+    Create the input parameters for the substrate calculation
+    """
     # set kkr params for substrate writeout
     ddeci = kkrparams(**d)
     ddeci.set_value('NSTEPS', 1)
     ddeci.set_value('DECIFILES', ['vacuum', 'decifile'])
     ddeci.set_multiple_values(**struc_deci.extras['kkr_settings'])
+
     # add decimate runopt
     runopts = ddeci.get_value('RUNOPT')
     if runopts is None:
@@ -642,11 +742,55 @@ def make_decimation_param_nodes(slab_calc_params, slab_alat, struc_deci, nkz, pa
     if params_overwrite is not None:
         for k, v in params_overwrite.get_dict().items():
             ddeci.set_value(k, v)
+
     # use alat from slab calculation
     ddeci = {k: v for k, v in ddeci.get_dict().items() if v is not None}  # clean up removing None values from dict
     ddeci['ALATBASIS'] = slab_alat.value
     ddeci['use_input_alat'] = True
-    # now create Dict node with params
+
+    return ddeci
+
+
+def _adapt_array_sizes(params_dict, pick_layers):
+    """
+    Check the params dict for array entries which should be changed to the correct size.
+
+    This is needed because the decimation region is smaller than the parent slab structure
+    and the substrate only uses a part from the middle of the arrays.
+    """
+    # this list of keywords was copied from kkrparams of masci-tools
+    for key in [
+        '<RMTCORE>', '<MTWAU>', '<MTWAL>', '<SOCSCL>', 'XINIPOL', '<RMTREF>', '<FPRADIUS>', '<AT_SCALE_BDG>',
+        '<PHASE_BDG>'
+    ]:
+        val = params_dict.get(key)
+        if val is not None:
+            # update size by picking layers
+            val = np.array(val)[pick_layers]
+            params_dict[key] = val
+
+
+@calcfunction
+def make_decimation_param_nodes(slab_calc_params, slab_alat, struc_deci, struc_substrate, nkz, params_overwrite=None):
+    """
+    Create parameter nodes for deci-out and decimation steps
+    """
+    # prepare decimation params
+    d = {k: v for k, v in slab_calc_params.get_dict().items() if v is not None}
+
+    # make kkr params for substrate calculation (i.e. deci-out mode, needs to run in serial!)
+
+    dsubstrate = _make_d_substrate(d, params_overwrite, slab_alat, nkz)
+    ddeci = _make_d_deci(d, struc_deci, params_overwrite, slab_alat)
+
+    # modify array inputs to the right size
+    Ndeci = len(struc_deci.sites)
+    _adapt_array_sizes(ddeci, pick_layers=[i for i in range(Ndeci)])
+    Nsubstrate = len(struc_substrate.sites)
+    _adapt_array_sizes(dsubstrate, pick_layers=[Ndeci + i for i in range(Nsubstrate)])
+
+    # now create Dict nodes with params
+    dsubstrate = Dict(dict=dsubstrate)
     ddeci = Dict(dict=ddeci)
 
     return {'dsubstrate': dsubstrate, 'ddeci': ddeci}

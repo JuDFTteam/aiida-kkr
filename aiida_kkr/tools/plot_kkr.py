@@ -16,7 +16,7 @@ import numpy as np
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.7.0'
+__version__ = '0.7.1'
 __contributors__ = ('Philipp Rüßmann')
 
 
@@ -1896,7 +1896,7 @@ def get_ef_from_parent(node):
     except:
         with node.outputs.retrieved.open('output.0.txt', mode='r') as file_handle:
             txt = file_handle.readlines()
-            iline = search_string('Fermi energy', txt)
+            iline = search_string('Fermi energy =', txt)
             if iline >= 0:
                 ef = txt[iline].split('=')[1]
                 ef = float(ef.split()[0])

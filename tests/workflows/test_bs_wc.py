@@ -86,4 +86,5 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
         'energy_points': out['BS_Data'].get_array('energy_points'),
         'BlochSpectralFunction': out['BS_Data'].get_array('BlochSpectralFunction'),
     }
+    print(check_dict)
     ndarrays_regression.check(check_dict)
