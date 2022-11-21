@@ -78,13 +78,18 @@ def test_kkrimp_full_wc(
     # check outcome
     n = out['workflow_info']
     n = n.get_dict()
+    print(n)
     for sub in 'auxiliary_voronoi gf_writeout kkr_imp_sub'.split():
         assert sub in list(n.get('used_subworkflows').keys())
-
-    kkrimp_sub = load_node(n['used_subworkflows']['kkr_imp_sub'])
-    assert kkrimp_sub.outputs.workflow_info.get_dict().get('successful')
-
-    print(n)
+    # check outcome (calculation cannot be converged, but should be on the way)
+    assert not n['converged']
+    assert n['gf_wc_success']
+    assert n['voro_wc_success']
+    assert not n['kkrimp_wc_success']
+    assert n['number_of_rms_steps'] == 25
+    rms = n['convergence_values_all_steps']
+    assert rms[-1] < rms[0]
+    assert rms[-1] < 1.40
 
 
 @pytest.mark.timeout(900, method='thread')
@@ -161,6 +166,7 @@ def test_kkrimp_full_Ag_Cu_onsite(
     # check outcome
     n = out['workflow_info']
     n = n.get_dict()
+    print(n)
     for sub in 'auxiliary_voronoi gf_writeout kkr_imp_sub'.split():
         assert sub in list(n.get('used_subworkflows').keys())
 
