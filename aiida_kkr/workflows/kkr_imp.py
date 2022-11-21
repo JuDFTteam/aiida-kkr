@@ -270,15 +270,13 @@ class kkr_imp_wc(WorkChain):
         self.ctx.custom_scheduler_commands = options_dict.get(
             'custom_scheduler_commands', self._options_default['custom_scheduler_commands']
         )
-        self.ctx.options_params_dict = Dict(
-            dict={
-                'withmpi': self.ctx.withmpi,
-                'resources': self.ctx.resources,
-                'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
-                'queue_name': self.ctx.queue,
-                'custom_scheduler_commands': self.ctx.custom_scheduler_commands
-            }
-        )
+        self.ctx.options_params_dict = Dict({
+            'withmpi': self.ctx.withmpi,
+            'resources': self.ctx.resources,
+            'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
+            'queue_name': self.ctx.queue,
+            'custom_scheduler_commands': self.ctx.custom_scheduler_commands
+        })
         if 'options_voronoi' in self.inputs:
             self.ctx.options_params_dict_voronoi = self.inputs.options_voronoi.get_dict()
             self.report(f'INFO: Use different options for voronoi code ({self.ctx.options_params_dict_voronoi})')
@@ -309,22 +307,20 @@ class kkr_imp_wc(WorkChain):
         #    'delta_e_min_core_states', self._voro_aux_default['delta_e_min_core_states']
         #)
         # set up new parameter dict to pass to voronoi subworkflow later
-        self.ctx.voro_params_dict = Dict(
-            dict={
-                'queue_name': self.ctx.queue,
-                'resources': self.ctx.resources,
-                'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
-                'withmpi': self.ctx.withmpi,
-                'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
-                'dos_params': self.ctx.voro_dos_params,
-                'num_rerun': self.ctx.voro_num_rerun,
-                'fac_cls_increase': self.ctx.voro_fac_cls_increase,
-                'natom_in_cls_min': self.ctx.voro_natom_in_cls_min,
-                'delta_e_min': self.ctx.voro_delta_e_min,
-                'threshold_dos_zero': self.ctx.voro_threshold_dos_zero,
-                'check_dos': self.ctx.voro_check_dos,
-            }
-        )
+        self.ctx.voro_params_dict = Dict({
+            'queue_name': self.ctx.queue,
+            'resources': self.ctx.resources,
+            'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
+            'withmpi': self.ctx.withmpi,
+            'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
+            'dos_params': self.ctx.voro_dos_params,
+            'num_rerun': self.ctx.voro_num_rerun,
+            'fac_cls_increase': self.ctx.voro_fac_cls_increase,
+            'natom_in_cls_min': self.ctx.voro_natom_in_cls_min,
+            'delta_e_min': self.ctx.voro_delta_e_min,
+            'threshold_dos_zero': self.ctx.voro_threshold_dos_zero,
+            'check_dos': self.ctx.voro_check_dos,
+        })
 
         # set workflow parameters for the KKR impurity calculation
         self.ctx.kkr_runmax = wf_dict.get('kkr_runmax', self._wf_default['kkr_runmax'])
@@ -344,24 +340,22 @@ class kkr_imp_wc(WorkChain):
         self.ctx.accuracy_params = wf_dict.get('accuracy_params', self._wf_default['accuracy_params'])
         self.ctx.do_final_cleanup = wf_dict.get('do_final_cleanup', self._wf_default['do_final_cleanup'])
         # set up new parameter dict to pass to kkrimp subworkflow later
-        self.ctx.kkrimp_params_dict = Dict(
-            dict={
-                'nsteps': self.ctx.nsteps,
-                'kkr_runmax': self.ctx.kkr_runmax,
-                'threshold_aggressive_mixing': self.ctx.threshold_aggressive_mixing,
-                'convergence_criterion': self.ctx.convergence_criterion,
-                'mixreduce': self.ctx.mixreduce,
-                'strmix': self.ctx.strmix,
-                'aggressive_mix': self.ctx.aggressive_mix,
-                'aggrmix': self.ctx.aggrmix,
-                'broyden-number': self.ctx.broyden_number,
-                'mag_init': self.ctx.mag_init,
-                'hfield': self.ctx.hfield,
-                'init_pos': self.ctx.init_pos,
-                'accuracy_params': self.ctx.accuracy_params,
-                'do_final_cleanup': self.ctx.do_final_cleanup
-            }
-        )
+        self.ctx.kkrimp_params_dict = Dict({
+            'nsteps': self.ctx.nsteps,
+            'kkr_runmax': self.ctx.kkr_runmax,
+            'threshold_aggressive_mixing': self.ctx.threshold_aggressive_mixing,
+            'convergence_criterion': self.ctx.convergence_criterion,
+            'mixreduce': self.ctx.mixreduce,
+            'strmix': self.ctx.strmix,
+            'aggressive_mix': self.ctx.aggressive_mix,
+            'aggrmix': self.ctx.aggrmix,
+            'broyden-number': self.ctx.broyden_number,
+            'mag_init': self.ctx.mag_init,
+            'hfield': self.ctx.hfield,
+            'init_pos': self.ctx.init_pos,
+            'accuracy_params': self.ctx.accuracy_params,
+            'do_final_cleanup': self.ctx.do_final_cleanup
+        })
 
         # retrieve option for kkrlfex files
         self.ctx.retrieve_kkrflex = wf_dict.get('retrieve_kkrflex', self._wf_default['retrieve_kkrflex'])
@@ -502,7 +496,7 @@ class kkr_imp_wc(WorkChain):
         wf_params_gf = {}
         if not self.ctx.retrieve_kkrflex:
             wf_params_gf['retrieve_kkrflex'] = self.ctx.retrieve_kkrflex
-        wf_params_gf = Dict(dict=wf_params_gf)
+        wf_params_gf = Dict(wf_params_gf)
         builder.wf_parameters = wf_params_gf
 
         future = self.submit(builder)
@@ -563,7 +557,7 @@ class kkr_imp_wc(WorkChain):
         set_efermi = self.get_ef_from_parent()
         self.report(f'INFO: set Fermi level in jellium starting potential to {set_efermi}')
         # change voronoi parameters
-        updatenode = Dict(dict={'ef_set': set_efermi, 'add_direct': True})
+        updatenode = Dict({'ef_set': set_efermi, 'add_direct': True})
         updatenode.label = 'Added Fermi energy'
         voro_params = update_params_wf(voro_params, updatenode)
 
@@ -584,7 +578,7 @@ class kkr_imp_wc(WorkChain):
             calc_params_dict[key] = val
             changed_params = True
         if changed_params:
-            updatenode = Dict(dict=calc_params_dict)
+            updatenode = Dict(calc_params_dict)
             updatenode.label = f'Changed params for voroaux: {list(self.ctx.change_voro_params.keys())}'
             updatenode.description = 'Overwritten voronoi input parameter from kkr_imp_wc input.'
             calc_params = update_params_wf(calc_params, updatenode)
@@ -610,7 +604,7 @@ class kkr_imp_wc(WorkChain):
         builder.kkr = kkrcode
         builder.wf_parameters = voro_params
         builder.calc_parameters = calc_params
-        builder.options = Dict(dict=self.ctx.options_params_dict_voronoi)
+        builder.options = Dict(self.ctx.options_params_dict_voronoi)
         future = self.submit(builder)
 
         tmp_calcname = f'voro_aux_{1}'
@@ -708,17 +702,15 @@ class kkr_imp_wc(WorkChain):
 
         settings_label = f'startpot_KKRimp for imp_info node {imp_info.pk}'
         settings_description = f'starting potential for impurity info: {imp_info}'
-        settings = Dict(
-            dict={
-                'pot1': potname_converged,
-                'out_pot': potname_imp,
-                'neworder': neworder_pot1,
-                'pot2': potname_impvorostart,
-                'replace_newpos': replacelist_pot2,
-                'label': settings_label,
-                'description': settings_description
-            }
-        )
+        settings = Dict({
+            'pot1': potname_converged,
+            'out_pot': potname_imp,
+            'neworder': neworder_pot1,
+            'pot2': potname_impvorostart,
+            'replace_newpos': replacelist_pot2,
+            'label': settings_label,
+            'description': settings_description
+        })
         print('startpot_kkrimp construction:', settings, converged_host_remote, voro_calc_remote)
         startpot_kkrimp = neworder_potential_wf(
             settings_node=settings, parent_calc_folder=converged_host_remote, parent_calc_folder2=voro_calc_remote

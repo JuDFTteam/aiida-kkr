@@ -719,7 +719,7 @@ class kkr_imp_sub_wc(WorkChain):
             # step 3:
             message = f'INFO: update parameters to: {para_check.get_set_values()}'
             self.report(message)
-            updatenode = Dict(dict=para_check.get_dict())
+            updatenode = Dict(para_check.get_dict())
             updatenode.label = label
             updatenode.description = description
             paranode_new = updatenode  #update_params_wf(self.ctx.last_params, updatenode)

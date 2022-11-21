@@ -1181,7 +1181,7 @@ def _update_params(parameters, change_values):
             new_params[key] = val
         for key, val in change_values:
             new_params[key] = val
-        new_params_node = Dict(dict=new_params)
+        new_params_node = Dict(new_params)
         #parameters = update_params_wf(parameters, new_params_node)
         parameters = new_params_node
     return parameters

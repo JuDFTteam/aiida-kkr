@@ -57,7 +57,7 @@ The following keys are missing:
     if len(no_struc_kkrparams.keys()) == 0:
         echo.echo_critical('failed to extract kkr params')
     else:
-        param_node = Dict(dict=no_struc_kkrparams)
+        param_node = Dict(no_struc_kkrparams)
         if dry_run:
             echo.echo_success('parsed kkr params from input file')
         else:

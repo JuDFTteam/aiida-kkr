@@ -276,7 +276,7 @@ PARENT_FOR_IMP = OverridableOption(
     '-P',
     '--parent-folder',
     'parent_folder',
-    type=types.DataParamType(sub_classes=('aiida.data:remote',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.remote',)),
     show_default=True,
     required=True,
     help=
@@ -287,7 +287,7 @@ PARAMS_HOST_GF = OverridableOption(
     '-p',
     '--parameters-hostGF',
     'parameters_hostgf',
-    type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.dict',)),
     show_default=True,
     help='Set of parameters that are overwritten in the host GF writeout step.'
 )
@@ -295,7 +295,7 @@ PARAMS_HOST_GF = OverridableOption(
 IMP_STARTPOT = OverridableOption(
     '--impurity-startpot',
     'impurity_startpot',
-    type=types.DataParamType(sub_classes=('aiida.data:singlefile',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.singlefile',)),
     help=
     'Use this as the starting potential for the impurity calculation. Needs to match the settings in the impurity info node.'
 )

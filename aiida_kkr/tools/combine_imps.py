@@ -362,18 +362,16 @@ def create_combined_imp_info(
     zimp_combined = imps_info_in_exact_cluster['Zimps']
 
     # create new imp_info node with imp_cls, Rimp_rel and Zimp definig the cluster and impurity location
-    imp_info_combined = Dict(dict={'imp_cls': cluster_combined, 'Zimp': zimp_combined, 'Rimp_rel': rimp_rel_combined})
+    imp_info_combined = Dict({'imp_cls': cluster_combined, 'Zimp': zimp_combined, 'Rimp_rel': rimp_rel_combined})
 
     # kickout info (used later in cfreation of combined potential)
-    kickout_info = Dict(
-        dict={
-            'i_removed_from_1': i_removed_from_1,
-            'kickout_list': kickout_list,
-            'Ncls1': len(clust1),
-            'Ncls2': len(clust2),
-            'Ncls_combined': len(cluster_combined)
-        }
-    )
+    kickout_info = Dict({
+        'i_removed_from_1': i_removed_from_1,
+        'kickout_list': kickout_list,
+        'Ncls1': len(clust1),
+        'Ncls2': len(clust2),
+        'Ncls_combined': len(cluster_combined)
+    })
 
     return {'imp_info_combined': imp_info_combined, 'kickout_info': kickout_info}
 
@@ -564,4 +562,4 @@ def combine_settings_ldau(**kwargs):
                 if has_old_ldaupot2:
                     settings_LDAU_combined['initial_matrices'][f'iatom={iatom+noffset}'] = txts_ldaumat2
 
-    return Dict(dict=settings_LDAU_combined)
+    return Dict(settings_LDAU_combined)

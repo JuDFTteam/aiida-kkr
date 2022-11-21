@@ -390,7 +390,7 @@ class kkr_bs_wc(WorkChain):
             NPOL=0,
         )
 
-        updatenode = Dict(dict=para_check.get_dict())
+        updatenode = Dict(para_check.get_dict())
         updatenode.label = label + 'KKRparam_BS'
         updatenode.description = 'KKR parameter node extracted from remote_folder' + descr + ' as well as wf_parameter input node.'
 
@@ -496,7 +496,7 @@ class kkr_bs_wc(WorkChain):
         outputnode_dict['list_of_errors'] = self.ctx.errors
 
         # create output node with data-provenance
-        outputnode = Dict(dict=outputnode_dict)
+        outputnode = Dict(outputnode_dict)
         outputnode.label = 'kkr_BS_wc_results'
         outputnode.description = 'Contains the info of the WC'
 

@@ -152,9 +152,9 @@ def update_params(node, nodename=None, nodedesc=None, strict=False, **kwargs):
 
     # create new node
     if not add_direct:
-        ParaNode = Dict(dict=params.values)
+        ParaNode = Dict(params.values)
     else:
-        ParaNode = Dict(dict=params)
+        ParaNode = Dict(params)
     ParaNode.label = nodename
     ParaNode.description = nodedesc
 

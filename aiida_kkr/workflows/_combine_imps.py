@@ -571,7 +571,7 @@ If given then the writeout step of the host GF is omitted."""
         builder = kkr_flex_wc.get_builder()
         builder.impurity_info = self.ctx.imp_info_combined
         builder.kkr = self.inputs.host_gf.kkr
-        builder.wf_parameters = Dict(dict=wf_parameters_flex)
+        builder.wf_parameters = Dict(wf_parameters_flex)
 
         if 'options' in self.inputs.host_gf:
             builder.options = self.inputs.host_gf.options
@@ -694,7 +694,7 @@ If given then the writeout step of the host GF is omitted."""
 
         self.ctx.run_options = run_options
         self.ctx.wf_parameters_flex = wf_parameters_flex
-        self.ctx.scf_wf_parameters = Dict(dict=scf_wf_parameters)
+        self.ctx.scf_wf_parameters = Dict(scf_wf_parameters)
 
     def run_kkrimp_scf(self):
         """
@@ -768,7 +768,7 @@ If given then the writeout step of the host GF is omitted."""
         param_dict = {k: v for k, v in builder.parameters.get_dict().items() if v is not None}
         param_dict['CALCJIJMAT'] = 1  # activate Jij calculation, leave the rest as is
 
-        builder.parameters = Dict(dict=param_dict)
+        builder.parameters = Dict(param_dict)
         builder.metadata.label = 'KKRimp_Jij (' + last_calc.label.split('=')[1][3:]
 
         future = self.submit(builder)
@@ -1020,4 +1020,4 @@ def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_
     a = ArrayData()
     a.set_array('JijData', plotdata)
 
-    return {'Jijdata': a, 'info': Dict(dict={'text': out_txt})}
+    return {'Jijdata': a, 'info': Dict({'text': out_txt})}

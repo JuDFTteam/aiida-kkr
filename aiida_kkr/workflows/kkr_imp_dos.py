@@ -226,15 +226,13 @@ class kkr_imp_dos_wc(WorkChain):
         self.ctx.custom_scheduler_commands = options_dict.get(
             'custom_scheduler_commands', self._options_default['custom_scheduler_commands']
         )
-        self.ctx.options_params_dict = Dict(
-            dict={
-                'withmpi': self.ctx.withmpi,
-                'resources': self.ctx.resources,
-                'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
-                'queue_name': self.ctx.queue,
-                'custom_scheduler_commands': self.ctx.custom_scheduler_commands
-            }
-        )
+        self.ctx.options_params_dict = Dict({
+            'withmpi': self.ctx.withmpi,
+            'resources': self.ctx.resources,
+            'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
+            'queue_name': self.ctx.queue,
+            'custom_scheduler_commands': self.ctx.custom_scheduler_commands
+        })
 
         # set workflow parameters for the KKR imputrity calculations
         self.ctx.lmdos = wf_dict.get('lmdos', self._wf_default['lmdos'])
@@ -396,7 +394,7 @@ label: {self.ctx.label_wf}
             if not self.ctx.retrieve_kkrflex:
                 wf_params_gf['retrieve_kkrflex'] = self.ctx.retrieve_kkrflex
             # now convert to AiiDA Dict
-            wf_params_gf = Dict(dict=wf_params_gf)
+            wf_params_gf = Dict(wf_params_gf)
 
             label_gf = 'GF writeout for imp DOS'
             description_gf = 'GF writeout step with energy contour for impurity DOS'
@@ -450,17 +448,15 @@ label: {self.ctx.label_wf}
         nspin = gf_writeout_calc.outputs.output_parameters.get_dict().get('nspin')
         self.ctx.nspin = nspin
         self.report(f'nspin: {nspin}')
-        self.ctx.kkrimp_params_dict = Dict(
-            dict={
-                'nspin': nspin,
-                'nsteps': 1,
-                'kkr_runmax': 1,
-                'dos_run': True,
-                'lmdos': self.ctx.lmdos,
-                'jij_run': self.ctx.jij_run,
-                'do_final_cleanup': self.ctx.cleanup_impcalc_output
-            }
-        )
+        self.ctx.kkrimp_params_dict = Dict({
+            'nspin': nspin,
+            'nsteps': 1,
+            'kkr_runmax': 1,
+            'dos_run': True,
+            'lmdos': self.ctx.lmdos,
+            'jij_run': self.ctx.jij_run,
+            'do_final_cleanup': self.ctx.cleanup_impcalc_output
+        })
         kkrimp_params = self.ctx.kkrimp_params_dict
         label_imp = 'KKRimp DOS (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {})'.format(
             gf_writeout_calc.pk, impurity_pot_or_remote.pk,
@@ -642,12 +638,10 @@ label: {self.ctx.label_wf}
         # get list of files in directory (needed since SandboxFolder does not have `list_object_names` method)
         # also extract absolute path of folder (needed by parse_impdosfiles since calcfunction does not work with SandboxFolder as input)
         if isinstance(folder, SandboxFolder):
-            # folder_abspath = folder.abspath
+            folder_abspath = folder.abspath
             filelist = os.listdir(folder_abspath)
         else:
             filelist = folder.list_object_names()
-            # with folder.open(filelist[0]) as tmpfile:
-            #     folder_abspath = tmpfile.name.replace(filelist[0], '')
 
         # check if out_ldos* files are there and parse dos files
         if 'out_ldos.interpol.atom=01_spin1.dat' in filelist:

@@ -373,7 +373,7 @@ class kkr_flex_wc(WorkChain):
                 updatedict['ef_set'] = ef_new
 
         #construct the final param node containing all of the params
-        updatenode = Dict(dict=updatedict)
+        updatenode = Dict(updatedict)
         updatenode.label = label + 'KKRparam_flex'
         updatenode.description = descr + 'KKR parameter node extracted from parent parameters and wf_parameter and options input node.'
         paranode_flex = update_params_wf(self.ctx.input_params_KKR, updatenode, **input_links)
