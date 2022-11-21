@@ -93,16 +93,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
-        aiida: [{version: 'aiida-core==1.6.8', name: '1.6.8'}, {version: 'aiida-core==2.0.1', name: '2.0.1'}]
-        masci-tools: [{version: 'masci-tools', name: ''}]
+        python-version: ["3.8", "3.9", "3.10"]
+        aiida: [{version: 'aiida-core==2.1.2', name: '2.1.2'}]
+        masci-tools: [{version: 'git+https://github.com/JuDFTteam/masci-tools.git@develop', name: '-masci-develop'}]
         allowed-to-fail: [false]
-        exclude:
-          # aiida-core>=2.0 needs at least python 3.8
-          - python-version: 3.7
-            aiida: {version: 'aiida-core==2.0.1', name: '2.0.1'}
-            masci-tools: {version: 'masci-tools', name: ''}
-            allowed-to-fail: false
 
     services:
       postgres:
