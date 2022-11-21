@@ -25,12 +25,10 @@ if [[ -z "$install_jukkr" ]]; then
     touch jukkr/kkrflex.exe && chmod +x jukkr/kkrflex.exe
 else
     # clone jukkr repository
-    git clone --depth 1 -b BdG --single-branch gitlab@iffgit.fz-juelich.de:kkr/jukkr.git
+    git clone --depth 1 -b develop --single-branch gitlab@iffgit.fz-juelich.de:kkr/jukkr.git
+    #git clone --depth 1 -b BdG --single-branch gitlab@iffgit.fz-juelich.de:kkr/jukkr.git
     mkdir -p jukkr/
     cd jukkr/
-
-    # select gcc8 environment
-    source compiler-select gcc8
 
     # now codes are build using gfortran and in serial
     # code executables will be placed inside the jukkr directory
