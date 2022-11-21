@@ -114,9 +114,7 @@ class kkrimp_BdG_wc(WorkChain):
         # expose inputs for impurity normal state scf
         spec.expose_inputs(kkr_imp_wc, namespace='imp_scf', include=('startpot', 'wf_parameters', 'gf_writeout'))
         spec.inputs['imp_scf']['gf_writeout']['kkr'].required = False
-        spec.input(
-            'imp_scf.options', required=False, help='computer options for impurity scf step'
-        )
+        spec.input('imp_scf.options', required=False, help='computer options for impurity scf step')
 
         spec.input(
             'imp_scf.remote_data_host',
@@ -128,9 +126,7 @@ class kkrimp_BdG_wc(WorkChain):
         # inputs for impurity BdG scf
         spec.expose_inputs(kkr_imp_wc, namespace='BdG_scf', include=('startpot', 'remote_data_gf', 'gf_writeout'))
         spec.inputs['BdG_scf']['gf_writeout']['kkr'].required = False
-        spec.input(
-            'BdG_scf.options', required=False, help='computer options for BdG impurity scf step'
-        )
+        spec.input('BdG_scf.options', required=False, help='computer options for BdG impurity scf step')
 
         spec.input(
             'BdG_scf.remote_data_host', required=False, help='Parent folder of previously converged BdG KkrCalculation'
@@ -152,13 +148,8 @@ class kkrimp_BdG_wc(WorkChain):
             required=False,
             help='KKRhost code used to create DOS kkrflex files'
         )
-        
-        spec.input(
-            'dos.options',
-            valid_type=Dict,
-            required=False,
-            help='Computer options for DOS step'
-        )
+
+        spec.input('dos.options', valid_type=Dict, required=False, help='Computer options for DOS step')
 
         # Here outputs are defined
 
@@ -292,7 +283,7 @@ class kkrimp_BdG_wc(WorkChain):
             builder.gf_writeout.kkr = builder.kkr  # pylint: disable=no-member
 
         builder.remote_data_host = self.inputs.BdG_scf.remote_data_host
-        
+
         if 'options' in self.inputs.BdG_scf:
             builder.options = self.inputs.BdG_scf.options
         else:
@@ -340,8 +331,8 @@ class kkrimp_BdG_wc(WorkChain):
         if 'kkr' in self.inputs:
             builder.kkr = self.inputs.kkr
         builder.kkrimp = self.inputs.kkrimp
-        
-        #define computer options 
+
+        #define computer options
         if 'options' in self.inputs.dos:
             builder.options = self.inputs.dos.options
         else:

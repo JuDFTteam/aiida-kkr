@@ -562,8 +562,8 @@ The Dict node should be of the form
         # read scoef for comparison with Rimp_rel
         scoef = []
         with tempfolder.open(KkrCalculation._SCOEF, u'r') as scoeffile:
-            n_rows = len(scoeffile.readlines())-1
-        with tempfolder.open(KkrCalculation._SCOEF, u'r') as scoeffile:  
+            n_rows = len(scoeffile.readlines()) - 1
+        with tempfolder.open(KkrCalculation._SCOEF, u'r') as scoeffile:
             if n_rows > 1:
                 scoef = loadtxt(scoeffile, skiprows=1)[:, :3]
             else:

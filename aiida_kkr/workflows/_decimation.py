@@ -599,7 +599,6 @@ class kkr_decimation_wc(WorkChain):
         dd = self.ctx.ddecimation.get_dict()
         is_BdG = dd.get('USE_BDG', dd.get('<USE_BDG>', False))
 
-
         if is_BdG:
             # now copy the anomalous density files to a FolderData that can be the input to the KkrCalculation
             retrieved = self.ctx.slab_calc.outputs.retrieved
