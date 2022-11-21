@@ -16,7 +16,7 @@ from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_af
 @pytest.mark.timeout(240, method='thread')
 def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache, ndarrays_regression):
     """
-    minimal bandstructure calualtion for Cu bulk
+    minimal bandstructure calculation for Cu bulk
     """
 
     from aiida import get_version
@@ -40,18 +40,6 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     wfbs['tempr'] = 50.0
     params_bs = Dict(wfbs)
 
-    # for runing in local computer
-    options2 = {
-        'queue_name': queuename,
-        'resources': {
-            'num_machines': 1
-        },
-        'max_wallclock_seconds': 5 * 60,
-        'withmpi': False,
-        'custom_scheduler_commands': ''
-    }
-    options = Dict(options2)
-
     label = 'bs calc Cu bulk'
     descr = 'testing bs workflow for Cu bulk'
 
@@ -65,7 +53,15 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     builder.metadata.label = label
     builder.kkr = kkrhost_local_code
     builder.wf_parameters = params_bs
-    builder.options = options
+    builder.options = Dict({
+        'queue_name': queuename,
+        'resources': {
+            'num_machines': 1
+        },
+        'max_wallclock_seconds': 5 * 60,
+        'withmpi': False,
+        'custom_scheduler_commands': ''
+    })
     builder.remote_data = kkr_calc_remote
 
     # run the calculation using cached data is available

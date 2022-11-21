@@ -594,17 +594,13 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
         with retrieved_folder.open(q_vec_file) as file_opened:
             q_vec = np.loadtxt(file_opened, skiprows=1)
 
-    no_q_vec = len(q_vec[:, 0])
-
-    num_qdos_files = len(qdos_file_list)
-
-    with retrieved_folder.open(qdos_file_list[0]) as f:
-        total_qdos = np.loadtxt(f)
-
-    for i in qdos_file_list[1:]:
-        with retrieved_folder.open(i) as f:
-            loaded_file = np.loadtxt(f)
-            total_qdos[:, 5:] += loaded_file[:, 5:]
+    for icount, fname in enumerate(qdos_file_list):
+        with retrieved_folder.open(fname) as _f:
+            loaded_file = np.loadtxt(_f)
+            if icount == 0:
+                total_qdos = loaded_file
+            else:
+                total_qdos[:, 5:] += loaded_file[:, 5:]
 
     ef = fermi_level.value  # in Ry unit
     total_qdos[:, 0] = (total_qdos[:, 0] - ef) * eVscale
@@ -612,7 +608,7 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
     eng_points = np.sort(list(eng_points))
     no_eng_points = len(eng_points)
 
-    qdos_intensity = np.ndarray(shape=(no_eng_points, no_q_vec))
+    qdos_intensity = np.ndarray(shape=(no_eng_points, len(q_vec)))
     for ne in range(np.shape(qdos_intensity)[0]):
         nk = np.shape(qdos_intensity)[1]
         # sum up all l-channels (5 is only the s-channel!)
