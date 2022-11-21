@@ -3,7 +3,6 @@
 Input plug-in for a KKRimp calculation.
 """
 
-from __future__ import absolute_import
 from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode, Dict, RemoteData, SinglefileData, Bool
 from aiida.common.utils import classproperty
@@ -18,8 +17,6 @@ from masci_tools.io.common_functions import search_string, get_ef_from_potfile
 import os
 import tarfile
 from numpy import array, array_equal, sqrt, sum, where, loadtxt
-import six
-from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
@@ -99,21 +96,9 @@ class KkrimpCalculation(CalcJob):
         # reuse base class function
         super(KkrimpCalculation, cls).define(spec)
         # now define input files and parser
-        spec.input(
-            'metadata.options.parser_name', valid_type=six.string_types, default=cls._default_parser, non_db=True
-        )
-        spec.input(
-            'metadata.options.input_filename',
-            valid_type=six.string_types,
-            default=cls._DEFAULT_INPUT_FILE,
-            non_db=True
-        )
-        spec.input(
-            'metadata.options.output_filename',
-            valid_type=six.string_types,
-            default=cls._DEFAULT_OUTPUT_FILE,
-            non_db=True
-        )
+        spec.input('metadata.options.parser_name', valid_type=str, default=cls._default_parser, non_db=True)
+        spec.input('metadata.options.input_filename', valid_type=str, default=cls._DEFAULT_INPUT_FILE, non_db=True)
+        spec.input('metadata.options.output_filename', valid_type=str, default=cls._DEFAULT_OUTPUT_FILE, non_db=True)
         # define input nodes (optional ones have required=False)
         spec.input(
             'parameters',

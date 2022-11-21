@@ -3,12 +3,10 @@
 Calcfucntion that extracts the nonco angles from the output of a KkrCalculation
 """
 
-from __future__ import absolute_import
 from aiida.orm import Dict
 from aiida.engine import calcfunction
 from aiida_kkr.calculations import KkrCalculation
 from numpy import sqrt, loadtxt
-from six.moves import range
 
 
 @calcfunction

@@ -3,8 +3,6 @@
 This module contains the workflow which combines pre-converged two single-impurity calculations to a larger impurity calculation
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
 from aiida.engine import WorkChain, if_, ToContext, calcfunction
 from aiida.orm import load_node, Dict, WorkChainNode, Int, RemoteData, Bool, ArrayData
 from aiida_kkr.calculations import KkrCalculation, KkrimpCalculation

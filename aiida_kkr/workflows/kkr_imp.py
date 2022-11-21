@@ -3,8 +3,7 @@
 In this module you find the total workflow for a kkr impurity calculation
 and some helper methods to do so with AiiDA
 """
-from __future__ import print_function
-from __future__ import absolute_import
+
 from aiida.orm import Code, load_node, RemoteData, StructureData, Dict, SinglefileData, FolderData
 from aiida.orm import CalcJobNode
 from aiida.engine import WorkChain, ToContext, if_
@@ -831,7 +830,8 @@ class kkr_imp_wc(WorkChain):
             self.out('remote_data_gf', self.ctx.gf_remote)
 
             # cleanup things that are not needed anymore
-            self.final_cleanup()
+            if self.ctx.do_final_cleanup:
+                self.final_cleanup()
 
             # print final message before exiting
             self.report('INFO: created 3 output nodes for the KKR impurity workflow.')

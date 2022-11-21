@@ -5,8 +5,6 @@ This module contains the band structure workflow for KKR which is done by calcul
 also known as Bloch spectral function.
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
 from aiida.orm import Code, Dict, RemoteData, StructureData, Float, Str, WorkChainNode, load_node, CalcJobNode, ArrayData, KpointsData
 from aiida.engine import WorkChain, ToContext, calcfunction
 from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
@@ -18,7 +16,6 @@ from aiida_kkr.tools.extract_kkrhost_noco_angles import extract_noco_angles
 from masci_tools.io.kkr_params import kkrparams
 from masci_tools.io.common_functions import get_Ry2eV
 import numpy as np
-from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')

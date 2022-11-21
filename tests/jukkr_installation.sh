@@ -25,7 +25,7 @@ if [[ -z "$install_jukkr" ]]; then
     touch jukkr/kkrflex.exe && chmod +x jukkr/kkrflex.exe
 else
     # clone jukkr repository
-    git clone --depth 1 -b develop --single-branch gitlab@iffgit.fz-juelich.de:kkr/jukkr.git
+    git clone --depth 1 -b BdG --single-branch gitlab@iffgit.fz-juelich.de:kkr/jukkr.git
     mkdir -p jukkr/
     cd jukkr/
 

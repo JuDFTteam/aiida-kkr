@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import
-from __future__ import print_function
 import pytest
 from ..dbsetup import *
 from ..conftest import kkrimp_local_code, data_dir, import_with_migration

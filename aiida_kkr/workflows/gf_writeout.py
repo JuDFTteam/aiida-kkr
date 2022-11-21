@@ -3,9 +3,7 @@
 In this module you find the base workflow for writing out the kkr_flexfiles and
 some helper methods to do so with AiiDA
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
+
 from aiida.orm import Code, load_node, Bool
 from aiida.engine import WorkChain, ToContext, if_
 from masci_tools.io.kkr_params import kkrparams

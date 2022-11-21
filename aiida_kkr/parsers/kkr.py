@@ -5,7 +5,6 @@ The parser should never fail, but it should catch
 all errors and warnings and show them to the user.
 """
 
-from __future__ import absolute_import
 from aiida import __version__ as aiida_core_version
 from aiida.parsers.parser import Parser
 from aiida.orm import Dict

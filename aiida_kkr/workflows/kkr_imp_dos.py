@@ -4,7 +4,7 @@
 In this module you find the base workflow for a impurity DOS calculation and
 some helper methods to do so with AiiDA
 """
-from __future__ import print_function, absolute_import
+
 from aiida.orm import Code, load_node, CalcJobNode, Float, Int, Str, Dict, RemoteData, SinglefileData, XyData
 from aiida.plugins import DataFactory
 from aiida.engine import if_, ToContext, WorkChain, calcfunction
@@ -16,7 +16,6 @@ from aiida_kkr.workflows.dos import kkr_dos_wc
 from aiida_kkr.calculations import KkrimpCalculation
 import tarfile
 import os
-from six.moves import range
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
 __copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, '

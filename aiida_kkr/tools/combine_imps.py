@@ -2,8 +2,6 @@
 """
 This module contains helper functions and tools for the combine_imps_wc workchain
 """
-from __future__ import absolute_import
-from __future__ import print_function
 import numpy as np
 import tarfile
 from aiida.engine import calcfunction
@@ -14,7 +12,6 @@ from aiida_kkr.tools.tools_kkrimp import modify_potential, create_scoef_array
 from aiida_kkr.calculations import VoronoiCalculation, KkrimpCalculation
 from aiida_kkr.workflows import kkr_imp_sub_wc
 from masci_tools.io.common_functions import get_alat_from_bravais
-from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')

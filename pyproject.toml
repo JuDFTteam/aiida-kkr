@@ -1,47 +1,124 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = [ "setuptools>=61.2",]
+build-backend = "setuptools.build_meta"
 
-[tool.poetry]
+[project]
 name = "aiida-kkr"
 version = "1.1.12"
-description = "AiiDA plugin for the KKR code"
-authors = ["Philipp Rüssmann <p.ruessmann@fz-juelich.de>",
-           "Jens Bröder <j.broeder@fz-juelich.de>",
-           "Fabian Bertoldo <f.bertoldo@fz-juelich.de>"]
-license = "MIT"
-readme = "README.md"
-homepage = "https://github.com/JuDFTteam/aiida-kkr"
-repository = "https://github.com/JuDFTteam/aiida-kkr"
-documentation = "https://aiida-kkr.readthedocs.io"
-keywords = ["material science",
-            "aiida",
-            "dft",
-            "all-electron",
-            "kkr"]
-classifiers = ["Development Status :: 4 - Beta",
-               "Intended Audience :: Science/Research",
-               "License :: OSI Approved :: MIT License",
-               "Programming Language :: Python :: 3",
-               "Programming Language :: Python :: 3.7",
-               "Programming Language :: Python :: 3.8",
-               "Programming Language :: Python :: 3.9",
-               "Programming Language :: Python :: 3.10",
-               "Environment :: Plugins",
-               "Natural Language :: English",
-               "Topic :: Scientific/Engineering :: Physics",
-               "Framework :: AiiDA"]
+description = "AiiDA plugin for the JuKKR codes"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Development Status :: 4 - Beta",
+    "Environment :: Plugins",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Natural Language :: English",
+    "Framework :: AiiDA",
+]
+dependencies = [
+    "aiida-core >= 1.0.0b6,<3.0.0",
+    "masci-tools >= 0.4.8.dev5,<1.0.0",
+    "seekpath >= 1.9.2",
+    "ase",
+    "pymatgen",
+]
+license = {file = "ICENSE.txt"}
+keywords = [
+    "material science",
+    "aiida",
+    "dft",
+    "all-electron",
+    "kkr",
+]
 
-[tool.poetry.dependencies]
-aiida-core = "^1.0.0b6"
-python = "^2.7"
-masci-tools = ">=0.4.8.dev5,<1.0.0"
-seekpath = "*"
-pgtest = "*"
-pytest-cov = "^2.5.0"
-pytest-mpl = "*"
-pytest-timeout = "*"
-sphinx = "*"
-sphinx_rtd_theme = "*"
-bumpversion = "*"
-ase = "*"
-pymatgen = "*"
+[[project.authors]]
+name = "Philipp Ruessmann"
+email = "p.ruessmann@fz-juelich.de"
+
+[[project.authors]]
+name = "Jens Broeder"
+email = "j.broeder@fz-juelich.de"
+
+[[project.authors]]
+name = "Fabian Bertoldo"
+email = "f.bertoldo@fz-juelich.de"
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+[project.urls]
+Homepage = "https://github.com/JuDFTteam/aiida-kkr"
+Download = "https://github.com/JuDFTteam/aiida-kkr"
+Documentation = "https://aiida-kkr.readthedocs.io"
+
+[project.optional-dependencies]
+pre-commit = [
+    "pre-commit==1.17.0",
+    "yapf==0.28.0",
+    "pylint==1.9.4; python_version<'3.0'",
+    "pylint==2.3.1; python_version>='3.0'",
+]
+testing = [
+    "pgtest >= 1.3.0",
+    "pytest-xdist",
+    "pytest-cov >= 2.5.0",
+    "pytest-mpl >= 0.10",
+    "pytest-timeout >= 1.3.3",
+    "pytest-regressions >= 1.0",
+    "MarkupSafe < 2.1.0",
+]
+docs = [
+    "Sphinx >= 1.8.2",
+    "sphinx_rtd_theme >= 0.4.2",
+]
+devtools = [
+    "bump2version >= 0.5.10",
+]
+widgets = [
+    "ase_notebook",
+]
+
+[project.scripts]
+aiida-kkr = "aiida_kkr.cmdline:cmd_root"
+
+[tool.setuptools]
+include-package-data = false
+
+[project.entry-points."aiida.calculations"]
+"kkr.voro" = "aiida_kkr.calculations.voro:VoronoiCalculation"
+"kkr.kkr" = "aiida_kkr.calculations.kkr:KkrCalculation"
+"kkr.kkrimp" = "aiida_kkr.calculations.kkrimp:KkrimpCalculation"
+"kkr.kkrnano" = "aiida_kkr.calculations.kkrnano:KKRnanoCalculation"
+"kkr.kkrimporter" = "aiida_kkr.calculations.kkrimporter:KkrImporterCalculation"
+
+[project.entry-points."aiida.parsers"]
+"kkr.voroparser" = "aiida_kkr.parsers.voro:VoronoiParser"
+"kkr.kkrparser" = "aiida_kkr.parsers.kkr:KkrParser"
+"kkr.kkrimpparser" = "aiida_kkr.parsers.kkrimp:KkrimpParser"
+"kkr.kkrnanoparser" = "aiida_kkr.parsers.kkrnano:KKRnanoParser"
+"kkr.kkrimporterparser" = "aiida_kkr.parsers.kkrimporter:KkrImporterParser"
+
+[project.entry-points."aiida.data"]
+"kkr.strucwithpot" = "aiida_kkr.data.strucwithpot:StrucWithPotData"
+
+[project.entry-points."aiida.workflows"]
+"kkr.scf" = "aiida_kkr.workflows.kkr_scf:kkr_scf_wc"
+"kkr.dos" = "aiida_kkr.workflows.dos:kkr_dos_wc"
+"kkr.bs" = "aiida_kkr.workflows.bs:kkr_bs_wc"
+"kkr.eos" = "aiida_kkr.workflows.eos:kkr_eos_wc"
+"kkr.startpot" = "aiida_kkr.workflows.voro_start:kkr_startpot_wc"
+"kkr.gf_writeout" = "aiida_kkr.workflows.gf_writeout:kkr_flex_wc"
+"kkr.imp" = "aiida_kkr.workflows.kkr_imp:kkr_imp_wc"
+"kkr.imp_sub" = "aiida_kkr.workflows.kkr_imp_sub:kkr_imp_sub_wc"
+"kkr.imp_dos" = "aiida_kkr.workflows.kkr_imp_dos:kkr_imp_dos_wc"
+"kkr.decimation" = "aiida_kkr.workflows._decimation:kkr_decimation_wc"
+"kkr.jij" = "aiida_kkr.workflows.jijs:kkr_jij_wc"
+
+[tool.setuptools.packages.find]
+namespaces = false

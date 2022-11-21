@@ -2,8 +2,6 @@
 """
 Input plug-in for a KKR calculation.
 """
-from __future__ import print_function, absolute_import
-from __future__ import unicode_literals
 import os
 import numpy as np
 from aiida.engine import CalcJob
@@ -21,8 +19,6 @@ from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
 from aiida_kkr.tools.tools_kkrimp import make_scoef, write_scoef_full_imp_cls
 from aiida_kkr.tools.find_parent import find_parent_structure
 from masci_tools.io.kkr_params import __kkr_default_params__, kkrparams
-import six
-from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
@@ -147,22 +143,12 @@ class KkrCalculation(CalcJob):
         # now define input files and parser
         spec.input(
             'metadata.options.parser_name',
-            valid_type=six.string_types,
+            valid_type=str,
             default=cls._default_parser,
             non_db=True,
         )
-        spec.input(
-            'metadata.options.input_filename',
-            valid_type=six.string_types,
-            default=cls._DEFAULT_INPUT_FILE,
-            non_db=True
-        )
-        spec.input(
-            'metadata.options.output_filename',
-            valid_type=six.string_types,
-            default=cls._DEFAULT_OUTPUT_FILE,
-            non_db=True
-        )
+        spec.input('metadata.options.input_filename', valid_type=str, default=cls._DEFAULT_INPUT_FILE, non_db=True)
+        spec.input('metadata.options.output_filename', valid_type=str, default=cls._DEFAULT_OUTPUT_FILE, non_db=True)
 
         # define input nodes (optional ones have required=False)
         spec.input(

@@ -2,11 +2,9 @@
 """
 @author: ruess
 """
-from __future__ import print_function
-from __future__ import absolute_import
+
 from builtins import object
 import pytest
-from six.moves import range
 from numpy import sort
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
 from .conftest import import_with_migration

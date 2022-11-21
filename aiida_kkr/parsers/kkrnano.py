@@ -8,7 +8,6 @@ Created on Mon Dec 13 14:38:59 2021
 
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
 from aiida.parsers.parser import Parser
 from aiida.orm import Dict, CalcJobNode
 from aiida_kkr.calculations.kkrnano import KKRnanoCalculation

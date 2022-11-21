@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import
-from __future__ import print_function
 import pytest
 from ..dbsetup import *
 if __name__ != '__main__':
@@ -11,7 +9,7 @@ if __name__ != '__main__':
     from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 
 
-@pytest.mark.timeout(600, method='thread')
+@pytest.mark.timeout(900, method='thread')
 def test_kkrimp_full_wc(
     clear_database_before_test, voronoi_local_code, kkrhost_local_code, kkrimp_local_code, run_with_cache
 ):
@@ -27,7 +25,7 @@ def test_kkrimp_full_wc(
     # settings for workflow
     _, wfd, voro_aux_settings = kkr_imp_wc.get_wf_defaults()
 
-    wfd['nsteps'] = 20
+    wfd['nsteps'] = 5
     wfd['strmix'] = 0.05
     # deactivate final cleanup to be able to use caching
     wfd['do_final_cleanup'] = False
@@ -70,6 +68,7 @@ def test_kkrimp_full_wc(
     builder.wf_parameters = wf_inputs
     builder.impurity_info = imp_info
     builder.remote_data_host = gf_writeout_workflow.outputs.GF_host_remote
+    builder.scf.params_overwrite = Dict({'TOL_ALAT_CHECK': 1e-8})
 
     # now run calculation
     out, node = run_with_cache(builder, data_dir=data_dir)
@@ -85,7 +84,10 @@ def test_kkrimp_full_wc(
     kkrimp_sub = load_node(n['used_subworkflows']['kkr_imp_sub'])
     assert kkrimp_sub.outputs.workflow_info.get_dict().get('successful')
 
+    print(n)
 
+
+@pytest.mark.timeout(900, method='thread')
 def test_kkrimp_full_Ag_Cu_onsite(
     clear_database_before_test, voronoi_local_code, kkrhost_local_code, kkrimp_local_code, run_with_cache
 ):
@@ -102,7 +104,7 @@ def test_kkrimp_full_Ag_Cu_onsite(
     options, wfd, voro_aux_settings = kkr_imp_wc.get_wf_defaults()
 
     # workflow behavior
-    wfd['nsteps'] = 50
+    wfd['nsteps'] = 10
     wfd['strmix'] = 0.05
     wfd['do_final_cleanup'] = False
     wfd['convergence_criterion'] = 10**-4
@@ -150,6 +152,7 @@ def test_kkrimp_full_Ag_Cu_onsite(
     builder.wf_parameters = Dict(wfd)
     builder.impurity_info = imp_info
     builder.remote_data_host = kkrhost_calc_remote
+    builder.scf.params_overwrite = Dict({'TOL_ALAT_CHECK': 1e-8})
 
     # now run calculation
     out, node = run_with_cache(builder, data_dir=data_dir)
