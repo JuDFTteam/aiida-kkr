@@ -49,8 +49,8 @@ def test_kkrimp_full_wc(
     imp_info = Dict({'Rcut': 2.5533, 'ilayer_center': 0, 'Zimp': [30.]})
 
     # import parent calculation (converged host system)
-    o = import_with_migration('files/db_dump_kkrflex_create.tar.gz')
-    gf_writeout_workflow = [i for i in load_group(o).nodes if i.label == 'GF_writeout Cu bulk'][0]
+    group_pk = import_with_migration('files/db_dump_kkrflex_create.tar.gz')
+    gf_writeout_workflow = [i for i in load_group(group_pk).nodes if i.label == 'GF_writeout Cu bulk'][0]
 
     # give workflow label and description
     label = 'kkrimp_scf full Cu host_in_host'
@@ -99,7 +99,7 @@ def test_kkrimp_full_Ag_Cu_onsite(
     """
     Simple Ag_Cu (bulk) noSOC, FP, lmax2 example  where impurity cluster contains only the impurity atom
     """
-    from aiida.orm import Code, load_node, Dict, StructureData
+    from aiida.orm import Code, load_node, Dict, StructureData, load_group
     from aiida.orm.querybuilder import QueryBuilder
     from masci_tools.io.kkr_params import kkrparams
     from aiida_kkr.workflows.kkr_imp import kkr_imp_wc
@@ -133,9 +133,8 @@ def test_kkrimp_full_Ag_Cu_onsite(
     imp_info = Dict({'Rcut': 3.5, 'ilayer_center': 0, 'Zimp': [47.]})
 
     # import parent calculation (converged host system)
-    imported_nodes = import_with_migration('data_dir/kkr_scf_wc-nodes-db396f0dabbf666d9a247b3dca766421.tar.gz')['Node']
-    for _, pk in imported_nodes['new'] + imported_nodes['existing']:
-        node = load_node(pk)
+    group_pk = import_with_migration('data_dir/kkr_scf_wc-nodes-31a2e00e231215133475de79d47f7c0b.tar.gz')
+    for node in load_group(group_pk).nodes:
         if node.label == 'KKR-scf for Cu bulk':
             kkr_scf_wc = node
     kkr_converged = load_node(kkr_scf_wc.outputs.output_kkr_scf_wc_ParameterResults['last_calc_nodeinfo']['uuid'])
