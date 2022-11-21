@@ -47,13 +47,13 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
         'withmpi': False,
         'custom_scheduler_commands': ''
     }
-    options = Dict(dict=options)
+    options = Dict(options)
 
     # now create a SingleFileData node containing the impurity starting potential
     with GF_host_calc.outputs.retrieved.open('scoef') as _f:
         neworder_pot1 = [int(i) for i in loadtxt(_f, skiprows=1)[:, 3] - 1]
     settings_dict = {'pot1': 'out_potential', 'out_pot': 'potential_imp', 'neworder': neworder_pot1}
-    settings = Dict(dict=settings_dict)
+    settings = Dict(settings_dict)
 
     with enable_caching():  # should enable caching globally in this python interpreter
         startpot_imp_sfd = neworder_potential_wf(
@@ -75,8 +75,8 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     builder.kkr = kkrhost_local_code
     builder.kkrimp = kkrimp_local_code
     builder.imp_pot_sfd = startpot_imp_sfd
-    builder.wf_parameters = Dict(dict=wfd)
-    builder.impurity_info = Dict(dict=imp_info)
+    builder.wf_parameters = Dict(wfd)
+    builder.impurity_info = Dict(imp_info)
     builder.host_remote = GF_host_calc.outputs.remote_folder
 
     # now run calculation

@@ -18,7 +18,7 @@ def test_kkrimp_full_wc(
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
     """
-    from aiida.orm import Code, load_node, Dict, StructureData
+    from aiida.orm import Code, load_node, Dict, StructureData, load_group
     from aiida.orm.querybuilder import QueryBuilder
     from masci_tools.io.kkr_params import kkrparams
     from aiida_kkr.workflows.kkr_imp import kkr_imp_wc
@@ -40,19 +40,19 @@ def test_kkrimp_full_wc(
         'withmpi': False,
         'custom_scheduler_commands': ''
     }
-    options = Dict(dict=options)
+    options = Dict(options)
     voro_aux_settings['check_dos'] = False
     voro_aux_settings['natom_in_cls_min'] = 50
     voro_aux_settings['rclustz'] = 1.5
 
-    voro_aux_settings = Dict(dict=voro_aux_settings)
-    wf_inputs = Dict(dict=wfd)
+    voro_aux_settings = Dict(voro_aux_settings)
+    wf_inputs = Dict(wfd)
 
-    imp_info = Dict(dict={'Rcut': 2.5533, 'ilayer_center': 0, 'Zimp': [30.]})
+    imp_info = Dict({'Rcut': 2.5533, 'ilayer_center': 0, 'Zimp': [30.]})
 
     # import parent calculation (converged host system)
-    import_with_migration('files/db_dump_kkrflex_create.tar.gz')
-    GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
+    o = import_with_migration('files/db_dump_kkrflex_create.tar.gz')
+    gf_writeout_workflow = [i for i in load_group(o).nodes if i.label == 'GF_writeout Cu bulk'][0]
 
     # give workflow label and description
     label = 'kkrimp_scf full Cu host_in_host'
@@ -69,7 +69,7 @@ def test_kkrimp_full_wc(
     builder.voro_aux_parameters = voro_aux_settings
     builder.wf_parameters = wf_inputs
     builder.impurity_info = imp_info
-    builder.remote_data_host = GF_host_calc.outputs.remote_folder
+    builder.remote_data_host = gf_writeout_workflow.outputs.GF_host_remote
 
     # now run calculation
     out, node = run_with_cache(builder, data_dir=data_dir)
@@ -116,14 +116,14 @@ def test_kkrimp_full_Ag_Cu_onsite(
         'withmpi': False,
         'custom_scheduler_commands': ''
     }
-    options = Dict(dict=options)
+    options = Dict(options)
     # voronoi settings for impurity startpot
     voro_aux_settings['check_dos'] = False
     voro_aux_settings['natom_in_cls_min'] = 50
     voro_aux_settings['rclustz'] = 1.5
 
     # make cluster radius small so that only the impurity is inside
-    imp_info = Dict(dict={'Rcut': 3.5, 'ilayer_center': 0, 'Zimp': [47.]})
+    imp_info = Dict({'Rcut': 3.5, 'ilayer_center': 0, 'Zimp': [47.]})
 
     # import parent calculation (converged host system)
     imported_nodes = import_with_migration('data_dir/kkr_scf_wc-nodes-db396f0dabbf666d9a247b3dca766421.tar.gz')['Node']
@@ -146,8 +146,8 @@ def test_kkrimp_full_Ag_Cu_onsite(
     builder.voronoi = voronoi_local_code
     builder.kkr = kkrhost_local_code
     builder.options = options
-    builder.voro_aux_parameters = Dict(dict=voro_aux_settings)
-    builder.wf_parameters = Dict(dict=wfd)
+    builder.voro_aux_parameters = Dict(voro_aux_settings)
+    builder.wf_parameters = Dict(wfd)
     builder.impurity_info = imp_info
     builder.remote_data_host = kkrhost_calc_remote
 

@@ -53,7 +53,7 @@ def get_builder_basic(label, kkrhost_local_code, kkrimp_local_code):
     builder.metadata.label = label
     builder.impurity1_output_node = imp1_out
     builder.impurity2_output_node = imp2_out
-    builder.offset_imp2 = Dict(dict={'index': 1})
+    builder.offset_imp2 = Dict({'index': 1})
     # set code
     builder.host_gf.kkr = kkrhost_local_code  # should not be required if gf_host_remote is given, seems to be a problem of aiida-testing's run_with_cache
     builder.scf.kkrimp = kkrimp_local_code
@@ -67,8 +67,8 @@ def get_builder_basic(label, kkrhost_local_code, kkrimp_local_code):
         'withmpi': False,
         'custom_scheduler_commands': ''
     }
-    builder.scf.options = Dict(dict=options)
-    builder.scf.wf_parameters = Dict(dict={'do_final_cleanup': False})  # this is needed to allow for caching
+    builder.scf.options = Dict(options)
+    builder.scf.wf_parameters = Dict({'do_final_cleanup': False})  # this is needed to allow for caching
     builder.host_gf.options = builder.scf.options
 
     return builder
@@ -110,7 +110,7 @@ def test_combine_imps_params_kkr_overwrite(
 
     builder = get_builder_basic('test_combine_imps_params_kkr_overwrite', kkrhost_local_code, kkrimp_local_code)
     # increase k-mesh for GF writeout step with params_kkr_overwrite
-    builder.host_gf.params_kkr_overwrite = Dict(dict={'BZDIVIDE': [20, 20, 20]})
+    builder.host_gf.params_kkr_overwrite = Dict({'BZDIVIDE': [20, 20, 20]})
 
     # now submit
     print(builder, type(builder))

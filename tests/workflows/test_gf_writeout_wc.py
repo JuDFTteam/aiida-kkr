@@ -33,9 +33,9 @@ def test_kkrflex_writeout_wc(clear_database_before_test, kkrhost_local_code, run
         'custom_scheduler_commands': '',
         'withmpi': False
     }
-    options = Dict(dict=options)
+    options = Dict(options)
 
-    imp_info = Dict(dict={'Rcut': 2.5533, 'ilayer_center': 0, 'Zimp': [29.]})
+    imp_info = Dict({'Rcut': 2.5533, 'ilayer_center': 0, 'Zimp': [29.]})
 
     label = 'GF_writeout Cu bulk'
     descr = 'GF_writeout workflow for Cu bulk'

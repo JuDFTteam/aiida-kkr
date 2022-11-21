@@ -25,7 +25,7 @@ class Test_common_workfunctions(object):
 
         s = StructureData(cell=[[0.5, 0.5, 0], [1, 0, 0], [0, 0, 1]])
         s.append_atom(position=[0, 0, 0], symbols='Fe')
-        p = Dict(dict={'LMAX': 2, 'NSPIN': 2, 'RMAX': 10, 'GMAX': 100})
+        p = Dict({'LMAX': 2, 'NSPIN': 2, 'RMAX': 10, 'GMAX': 100})
         generate_inputcard_from_structure(p, s, 'inputcard')
         fhandle = open('inputcard2', 'w')
         generate_inputcard_from_structure(p, s, fhandle)
@@ -70,7 +70,7 @@ class Test_common_workfunctions(object):
 
         s = StructureData(cell=[[0.5, 0.5, 0], [1, 0, 0], [0, 0, 1]])
         s.append_atom(position=[0, 0, 0], symbols='Fe')
-        p = Dict(dict={'INTERFACE': False})
+        p = Dict({'INTERFACE': False})
         input_check = check_2Dinput_consistency(s, p)
         assert input_check[0]
         assert input_check[1] == '2D consistency check complete'
@@ -83,17 +83,15 @@ class Test_common_workfunctions(object):
         s = StructureData(cell=[[0.5, 0.5, 0], [1, 0, 0], [0, 0, 1]])
         s.append_atom(position=[0, 0, 0], symbols='Fe')
         s.set_pbc((True, True, False))
-        p = Dict(
-            dict={
-                'INTERFACE': True,
-                '<NRBASIS>': 1,
-                '<RBLEFT>': [0, 0, 0],
-                '<RBRIGHT>': [0, 0, 0],
-                'ZPERIODL': [0, 0, 0],
-                'ZPERIODR': [0, 0, 0],
-                '<NLBASIS>': 1
-            }
-        )
+        p = Dict({
+            'INTERFACE': True,
+            '<NRBASIS>': 1,
+            '<RBLEFT>': [0, 0, 0],
+            '<RBRIGHT>': [0, 0, 0],
+            'ZPERIODL': [0, 0, 0],
+            'ZPERIODR': [0, 0, 0],
+            '<NLBASIS>': 1
+        })
         input_check = check_2Dinput_consistency(s, p)
         assert input_check[0]
         assert input_check[1] == '2D consistency check complete'
@@ -106,7 +104,7 @@ class Test_common_workfunctions(object):
         s = StructureData(cell=[[0.5, 0.5, 0], [1, 0, 0], [0, 0, 1]])
         s.append_atom(position=[0, 0, 0], symbols='Fe')
         s.set_pbc((True, True, False))
-        p = Dict(dict={
+        p = Dict({
             'INTERFACE': True,
             '<NRBASIS>': 1,
         })
@@ -125,17 +123,15 @@ class Test_common_workfunctions(object):
         s = StructureData(cell=[[0.5, 0.5, 0], [1, 0, 0], [0, 0, 1]])
         s.append_atom(position=[0, 0, 0], symbols='Fe')
         s.set_pbc((True, True, False))
-        p = Dict(
-            dict={
-                'INTERFACE': False,
-                '<NRBASIS>': 1,
-                '<RBLEFT>': [0, 0, 0],
-                '<RBRIGHT>': [0, 0, 0],
-                'ZPERIODL': [0, 0, 0],
-                'ZPERIODR': [0, 0, 0],
-                '<NLBASIS>': 1
-            }
-        )
+        p = Dict({
+            'INTERFACE': False,
+            '<NRBASIS>': 1,
+            '<RBLEFT>': [0, 0, 0],
+            '<RBRIGHT>': [0, 0, 0],
+            'ZPERIODL': [0, 0, 0],
+            'ZPERIODR': [0, 0, 0],
+            '<NLBASIS>': 1
+        })
         input_check = check_2Dinput_consistency(s, p)
         assert not input_check[0]
         assert input_check[1] == "'INTERFACE' parameter set to False but structure is 2D"
@@ -148,17 +144,15 @@ class Test_common_workfunctions(object):
         s = StructureData(cell=[[0.5, 0.5, 0], [1, 0, 0], [0, 0, 1]])
         s.append_atom(position=[0, 0, 0], symbols='Fe')
         s.set_pbc((True, True, True))
-        p = Dict(
-            dict={
-                'INTERFACE': True,
-                '<NRBASIS>': 1,
-                '<RBLEFT>': [0, 0, 0],
-                '<RBRIGHT>': [0, 0, 0],
-                'ZPERIODL': [0, 0, 0],
-                'ZPERIODR': [0, 0, 0],
-                '<NLBASIS>': 1
-            }
-        )
+        p = Dict({
+            'INTERFACE': True,
+            '<NRBASIS>': 1,
+            '<RBLEFT>': [0, 0, 0],
+            '<RBRIGHT>': [0, 0, 0],
+            'ZPERIODL': [0, 0, 0],
+            'ZPERIODR': [0, 0, 0],
+            '<NLBASIS>': 1
+        })
         input_check = check_2Dinput_consistency(s, p)
         assert not input_check[0]
         assert list(input_check[1]).sort() == list(

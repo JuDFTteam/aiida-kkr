@@ -48,7 +48,7 @@ class Test_KKRnano_Calculation(object):
             'kte': 1,
             'rclust_voronoi': voro_para['RCLUSTZ']
         }
-        params_node = Dict(dict=params)
+        params_node = Dict(params)
 
         options = {'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}, 'queue_name': queuename}
         builder = KKRnanoCalculation.get_builder()
@@ -85,7 +85,7 @@ class Test_KKRnano_Calculation(object):
         params['scfsteps'] = 3
         params['imix'] = 5
         params['mixing'] = 0.01
-        params_node = Dict(dict=params)
+        params_node = Dict(params)
 
         options = {'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}, 'queue_name': queuename}
         builder = KKRnanoCalculation.get_builder()

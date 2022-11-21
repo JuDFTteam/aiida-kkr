@@ -31,8 +31,8 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     import numpy as np
 
     print(f'AiiDA version: {get_version()}')
-    Dict = DataFactory('dict')
-    StructureData = DataFactory('structure')
+    Dict = DataFactory('core.dict')
+    StructureData = DataFactory('core.structure')
 
     # create workflow parameters
     wfbs = kkr_bs_wc.get_wf_defaults()
@@ -41,7 +41,7 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     wfbs['emin'] = -10
     wfbs['RCLUSTZ'] = 2.3
     wfbs['tempr'] = 50.0
-    params_bs = Dict(dict=wfbs)
+    params_bs = Dict(wfbs)
 
     # for runing in local computer
     options2 = {
@@ -53,7 +53,7 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
         'withmpi': False,
         'custom_scheduler_commands': ''
     }
-    options = Dict(dict=options2)
+    options = Dict(options2)
 
     label = 'bs calc Cu bulk'
     descr = 'testing bs workflow for Cu bulk'

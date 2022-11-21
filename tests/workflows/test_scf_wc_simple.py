@@ -62,7 +62,7 @@ def test_scf_wc_Cu_simple(clear_database_before_test, voronoi_local_code, kkrhos
     wfd['num_rerun'] = 2
     wfd['natom_in_cls_min'] = 20
 
-    KKRscf_wf_parameters = Dict(dict=wfd)
+    KKRscf_wf_parameters = Dict(wfd)
 
     options = {
         'queue_name': queuename,
@@ -73,10 +73,10 @@ def test_scf_wc_Cu_simple(clear_database_before_test, voronoi_local_code, kkrhos
         'withmpi': False,
         'custom_scheduler_commands': ''
     }
-    options = Dict(dict=options)
+    options = Dict(options)
 
     # Finally we use the kkrparams class to prepare a valid set of KKR parameters that are stored as a Dict object for the use in aiida
-    ParaNode = Dict(dict=kkrparams(LMAX=2, RMAX=7, GMAX=65, NSPIN=1, RCLUSTZ=1.9).get_dict())
+    ParaNode = Dict(kkrparams(LMAX=2, RMAX=7, GMAX=65, NSPIN=1, RCLUSTZ=1.9).get_dict())
 
     label = 'KKR-scf for Cu bulk'
     descr = 'KKR self-consistency workflow for Cu bulk'

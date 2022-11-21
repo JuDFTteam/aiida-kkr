@@ -33,7 +33,7 @@ class Test_kkrimp_calculation(object):
         with GF_host_calc.outputs.retrieved.open('scoef') as _f:
             neworder_pot1 = [int(i) for i in loadtxt(_f, skiprows=1)[:, 3] - 1]
         settings_dict = {'pot1': 'out_potential', 'out_pot': 'potential_imp', 'neworder': neworder_pot1}
-        settings = Dict(dict=settings_dict)
+        settings = Dict(settings_dict)
         startpot_imp_sfd = neworder_potential_wf(
             settings_node=settings, parent_calc_folder=GF_host_calc.outputs.remote_folder
         )
@@ -41,7 +41,7 @@ class Test_kkrimp_calculation(object):
         # set 1 simple mixing step
         kkrimp_params = kkrparams(params_type='kkrimp')
         kkrimp_params.set_multiple_values(SCFSTEPS=1, IMIX=0, MIXFAC=0.05)
-        ParamsKKRimp = Dict(dict=kkrimp_params.get_dict())
+        ParamsKKRimp = Dict(kkrimp_params.get_dict())
 
         # create new KKRimp calculation
         options = {'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}, 'queue_name': queuename}

@@ -40,7 +40,7 @@ def test_voronoi_dry_run(aiida_profile, voronoi_local_code):
     # create Dict input node using kkrparams class from masci-tools
     params = kkrparams(params_type='voronoi')
     params.set_multiple_values(LMAX=2, NSPIN=1, RCLUSTZ=2.3)
-    ParaNode = Dict(dict=params.get_dict())
+    ParaNode = Dict(params.get_dict())
 
     options = {'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}, 'queue_name': queuename}
     builder = VoronoiCalculation.get_builder()
@@ -72,7 +72,7 @@ def test_voronoi_cached(clear_database_before_test, voronoi_local_code, run_with
     # create Dict input node using kkrparams class from masci-tools
     kkr_params = kkrparams(params_type='voronoi')
     kkr_params.set_multiple_values(LMAX=2, NSPIN=1, RCLUSTZ=2.3)
-    parameters = Dict(dict={k: v for k, v in kkr_params.items() if v})
+    parameters = Dict({k: v for k, v in kkr_params.items() if v})
 
     # computer options
     options = {'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}, 'queue_name': queuename}
@@ -145,7 +145,7 @@ def test_voronoi_after_kkr(aiida_profile, voronoi_local_code, run_with_cache, no
     # increase LMAX value from previous run
     params = kkrparams(params_type='voronoi', **params_kkr_parent)
     params.set_multiple_values(LMAX=3)
-    new_params = Dict(dict=params.get_dict())
+    new_params = Dict(params.get_dict())
 
     builder = VoronoiCalculation.get_builder()
     builder.code = voronoi_local_code

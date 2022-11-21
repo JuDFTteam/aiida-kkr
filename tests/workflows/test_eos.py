@@ -45,14 +45,14 @@ def test_eos_wc_Cu_simple(clear_database_before_test, voronoi_local_code, kkrhos
     wfd['settings_kkr_startpot']['num_rerun'] = 3
     wfd['fitfunction'] = 'sj'  # for only three points only sj fit works
 
-    KKReos_wf_parameters = Dict(dict=wfd)
+    KKReos_wf_parameters = Dict(wfd)
     options['queue_name'] = queuename
     options['max_wallclock_seconds'] = 5 * 60
     options['withmpi'] = False
-    options = Dict(dict=options)
+    options = Dict(options)
 
     # Finally we use the kkrparams class to prepare a valid set of KKR parameters that are stored as a Dict object for the use in aiida
-    ParaNode = Dict(dict=kkrparams(LMAX=2, RMAX=7, GMAX=65, NSPIN=1).get_dict())
+    ParaNode = Dict(kkrparams(LMAX=2, RMAX=7, GMAX=65, NSPIN=1).get_dict())
 
     label = 'KKR-eos for Cu bulk'
     descr = 'KKR equation of states for Cu bulk'

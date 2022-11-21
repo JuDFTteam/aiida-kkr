@@ -45,7 +45,7 @@ class Test_kkr_calculation(object):
         # extract and update KKR parameter (add missing values)
         params = kkrparams(**voro_calc.inputs.parameters.get_dict())
         params.set_multiple_values(RMAX=7., GMAX=65.)
-        params_node = Dict(dict=params.get_dict())
+        params_node = Dict(params.get_dict())
 
         options = {'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}, 'queue_name': queuename}
         builder = KkrCalculation.get_builder()
@@ -73,7 +73,7 @@ class Test_kkr_calculation(object):
         # extract and update KKR parameter (add missing values)
         params = kkrparams(**voro_calc.inputs.parameters.get_dict())
         params.set_multiple_values(RMAX=7., GMAX=65.)
-        params_node = Dict(dict=params.get_dict())
+        params_node = Dict(params.get_dict())
 
         options = {'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}, 'queue_name': queuename}
         builder = KkrCalculation.get_builder()
@@ -138,10 +138,10 @@ class Test_kkr_calculation(object):
         params_node = kkr_calc.inputs.parameters
         params = params_node.get_dict()
         params['RUNOPT'] = ['KKRFLEX']
-        params_node = Dict(dict=params)
+        params_node = Dict(params)
 
         # create an impurity_info node
-        imp_info = Dict(dict={'Rcut': 1.01, 'ilayer_center': 0, 'Zimp': [29.]})
+        imp_info = Dict({'Rcut': 1.01, 'ilayer_center': 0, 'Zimp': [29.]})
 
         options = {'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}, 'queue_name': queuename}
         builder = KkrCalculation.get_builder()
@@ -217,7 +217,7 @@ class Test_kkr_calculation(object):
         builder = KkrCalculation.get_builder()
         builder.code = kkrhost_local_code
         builder.metadata.options = options
-        builder.parameters = Dict(dict=p)
+        builder.parameters = Dict(p)
         builder.parent_folder = voro_with_kkr_input.outputs.remote_folder
 
         # now run or load from cached data
@@ -273,10 +273,10 @@ class Test_kkr_calculation(object):
         params_node = kkr_calc.inputs.parameters
         params = params_node.get_dict()
         params['RUNOPT'] = ['KKRFLEX']
-        params_node = Dict(dict=params)
+        params_node = Dict(params)
 
         # create an impurity_info node
-        imp_info = Dict(dict={'imp_cls': []})
+        imp_info = Dict({'imp_cls': []})
 
         options = {'resources': {'num_machines': 1, 'tot_num_mpiprocs': 1}, 'queue_name': queuename}
         builder = KkrCalculation.get_builder()
