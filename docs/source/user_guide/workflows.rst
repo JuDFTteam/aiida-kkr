@@ -454,6 +454,71 @@ Finally we run the workflow::
     from aiida.work import run
     run(kkr_flex_wc, label='test_gf_writeout', description='My test KKRflex calculation.', 
         kkr=kkrcode, remote_data=kkr_remote_folder, options=options, wf_parameters=wf_params)
+        
+        
+Exchange coupling constants
++++++++++++++++++++++++++++
+
+Calculation of the exchange coupling constants (Jij's and Dij's) can be done with the ``kkr_jij_wc`` workchain starting from the remote folder of a parent calculation.
+
+.. note::   
+    Use ``kkr_jij_wc.get_wf_defaults()`` to get the default values for the ``wf_parameters`` input.
+
+Inputs:
+
+    * ``wf_parameters`` (Dict, optional): Workchain settings where the Jij radius in Angstroem units is given (defaults to 5 Ang.). With ``jijsite_i`` and ``jijsite_j`` one can specify to calculate the Jij's only for some pairs i,j.
+
+    * ``options`` (Dict, optional): Computer options (scheduler command, parallelization, walltime etc.)
+
+    * ``remote_data`` (RemoteData, mandatory): Parent folder of a converged KkrCalculation.
+
+    * ``kkr`` (Code, mandatory): KKRhost code (i.e. using ``kkr.kkr`` plugin).
+    
+    * ``params_kkr_overwrite`` (Dict, optional): Optional set of KKR parameters that overwrite the settings extracted from the parent calculation.
+
+Returns nodes:
+    * ``jij_data`` (ArrayData): Jij data with the arrays ``Jij_expanded`` that contains all (i, j, da, db, dc, Jij [, Dij]) pairs and ``positions_expanded`` that contains the corresponding positions (i.e. the offset of j vs i).
+
+    * ``structure_jij_sites`` (StructureData): Structure with the Jij sites that match the mapping in ``jij_data``
+
+Example Usage:
+^^^^^^^^^^^^^^
+
+To start the Band Structure calculation the steps:
+
+::
+
+    from aiida_kkr.workflows import kkr_jij_wc
+    
+    # converged KKR calculation
+    kkr_calc_converged = load_node(<PK>)
+
+    # create process builder
+    builder = kkr_jij_wc.get_builder()
+    
+    builder.parent_folder = kkr_calc_converged.outputs.remote_folder
+    
+    builder.kkr = parent.inputs.code
+    builder.options = Dict(dict={...}) # settings for the computer that we use
+    
+    wfd = kkr_jij_wc.get_wf_defaults()
+    wfd['jijrad_ang'] = 5.0 # set at least the Jij cutoff radius in Ang units
+    builder.wf_parameters = Dict(dict=wfd)
+    
+    # maybe overwrite some input parameters
+    # here we switch on the SOC mode starting from a no SOC calculation
+    builder.params_kkr_overwrite = Dict(dict={
+        'NPAN_LOG': 5,
+        'NPAN_EQ': 15,
+        'NCHEB': 12,
+        'R_LOG': 0.6,
+        'USE_CHEBYCHEV_SOLVER': True,
+        'SET_CHEBY_NOSOC': True
+    })
+    
+    # submit calculation
+    jij_wf = submit(builder)
+
     
 
 KKR impurity self consistency
@@ -723,7 +788,7 @@ Equation of states
 
 Workflow: ``aiida_kkr.workflows.eos``
 
-.. warning:: Not implemented yet!
+.. warning:: Not documented yet!
 
 
 Check KKR parameter convergence
@@ -753,6 +818,3 @@ the ground state or not. Then the unit cell could be doubled to compute the
 antiferromagnetic state. In case of noncollinear magnetism the full Jij tensor 
 should be analyzed.
 
-    
-    
-    

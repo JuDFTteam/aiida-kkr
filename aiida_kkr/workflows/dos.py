@@ -26,7 +26,8 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 from aiida_kkr.tools.extract_kkrhost_noco_angles import extract_noco_angles
 from aiida_kkr.workflows.bs import set_energy_params
 
-__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.8.2'
 __contributors__ = u'Philipp Rüßmann'
@@ -80,7 +81,7 @@ class kkr_dos_wc(WorkChain):
         """
         if not silent:
             print(f'Version of workflow: {cls._workflowversion}')
-        return cls._wf_default
+        return cls._wf_default.copy()
 
     @classmethod
     def define(cls, spec):

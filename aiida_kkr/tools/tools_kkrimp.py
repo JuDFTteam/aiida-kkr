@@ -18,7 +18,8 @@ from masci_tools.io.common_functions import vec_to_angles
 from aiida.common.constants import elements as PeriodicTableElements
 from aiida.common.exceptions import InputValidationError
 
-__copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH,' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH,'
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.7.0'
 __contributors__ = u'Philipp Rüßmann'
@@ -111,7 +112,7 @@ class modify_potential(object):
         # add header to shapefun_new
         tmp = datanew
         datanew = []
-        datanew.append('   %i\n' % (len(order)))
+        datanew.append(f'   {len(order)}\n')
         datanew.append('  1.000000000000E+00\n')
         datanew += tmp
         with open_general(shapefun_new, 'w') as f:

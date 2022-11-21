@@ -11,7 +11,8 @@ from six.moves import map
 from aiida.engine import WorkChain
 from aiida.orm import CalcJobNode
 
-__copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.1'
 __contributors__ = u'Philipp Rüßmann'

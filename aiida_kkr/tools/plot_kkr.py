@@ -13,9 +13,10 @@ from ..tools.common_workfunctions import get_natyp
 from masci_tools.io.common_functions import search_string
 import numpy as np
 
-__copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.7.0'
+__version__ = '0.7.1'
 __contributors__ = ('Philipp Rüßmann')
 
 
@@ -619,7 +620,7 @@ class plot_kkr(object):
 
         if _has_ase_notebook() and 'viewer' not in kwargs:
             # by default use ase_notebook if it is available
-            self.sview = strucplot_ase_notebook(structure, **kwargs)
+            self.sview = strucplot_ase_notebook(structure, show_empty_atoms=show_empty_atoms, **kwargs)
         else:
             # use ase's view function instead
 
@@ -1895,7 +1896,7 @@ def get_ef_from_parent(node):
     except:
         with node.outputs.retrieved.open('output.0.txt', mode='r') as file_handle:
             txt = file_handle.readlines()
-            iline = search_string('Fermi energy', txt)
+            iline = search_string('Fermi energy =', txt)
             if iline >= 0:
                 ef = txt[iline].split('=')[1]
                 ef = float(ef.split()[0])
@@ -1937,7 +1938,7 @@ def get_qdos_data_from_node(node, qdos_filenames):
 
     if 'saved_dispersion_data' in node.extras:
         # only return the existing numpy array if it exists
-        data = node.extras['saved_dispersion_data']
+        data = np.array(node.extras['saved_dispersion_data'])
     else:
         # read qdos data and store as extra
         for i, fname in enumerate(qdos_filenames):

@@ -12,14 +12,14 @@ from __future__ import absolute_import
 from aiida.parsers.parser import Parser
 from aiida.orm import Dict, CalcJobNode
 from aiida_kkr.calculations.kkrnano import KKRnanoCalculation
-#from aiida_kkr.tools import find_parent_structure
 from masci_tools.io.common_functions import (search_string, open_general)
 import numpy as np
 from io import StringIO
 from pprint import pprint as pp
 import os
 
-__copyright__ = (u'Copyright (c), 2021, Forschungszentrum Jülich GmbH, ' 'IAS-1/PGI-1, Germany. All rights reserved.')
+__copyright__ = (u'Copyright (c), 2021, Forschungszentrum Jülich GmbH, '
+                 'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.0.2'
 __contributors__ = ('Markus Struckmann', 'Philipp Rüßmann')

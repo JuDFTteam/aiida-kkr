@@ -20,7 +20,7 @@
         "Natural Language :: English",
         "Framework :: AiiDA"
     ],
-    "version": "1.1.11.post1",
+    "version": "1.1.12",
     "reentry_register": true,
     "install_requires": [
         "aiida-core >= 1.0.0b6,<3.0.0",
@@ -86,7 +86,8 @@
             "kkr.imp = aiida_kkr.workflows.kkr_imp:kkr_imp_wc",
             "kkr.imp_sub = aiida_kkr.workflows.kkr_imp_sub:kkr_imp_sub_wc",
             "kkr.imp_dos = aiida_kkr.workflows.kkr_imp_dos:kkr_imp_dos_wc",
-            "kk.decimation = aiida_kkr.workflows._decimation:kkr_decimation_wc"
+            "kkr.decimation = aiida_kkr.workflows._decimation:kkr_decimation_wc",
+            "kkr.jij = aiida_kkr.workflows.jijs:kkr_jij_wc"
 	    ],
         "console_scripts": [
             "aiida-kkr = aiida_kkr.cmdline:cmd_root"

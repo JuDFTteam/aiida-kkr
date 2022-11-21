@@ -24,7 +24,7 @@ __copyright__ = (
     'IAS-1/PGI-1, Germany. All rights reserved.'
 )
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.13.0'
+__version__ = '0.13.1'
 __contributors__ = u'Philipp Rüßmann'
 
 eV2Ry = 1.0 / get_Ry2eV()
@@ -697,7 +697,8 @@ class kkr_startpot_wc(WorkChain):
             emin_new = emin_out - self.ctx.delta_e * eV2Ry
             emin_new = (emin_new - self.ctx.efermi) / eV2Ry  # convert to relative eV units
             self.ctx.dos_params_dict['emin'] = emin_new
-            self.report(f'INFO: set emin for dos automatically' f' to {emin_out - self.ctx.delta_e * eV2Ry} Ry')
+            self.report(f'INFO: set emin for dos automatically'
+                        f' to {emin_out - self.ctx.delta_e * eV2Ry} Ry')
 
         emax = self.ctx.dos_params_dict['emax']
         self.report(f'INFO: emax dos input: {emax}, efermi voronoi output: {self.ctx.efermi}')
@@ -986,13 +987,11 @@ class kkr_startpot_wc(WorkChain):
         """
 
         # some settings
-        nbins = 10000  # binning for find_cluster radius (higher=more accurate)
-        ncls_target = self.ctx.nclsmin / 1.15  # make target number smaller to not overshoot in the beginning
-        # the tradeoff is to have more voronoi calculations in the database
+        ncls_target = self.ctx.nclsmin
         structure = self.ctx.structure
 
         # first find cluster radius in Ang. units
-        r_cls_ang = find_cluster_radius(structure, ncls_target, nbins=nbins)[0]
+        r_cls_ang = find_cluster_radius(structure, ncls_target)[0]
 
         cell = np.array(structure.cell)
         alat = get_alat_from_bravais(cell, structure.pbc[2])
