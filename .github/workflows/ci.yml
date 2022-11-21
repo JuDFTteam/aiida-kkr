@@ -88,8 +88,8 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.9", "3.10"]
-        aiida: {version: 'aiida-core==2.1.2', name: '2.1.2'}
-        masci-tools: {version: 'git+https://github.com/JuDFTteam/masci-tools.git@develop', name: '-masci-develop'}
+        aiida: [{version: 'aiida-core==2.1.2', name: '2.1.2'}]
+        masci-tools: [{version: 'git+https://github.com/JuDFTteam/masci-tools.git@develop', name: '-masci-develop'}]
         allowed-to-fail: [false]
         # include:
           # for python 3.9 we also test with the latest aiida-core version and the latest version of masci-tools
