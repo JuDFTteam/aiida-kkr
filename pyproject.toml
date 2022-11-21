@@ -27,7 +27,7 @@ dependencies = [
     "ase",
     "pymatgen",
 ]
-license = {file = "ICENSE.txt"}
+license = {file = "LICENSE.txt"}
 keywords = [
     "material science",
     "aiida",

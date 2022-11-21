@@ -10,7 +10,7 @@ from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_af
 from .conftest import import_with_migration
 
 
-@pytest.mark.usefixtures('aiida_profile')
+@pytest.mark.usefixtures('aiida_profile', 'clear_database')
 class Test_plot_kkr(object):
     """
     Tests for the plot_kkr tool
