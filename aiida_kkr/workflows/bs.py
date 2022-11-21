@@ -592,8 +592,8 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
     q_vec_file = 'qvec.dat'
 
     if q_vec_file in retrieved_list:
-        file_opened = retrieved_folder.open(q_vec_file)
-        q_vec = np.loadtxt(file_opened, skiprows=1)
+        with retrieved_folder.open(q_vec_file) as file_opened:
+            q_vec = np.loadtxt(file_opened, skiprows=1)
 
     no_q_vec = len(q_vec[:, 0])
 
