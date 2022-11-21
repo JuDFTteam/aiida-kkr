@@ -74,6 +74,13 @@ def test_kkrimp_full_wc(
     out, node = run_with_cache(builder, data_dir=data_dir)
     print(out)
     print(list(node.called))
+    # c = node.called[-1].called[-1]
+    # print(c, c.exit_status, c.exit_message)
+    # print(c.outputs.retrieved.list_object_names())
+    # for fname in ['out_kkrimp', 'config.cfg']:
+    #     with c.outputs.retrieved.open(fname) as _f:
+    #         txt = _f.readlines()
+    #         print(fname, txt)
 
     # check outcome
     n = out['workflow_info']
