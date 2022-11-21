@@ -642,12 +642,12 @@ label: {self.ctx.label_wf}
         # get list of files in directory (needed since SandboxFolder does not have `list_object_names` method)
         # also extract absolute path of folder (needed by parse_impdosfiles since calcfunction does not work with SandboxFolder as input)
         if isinstance(folder, SandboxFolder):
-            folder_abspath = folder.abspath
+            # folder_abspath = folder.abspath
             filelist = os.listdir(folder_abspath)
         else:
             filelist = folder.list_object_names()
-            with folder.open(filelist[0]) as tmpfile:
-                folder_abspath = tmpfile.name.replace(filelist[0], '')
+            # with folder.open(filelist[0]) as tmpfile:
+            #     folder_abspath = tmpfile.name.replace(filelist[0], '')
 
         # check if out_ldos* files are there and parse dos files
         if 'out_ldos.interpol.atom=01_spin1.dat' in filelist:
@@ -659,7 +659,7 @@ label: {self.ctx.label_wf}
             last_calc_output_params = last_calc.outputs.output_parameters
             natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')
             # parse dosfiles using nspin, EF and Natom inputs
-            dosXyDatas = parse_impdosfiles(Str(folder_abspath), Int(natom), Int(self.ctx.nspin), Float(ef))
+            dosXyDatas = parse_impdosfiles(folder, Int(natom), Int(self.ctx.nspin), Float(ef))
             dos_extracted = True
         else:
             dos_extracted = False
@@ -669,7 +669,7 @@ label: {self.ctx.label_wf}
 
 
 @calcfunction
-def parse_impdosfiles(dos_abspath, natom, nspin, ef):
+def parse_impdosfiles(folder, natom, nspin, ef):
     """
     Read `out_ldos*` files and create XyData node with l-resolved DOS (+node for interpolated DOS if files are found)
 
@@ -687,19 +687,14 @@ def parse_impdosfiles(dos_abspath, natom, nspin, ef):
     from masci_tools.io.common_functions import get_Ry2eV, get_ef_from_potfile
     from numpy import loadtxt, array
 
-    # add '/' if missing from path
-    abspath = dos_abspath.value
-    if abspath[-1] != '/':
-        abspath += '/'
-
     # read dos files
     dos, dos_int = [], []
     for iatom in range(1, natom.value + 1):
         for ispin in range(1, nspin.value + 1):
-            with open(abspath + 'out_ldos.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+            with folder.open('out_ldos.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                 tmp = loadtxt(dosfile)
                 dos.append(tmp)
-            with open(abspath + 'out_ldos.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+            with folder.open('out_ldos.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                 tmp = loadtxt(dosfile)
                 dos_int.append(tmp)
     dos, dos_int = array(dos), array(dos_int)

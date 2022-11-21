@@ -16,16 +16,20 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     """
     from numpy import array, loadtxt
     from masci_tools.io.kkr_params import kkrparams
-    from aiida.orm import Code, load_node, Dict, StructureData
+    from aiida.orm import Code, load_node, Dict, StructureData, load_group
     from aiida.orm.querybuilder import QueryBuilder
     from aiida.manage.caching import enable_caching
     from aiida_kkr.tools import neworder_potential_wf
     from aiida_kkr.workflows.kkr_imp_dos import kkr_imp_dos_wc
+    from aiida_kkr.calculations import KkrCalculation
 
     # import precomputed GF host writeout
-    import_with_migration('data_dir/kkr_flex_wc-nodes-94b44d25a7af0e584343419207f3a7e1.tar.gz')
-    gf_workflow = load_node('0adfe62d-05aa-4c79-90ca-86b1753612a2')
-    GF_host_calc = gf_workflow.called[1]
+    o = import_with_migration('data_dir/kkr_flex_wc-nodes-94b44d25a7af0e584343419207f3a7e1.tar.gz')
+    print('import', o)
+    # gf_workflow = load_node('0adfe62d-05aa-4c79-90ca-86b1753612a2')
+    gf_workflow = [i for i in load_group(o).nodes if i.label == 'GF_writeout Cu bulk'][0]
+    GF_host_calc = gf_workflow.get_outgoing(node_class=KkrCalculation).first().node
+    print('GF_host_calc', GF_host_calc)
 
     # set workflow settings
     wfd = kkr_imp_dos_wc.get_wf_defaults()
