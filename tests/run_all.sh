@@ -121,6 +121,7 @@ elif [[ ! -z "$GITHUB_SUITE" ]]; then
 	  ./workflows/test_kkrimp_sub_wc.py \
 	  ./workflows/test_kkrimp_dos_wc.py \
 	  ./workflows/test_kkrimp_full_wc.py \
+	  ./workflows/test_combine_imps.py \
 	  $addopt
 else
   # tests without running actual calculations
