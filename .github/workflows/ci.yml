@@ -164,6 +164,7 @@ jobs:
       run: |
         cd tests/
         GITHUB_SUITE=True ./run_all.sh
+        ls
 
     - name: Run pytest allow failure
       if: ${{ matrix.allowed-to-fail }}
@@ -181,4 +182,5 @@ jobs:
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:
+        file: ./tests/coverage.xml
         fail_ci_if_error: true
