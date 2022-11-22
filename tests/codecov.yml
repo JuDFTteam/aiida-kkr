@@ -25,5 +25,7 @@ comment:
   behavior: default
   require_changes: no
 
-fixes:
-  - "::../"
+ignore:
+  - "docs"
+  - "examples"
+  - "utils"
