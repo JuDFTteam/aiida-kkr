@@ -75,7 +75,6 @@ class combine_imps_wc(WorkChain):
     _workflowversion = __version__
     _wf_default = {
         'jij_run': False,  # Any kind of addition in _wf_default should be updated into the start() as well.
-        'retrieve_kkrflex': False,
     }
 
     @classmethod
@@ -87,7 +86,11 @@ class combine_imps_wc(WorkChain):
         """
         if not silent:
             print(f'Version of workflow: {cls._workflowversion}')
-        return cls._wf_default.copy()
+        return {
+            'global': cls._wf_default.copy(),
+            'scf': kkr_imp_sub_wc.get_wf_defaults(),
+            'ghost_gf': kkr_flex_wc.get_wf_defaults()
+        }
 
     @classmethod
     def define(cls, spec):
@@ -109,6 +112,7 @@ class combine_imps_wc(WorkChain):
                 'kkr',
                 'options',
                 'params_kkr_overwrite',
+                'wf_parameters',
             ),  # expose only those port which are not set automatically
             namespace_options={
                 'required': False,
@@ -223,8 +227,6 @@ If given then the writeout step of the host GF is omitted."""
         self.report(message)
         if 'wf_parameters_overwrite' in self.inputs:
             self.ctx.wf_parameters_overwrite = self.inputs.wf_parameters_overwrite
-        # wf_parameters_flex to keep upto time the  gf_writeout_step
-        self.ctx.wf_parameters_flex = {'retrieve_kkrflex': False}
 
         self.ctx.run_options = {'jij_run': False}
         self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
@@ -564,12 +566,14 @@ If given then the writeout step of the host GF is omitted."""
         Write out the host GF
         """
 
-        wf_parameters_flex = self.ctx.wf_parameters_flex
         # create process builder for gf_writeout workflow
         builder = kkr_flex_wc.get_builder()
         builder.impurity_info = self.ctx.imp_info_combined
         builder.kkr = self.inputs.host_gf.kkr
-        builder.wf_parameters = Dict(wf_parameters_flex)
+
+        if 'wf_parameters' in self.inputs.host_gf:
+            self.report(f'set wf_parameters {self.inputs.host_gf.wf_parameters.get_dict()}')
+            builder.wf_parameters = self.inputs.host_gf.wf_parameters
 
         if 'options' in self.inputs.host_gf:
             builder.options = self.inputs.host_gf.options
@@ -654,7 +658,11 @@ If given then the writeout step of the host GF is omitted."""
         """
 
         scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
-        wf_parameters_flex = self.ctx.wf_parameters_flex
+
+        if 'wf_parameters' in self.inputs.host_gf:
+            wf_parameters_flex = self.inputs.host_gf.wf_parameters.get_dict()
+        else:
+            wf_parameters_flex = {}
         run_options = self.ctx.run_options
         # Update the scf_wf_parameters from the wf_parameters_overwrite
         if 'wf_parameters_overwrite' in self.inputs:

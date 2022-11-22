@@ -456,7 +456,8 @@ def combine_potentials(kickout_info, pot_imp1, pot_imp2, nspin_node):
                     )
 
             # store output potential to SinglefileData
-            output_potential_sfd_node = SinglefileData(file=tempfolder.open('potential_combined', u'rb'))
+            with tempfolder.open('potential_combined', u'rb') as _f:
+                output_potential_sfd_node = SinglefileData(file=_f)
             # add label and description
             output_potential_sfd_node.label = 'combined_potentials'
             output_potential_sfd_node.description = f'combined potential of imps {pot_imp1.uuid} and {pot_imp2.uuid}'
