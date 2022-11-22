@@ -10,16 +10,16 @@ jobs:
     timeout-minutes: 30
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: 3.8
 
     - name: Cache python dependencies
       id: cache-pip
-      uses: actions/cache@v1
+      uses: actions/cache@v3
       with:
         path: ~/.cache/pip
         key: pip-docs-${{ hashFiles('**/setup.json') }}
@@ -47,11 +47,11 @@ jobs:
     timeout-minutes: 30
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Cache python dependencies
       id: cache-pip
-      uses: actions/cache@v1
+      uses: actions/cache@v3
       with:
         path: ~/.cache/pip
         key: pip-pre-commit-${{ hashFiles('**/setup.json') }}
@@ -59,7 +59,7 @@ jobs:
           pip-pre-commit-
 
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: 3.8
 
@@ -116,10 +116,10 @@ jobs:
           - 5001:22
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -181,7 +181,7 @@ jobs:
         path: tests
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         file: ./tests/coverage.xml
         fail_ci_if_error: true
