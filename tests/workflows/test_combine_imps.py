@@ -93,71 +93,72 @@ def test_combine_imps(
     assert 'remote_data_gf' in out  # make sure GF writeout step was done
 
 
-# def test_combine_imps_params_kkr_overwrite(
-#     clear_database_before_test, kkrhost_local_code, kkrimp_local_code, run_with_cache, nopytest=False
-# ):
-#     """
-#     test for combine_imps_wc overwriting the k-mesh with hte params_kkr_overwrite input to the gf writeout step
-#     """
+def test_combine_imps_params_kkr_overwrite(
+    clear_database_before_test, kkrhost_local_code, kkrimp_local_code, run_with_cache, nopytest=False
+):
+    """
+    test for combine_imps_wc overwriting the k-mesh with hte params_kkr_overwrite input to the gf writeout step
+    """
 
-#     builder = get_builder_basic('test_combine_imps_params_kkr_overwrite', kkrhost_local_code, kkrimp_local_code)
-#     # increase k-mesh for GF writeout step with params_kkr_overwrite
-#     builder.host_gf.params_kkr_overwrite = Dict({'BZDIVIDE': [20, 20, 20]})
+    builder = get_builder_basic('test_combine_imps_params_kkr_overwrite', kkrhost_local_code, kkrimp_local_code)
+    # increase k-mesh for GF writeout step with params_kkr_overwrite
+    builder.host_gf.params_kkr_overwrite = Dict({'BZDIVIDE': [20, 20, 20]})
 
-#     # now submit
-#     print(builder, type(builder))
-#     if not nopytest:
-#         out, node = run_with_cache(builder, data_dir=data_dir)
-#     else:
-#         from aiida.engine import run_get_node
-#         out, node = run_get_node(builder)
-#     print((out, node))
-#     write_graph(node, '_params_kkr_overwrite')
+    # now submit
+    print(builder, type(builder))
+    if not nopytest:
+        out, node = run_with_cache(builder, data_dir=data_dir)
+    else:
+        from aiida.engine import run_get_node
+        out, node = run_get_node(builder)
+    print((out, node))
+    write_graph(node, '_params_kkr_overwrite')
 
-#     # check outcome
-#     results = out['workflow_info'].get_dict()
-#     print(results)
-#     assert results['successful']
-#     assert results['convergence_reached']
-#     assert 'remote_data_gf' in out  # make sure GF writeout step was done
+    # check outcome
+    results = out['workflow_info'].get_dict()
+    print(results)
+    assert results['successful']
+    assert results['convergence_reached']
+    assert 'remote_data_gf' in out  # make sure GF writeout step was done
 
-# def test_combine_imps_reuse_gf(
-#     clear_database_before_test, kkrhost_local_code, kkrimp_local_code, run_with_cache, nopytest=False
-# ):
-#     """
-#     test for combine_imps_wc reusing the host gf from a previous calculation
-#     """
 
-#     # import previous combine_imps workflow and reuse the host GF
-#     imported_nodes = import_with_migration(
-#         test_dir / 'data_dir/combine_imps_wc-nodes-76b8a1118abf371e7948b7ef15bf6e55.tar.gz'
-#     )['Node']
-#     for _, pk in imported_nodes['new'] + imported_nodes['existing']:
-#         node = load_node(pk)
-#         if node.label == 'test_combine_imps':
-#             imp_combine_imported = node
-#     host_gf_remote = imp_combine_imported.outputs.remote_data_gf
+def test_combine_imps_reuse_gf(
+    clear_database_before_test, kkrhost_local_code, kkrimp_local_code, run_with_cache, nopytest=False
+):
+    """
+    test for combine_imps_wc reusing the host gf from a previous calculation
+    """
 
-#     builder = get_builder_basic('test_combine_imps_reuse_gf', kkrhost_local_code, kkrimp_local_code)
-#     # set pre-calculated host_gf
-#     builder.gf_host_remote = host_gf_remote
+    # import previous combine_imps workflow and reuse the host GF
+    group_pk = import_with_migration(
+        test_dir / 'data_dir/combine_imps_wc-nodes-e4259f310125ab74b05412bf4561dae9.tar.gz'
+    )
+    for node in load_group(group_pk).nodes:
+        if node.label == 'test_combine_imps':
+            imp_combine_imported = node
+    host_gf_remote = imp_combine_imported.outputs.remote_data_gf
 
-#     # now submit
-#     print(builder, type(builder))
-#     if not nopytest:
-#         out, node = run_with_cache(builder, data_dir=data_dir)
-#     else:
-#         from aiida.engine import run_get_node
-#         out, node = run_get_node(builder)
-#     print((out, node))
-#     write_graph(node, '_reuse_gf')
+    builder = get_builder_basic('test_combine_imps_reuse_gf', kkrhost_local_code, kkrimp_local_code)
+    # set pre-calculated host_gf
+    builder.gf_host_remote = host_gf_remote
 
-#     # check outcome
-#     results = out['workflow_info'].get_dict()
-#     print(results)
-#     assert results['successful']
-#     assert results['convergence_reached']
-#     assert 'remote_data_gf' not in out  # make sure GF writeout step was skipped
+    # now submit
+    print(builder, type(builder))
+    if not nopytest:
+        out, node = run_with_cache(builder, data_dir=data_dir)
+    else:
+        from aiida.engine import run_get_node
+        out, node = run_get_node(builder)
+    print((out, node))
+    write_graph(node, '_reuse_gf')
+
+    # check outcome
+    results = out['workflow_info'].get_dict()
+    print(results)
+    assert results['successful']
+    assert results['convergence_reached']
+    assert 'remote_data_gf' not in out  # make sure GF writeout step was skipped
+
 
 # run manual:
 if __name__ == '__main__':
