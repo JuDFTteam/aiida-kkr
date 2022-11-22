@@ -165,6 +165,7 @@ jobs:
         cd tests/
         GITHUB_SUITE=True ./run_all.sh
         ls
+        ls ../
 
     - name: Run pytest allow failure
       if: ${{ matrix.allowed-to-fail }}
