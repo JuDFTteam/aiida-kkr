@@ -19,7 +19,7 @@ from masci_tools.util.constants import BOHR_A
 __copyright__ = (u'Copyright (c), 2022, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 __contributors__ = (u'Philipp Rüßmann')
 
 
@@ -359,25 +359,25 @@ class kkr_jij_wc(WorkChain):
         para_jij.set_value('NSTEPS', 1)  # one-shot run
 
         # accuracy settings
-        tempr = self.ctx.wf_dict['accuracy'].get('TEMPR')
+        tempr = self.ctx.wf_dict.get('accuracy', {}).get('TEMPR')
         if tempr is not None:
             para_jij.set_value('TEMPR', tempr)  # slightly reduce temperature
 
-        rclustz = self.ctx.wf_dict['accuracy'].get('RCLUSTZ')
+        rclustz = self.ctx.wf_dict.get('accuracy', {}).get('RCLUSTZ')
         if rclustz is not None:
             para_jij.set_value('RCLUSTZ', rclustz)  # increase cluster radius
 
-        kmesh = self.ctx.wf_dict['accuracy'].get('kmesh')
+        kmesh = self.ctx.wf_dict.get('accuracy', {}).get('kmesh')
         if kmesh is not None:
             para_jij.set_value('BZDIVIDE', kmesh)  # increase k-points
             para_jij.set_value('KPOIBZ', np.product(kmesh))  # array dimension
 
         # array dimensions
-        NATOMIMPD = self.ctx.wf_dict['accuracy'].get('NATOMIMPD')
+        NATOMIMPD = self.ctx.wf_dict.get('accuracy', {}).get('NATOMIMPD')
         if NATOMIMPD is not None:
             para_jij.set_value('NATOMIMPD', NATOMIMPD)  # array dimension
 
-        NSHELD = self.ctx.wf_dict['accuracy'].get('NSHELD')
+        NSHELD = self.ctx.wf_dict.get('accuracy', {}).get('NSHELD')
         if NSHELD is not None:
             para_jij.set_value('NSHELD', NSHELD)  # array dimension
 
@@ -389,8 +389,8 @@ class kkr_jij_wc(WorkChain):
         # set optional Jij parameters
         # i and j index for Jij calculation in internal units
         # uses site index (i.e. needs to be <=10)
-        JIJSITEI = self.ctx.wf_dict['jijsite_i']
-        JIJSITEJ = self.ctx.wf_dict['jijsite_j']
+        JIJSITEI = self.ctx.wf_dict.get('jijsite_i')
+        JIJSITEJ = self.ctx.wf_dict.get('jijsite_j')
         if JIJSITEI is not None:
             if JIJSITEJ is None:
                 JIJSITEJ = JIJSITEI
@@ -406,7 +406,7 @@ class kkr_jij_wc(WorkChain):
         """
 
         # Jij radius in Ang.
-        jijrad_ang = self.ctx.wf_dict['jijrad_ang']
+        jijrad_ang = self.ctx.wf_dict.get('jijrad_ang')
 
         # find structure from calculation
         struc, _ = find_parent_structure(self.ctx.parent_calc)

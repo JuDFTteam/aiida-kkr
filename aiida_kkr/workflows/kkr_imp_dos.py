@@ -157,8 +157,8 @@ class kkr_imp_dos_wc(WorkChain):
         spec.output('last_calc_info', valid_type=Dict)
         spec.output('dos_data', valid_type=XyData)
         spec.output('dos_data_interpol', valid_type=XyData)
-        spec.output('dos_data_lm', valid_type=XyData, required = False)
-        spec.output('dos_data_interpol_lm', valid_type=XyData, required = False)
+        spec.output('dos_data_lm', valid_type=XyData, required=False)
+        spec.output('dos_data_interpol_lm', valid_type=XyData, required=False)
         spec.output('gf_dos_remote', valid_type=XyData, required=False, help='RemoteData node of the computed host GF.')
 
         # Here the structure of the workflow is defined
@@ -695,7 +695,9 @@ label: {self.ctx.label_wf}
             # parse dosfiles using nspin, EF and Natom inputs
             dosXyDatas = parse_impdosfiles(Str(folder_abspath), Int(natom), Int(self.ctx.nspin), Float(ef), Bool(False))
             if self.ctx.lmdos:
-                dosXyDatas2 = parse_impdosfiles(Str(folder_abspath), Int(natom), Int(self.ctx.nspin), Float(ef), Bool(True))
+                dosXyDatas2 = parse_impdosfiles(
+                    Str(folder_abspath), Int(natom), Int(self.ctx.nspin), Float(ef), Bool(True)
+                )
                 dosXyDatas['dos_data_lm'] = dosXyDatas2['dos_data']
                 dosXyDatas['dos_data_interpol_lm'] = dosXyDatas2['dos_data_interpol']
             dos_extracted = True
@@ -760,11 +762,10 @@ def parse_impdosfiles(dos_abspath, natom, nspin, ef, use_lmdos):
 
     name = ['tot', 's', 'p', 'd', 'f', 'g']
     if use_lmdos.value:
-        name = ['tot', 's',
-                'p1', 'p2', 'p3',
-                'd1', 'd2', 'd3', 'd4', 'd5',
-                'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7',
-                'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9']
+        name = [
+            'tot', 's', 'p1', 'p2', 'p3', 'd1', 'd2', 'd3', 'd4', 'd5', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'g1',
+            'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9'
+        ]
     name = name[:len(dos[0, 0, 1:]) - 1] + ['ns']
 
     ylists = [[], [], []]

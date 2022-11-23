@@ -24,7 +24,7 @@ from six.moves import range
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.8.0'
+__version__ = '0.8.1'
 __contributors__ = (u'Philipp Rüßmann', u'Fabian Bertoldo')
 
 #TODO: implement 'ilayer_center' consistency check
@@ -562,7 +562,12 @@ The Dict node should be of the form
         # read scoef for comparison with Rimp_rel
         scoef = []
         with tempfolder.open(KkrCalculation._SCOEF, u'r') as scoeffile:
-            scoef = loadtxt(scoeffile, skiprows=1)[:, :3]
+            n_rows = len(scoeffile.readlines()) - 1
+        with tempfolder.open(KkrCalculation._SCOEF, u'r') as scoeffile:
+            if n_rows > 1:
+                scoef = loadtxt(scoeffile, skiprows=1)[:, :3]
+            else:
+                scoef = loadtxt(scoeffile, skiprows=1)[:3]
 
         # find replaceZimp list from Zimp and Rimp_rel
         imp_info_dict = imp_info.get_dict()
@@ -575,7 +580,10 @@ The Dict node should be of the form
         for iatom in range(len(Zimp_list)):
             rtmp = array(Rimp_rel_list[iatom])[:3]
             self.report(f'INFO: Rimp_rel {iatom}, {rtmp}')
-            diff = sqrt(sum((rtmp - scoef)**2, axis=1))
+            if n_rows > 1:
+                diff = sqrt(sum((rtmp - scoef)**2, axis=1))
+            else:
+                diff = sqrt(sum((rtmp - scoef)**2, axis=0))
             Zimp = Zimp_list[iatom]
             ipos_replace = where(diff == diff.min())[0][0]
             replace_zatom_imp.append([ipos_replace, Zimp])
