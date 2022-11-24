@@ -61,7 +61,7 @@ class kkr_bs_wc(WorkChain):
         'nepts': 96,  # number of energy points
         'RCLUSTZ': None,  # can be used to increase the cluster radius if a value is set here
         'tempr': 50.,  # smearing temperature in K
-        'kmesh': None, # k-point integration mesh, only useful for CPA calculation
+        'kmesh': None,  # k-point integration mesh, only useful for CPA calculation
     }
 
     _options_default = {
@@ -194,7 +194,9 @@ class kkr_bs_wc(WorkChain):
             options_dict = self._options_default
         self.ctx.append_text = options_dict.get('append_text', self._options_default['append_text'])
         self.ctx.prepend_text = options_dict.get('prepend_text', self._options_default['prepend_text'])
-        self.ctx.additional_retrieve_list = options_dict.get('additional_retrieve_list', self._options_default['additional_retrieve_list'])
+        self.ctx.additional_retrieve_list = options_dict.get(
+            'additional_retrieve_list', self._options_default['additional_retrieve_list']
+        )
         self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
         self.ctx.max_wallclock_seconds = options_dict.get(
