@@ -686,7 +686,11 @@ label: {self.ctx.label_wf}
             last_calc_output_params = last_calc.outputs.output_parameters
             natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')
             # parse dosfiles using nspin, EF and Natom inputs
-            dosXyDatas = parse_impdosfiles(folder, Int(natom), Int(self.ctx.nspin), Float(ef))
+            dosXyDatas = parse_impdosfiles(folder, Int(natom), Int(self.ctx.nspin), Float(ef), Bool(False))
+            if self.ctx.lmdos:
+                dosXyDatas2 = parse_impdosfiles(folder, Int(natom), Int(self.ctx.nspin), Float(ef), Bool(True))
+                dosXyDatas['dos_data_lm'] = dosXyDatas2['dos_data']
+                dosXyDatas['dos_data_interpol_lm'] = dosXyDatas2['dos_data_interpol']
             dos_extracted = True
         else:
             dos_extracted = False
@@ -696,7 +700,7 @@ label: {self.ctx.label_wf}
 
 
 @calcfunction
-def parse_impdosfiles(folder, natom, nspin, ef):
+def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
     """
     Read `out_ldos*` files and create XyData node with l-resolved DOS (+node for interpolated DOS if files are found)
 
@@ -718,10 +722,13 @@ def parse_impdosfiles(folder, natom, nspin, ef):
     dos, dos_int = [], []
     for iatom in range(1, natom.value + 1):
         for ispin in range(1, nspin.value + 1):
-            with folder.open('out_ldos.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+            name0 = 'out_ldos'
+            if use_lmdos.value:
+                name0 = 'out_lmdos'
+            with folder.open(name0 + '.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                 tmp = loadtxt(dosfile)
                 dos.append(tmp)
-            with folder.open('out_ldos.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+            with folder.open(name0 + '.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                 tmp = loadtxt(dosfile)
                 dos_int.append(tmp)
     dos, dos_int = array(dos), array(dos_int)
