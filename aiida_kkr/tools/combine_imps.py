@@ -2,8 +2,6 @@
 """
 This module contains helper functions and tools for the combine_imps_wc workchain
 """
-from __future__ import absolute_import
-from __future__ import print_function
 import numpy as np
 import tarfile
 from aiida.engine import calcfunction
@@ -14,7 +12,6 @@ from aiida_kkr.tools.tools_kkrimp import modify_potential, create_scoef_array
 from aiida_kkr.calculations import VoronoiCalculation, KkrimpCalculation
 from aiida_kkr.workflows import kkr_imp_sub_wc
 from masci_tools.io.common_functions import get_alat_from_bravais
-from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
@@ -362,18 +359,16 @@ def create_combined_imp_info(
     zimp_combined = imps_info_in_exact_cluster['Zimps']
 
     # create new imp_info node with imp_cls, Rimp_rel and Zimp definig the cluster and impurity location
-    imp_info_combined = Dict(dict={'imp_cls': cluster_combined, 'Zimp': zimp_combined, 'Rimp_rel': rimp_rel_combined})
+    imp_info_combined = Dict({'imp_cls': cluster_combined, 'Zimp': zimp_combined, 'Rimp_rel': rimp_rel_combined})
 
     # kickout info (used later in cfreation of combined potential)
-    kickout_info = Dict(
-        dict={
-            'i_removed_from_1': i_removed_from_1,
-            'kickout_list': kickout_list,
-            'Ncls1': len(clust1),
-            'Ncls2': len(clust2),
-            'Ncls_combined': len(cluster_combined)
-        }
-    )
+    kickout_info = Dict({
+        'i_removed_from_1': i_removed_from_1,
+        'kickout_list': kickout_list,
+        'Ncls1': len(clust1),
+        'Ncls2': len(clust2),
+        'Ncls_combined': len(cluster_combined)
+    })
 
     return {'imp_info_combined': imp_info_combined, 'kickout_info': kickout_info}
 
@@ -461,7 +456,8 @@ def combine_potentials(kickout_info, pot_imp1, pot_imp2, nspin_node):
                     )
 
             # store output potential to SinglefileData
-            output_potential_sfd_node = SinglefileData(file=tempfolder.open('potential_combined', u'rb'))
+            with tempfolder.open('potential_combined', u'rb') as _f:
+                output_potential_sfd_node = SinglefileData(file=_f)
             # add label and description
             output_potential_sfd_node.label = 'combined_potentials'
             output_potential_sfd_node.description = f'combined potential of imps {pot_imp1.uuid} and {pot_imp2.uuid}'
@@ -564,4 +560,4 @@ def combine_settings_ldau(**kwargs):
                 if has_old_ldaupot2:
                     settings_LDAU_combined['initial_matrices'][f'iatom={iatom+noffset}'] = txts_ldaumat2
 
-    return Dict(dict=settings_LDAU_combined)
+    return Dict(settings_LDAU_combined)

@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
-from __future__ import absolute_import
 from masci_tools.io.common_functions import search_string
 with open('out_rmq_check') as f:
     txt = f.readlines()

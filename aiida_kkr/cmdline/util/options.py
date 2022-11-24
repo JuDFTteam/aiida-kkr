@@ -20,7 +20,7 @@ STRUCTURE_OR_FILE = OverridableOption(
 STRUCTURE = OverridableOption(
     '-s',
     '--structure',
-    type=types.DataParamType(sub_classes=('aiida.data:structure',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.structure',)),
     help='StructureData node, given by pk or uuid.'
 )
 
@@ -54,7 +54,7 @@ KKRIMP = OverridableOption(
 PARAMETERS = OverridableOption(
     '-p',
     '--parameters',
-    type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.dict',)),
     default=get_kkrpara_defaults,
     show_default=True,
     help='Dict with calculation parameters which will be given to the calculation or workchain.'
@@ -63,20 +63,20 @@ PARAMETERS = OverridableOption(
 KPOINTS = OverridableOption(
     '-kpt',
     '--kpoints',
-    type=types.DataParamType(sub_classes=('aiida.data:array.kpoints',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.array.kpoints',)),
     help='An aiida KpointsData node.'
 )
 
 POTENTIAL_OVERWRITE = OverridableOption(
     '--potential-overwrite',
-    type=types.DataParamType(sub_classes=('aiida.data:singlefile',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.singlefile',)),
     help='Use a node that specifies the potential which is used instead of the voronoi output potential'
 )
 
 IMPURITY_INFO = OverridableOption(
     '-i',
     '--impurity-info',
-    type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.dict',)),
     help=
     'Dict containing parameters that specify properties for a following impurity calculation (e.g. setting of impurity cluster in scoef file that is automatically created'
 )
@@ -84,21 +84,21 @@ IMPURITY_INFO = OverridableOption(
 WF_PARAMETERS = OverridableOption(
     '-wf',
     '--wf-parameters',
-    type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.dict',)),
     help='Dict containing parameters given to the workchain.'
 )
 
 VORO_PARAMETERS = OverridableOption(
     '-vp',
     '--voro-parameters',
-    type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.dict',)),
     help='Dict containing parameters for the auxiliary voronoi starting potential workflow.'
 )
 
 OPTION_NODE = OverridableOption(
     '-opt',
     '--option-node',
-    type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.dict',)),
     help=
     'Dict, an option node for the workchain containing for instance: {"withmpi": False, "max_wallclock_seconds": 6000, "resources": {"num_machines": 1, "num_mpiprocs_per_machine": 1}}'
 )
@@ -146,7 +146,7 @@ PARENT_FOLDER = OverridableOption(
     '-P',
     '--parent-folder',
     'parent_folder',
-    type=types.DataParamType(sub_classes=('aiida.data:remote',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.remote',)),
     show_default=True,
     required=False,
     help='The PK of a parent remote folder (for restarts).'
@@ -164,21 +164,21 @@ DAEMON = OverridableOption(
 WF_PARAMETERS = OverridableOption(
     '-wf',
     '--wf-parameters',
-    type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.dict',)),
     help='Dict containing parameters given to the workchain.'
 )
 
 VORO_PARAMETERS = OverridableOption(
     '-vp',
     '--voro-parameters',
-    type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.dict',)),
     help='Dict containing parameters for the auxiliary voronoi starting potential workflow.'
 )
 
 OPTION_NODE = OverridableOption(
     '-opt',
     '--option-node',
-    type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.dict',)),
     help='Dict, an option node for the workchain.'
 )
 
@@ -217,7 +217,7 @@ PARENT_FOLDER = OverridableOption(
     '-P',
     '--parent-folder',
     'parent_folder',
-    type=types.DataParamType(sub_classes=('aiida.data:remote',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.remote',)),
     show_default=True,
     required=False,
     help='The PK of a parent remote folder (for restarts).'
@@ -234,6 +234,6 @@ DAEMON = OverridableOption(
 
 NOCO_ANGLES = OverridableOption(
     '--noco-angles',
-    type=types.DataParamType(sub_classes=('aiida.data:dict',)),
+    type=types.DataParamType(sub_classes=('aiida.data:core.dict',)),
     help='Dict containing the non-collinear angles for the magnetic moments. See KkrCalculation for details.'
 )

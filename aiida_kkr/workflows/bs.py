@@ -5,8 +5,6 @@ This module contains the band structure workflow for KKR which is done by calcul
 also known as Bloch spectral function.
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
 from aiida.orm import Code, Dict, RemoteData, StructureData, Float, Str, WorkChainNode, load_node, CalcJobNode, ArrayData, KpointsData
 from aiida.engine import WorkChain, ToContext, calcfunction
 from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
@@ -18,7 +16,6 @@ from aiida_kkr.tools.extract_kkrhost_noco_angles import extract_noco_angles
 from masci_tools.io.kkr_params import kkrparams
 from masci_tools.io.common_functions import get_Ry2eV
 import numpy as np
-from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
@@ -390,7 +387,7 @@ class kkr_bs_wc(WorkChain):
             NPOL=0,
         )
 
-        updatenode = Dict(dict=para_check.get_dict())
+        updatenode = Dict(para_check.get_dict())
         updatenode.label = label + 'KKRparam_BS'
         updatenode.description = 'KKR parameter node extracted from remote_folder' + descr + ' as well as wf_parameter input node.'
 
@@ -496,7 +493,7 @@ class kkr_bs_wc(WorkChain):
         outputnode_dict['list_of_errors'] = self.ctx.errors
 
         # create output node with data-provenance
-        outputnode = Dict(dict=outputnode_dict)
+        outputnode = Dict(outputnode_dict)
         outputnode.label = 'kkr_BS_wc_results'
         outputnode.description = 'Contains the info of the WC'
 
@@ -597,17 +594,13 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
         with retrieved_folder.open(q_vec_file) as file_opened:
             q_vec = np.loadtxt(file_opened, skiprows=1)
 
-    no_q_vec = len(q_vec[:, 0])
-
-    num_qdos_files = len(qdos_file_list)
-
-    with retrieved_folder.open(qdos_file_list[0]) as f:
-        total_qdos = np.loadtxt(f)
-
-    for i in qdos_file_list[1:]:
-        with retrieved_folder.open(i) as f:
-            loaded_file = np.loadtxt(f)
-            total_qdos[:, 5:] += loaded_file[:, 5:]
+    for icount, fname in enumerate(qdos_file_list):
+        with retrieved_folder.open(fname) as _f:
+            loaded_file = np.loadtxt(_f)
+            if icount == 0:
+                total_qdos = loaded_file
+            else:
+                total_qdos[:, 5:] += loaded_file[:, 5:]
 
     ef = fermi_level.value  # in Ry unit
     total_qdos[:, 0] = (total_qdos[:, 0] - ef) * eVscale
@@ -615,7 +608,7 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
     eng_points = np.sort(list(eng_points))
     no_eng_points = len(eng_points)
 
-    qdos_intensity = np.ndarray(shape=(no_eng_points, no_q_vec))
+    qdos_intensity = np.ndarray(shape=(no_eng_points, len(q_vec)))
     for ne in range(np.shape(qdos_intensity)[0]):
         nk = np.shape(qdos_intensity)[1]
         # sum up all l-channels (5 is only the s-channel!)

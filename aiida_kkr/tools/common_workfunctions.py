@@ -3,15 +3,11 @@
 Here workfunctions and normal functions using aiida-stuff (typically used
 within workfunctions) are collected.
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import unicode_literals
+
 from aiida.common.exceptions import InputValidationError
 from aiida.engine import calcfunction
 from aiida.orm import Dict
 from masci_tools.io.kkr_params import kkrparams
-from six.moves import range
 from builtins import str
 
 # keys that are used by aiida-kkr some something else than KKR parameters
@@ -152,9 +148,9 @@ def update_params(node, nodename=None, nodedesc=None, strict=False, **kwargs):
 
     # create new node
     if not add_direct:
-        ParaNode = Dict(dict=params.values)
+        ParaNode = Dict(params.values)
     else:
-        ParaNode = Dict(dict=params)
+        ParaNode = Dict(params)
     ParaNode.label = nodename
     ParaNode.description = nodedesc
 

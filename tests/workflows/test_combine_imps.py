@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import
-from __future__ import print_function
 if __name__ != '__main__':
     import pytest
     from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
     from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
     from ..conftest import kkrimp_local_code, kkrhost_local_code, test_dir, data_dir
-from aiida.orm import load_node, Dict
+from aiida.orm import load_node, Dict, load_group
 from aiida_kkr.workflows import combine_imps_wc
 from ..conftest import import_with_migration
 
@@ -19,23 +17,16 @@ def write_graph(node, label=''):
     name = str(builder.process_class).split('.')[-1].strip("'>")
     name += label
     graph = Graph(engine='dot', node_id_type='uuid')
-    graph.recurse_ancestors(
-        node, depth=None, link_types=(), annotate_links='both', include_process_outputs=True, print_func=None
-    )
-    graph.recurse_descendants(
-        node, depth=None, link_types=(), annotate_links='both', include_process_inputs=True, print_func=None
-    )
+    graph.recurse_ancestors(node, depth=None, link_types=(), annotate_links='both', include_process_outputs=True)
+    graph.recurse_descendants(node, depth=None, link_types=(), annotate_links='both', include_process_inputs=True)
     output_file_name = graph.graphviz.render(str(data_dir) + '/' + name, format='pdf', view=False, cleanup=True)
     print('wrote graph to', output_file_name)
 
 
 def get_single_imp_inputs():
     # import single imp calculations
-    imported_nodes = import_with_migration(
-        test_dir / 'data_dir/kkr_imp_wc-nodes-1e7804d6388fea2ca1e492d2f1a148c8.tar.gz'
-    )['Node']
-    for _, pk in imported_nodes['new'] + imported_nodes['existing']:
-        node = load_node(pk)
+    group_pk = import_with_migration(test_dir / 'data_dir/kkr_imp_wc-nodes-4e7fa222d8fbe143b13363013103a8e3.tar.gz')
+    for node in load_group(group_pk).nodes:
         if node.label == 'kkrimp_scf full Cu host_in_host':
             imp1 = node
     imp1_out = imp1.outputs.workflow_info
@@ -53,7 +44,7 @@ def get_builder_basic(label, kkrhost_local_code, kkrimp_local_code):
     builder.metadata.label = label
     builder.impurity1_output_node = imp1_out
     builder.impurity2_output_node = imp2_out
-    builder.offset_imp2 = Dict(dict={'index': 1})
+    builder.offset_imp2 = Dict({'index': 1})
     # set code
     builder.host_gf.kkr = kkrhost_local_code  # should not be required if gf_host_remote is given, seems to be a problem of aiida-testing's run_with_cache
     builder.scf.kkrimp = kkrimp_local_code
@@ -67,8 +58,9 @@ def get_builder_basic(label, kkrhost_local_code, kkrimp_local_code):
         'withmpi': False,
         'custom_scheduler_commands': ''
     }
-    builder.scf.options = Dict(dict=options)
-    builder.scf.wf_parameters = Dict(dict={'do_final_cleanup': False})  # this is needed to allow for caching
+    builder.scf.options = Dict(options)
+    builder.scf.wf_parameters = Dict({'do_final_cleanup': False})  # this is needed to allow for caching
+    builder.host_gf.wf_parameters = Dict({'retrieve_kkrflex': True})  # this is needed to allow for caching
     builder.host_gf.options = builder.scf.options
 
     return builder
@@ -110,7 +102,7 @@ def test_combine_imps_params_kkr_overwrite(
 
     builder = get_builder_basic('test_combine_imps_params_kkr_overwrite', kkrhost_local_code, kkrimp_local_code)
     # increase k-mesh for GF writeout step with params_kkr_overwrite
-    builder.host_gf.params_kkr_overwrite = Dict(dict={'BZDIVIDE': [20, 20, 20]})
+    builder.host_gf.params_kkr_overwrite = Dict({'BZDIVIDE': [20, 20, 20]})
 
     # now submit
     print(builder, type(builder))
@@ -138,11 +130,10 @@ def test_combine_imps_reuse_gf(
     """
 
     # import previous combine_imps workflow and reuse the host GF
-    imported_nodes = import_with_migration(
-        test_dir / 'data_dir/combine_imps_wc-nodes-76b8a1118abf371e7948b7ef15bf6e55.tar.gz'
-    )['Node']
-    for _, pk in imported_nodes['new'] + imported_nodes['existing']:
-        node = load_node(pk)
+    group_pk = import_with_migration(
+        test_dir / 'data_dir/combine_imps_wc-nodes-e4259f310125ab74b05412bf4561dae9.tar.gz'
+    )
+    for node in load_group(group_pk).nodes:
         if node.label == 'test_combine_imps':
             imp_combine_imported = node
     host_gf_remote = imp_combine_imported.outputs.remote_data_gf

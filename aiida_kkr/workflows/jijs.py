@@ -217,7 +217,7 @@ class kkr_jij_wc(WorkChain):
 
         # set Jij parameters
         para_jij, runopts = self._get_para_jij(params)
-        updatenode = Dict(dict=para_jij.get_dict())
+        updatenode = Dict(para_jij.get_dict())
         updatenode.label = 'Jij params'
         paranode_jij = update_params_wf(params, updatenode)
         self.ctx.jij_params = paranode_jij
@@ -324,7 +324,7 @@ class kkr_jij_wc(WorkChain):
         outputnode_dict['successful'] = success
 
         # create output node with data-provenance
-        outputnode = Dict(dict=outputnode_dict)
+        outputnode = Dict(outputnode_dict)
 
         # link to the output nodes
         link_nodes = outdict.copy()
@@ -436,30 +436,24 @@ def _make_nonco_angles(parent_remote):
     Nsites = len(get_sites(structure))
 
     # create nonco angles for m||z
-    init_angles_z = Dict(
-        dict={
-            'fix_dir': [True for i in range(Nsites)],
-            'theta': [0.0 for i in range(Nsites)],
-            'phi': [0.0 for i in range(Nsites)],
-        }
-    )
+    init_angles_z = Dict({
+        'fix_dir': [True for i in range(Nsites)],
+        'theta': [0.0 for i in range(Nsites)],
+        'phi': [0.0 for i in range(Nsites)],
+    })
 
     # create nonco angles for m||x
-    init_angles_x = Dict(
-        dict={
-            'fix_dir': [True for i in range(Nsites)],
-            'theta': [90.0 for i in range(Nsites)],
-            'phi': [0.0 for i in range(Nsites)],
-        }
-    )
+    init_angles_x = Dict({
+        'fix_dir': [True for i in range(Nsites)],
+        'theta': [90.0 for i in range(Nsites)],
+        'phi': [0.0 for i in range(Nsites)],
+    })
 
     # create nonco angles for m||y
-    init_angles_y = Dict(
-        dict={
-            'fix_dir': [True for i in range(Nsites)],
-            'theta': [90.0 for i in range(Nsites)],
-            'phi': [90.0 for i in range(Nsites)],
-        }
-    )
+    init_angles_y = Dict({
+        'fix_dir': [True for i in range(Nsites)],
+        'theta': [90.0 for i in range(Nsites)],
+        'phi': [90.0 for i in range(Nsites)],
+    })
 
     return {'init_angles_x': init_angles_x, 'init_angles_y': init_angles_y, 'init_angles_z': init_angles_z}

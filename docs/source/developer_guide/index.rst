@@ -5,11 +5,38 @@ Developer guide
 Running the tests
 +++++++++++++++++
 
+AiiDA-KKR comes with a set of tests for its functionality. The tests are run through `pytest` and they are defined in `tests/` and the sub directories therein. 
+
 The following will discover and run the unit test::
 
+    # install aiida-kkr with testing extra
     pip install -e .[testing]
-    cd aiida_kkr/tests
-    ./run_all.sh
+    # go to path where tests are defined
+    cd tests
+    # create fake executables
+    mkdir -p jukkr; cd jukkr && export PATH="$PWD:$PATH"; touch kkr.x; touch voronoi.exe; touch kkrflex.exe; chmod +x kkr.x voronoi.exe kkrflex.exe
+    # run tests (-h shows help)
+    ./run_all.sh -h
+    
+The coverage of the tests is controlled via environment variables (see `-h` option of `run_all.sh`), e.g.::
+
+    RUN_VORONOI=1 RUN_KKRHOST=1 ./run_all.sh
+    
+If you use aiida-core >= v2.0 you should first migrate the input data::
+
+    python migrate_exports.py
+    
+In order to recreate test export files you need real executables instead of the fakes we create above::
+
+    cd tests
+    # this will download the code and compile voronoi, kkrhost and kkrimp
+    ./jukkr_installation.sh -f
+    # make sure the executables are found in the PATH
+    cd jukkr && export PATH="$PWD:$PATH" && cd ..
+    
+If your changes require updates to reference data (checked via the `pytest-regressions` package) you should add the `--force-regen` option to the pytest run::
+
+    pytest --force-regen workflows/test_bs_wc.py
 
 Automatic coding style checks
 +++++++++++++++++++++++++++++

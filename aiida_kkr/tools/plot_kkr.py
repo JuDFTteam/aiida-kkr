@@ -2,13 +2,10 @@
 """
 contains plot_kkr class for node visualization
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
+
 import numpy as np
 import matplotlib.pyplot as plt
 from builtins import object, str
-from six.moves import range
 from ..tools.common_workfunctions import get_natyp
 from masci_tools.io.common_functions import search_string
 import numpy as np

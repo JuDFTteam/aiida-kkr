@@ -4,8 +4,6 @@
 Tests for the bandstructure workflow
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
 import pytest
 from ..dbsetup import *
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
@@ -13,13 +11,12 @@ from ..conftest import voronoi_local_code, kkrhost_local_code, data_dir
 from ..conftest import import_with_migration
 from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
-from six.moves import range
 
 
 @pytest.mark.timeout(240, method='thread')
 def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache, ndarrays_regression):
     """
-    minimal bandstructure calualtion for Cu bulk
+    minimal bandstructure calculation for Cu bulk
     """
 
     from aiida import get_version
@@ -31,8 +28,8 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     import numpy as np
 
     print(f'AiiDA version: {get_version()}')
-    Dict = DataFactory('dict')
-    StructureData = DataFactory('structure')
+    Dict = DataFactory('core.dict')
+    StructureData = DataFactory('core.structure')
 
     # create workflow parameters
     wfbs = kkr_bs_wc.get_wf_defaults()
@@ -41,19 +38,7 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     wfbs['emin'] = -10
     wfbs['RCLUSTZ'] = 2.3
     wfbs['tempr'] = 50.0
-    params_bs = Dict(dict=wfbs)
-
-    # for runing in local computer
-    options2 = {
-        'queue_name': queuename,
-        'resources': {
-            'num_machines': 1
-        },
-        'max_wallclock_seconds': 5 * 60,
-        'withmpi': False,
-        'custom_scheduler_commands': ''
-    }
-    options = Dict(dict=options2)
+    params_bs = Dict(wfbs)
 
     label = 'bs calc Cu bulk'
     descr = 'testing bs workflow for Cu bulk'
@@ -68,7 +53,15 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     builder.metadata.label = label
     builder.kkr = kkrhost_local_code
     builder.wf_parameters = params_bs
-    builder.options = options
+    builder.options = Dict({
+        'queue_name': queuename,
+        'resources': {
+            'num_machines': 1
+        },
+        'max_wallclock_seconds': 5 * 60,
+        'withmpi': False,
+        'custom_scheduler_commands': ''
+    })
     builder.remote_data = kkr_calc_remote
 
     # run the calculation using cached data is available

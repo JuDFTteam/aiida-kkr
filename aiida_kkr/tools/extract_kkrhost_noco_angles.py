@@ -3,12 +3,10 @@
 Calcfucntion that extracts the nonco angles from the output of a KkrCalculation
 """
 
-from __future__ import absolute_import
 from aiida.orm import Dict
 from aiida.engine import calcfunction
 from aiida_kkr.calculations import KkrCalculation
 from numpy import sqrt, loadtxt
-from six.moves import range
 
 
 @calcfunction
@@ -35,12 +33,10 @@ def extract_noco_angles(**kwargs):
                 sqrt((noco_angles_new[i][0] - noco_angles_old[i][0])**2 +
                      (noco_angles_new[i][1] - noco_angles_old[i][1])**2) < fix_dir_threshold for i in range(natom)
             ]
-            new_initial_noco_angles = Dict(
-                dict={
-                    'theta': list(noco_angles_new[:, 0]),
-                    'phi': list(noco_angles_new[:, 1]),
-                    # convert from numpy.bool_ to standard python bool, otherwise this is not json serializable and cannot be stored
-                    'fix_dir': [bool(i) for i in fix_dir]
-                }
-            )
+            new_initial_noco_angles = Dict({
+                'theta': list(noco_angles_new[:, 0]),
+                'phi': list(noco_angles_new[:, 1]),
+                # convert from numpy.bool_ to standard python bool, otherwise this is not json serializable and cannot be stored
+                'fix_dir': [bool(i) for i in fix_dir]
+            })
         return new_initial_noco_angles

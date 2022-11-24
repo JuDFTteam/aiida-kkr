@@ -2,8 +2,6 @@
 Here we define the fixtures for the tests
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
 import pytest
 import tempfile
 import shutil
@@ -184,7 +182,7 @@ def voronoi_local_code_import(reuse_local_code):
     entrypoint = 'kkr.voro'  # entrypoint
     # prepend text to be added before execution
     prepend_text = f"""
-ulimit -s hard
+ulimit -s unlimited
 ln -s {os.path.abspath(exec_rel_path)}/ElementDataBase ."""
     voro_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text)
 
@@ -202,9 +200,9 @@ def voronoi_local_code(reuse_local_code):
     entrypoint = 'kkr.voro'  # entrypoint
     # prepend text to be added before execution
     prepend_text = f"""
-ulimit -s hard
+ulimit -s unlimited
 ln -s {os.path.abspath(exec_rel_path)}/ElementDataBase .
-#source compiler-select gcc8"""
+"""
     voro_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text, use_export_file=False)
 
     return voro_code
@@ -220,9 +218,9 @@ def kkrhost_local_code(reuse_local_code):
     entrypoint = 'kkr.kkr'  # entrypoint
     # prepend text to be added before execution
     prepend_text = """
-ulimit -s hard
+ulimit -s unlimited
 export OMP_STACKSIZE=2G
-#source compiler-select gcc8"""
+"""
     kkrhost_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text, use_export_file=False)
 
     return kkrhost_code
@@ -238,9 +236,9 @@ def kkrimp_local_code(reuse_local_code):
     entrypoint = 'kkr.kkrimp'  # entrypoint
     # prepend text to be added before execution
     prepend_text = """
-ulimit -s hard
+ulimit -s unlimited
 export OMP_STACKSIZE=2G
-#source compiler-select gcc8"""
+"""
     kkrimp_code = reuse_local_code(executable, exec_rel_path, entrypoint, prepend_text, use_export_file=False)
 
     return kkrimp_code

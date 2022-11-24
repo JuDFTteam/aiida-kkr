@@ -2,8 +2,6 @@
 """
 Input plug-in for a voronoi calculation.
 """
-from __future__ import print_function
-from __future__ import absolute_import
 from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode, Dict, StructureData, RemoteData, SinglefileData
 from aiida.common.utils import classproperty
@@ -12,7 +10,6 @@ from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from aiida_kkr.tools.common_workfunctions import generate_inputcard_from_structure, check_2Dinput_consistency, vca_check
 from aiida.common.exceptions import UniquenessError
 import os
-import six
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
@@ -56,21 +53,9 @@ class VoronoiCalculation(CalcJob):
         # reuse base class (i.e. CalcJob) functions
         super(VoronoiCalculation, cls).define(spec)
         # now define input files and parser
-        spec.input(
-            'metadata.options.parser_name', valid_type=six.string_types, default=cls._default_parser, non_db=True
-        )
-        spec.input(
-            'metadata.options.input_filename',
-            valid_type=six.string_types,
-            default=cls._DEFAULT_INPUT_FILE,
-            non_db=True
-        )
-        spec.input(
-            'metadata.options.output_filename',
-            valid_type=six.string_types,
-            default=cls._DEFAULT_OUTPUT_FILE,
-            non_db=True
-        )
+        spec.input('metadata.options.parser_name', valid_type=str, default=cls._default_parser, non_db=True)
+        spec.input('metadata.options.input_filename', valid_type=str, default=cls._DEFAULT_INPUT_FILE, non_db=True)
+        spec.input('metadata.options.output_filename', valid_type=str, default=cls._DEFAULT_OUTPUT_FILE, non_db=True)
         # define input nodes (optional ones have required=False)
         spec.input('parameters', valid_type=Dict, help='Use a node that specifies the input parameters')
         spec.input(
