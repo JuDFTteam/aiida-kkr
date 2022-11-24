@@ -29,7 +29,7 @@ from aiida_kkr.workflows.bs import set_energy_params
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.8.2'
+__version__ = '0.8.3'
 __contributors__ = u'Philipp Rüßmann'
 
 
@@ -114,6 +114,13 @@ class kkr_dos_wc(WorkChain):
             required=False,
             help="""Initial non-collinear angles for the magnetic moments. See KkrCalculation for details.
             If this is found in the input potentially extracted nonco angles from the parent calulation are overwritten!"""
+        )
+        # maybe overwrite some settings from the KKRhost convergence run
+        spec.input(
+            'params_kkr_overwrite',
+            valid_type=orm.Dict,
+            required=False,
+            help='Overwrite some input parameters of the parent KKR calculation.'
         )
 
         # define outputs
@@ -354,6 +361,14 @@ class kkr_dos_wc(WorkChain):
             'KKR parameter node extracted from parent parameters and wf_parameter input node.'
 
         paranode_dos = update_params_wf(self.ctx.input_params_KKR, updatenode)
+
+        # maybe overwrite some inputs
+        if 'params_kkr_overwrite' in self.inputs:
+            self.report(f'found params_kkr_overwrite: {self.inputs.params_kkr_overwrite.get_dict()}')
+            updatenode = self.inputs.params_kkr_overwrite
+            updatenode.label = 'params overwrite'
+            paranode_dos = update_params_wf(paranode_dos, updatenode)
+
         self.ctx.dos_kkrparams = paranode_dos
 
     def get_dos(self):
