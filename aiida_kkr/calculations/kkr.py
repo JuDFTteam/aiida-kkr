@@ -1163,7 +1163,7 @@ def _update_params(parameters, change_values):
             new_params[key] = val
         for key, val in change_values:
             new_params[key] = val
-            
+
         new_params_node = Dict(new_params)
 
         parameters = new_params_node
