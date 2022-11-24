@@ -68,6 +68,9 @@ class kkr_dos_wc(WorkChain):
         'max_wallclock_seconds': 60 * 60,
         'withmpi': True,  # execute KKR with mpi or without
         'custom_scheduler_commands': '',  # some additional scheduler commands
+        'prepend_text': '',
+        'append_text': '',
+        'additional_retrieve_list': None
     }
 
     # intended to guide user interactively in setting up a valid wf_params node
@@ -200,6 +203,11 @@ class kkr_dos_wc(WorkChain):
         if options_dict == {}:
             options_dict = self._options_default
             self.report('INFO: using default options')
+        self.ctx.append_text = options_dict.get('append_text', self._options_default['append_text'])
+        self.ctx.prepend_text = options_dict.get('prepend_text', self._options_default['prepend_text'])
+        self.ctx.additional_retrieve_list = options_dict.get(
+            'additional_retrieve_list', self._options_default['additional_retrieve_list']
+        )
 
         # set values, or defaults
         self.ctx.withmpi = options_dict.get(
@@ -391,6 +399,12 @@ class kkr_dos_wc(WorkChain):
         }
         if self.ctx.custom_scheduler_commands:
             options['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
+        if self.ctx.append_text:
+            options['append_text'] = self.ctx.append_text
+        if self.ctx.prepend_text:
+            options['prepend_text'] = self.ctx.prepend_text
+        if self.ctx.additional_retrieve_list:
+            options['additional_retrieve_list'] = self.ctx.additional_retrieve_list
 
         inputs = get_inputs_kkr(
             code, remote, options, label, description, parameters=params, serial=(not self.ctx.withmpi)
