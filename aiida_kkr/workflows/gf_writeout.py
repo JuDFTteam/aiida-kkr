@@ -461,9 +461,6 @@ class kkr_flex_wc(WorkChain):
                     abspath_tmat_new = os.path.join(gf_upload_path, KkrimpCalculation._KKRFLEX_TMAT)
                     abspath_gmat_new = os.path.join(gf_upload_path, KkrimpCalculation._KKRFLEX_GREEN)
 
-                    self.report(f'contents of gf_upload_path: {os.listdir(gf_upload_path)}')
-                    self.report(f'contents of remote: {os.listdir(abspath_remote)}')
-
                     # create a symlink to to original dir to be able to find it easily
                     connection.symlink(os.path.join(abspath_remote, 'out_kkr'), os.path.join(gf_upload_path, 'out_kkr'))
                     # copy files
