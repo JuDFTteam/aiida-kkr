@@ -112,7 +112,7 @@ class kkrimp_BdG_wc(WorkChain):
         )
 
         # expose inputs for impurity normal state scf
-        spec.expose_inputs(kkr_imp_wc, namespace='imp_scf', include=('startpot', 'wf_parameters', 'gf_writeout'))
+        spec.expose_inputs(kkr_imp_wc, namespace='imp_scf', include=('startpot', 'wf_parameters', 'gf_writeout', 'scf.params_overwrite'))
         spec.inputs['imp_scf']['gf_writeout']['kkr'].required = False
         spec.input('imp_scf.options', required=False, help='computer options for impurity scf step')
 
@@ -249,6 +249,9 @@ class kkrimp_BdG_wc(WorkChain):
             if 'params_kkr_overwrite' in self.inputs.imp_scf.gf_writeout:
                 builder.params_kkr_overwrite = self.inputs.imp_scf.gf_writeout.params_kkr_overwrite
         builder.gf_writeout.kkr = builder.kkr  # pylint: disable=no-member
+
+        if 'params_overwrite' in self.inputs.imp_scf.scf:
+            builder.scf.params_overwrite = self.inputs.imp_scf.scf.params_overwrite
 
         imp_calc = self.submit(builder)
 
