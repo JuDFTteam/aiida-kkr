@@ -24,7 +24,7 @@ __copyright__ = (
     'IAS-1/PGI-1, Germany. All rights reserved.'
 )
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.13.1'
+__version__ = '0.13.2'
 __contributors__ = u'Philipp Rüßmann'
 
 eV2Ry = 1.0 / get_Ry2eV()
@@ -659,7 +659,7 @@ class kkr_startpot_wc(WorkChain):
                 nclsmin_last_calc = tmp_ncls
         self.report(f'INFO: number of atoms in smallest cluster: {nclsmin_last_calc}')
 
-        if self.ctx.nclsmin > nclsmin_last_calc or ncls < 1:
+        if self.ctx.nclsmin > 0 and self.ctx.nclsmin > nclsmin_last_calc or ncls < 1:
             self.report(f'WARNING: minimal cluster smaller than threshold of {self.ctx.nclsmin}')
             self.ctx.voro_ok = False
 
@@ -991,8 +991,16 @@ class kkr_startpot_wc(WorkChain):
         structure = self.ctx.structure
 
         # first find cluster radius in Ang. units
-        r_cls_ang = find_cluster_radius(structure, ncls_target)[0]
+        r_cls_ang = None
+        if self.ctx.nclsmin > 0:
+            r_cls_ang = find_cluster_radius(structure, ncls_target)[0]
+        else:
+            if 'calc_parameters' in self.inputs:
+                r_cls_ang = self.inputs.calc_parameters.get_dict().get('RCLUSTZ', None)
+        if r_cls_ang is None:
+            raise ValueError('nclsmin<=0 but RCLUSTZ not in calc_parameters!')
 
+        # get lattic constant
         cell = np.array(structure.cell)
         alat = get_alat_from_bravais(cell, structure.pbc[2])
 
