@@ -82,6 +82,10 @@ class VoronoiCalculation(CalcJob):
         # define exit codes, also used in parser
         spec.exit_code(301, 'ERROR_NO_OUTPUT_FILE', message='Voronoi output file not found')
         spec.exit_code(302, 'ERROR_VORONOI_PARSING_FAILED', message='Voronoi parser retuned an error')
+        spec.exit_code(303, 'ERROR_OPENING_OUTPUTS', message='Voronoi parser could not open an output file')
+        spec.exit_code(304, 'ERROR_CALCULATION_FAILED', message='VoronoiCalculation failed for an unknown reason')
+        spec.exit_code(305, 'ERROR_NOT_ENOUGH_MEMORY', message='VoronoiCalculation needs more memory')
+        spec.exit_code(306, 'ERROR_TIME_LIMIT', message='VoronoiCalculation needs more runtime')
 
     def prepare_for_submission(self, tempfolder):
         """Create the input files from the input nodes passed to this instance of the `CalcJob`.
