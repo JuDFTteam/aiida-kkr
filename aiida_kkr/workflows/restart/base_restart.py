@@ -8,7 +8,7 @@ functionality for calculations of the AiiDA-KKR package.
 from aiida import orm
 from aiida.common import AttributeDict
 from aiida.engine import BaseRestartWorkChain, while_
-from aiida.engine.processes.workchains.utils import process_handler, ProcessHandlerReport
+from aiida.engine.processes.workchains.utils import ProcessHandlerReport
 
 __copyright__ = (u'Copyright (c), 2022, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
@@ -18,19 +18,11 @@ __contributors__ = u'Philipp Rüßmann'
 
 class CalculationBaseWorkChain(BaseRestartWorkChain):
     """Workchain to run a Calculation with automated error handling and restarts"""
-    # calculation process class, needs to be overwritten from calculation restart plugin!
-    _process_class = None
 
-    # these exit codes have to be overwritten by the calculation restart plugin!
-    # list of exit codes we cannot handle automatically
-    _exit_codes_nohandler = None  # can be a list of exit codes
-    # common exit codes for which we know what to do
-    _exit_code_memory = None
-    _exit_code_timelimit = None
-
-    # default values for limits, can be overwritten
+    # default values for limits, can be overwritten in subclasses
     _max_queue_nodes = 20
     _max_queue_wallclock_sec = 86400  # 24h
+    _optimize_resources = True
 
     @classmethod
     def define(cls, spec):
@@ -92,7 +84,7 @@ class CalculationBaseWorkChain(BaseRestartWorkChain):
         self.ctx.max_queue_wallclock_sec = self.inputs.add_comp_para['max_queue_wallclock_sec']
 
         input_options = self.ctx.inputs.metadata.options
-        self.ctx.optimize_resources = input_options.pop('optimize_resources', True)
+        self.ctx.optimize_resources = input_options.pop('optimize_resources', self._optimize_resources)
         self.ctx.inputs.metadata.options = input_options
 
         if 'description' in self.inputs:
@@ -109,9 +101,15 @@ class CalculationBaseWorkChain(BaseRestartWorkChain):
             return
 
         resources_input = self.ctx.inputs.metadata.options['resources']
+        # extract resources
         try:
             self.ctx.num_machines = int(resources_input['num_machines'])
-            self.ctx.num_mpiprocs_per_machine = int(resources_input['num_mpiprocs_per_machine'])
+            if 'tot_num_mpiprocs' in resources_input:
+                self.ctx.tot_num_mpiprocs = int(resources_input['tot_num_mpiprocs'])
+                self.ctx.num_mpiprocs_per_machine = self.ctx.tot_num_mpiprocs // self.ctx.num_machines
+            else:
+                self.ctx.num_mpiprocs_per_machine = int(resources_input['num_mpiprocs_per_machine'])
+                self.ctx.tot_num_mpiprocs = self.ctx.num_mpiprocs_per_machine * self.ctx.tot_num_mpiprocs
         except KeyError:
             self.ctx.can_be_optimised = False
             self.report('WARNING: Computation resources were not optimised.')
@@ -125,7 +123,7 @@ class CalculationBaseWorkChain(BaseRestartWorkChain):
                 self.ctx.use_omp = False
                 self.ctx.suggest_mpi_omp_ratio = 1
 
-    @process_handler(priority=1, exit_codes=_exit_codes_nohandler)
+    # @process_handler(priority=1, exit_codes=_exit_codes_nohandler) # if uncommented, exit code is None, solved with a little bit of boilerplate in subclasses
     def _handle_general_error(self, calculation):
         """
         Calculation failed for unknown reason.
@@ -134,9 +132,9 @@ class CalculationBaseWorkChain(BaseRestartWorkChain):
         self.ctx.is_finished = True
         self.report('Calculation failed for a reason that can not be resolved automatically')
         self.results()
-        return ProcessHandlerReport(True, self.exit_codes.ERROR_SOMETHING_WENT_WRONG)
+        return ProcessHandlerReport(True, self.exit_codes.ERROR_SOMETHING_WENT_WRONG)  # pylint: disable=no-member
 
-    @process_handler(priority=10, exit_codes=_exit_code_memory)
+    # @process_handler(priority=10, exit_codes=_exit_code_memory)
     def _handle_not_enough_memory(self, calculation):
         """
         Calculation failed due to lack of memory.
@@ -150,7 +148,8 @@ class CalculationBaseWorkChain(BaseRestartWorkChain):
                 'num_machines and num_mpiprocs_per_machine'
             )
             self.results()
-            return ProcessHandlerReport(True, self.exit_codes.ERROR_MEMORY_HANDLER_FAILED)
+
+            return ProcessHandlerReport(True, self.exit_codes.ERROR_MEMORY_HANDLER_FAILED)  # pylint: disable=no-member
 
         self.ctx.restart_calc = None
         self.ctx.is_finished = False
@@ -167,7 +166,7 @@ class CalculationBaseWorkChain(BaseRestartWorkChain):
 
         return ProcessHandlerReport(True)
 
-    @process_handler(priority=20, exit_codes=_exit_code_timelimit)
+    # @process_handler(priority=20, exit_codes=_exit_code_timelimit)
     def _handle_time_limits(self, calculation):
         """
         If calculation fails due to time limits, we simply resubmit it.
@@ -184,16 +183,15 @@ class CalculationBaseWorkChain(BaseRestartWorkChain):
                 self.results()
                 return ProcessHandlerReport(True)
 
-        self.report('Calculation failed due to time limits, I restart it from where it ended')
-
         # increase wallclock time
         if 'max_wallclock_seconds' in self.ctx.inputs.metadata.options:
             propose_wallclock = self.ctx.inputs.metadata.options['max_wallclock_seconds'] * 2
             if propose_wallclock > self.ctx.max_queue_wallclock_sec:
                 propose_wallclock = self.ctx.max_queue_wallclock_sec
-            self.inputs.calc.metadata.options['max_wallclock_seconds'] = propose_wallclock
+            self.ctx.inputs.metadata.options['max_wallclock_seconds'] = propose_wallclock
         else:
-            return ProcessHandlerReport(True, self.exit_codes.ERROR_TIMELIMIT_HANDLER_FAILED)
+            self.report('Cannot increase walltime')
+            return ProcessHandlerReport(True, self.exit_codes.ERROR_TIMELIMIT_HANDLER_FAILED)  # pylint: disable=no-member
 
         # increase number of nodes
         propose_nodes = self.ctx.num_machines * 2
@@ -201,7 +199,7 @@ class CalculationBaseWorkChain(BaseRestartWorkChain):
             propose_nodes = self.ctx.max_queue_nodes
         self.ctx.num_machines = propose_nodes
 
-        remote = calculation.get_outgoing().get_node_by_label('remote_folder')
+        # remote = calculation.get_outgoing().get_node_by_label('remote_folder')
 
         # # resubmit providing inp.xml and cdn from the remote folder
         # self.ctx.is_finished = False

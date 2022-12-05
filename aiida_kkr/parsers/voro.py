@@ -134,41 +134,31 @@ class VoronoiParser(Parser):
         # check if something was written to the error file
         errorfile = self.node.attributes['scheduler_stderr']
 
-        print('errorfile', errorfile, errorfile in list_of_files)
-
         if errorfile in list_of_files:
             # read
             try:
                 with out_folder.open(errorfile, 'r') as efile:
                     error_file_lines = efile.read()  # Note: read(), not readlines()
             except OSError:
-                print(f'Failed to open error file: {errorfile}.')
                 self.logger.error(f'Failed to open error file: {errorfile}.')
                 return self.exit_codes.ERROR_OPENING_OUTPUTS
 
-            print(
-                'errorfile content',
-                error_file_lines,
-                error_file_lines == '',
-                error_file_lines is None,
-            )
-
             # check lines in the errorfile
             if error_file_lines:
-
-                print('in error file line')
 
                 if isinstance(error_file_lines, bytes):
                     error_file_lines = error_file_lines.replace(b'\x00', b' ')
                 else:
                     error_file_lines = error_file_lines.replace('\x00', ' ')
 
-                print(error_file_lines)
-
                 print(f'The following was written into std error and piped to {errorfile} : \n {error_file_lines}')
                 self.logger.warning(
                     f'The following was written into std error and piped to {errorfile} : \n {error_file_lines}'
                 )
+
+                # check if NACLSD is too small
+                if 'STOP clsgen: Dimension error (a).' in error_file_lines:
+                    return self.exit_codes.ERROR_NACLSD_TOO_SMALL
 
                 # here we estimate how much walltime was available and consumed
                 try:
