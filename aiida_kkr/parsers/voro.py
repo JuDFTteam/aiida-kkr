@@ -125,16 +125,22 @@ class VoronoiParser(Parser):
         # create output node and link
         self.out('output_parameters', Dict(dict=out_dict))
 
-        OUT_OF_MEMORY_PHRASES = [
-            'cgroup out-of-memory handler',
-            'Out Of Memory',
-            'Allocation of array for communication failed'  #from io/eig66_mpi
-        ]
+        # check error
+        exit_code = self.check_error_file(out_folder)
+        if exit_code is not None:
+            return exit_code
+
+        print('success?', success)
+        if not success:
+            return self.exit_codes.ERROR_VORONOI_PARSING_FAILED
+
+    def check_error_file(self, out_folder):
+        """Check if anything is in the error file and get some hints for error handler in restart workchain"""
 
         # check if something was written to the error file
         errorfile = self.node.attributes['scheduler_stderr']
 
-        if errorfile in list_of_files:
+        if errorfile in out_folder.list_object_names():
             # read
             try:
                 with out_folder.open(errorfile, 'r') as efile:
@@ -170,12 +176,13 @@ class VoronoiParser(Parser):
                     if 'TIME LIMIT' in error_file_lines.upper() or 'time limit' in error_file_lines:
                         return self.exit_codes.ERROR_TIME_LIMIT
 
+                # check for out of memory errors
+                OUT_OF_MEMORY_PHRASES = [
+                    'cgroup out-of-memory handler',
+                    'Out Of Memory',
+                ]
                 if any(phrase in error_file_lines for phrase in OUT_OF_MEMORY_PHRASES):
                     return self.exit_codes.ERROR_NOT_ENOUGH_MEMORY
 
                 # Catch all exit code for an unknown failure
                 return self.exit_codes.ERROR_CALCULATION_FAILED
-
-        print('success?', success)
-        if not success:
-            return self.exit_codes.ERROR_VORONOI_PARSING_FAILED
