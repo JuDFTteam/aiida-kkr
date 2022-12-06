@@ -222,7 +222,7 @@ class KkrParser(Parser):
             msg = 'Automatically returned success=True for KKR importer although some parsing errors occurred'
             self.logger.warning(msg)
 
-        # check error
+        # check error file
         exit_code = self.check_error_file(out_folder)
         if exit_code is not None:
             return exit_code

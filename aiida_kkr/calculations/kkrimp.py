@@ -182,7 +182,12 @@ The Dict node should be of the form
         # define exit codes, also used in parser
         spec.exit_code(301, 'ERROR_NO_RETRIEVED_FOLDER', message='Retrieved folder of KKRimp calculation not found.')
         spec.exit_code(302, 'ERROR_PARSING_KKRIMPCALC', message='KKRimp parser returned an error.')
-        #TBD
+        spec.exit_code(303, 'ERROR_NO_OUTPUT_FILE', message='KKRimp output file not found')
+        spec.exit_code(304, 'ERROR_NOT_ENOUGH_MEMORY', message='KkrimpCalculation needs more memory')
+        spec.exit_code(305, 'ERROR_TIME_LIMIT', message='KkrimpCalculation needs more runtime')
+        spec.exit_code(306, 'ERROR_OPENING_OUTPUTS', message='Kkrimp parser could not open an output file')
+        spec.exit_code(307, 'ERROR_CALCULATION_FAILED', message='KkrimpCalculation failed for an unknown reason')
+        spec.exit_code(308, 'ERROR_RLOG_TOO_SMALL', message='RLOG too small for Chebychev solver')
 
     def prepare_for_submission(self, tempfolder):
         """

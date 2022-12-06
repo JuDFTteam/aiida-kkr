@@ -132,6 +132,11 @@ class KkrimpParser(Parser):
         # create output node and link
         self.out('output_parameters', Dict(dict=out_dict))
 
+        # check error file
+        exit_code = self.check_error_file(out_folder)
+        if exit_code is not None:
+            return exit_code
+
         # cleanup after parsing (only if parsing was successful), only works below aiida-core v2.0
         if success:
             if int(aiida_core_version.split('.')[0]) < 2:
@@ -236,3 +241,56 @@ class KkrimpParser(Parser):
             # finally delete files that have been added to tarfile
             for f in to_delete:
                 ret.delete_object(f, force=True)
+
+    def check_error_file(self, out_folder):
+        """Check if anything is in the error file and get some hints for error handler in restart workchain"""
+
+        # check if something was written to the error file
+        errorfile = self.node.attributes['scheduler_stderr']
+
+        if errorfile in out_folder.list_object_names():
+            # read
+            try:
+                with out_folder.open(errorfile, 'r') as efile:
+                    error_file_lines = efile.read()  # Note: read(), not readlines()
+            except OSError:
+                self.logger.error(f'Failed to open error file: {errorfile}.')
+                return self.exit_codes.ERROR_OPENING_OUTPUTS
+
+            # check lines in the errorfile
+            if error_file_lines:
+
+                if isinstance(error_file_lines, bytes):
+                    error_file_lines = error_file_lines.replace(b'\x00', b' ')
+                else:
+                    error_file_lines = error_file_lines.replace('\x00', ' ')
+
+                print(f'The following was written into std error and piped to {errorfile} : \n {error_file_lines}')
+                self.logger.warning(
+                    f'The following was written into std error and piped to {errorfile} : \n {error_file_lines}'
+                )
+
+                # check for some errors which we can fix automatically
+                if 'STOP Error creating newmesh!' in error_file_lines:
+                    return self.exit_codes.ERROR_RLOG_TOO_SMALL
+
+                # here we estimate how much walltime was available and consumed
+                try:
+                    time_avail_sec = self.node.attributes['last_job_info']['requested_wallclock_time_seconds']
+                    time_calculated = self.node.attributes['last_job_info']['wallclock_time_seconds']
+                    if 0.97 * time_avail_sec < time_calculated:
+                        return self.exit_codes.ERROR_TIME_LIMIT
+                except KeyError:
+                    if 'TIME LIMIT' in error_file_lines.upper() or 'time limit' in error_file_lines:
+                        return self.exit_codes.ERROR_TIME_LIMIT
+
+                # check for out of memory errors
+                OUT_OF_MEMORY_PHRASES = [
+                    'cgroup out-of-memory handler',
+                    'Out Of Memory',
+                ]
+                if any(phrase in error_file_lines for phrase in OUT_OF_MEMORY_PHRASES):
+                    return self.exit_codes.ERROR_NOT_ENOUGH_MEMORY
+
+                # Catch all exit code for an unknown failure
+                return self.exit_codes.ERROR_CALCULATION_FAILED
