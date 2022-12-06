@@ -63,6 +63,7 @@ class KkrCalculationBaseWorkChain(CalculationBaseWorkChain):
             params = kkrparams(**self.ctx.inputs.parameters)
             params.set_multiple_values(R_LOG=rlog)
             self.ctx.inputs.parameters = orm.Dict(params)
+            return ProcessHandlerReport(True)
         except:
             return ProcessHandlerReport(True, self.exit_codes.ERROR_SOMETHING_WENT_WRONG)  # pylint: disable=no-member
 
