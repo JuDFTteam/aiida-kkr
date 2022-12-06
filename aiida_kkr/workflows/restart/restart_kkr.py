@@ -66,12 +66,3 @@ class KkrCalculationBaseWorkChain(CalculationBaseWorkChain):
             return ProcessHandlerReport(True)
         except:
             return ProcessHandlerReport(True, self.exit_codes.ERROR_SOMETHING_WENT_WRONG)  # pylint: disable=no-member
-
-    # @process_handler(...)
-    # def _handle_something(self, calculation):
-    #     """
-    #     If calculation fails due to time some reason ...
-    #     """
-    #     ...
-
-    #     return ProcessHandlerReport(True)
