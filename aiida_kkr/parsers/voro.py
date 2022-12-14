@@ -125,13 +125,13 @@ class VoronoiParser(Parser):
         # create output node and link
         self.out('output_parameters', Dict(dict=out_dict))
 
-        # check error
-        exit_code = self.check_error_file(out_folder)
-        if exit_code is not None:
-            return exit_code
-
-        print('success?', success)
+        # return an exit code if parsing fails
         if not success:
+            # check error file
+            exit_code = self.check_error_file(out_folder)
+            if exit_code is not None:
+                return exit_code
+            # if nothing was returned so far we have an unidentified failure of the parser
             return self.exit_codes.ERROR_VORONOI_PARSING_FAILED
 
     def check_error_file(self, out_folder):

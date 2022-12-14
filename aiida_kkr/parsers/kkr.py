@@ -222,31 +222,14 @@ class KkrParser(Parser):
             msg = 'Automatically returned success=True for KKR importer although some parsing errors occurred'
             self.logger.warning(msg)
 
-        # check error file
-        exit_code = self.check_error_file(out_folder)
-        if exit_code is not None:
-            return exit_code
-
+        # return an exit code if parsing fails
         if not success:
+            # check error file
+            exit_code = self.check_error_file(out_folder)
+            if exit_code is not None:
+                return exit_code
+            # if nothing was returned we have a general parising failure
             return self.exit_codes.ERROR_KKR_PARSING_FAILED
-        else:  # cleanup after parsing (only if parsing was successful)
-            # cleanup only works below aiida-core v2.0
-            if int(aiida_core_version.split('.')[0]) < 2:
-                # delete completely parsed output files
-                self.remove_unnecessary_files()
-                # then (maybe) tar the output to save space
-                # TODO needs implementing (see kkrimp parser)
-
-    def remove_unnecessary_files(self):
-        """
-        Remove files that are not needed anymore after parsing
-        The information is completely parsed (i.e. in outdict of calculation)
-        and keeping the file would just be a duplication.
-        """
-        files_to_delete = [KkrCalculation._POTENTIAL, KkrCalculation._SHAPEFUN]
-        for fileid in files_to_delete:
-            if fileid in self.retrieved.list_object_names():
-                self.retrieved.delete_object(fileid, force=True)
 
     def check_error_file(self, out_folder):
         """Check if anything is in the error file and get some hints for error handler in restart workchain"""

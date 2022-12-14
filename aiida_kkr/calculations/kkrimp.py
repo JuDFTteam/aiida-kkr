@@ -168,13 +168,6 @@ The Dict node should be of the form
     Note: The length of the theta, phi and fix_dir lists have to be equal to the number of atoms in the impurity cluster.
 """
         )
-        spec.input(
-            'cleanup_outfiles',
-            valid_type=Bool,
-            required=False,
-            default=lambda: Bool(False),
-            help='Cleanup and compress output (works only in aiida-core<2.0 and breaks caching ability).'
-        )
 
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the KKRimp calculation')
