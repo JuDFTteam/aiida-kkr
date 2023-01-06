@@ -40,10 +40,11 @@ def find_parent_structure(calc_or_remote, return_voro=False):
     else:
         return struc
 
+
 def search_kkrparams(search_string):
     """
     Search keywords and their description of kkrparams. Useful to find the correct name of a parameter.
-    
+
     :param search_string: string which is searched (case insensitive) in parameter names and descriptions of kkrparams
     """
     kkrparams().get_description(search=search_string)
