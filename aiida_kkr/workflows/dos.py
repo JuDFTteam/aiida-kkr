@@ -26,7 +26,7 @@ from aiida_kkr.workflows.bs import set_energy_params
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.8.2'
+__version__ = '0.8.3'
 __contributors__ = u'Philipp Rüßmann'
 
 
@@ -65,6 +65,9 @@ class kkr_dos_wc(WorkChain):
         'max_wallclock_seconds': 60 * 60,
         'withmpi': True,  # execute KKR with mpi or without
         'custom_scheduler_commands': '',  # some additional scheduler commands
+        'prepend_text': '',
+        'append_text': '',
+        'additional_retrieve_list': None
     }
 
     # intended to guide user interactively in setting up a valid wf_params node
@@ -111,6 +114,13 @@ class kkr_dos_wc(WorkChain):
             required=False,
             help="""Initial non-collinear angles for the magnetic moments. See KkrCalculation for details.
             If this is found in the input potentially extracted nonco angles from the parent calulation are overwritten!"""
+        )
+        # maybe overwrite some settings from the KKRhost convergence run
+        spec.input(
+            'params_kkr_overwrite',
+            valid_type=orm.Dict,
+            required=False,
+            help='Overwrite some input parameters of the parent KKR calculation.'
         )
 
         # define outputs
@@ -190,6 +200,11 @@ class kkr_dos_wc(WorkChain):
         if options_dict == {}:
             options_dict = self._options_default
             self.report('INFO: using default options')
+        self.ctx.append_text = options_dict.get('append_text', self._options_default['append_text'])
+        self.ctx.prepend_text = options_dict.get('prepend_text', self._options_default['prepend_text'])
+        self.ctx.additional_retrieve_list = options_dict.get(
+            'additional_retrieve_list', self._options_default['additional_retrieve_list']
+        )
 
         # set values, or defaults
         self.ctx.withmpi = options_dict.get(
@@ -351,6 +366,14 @@ class kkr_dos_wc(WorkChain):
             'KKR parameter node extracted from parent parameters and wf_parameter input node.'
 
         paranode_dos = update_params_wf(self.ctx.input_params_KKR, updatenode)
+
+        # maybe overwrite some inputs
+        if 'params_kkr_overwrite' in self.inputs:
+            self.report(f'found params_kkr_overwrite: {self.inputs.params_kkr_overwrite.get_dict()}')
+            updatenode = self.inputs.params_kkr_overwrite
+            updatenode.label = 'params overwrite'
+            paranode_dos = update_params_wf(paranode_dos, updatenode)
+
         self.ctx.dos_kkrparams = paranode_dos
 
     def get_dos(self):
@@ -373,6 +396,12 @@ class kkr_dos_wc(WorkChain):
         }
         if self.ctx.custom_scheduler_commands:
             options['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
+        if self.ctx.append_text:
+            options['append_text'] = self.ctx.append_text
+        if self.ctx.prepend_text:
+            options['prepend_text'] = self.ctx.prepend_text
+        if self.ctx.additional_retrieve_list:
+            options['additional_retrieve_list'] = self.ctx.additional_retrieve_list
 
         inputs = get_inputs_kkr(
             code, remote, options, label, description, parameters=params, serial=(not self.ctx.withmpi)
