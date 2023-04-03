@@ -21,7 +21,7 @@ classifiers = [
     "Framework :: AiiDA",
 ]
 dependencies = [
-    "aiida-core >= 1.0.0b6,<3.0.0",
+    "aiida-core >= 2.0.0,<3.0.0",
     "masci-tools >= 0.4.8.dev5,<1.0.0",
     "seekpath >= 1.9.2",
     "ase",
