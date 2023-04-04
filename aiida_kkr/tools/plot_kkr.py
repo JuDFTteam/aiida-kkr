@@ -2,13 +2,10 @@
 """
 contains plot_kkr class for node visualization
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
+
 import numpy as np
 import matplotlib.pyplot as plt
 from builtins import object, str
-from six.moves import range
 from ..tools.common_workfunctions import get_natyp
 from masci_tools.io.common_functions import search_string
 import numpy as np
@@ -1935,10 +1932,11 @@ def get_qdos_filenames(node):
 
 def get_qdos_data_from_node(node, qdos_filenames):
     """Extract the qdos data (summed over all atoms)"""
+    from aiida import orm
 
-    if 'saved_dispersion_data' in node.extras:
+    if 'saved_dispersion_data_uuid' in node.extras:
         # only return the existing numpy array if it exists
-        data = np.array(node.extras['saved_dispersion_data'])
+        data = orm.load_node(node.extras['saved_dispersion_data_uuid']).get_array('data')
     else:
         # read qdos data and store as extra
         for i, fname in enumerate(qdos_filenames):
@@ -1958,6 +1956,10 @@ def get_qdos_data_from_node(node, qdos_filenames):
                     data[:, 4:] += tmp[:, 4:]
 
         # now store as extra
-        node.set_extra('saved_dispersion_data', data)
+        # TODO: make this nicer and connect to provenance graph with calcfunction
+        data_node = orm.ArrayData()
+        data_node.set_array('data', data)
+        data_node.store()
+        node.set_extra('saved_dispersion_data_uuid', data_node.uuid)
 
     return data

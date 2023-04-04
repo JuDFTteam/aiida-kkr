@@ -503,35 +503,29 @@ def load_or_submit_cpa_jijcalcs(
         para_Jij['JIJSITEJ'] = JIJSITEJ
     para_Jij['JIJRAD'] = JIJRAD  # radius in lattice constants up to which the Jijs are calculated
 
-    builder.parameters = Dict(dict=para_Jij)
+    builder.parameters = Dict(para_Jij)
 
     # starting angles for 3 directions, needed to extract full Jij tensor
 
     Nsites = len(get_sites(find_parent_structure(last_calc)))
 
-    init_angles_x = Dict(
-        dict={
-            'fix_dir': [True for i in range(Nsites)],
-            'theta': [90.0 for i in range(Nsites)],
-            'phi': [0.0 for i in range(Nsites)],
-        }
-    )
+    init_angles_x = Dict({
+        'fix_dir': [True for i in range(Nsites)],
+        'theta': [90.0 for i in range(Nsites)],
+        'phi': [0.0 for i in range(Nsites)],
+    })
 
-    init_angles_y = Dict(
-        dict={
-            'fix_dir': [True for i in range(Nsites)],
-            'theta': [90.0 for i in range(Nsites)],
-            'phi': [90.0 for i in range(Nsites)],
-        }
-    )
+    init_angles_y = Dict({
+        'fix_dir': [True for i in range(Nsites)],
+        'theta': [90.0 for i in range(Nsites)],
+        'phi': [90.0 for i in range(Nsites)],
+    })
 
-    init_angles_z = Dict(
-        dict={
-            'fix_dir': [True for i in range(Nsites)],
-            'theta': [0.0 for i in range(Nsites)],
-            'phi': [0.0 for i in range(Nsites)],
-        }
-    )
+    init_angles_z = Dict({
+        'fix_dir': [True for i in range(Nsites)],
+        'theta': [0.0 for i in range(Nsites)],
+        'phi': [0.0 for i in range(Nsites)],
+    })
 
     # submit m||z calculation
     builder.initial_noco_angles = init_angles_z

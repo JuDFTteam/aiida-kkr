@@ -3,9 +3,7 @@
 In this module you find the sub workflow for the kkrimp self consistency cycle
 and some helper methods to do so with AiiDA
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
+
 from aiida import __version__ as aiida_core_version
 from aiida.orm import Float, Code, CalcJobNode, RemoteData, StructureData, Dict, SinglefileData, FolderData, Bool
 from aiida.engine import WorkChain, ToContext, while_, if_, calcfunction
@@ -13,7 +11,6 @@ from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from numpy import array
-from six.moves import range
 import tarfile, os
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
@@ -719,7 +716,7 @@ class kkr_imp_sub_wc(WorkChain):
             # step 3:
             message = f'INFO: update parameters to: {para_check.get_set_values()}'
             self.report(message)
-            updatenode = Dict(dict=para_check.get_dict())
+            updatenode = Dict(para_check.get_dict())
             updatenode.label = label
             updatenode.description = description
             paranode_new = updatenode  #update_params_wf(self.ctx.last_params, updatenode)

@@ -25,5 +25,7 @@ comment:
   behavior: default
   require_changes: no
 
-fixes:
-  - "::aiida-kkr/"
+ignore:
+  - "docs"
+  - "examples"
+  - "utils"

@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import
-from __future__ import print_function
 import pytest
 from ..dbsetup import *
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
@@ -46,10 +44,10 @@ def test_kkr_startpot_wc_Cu(clear_database_before_test, voronoi_local_code, kkrh
         'withmpi': False,
         'custom_scheduler_commands': ''
     }
-    params_vorostart = Dict(dict=wfd)
+    params_vorostart = Dict(wfd)
 
     # Finally we use the kkrparams class to prepare a valid set of KKR parameters that are stored as a Dict object for the use in aiida
-    ParaNode = Dict(dict=kkrparams(LMAX=2, NSPIN=1, RCLUSTZ=1.9).get_dict())
+    ParaNode = Dict(kkrparams(LMAX=2, NSPIN=1, RCLUSTZ=1.9).get_dict())
 
     # create process builder to set parameters
     builder = kkr_startpot_wc.get_builder()
@@ -59,7 +57,7 @@ def test_kkr_startpot_wc_Cu(clear_database_before_test, voronoi_local_code, kkrh
     builder.voronoi = voronoi_local_code
     builder.structure = Cu
     builder.wf_parameters = params_vorostart
-    builder.options = Dict(dict=options)
+    builder.options = Dict(options)
     builder.kkr = kkrhost_local_code
 
     out, node = run_with_cache(builder, data_dir=data_dir)
@@ -146,12 +144,12 @@ def test_kkr_startpot_parent_KKR(clear_database_before_test, voronoi_local_code,
 
     # create process builder to set parameters
     builder = kkr_startpot_wc.get_builder()
-    builder.calc_parameters = Dict(dict=params.get_dict())
+    builder.calc_parameters = Dict(params.get_dict())
     builder.metadata.description = 'voronoi startpot workflow with parent_KKR input'
     builder.metadata.label = 'startpot for increased lmax'
     builder.voronoi = voronoi_local_code
-    builder.wf_parameters = Dict(dict=wfd)
-    builder.options = Dict(dict=options)
+    builder.wf_parameters = Dict(wfd)
+    builder.options = Dict(options)
     builder.parent_KKR = parent_calc_remote
 
     out, node = run_with_cache(builder, data_dir=data_dir)
