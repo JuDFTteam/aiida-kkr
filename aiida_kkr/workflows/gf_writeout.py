@@ -3,9 +3,7 @@
 In this module you find the base workflow for writing out the kkr_flexfiles and
 some helper methods to do so with AiiDA
 """
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
+
 from aiida.orm import Code, load_node, Bool
 from aiida.engine import WorkChain, ToContext, if_
 from masci_tools.io.kkr_params import kkrparams
@@ -163,6 +161,7 @@ class kkr_flex_wc(WorkChain):
         else:
             wf_dict = self._wf_default
             self.report('INFO: using default wf parameters')
+        self.report(f'INFO: wf_parameters = {wf_dict}')
 
         if options_dict == {}:
             options_dict = self._options_default
@@ -373,14 +372,15 @@ class kkr_flex_wc(WorkChain):
                 updatedict['ef_set'] = ef_new
 
         #construct the final param node containing all of the params
-        updatenode = Dict(dict=updatedict)
+        updatenode = Dict(updatedict)
         updatenode.label = label + 'KKRparam_flex'
         updatenode.description = descr + 'KKR parameter node extracted from parent parameters and wf_parameter and options input node.'
         paranode_flex = update_params_wf(self.ctx.input_params_KKR, updatenode, **input_links)
         self.ctx.flex_kkrparams = paranode_flex
         self.ctx.flex_runopt = runopt
 
-        self.report(f'INFO: Updated params= {paranode_flex.get_dict()}')
+        set_params = {k: v for k, v in paranode_flex.get_dict().items() if v is not None}
+        self.report(f'INFO: Updated params= {set_params}')
 
     def get_flex(self):
         """
@@ -432,14 +432,14 @@ class kkr_flex_wc(WorkChain):
 
             # extract computer info
             computer = self.ctx.flexrun.computer
-            computername = computer.name
+            # computername = computer.name
 
             # set upload dir (get the remote username and try 5 times if there was a connection error
-            remote_user = get_username(computer)
-            workdir = computer.get_workdir().format(username=remote_user)
+            # remote_user = get_username(computer)
+            workdir = computer.get_workdir()  #.format(username=remote_user)
             gf_upload_path = os.path.join(workdir, gf_upload_path)
 
-            self.report('move kkrflex files to: ' + computername)
+            self.report('move kkrflex files to: ' + computer.label)
 
             # extract absolute filepath of retrieved dir, used as source to upload kkrflex_* files from
             abspath_remote = self.ctx.flexrun.outputs.remote_folder.get_remote_path()
@@ -458,6 +458,9 @@ class kkr_flex_wc(WorkChain):
                     connection.makedirs(gf_upload_path, ignore_existing=True)
                     abspath_tmat_new = os.path.join(gf_upload_path, KkrimpCalculation._KKRFLEX_TMAT)
                     abspath_gmat_new = os.path.join(gf_upload_path, KkrimpCalculation._KKRFLEX_GREEN)
+
+                    self.report(f'contents of gf_upload_path: {os.listdir(gf_upload_path)}')
+                    self.report(f'contents of remote: {os.listdir(abspath_remote)}')
 
                     # create a symlink to to original dir to be able to find it easily
                     connection.symlink(os.path.join(abspath_remote, 'out_kkr'), os.path.join(gf_upload_path, 'out_kkr'))

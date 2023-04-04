@@ -363,7 +363,7 @@ class kkr_decimation_wc(WorkChain):
                     econt_new['tempr'] = 50.
                 econt_new['kmesh'] = [1, 1, 1]
             params_new = set_energy_params(econt_new, ef_ry, kkrparams(**params_new))
-            self.ctx.params_overwrite = Dict(dict=params_new)
+            self.ctx.params_overwrite = Dict(params_new)
 
         alat_slab = self.ctx.slab_calc.outputs.output_parameters['alat_internal']
 
@@ -529,14 +529,12 @@ class kkr_decimation_wc(WorkChain):
         Nlayer_deci = len(self.ctx.struc_decimation.sites)
         new_pot_indices = list(range(Nlayer_deci))
 
-        settings = Dict(
-            dict={
-                'pot1': 'out_potential',
-                'out_pot': 'startpot_decimate',
-                'neworder': new_pot_indices,
-                'label': 'potential_decimation'
-            }
-        )
+        settings = Dict({
+            'pot1': 'out_potential',
+            'out_pot': 'startpot_decimate',
+            'neworder': new_pot_indices,
+            'label': 'potential_decimation'
+        })
         startpot_deci = neworder_potential_wf(settings_node=settings, parent_calc_folder=scf_slab_remote)
 
         # create substrate startpot
@@ -544,14 +542,12 @@ class kkr_decimation_wc(WorkChain):
         Nlayer_deci = len(self.ctx.struc_decimation.sites)
         new_pot_indices = list(range(Nlayer_deci, Nlayer_deci + nrbasis))
 
-        settings = Dict(
-            dict={
-                'pot1': 'out_potential',
-                'out_pot': 'startpot_substrate',
-                'neworder': new_pot_indices,
-                'label': 'potential_substrate'
-            }
-        )
+        settings = Dict({
+            'pot1': 'out_potential',
+            'out_pot': 'startpot_substrate',
+            'neworder': new_pot_indices,
+            'label': 'potential_substrate'
+        })
         startpot_substrate = neworder_potential_wf(settings_node=settings, parent_calc_folder=scf_slab_remote)
 
         self.ctx.startpot_substrate = startpot_substrate
@@ -577,7 +573,7 @@ class kkr_decimation_wc(WorkChain):
             nplayer = self.ctx.nplayer
             nprinc = self.ctx.nprinc
             rename_files = Dict(
-                dict=dict(
+                dict(
                     # next nrbasis atoms after nplayer*nprinc are the substrate atoms
                     # format: (index in slab, index in substrate)
                     # Note: AiiDA needs the key in the dict to be a string instead of an integer
@@ -605,7 +601,7 @@ class kkr_decimation_wc(WorkChain):
             nplayer = self.ctx.nplayer
             nprinc = self.ctx.nprinc
             rename_files = Dict(
-                dict=dict(
+                dict(
                     # the first nplayer*nprinc are the decimation region
                     [(str(i + 1), i + 1) for i in range(nplayer * nprinc)]
                 )
@@ -789,8 +785,8 @@ def make_decimation_param_nodes(slab_calc_params, slab_alat, struc_deci, struc_s
     _adapt_array_sizes(dsubstrate, pick_layers=[Ndeci + i for i in range(Nsubstrate)])
 
     # now create Dict nodes with params
-    dsubstrate = Dict(dict=dsubstrate)
-    ddeci = Dict(dict=ddeci)
+    dsubstrate = Dict(dsubstrate)
+    ddeci = Dict(ddeci)
 
     return {'dsubstrate': dsubstrate, 'ddeci': ddeci}
 
@@ -814,13 +810,13 @@ def get_noco_angles_deci(init_noco_slab, struc_decimation, struc_substrate):
     theta = theta_slab[Nlayer_deci:Nlayer_deci + nrbasis]
     phi = phi_slab[Nlayer_deci:Nlayer_deci + nrbasis]
     fix_dir = fix_dir_slab[Nlayer_deci:Nlayer_deci + nrbasis]
-    initial_noco_angles_substrate = Dict(dict={'theta': theta, 'phi': phi, 'fix_dir': fix_dir})
+    initial_noco_angles_substrate = Dict({'theta': theta, 'phi': phi, 'fix_dir': fix_dir})
 
     # decimation
     theta = theta_slab[:Nlayer_deci]
     phi = phi_slab[:Nlayer_deci]
     fix_dir = fix_dir_slab[:Nlayer_deci]
-    initial_noco_angles_decimation = Dict(dict={'theta': theta, 'phi': phi, 'fix_dir': fix_dir})
+    initial_noco_angles_decimation = Dict({'theta': theta, 'phi': phi, 'fix_dir': fix_dir})
 
     return {
         'initial_noco_angles_substrate': initial_noco_angles_substrate,

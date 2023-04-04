@@ -16,16 +16,16 @@ jobs:
     timeout-minutes: 30
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: 3.8
 
     - name: Cache python dependencies
       id: cache-pip
-      uses: actions/cache@v1
+      uses: actions/cache@v3
       with:
         path: ~/.cache/pip
         key: pip-docs-${{ hashFiles('**/setup.json') }}
@@ -53,11 +53,11 @@ jobs:
     timeout-minutes: 30
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Cache python dependencies
       id: cache-pip
-      uses: actions/cache@v1
+      uses: actions/cache@v3
       with:
         path: ~/.cache/pip
         key: pip-pre-commit-${{ hashFiles('**/setup.json') }}
@@ -65,7 +65,7 @@ jobs:
           pip-pre-commit-
 
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: 3.8
 
@@ -93,16 +93,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
-        aiida: [{version: 'aiida-core==1.6.8', name: '1.6.8'}, {version: 'aiida-core==2.0.1', name: '2.0.1'}]
-        masci-tools: [{version: 'masci-tools', name: ''}]
+        python-version: ["3.8", "3.9", "3.10"]
+        aiida: [{version: 'aiida-core==2.1.2', name: '2.1.2'}]
+        masci-tools: [{version: 'git+https://github.com/JuDFTteam/masci-tools.git@develop', name: '-masci-develop'}]
         allowed-to-fail: [false]
-        exclude:
-          # aiida-core>=2.0 needs at least python 3.8
-          - python-version: 3.7
-            aiida: {version: 'aiida-core==2.0.1', name: '2.0.1'}
-            masci-tools: {version: 'masci-tools', name: ''}
-            allowed-to-fail: false
 
     services:
       postgres:
@@ -128,10 +122,10 @@ jobs:
           - 5001:22
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -182,9 +176,9 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Python 3.7
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.7
       - name: Build package
@@ -192,7 +186,7 @@ jobs:
           pip install wheel
           python setup.py sdist bdist_wheel
       - name: Publish to PyPi
-        uses: pypa/gh-action-pypi-publish@v1.1.0
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.PYPI_KEY }}

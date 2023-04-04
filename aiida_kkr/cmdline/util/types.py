@@ -26,7 +26,7 @@ class StructureNodeOrFileParamType(click.ParamType):
         # aiida allows also for shorten uuids
 
         try:
-            structure = types.DataParamType(sub_classes=('aiida.data:structure',)).convert(value, param, ctx)
+            structure = types.DataParamType(sub_classes=('aiida.data:core.structure',)).convert(value, param, ctx)
         except (NotExistent, click.exceptions.BadParameter) as er:
             echo.echo(
                 f'Tried to load node, could not fine one for {value}. '
@@ -35,7 +35,7 @@ class StructureNodeOrFileParamType(click.ParamType):
             is_path = True
 
         if is_path:
-            StructureData = DataFactory('structure')
+            StructureData = DataFactory('core.structure')
             # If it is a path to a file try to convert the structure
             pathtype = click.Path(exists=True, dir_okay=False, resolve_path=True)
             filename = pathtype.convert(value, param, ctx)

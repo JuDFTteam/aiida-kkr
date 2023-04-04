@@ -5,7 +5,6 @@ The parser should never fail, but it should catch
 all errors and warnings and show them to the user.
 """
 
-from __future__ import absolute_import
 import tarfile
 import os
 from aiida import __version__ as aiida_core_version
@@ -16,7 +15,6 @@ from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from aiida_kkr.tools.context import open_files_in_context
 from masci_tools.io.parsers.kkrparser_functions import check_error_category
 from masci_tools.io.parsers.kkrimp_parser_functions import KkrimpParserFunctions
-from six.moves import range
 from pprint import pprint
 from contextlib import ExitStack
 

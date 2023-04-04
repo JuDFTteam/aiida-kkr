@@ -139,7 +139,7 @@ class KKRnanoDOSChain(WorkChain):
 
         builder.metadata.label = 'WC_coarse_mixing'  # pylint: disable=no-member
 
-        builder.parameters = Dict(dict=params)
+        builder.parameters = Dict(params)
 
         #builder.metadata.dry_run = True
         #machine=#
@@ -169,7 +169,7 @@ class KKRnanoDOSChain(WorkChain):
 
         builder.metadata.label = 'WC_colinear'  # pylint: disable=no-member
 
-        builder.parameters = Dict(dict=params)
+        builder.parameters = Dict(params)
 
         #builder.metadata.dry_run = True
         #machine=#
@@ -211,7 +211,7 @@ class KKRnanoDOSChain(WorkChain):
 
         builder.metadata.label = 'WC_SOC'  # pylint: disable=no-member
 
-        builder.parameters = Dict(dict=params)
+        builder.parameters = Dict(params)
 
         #builder.metadata.dry_run = True
 
@@ -244,7 +244,7 @@ class KKRnanoDOSChain(WorkChain):
 
         builder.metadata.label = 'WC_DOS'  # pylint: disable=no-member
 
-        builder.parameters = Dict(dict=params)
+        builder.parameters = Dict(params)
 
         #builder.metadata.dry_run = True
 
@@ -276,7 +276,7 @@ class KKRnanoDOSChain(WorkChain):
         inputdict = self.inputs.calc_parameters.get_dict()
         try:
             if not inputdict['NSPIND']['value'] == 2:
-                return self.exit_codes.ERROR_INPUT_SPIN
+                return self.exit_codes.ERROR_INPUT_SPIN  # pylint: disable=no-member
         except:
             return self.exit_codes.ERROR_INPUT_SPIN  # pylint: disable=no-member
 

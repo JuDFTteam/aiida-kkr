@@ -2,11 +2,9 @@
 """
 @author: ruess
 """
-from __future__ import print_function
-from __future__ import absolute_import
+
 from builtins import object
 import pytest
-from six.moves import range
 from numpy import sort
 from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
 from .conftest import import_with_migration
@@ -25,8 +23,8 @@ class Test_common_workfunctions_rmq(object):
         from aiida.orm import Dict
 
         k = kkrparams(LMAX=2)
-        node1 = Dict(dict=k.values)
-        node2 = Dict(dict={'nodename': 'my_changed_name', 'nodedesc': 'My description text', 'EMIN': -1, 'RMAX': 10.})
+        node1 = Dict(k.values)
+        node2 = Dict({'nodename': 'my_changed_name', 'nodedesc': 'My description text', 'EMIN': -1, 'RMAX': 10.})
 
         unode = update_params_wf(node1, node1)
         assert unode.get_dict() == node1.get_dict()
@@ -66,7 +64,7 @@ class Test_common_workfunctions_rmq(object):
         with GF_host_calc.retrieved.open('scoef') as _f:
             neworder_pot1 = [int(i) for i in loadtxt(_f, skiprows=1)[:, 3] - 1]
         settings_dict = {'pot1': 'out_potential', 'out_pot': 'potential_imp', 'neworder': neworder_pot1}
-        settings = Dict(dict=settings_dict)
+        settings = Dict(settings_dict)
         startpot_imp_sfd = neworder_potential_wf(settings_node=settings, parent_calc_folder=GF_host_calc.remote_folder)
         assert startpot_imp_sfd.get_object_content(
             startpot_imp_sfd.filename

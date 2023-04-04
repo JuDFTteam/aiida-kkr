@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #import pytest
-from __future__ import print_function
-from __future__ import absolute_import
+
 from builtins import object
 from aiida_kkr.tools.tools_kkrimp import modify_potential
 from masci_tools.io.common_functions import open_general

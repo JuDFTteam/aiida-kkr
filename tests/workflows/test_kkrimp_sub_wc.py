@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import
-from __future__ import print_function
 import pytest
 from ..dbsetup import *
 from ..conftest import kkrimp_local_code, data_dir, import_with_migration
@@ -37,7 +35,7 @@ def test_kkrimp_sub_wc(clear_database_before_test, kkrimp_local_code, run_with_c
         'withmpi': False,
         'custom_scheduler_commands': ''
     }
-    options = Dict(dict=options)
+    options = Dict(options)
 
     # import previous GF writeout
     import_with_migration('files/db_dump_kkrflex_create.tar.gz')
@@ -49,7 +47,7 @@ def test_kkrimp_sub_wc(clear_database_before_test, kkrimp_local_code, run_with_c
     with GF_host_calc.outputs.retrieved.open('scoef') as _f:
         neworder_pot1 = [int(i) for i in loadtxt(_f, skiprows=1)[:, 3] - 1]
     settings_dict = {'pot1': 'out_potential', 'out_pot': 'potential_imp', 'neworder': neworder_pot1}
-    settings = Dict(dict=settings_dict)
+    settings = Dict(settings_dict)
     from aiida.manage.caching import enable_caching
     with enable_caching():
         startpot_imp_sfd = neworder_potential_wf(
@@ -66,7 +64,7 @@ def test_kkrimp_sub_wc(clear_database_before_test, kkrimp_local_code, run_with_c
     builder.kkrimp = kkrimp_local_code
     builder.options = options
     builder.remote_data = GF_host_calc.outputs.remote_folder
-    builder.wf_parameters = Dict(dict=wfd)
+    builder.wf_parameters = Dict(wfd)
     builder.host_imp_startpot = startpot_imp_sfd
 
     print('builder', builder)

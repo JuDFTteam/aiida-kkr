@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import
-from __future__ import print_function
 import pytest
 from ..dbsetup import *
 from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
@@ -42,7 +40,7 @@ def test_dos_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cach
     wfd = kkr_dos_wc.get_wf_defaults()
     wfd['kmesh'] = [10, 10, 10]
     wfd['nepts'] = 10
-    params_dos = Dict(dict=wfd)
+    params_dos = Dict(wfd)
 
     options = {
         'queue_name': queuename,
@@ -53,7 +51,7 @@ def test_dos_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cach
         'withmpi': False,
         'custom_scheduler_commands': ''
     }
-    options = Dict(dict=options)
+    options = Dict(options)
 
     label = 'dos Cu bulk'
     descr = 'DOS workflow for Cu bulk'

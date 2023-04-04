@@ -5,9 +5,7 @@ In this module you find the base workflow that defines the restart
 caclulation functionality.
 """
 
-from __future__ import absolute_import
 from aiida_kkr.calculations import KkrimpCalculation, VoronoiCalculation, KkrCalculation
-from six.moves import map
 from aiida.engine import WorkChain
 from aiida.orm import CalcJobNode
 
