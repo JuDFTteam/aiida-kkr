@@ -295,7 +295,7 @@ class KKRnanoParser(Parser):
                 block_dict[final_DOS_captions[p]] = DOS_block[:, p]
 
             if multipleSpins:
-                dict_dos[spin_list[i]] = block_dict
+                dict_dos[spin_list[i]] = block_dict  # pylint: disable=used-before-assignment
             else:
                 dict_dos = block_dict
             #DOS_blocks.append(DOS_block)
