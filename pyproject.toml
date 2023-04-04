@@ -59,7 +59,7 @@ Documentation = "https://aiida-kkr.readthedocs.io"
 
 [project.optional-dependencies]
 pre-commit = [
-    "pre-commit==1.17.0",
+    "pre-commit==3.2.2",
     "yapf==0.28.0",
     "pylint==1.9.4; python_version<'3.0'",
     "pylint==2.3.1; python_version>='3.0'",
