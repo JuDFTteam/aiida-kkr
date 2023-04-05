@@ -12,20 +12,56 @@ __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.1.0'
 __contributors__ = (u'David Antognini Silva, Philipp Rüßmann')
 
+# TODO: add _wf_default parameters and activate get_wf_defaults method
+# TODO: add input interdependencies in the workchain description
+# TODO: add lmdos output node
+
 
 class kkrimp_BdG_wc(WorkChain):
     """
-    Workchain for blablabla
+    Workchain for one-shot BdG impurity DOS calculation from a converged normal state host calculation.
+    1) Normal state impurity potential scf
+    2) One-shot BdG DOS calcluation
+        a) Writing out of the BdG kkrflex DOS files
+        b) One-shot BdG impurity DOS
+    The intermediate steps (1 & 2a) can be skipped by providing the corresponding nodes as inputs to the workflow.
+    
     inputs::
-        :blabla: blabla
+        :param options: (Dict), Workchain specifications
+        :param impurity_info: (Dict), information about the impurity cluster
+        :param voronoi: (Code), Voronoi code for creating the impurity starting potential
+        :param kkr: (Code), KKR host code for the writing out kkrflex files
+        :param kkrimp: (Code), KKR impurity code for the normal state impurity scf and BdG impurity DOS calculation
+        :param BdG_settings: (Dict), set BdG parameters
+        
+        :param imp_scf.startpot: (SinglefileData), converged impurity potential, skips the impurity scf calculation if provided
+        :param imp_scf.wf_parameters: (Dict), parameters for the kkr impurity scf
+        :param imp_scf.gf_writeout.params_kkr_overwrite: (Dict), set some input parameters of the KKR calculation for the GF writeout step of impurity scf workchain
+        :param imp_scf.scf.params_overwrite: (Dict), set some input parameters of the KKR impurity scf
+        :param imp_scf.options: (Dict), specifications for impurity scf workchain
+        :param imp_scf.remote_data_host: (RemoteData), parent folder of converged host normal state KkrCalculation
+        
+        :param dos.wf_parameters: (Dict), parameters for the DOS calculation
+        :param dos.gf_dos_remote: (RemoteData), node of precomputed host GF for DOS energy contour
+        :param dos.gf_writeout.params_kkr_overwrite: (Dict), set some input parameters of the KKR calculation for the GF writeout step of imßpurity dos workchain
+        :param dos.gf_writeout.host_remote: (RemoteData), parent folder of kkrflex writeout step for DOS calculation
+        :param dos.gf_writeout.kkr: (Code), KKR code for writing out of kkrflex files for impurity DOS calculation
+        :param dos.options: (Dict), specifications for BdG impurity DOS calculation
+        
     returns::
-        :blabla : blabla
+        :return workflow_info: (Dict), Information on workflow results
+        :return output_parameters: (Dict), output parameters of the workflow
+        :return dos_data: (XyData), impurity DOS data output node
+        :return dos_data_interpol: (XyData), interpolated DOS data output node
+        :return impurity_potential: (SinglefileData), converged normal state impurity potential node
+        :return gf_host_BdG: (RemoteData), kkrflex writeout step files of DOS calculation
     """
 
     _wf_version = __version__
-    _wf_default = {
-        'blabla': None,  #Put in here default input parameters
-    }
+
+    # _wf_default = {
+    #     'default': None,  #Put in here default input parameters
+    # }
     _options_default = {
         'max_wallclock_seconds': 36000,
         'resources': {
@@ -36,13 +72,13 @@ class kkrimp_BdG_wc(WorkChain):
     }
 
     @classmethod
-    def get_wf_defaults(self, silent=False):
-        """
-        Return the default values of the workflow parameters (wf_parameters input node)
-        """
-        if not silent:
-            print(f'Version of the kkrimp_BdG_wc workflow: {self._wf_version}')
-        return self._wf_default.copy()
+    # def get_wf_defaults(self, silent=False):
+    #     """
+    #     Return the default values of the workflow parameters (wf_parameters input node)
+    #     """
+    #     if not silent:
+    #         print(f'Version of the kkrimp_BdG_wc workflow: {self._wf_version}')
+    #     return self._wf_default.copy()
 
     @classmethod
     def define(cls, spec):
@@ -50,15 +86,6 @@ class kkrimp_BdG_wc(WorkChain):
         Layout of the workflow, defines the input nodes and the outline of the workchain
         """
         super(kkrimp_BdG_wc, cls).define(spec)
-
-        # here inputs are defined
-        #spec.input(
-        #    'wf_parameters',
-        #    valid_type=Dict,
-        #    required=False,
-        #    default=lambda: Dict(dict=cls._wf_default),
-        #    help='Parameters of the BdG impurity workflow (see output of kkrimp_BdG_wc.get_wf_default() for more details).'
-        #)
 
         spec.input(
             'options',
@@ -318,7 +345,8 @@ class kkrimp_BdG_wc(WorkChain):
         run BdG scf step only if BdG impurity potential not provided and DOS calculation is not planned
         """
         if (not 'startpot' in self.inputs.BdG_scf) and (not self.inputs.calc_DOS):
-            return True
+            # return True
+            # BdG scf not implemented in the KKRimp code yet
 
     def do_calc_DOS(self):
         """
