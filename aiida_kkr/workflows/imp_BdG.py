@@ -282,7 +282,7 @@ class kkrimp_BdG_wc(WorkChain):
         builder.gf_writeout.kkr = builder.kkr  # pylint: disable=no-member
 
         if 'params_overwrite' in self.inputs.imp_scf.scf:
-            builder.scf.params_overwrite = self.inputs.imp_scf.scf.params_overwrite
+            builder.scf.params_overwrite = self.inputs.imp_scf.scf.params_overwrite  # pylint: disable=no-member
 
         imp_calc = self.submit(builder)
 
