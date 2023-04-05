@@ -198,3 +198,10 @@ class TestAiida_kkr_entrypoints(object):
 
         wf = WorkflowFactory('kkr.imp_sub')
         assert wf == kkr_imp_sub_wc
+
+    def test_kkrimp_BdG_workchain_entry_point(self):
+        from aiida_kkr.workflows.imp_BdG import kkrimp_BdG_wc
+        from aiida.plugins import WorkflowFactory
+
+        wf = WorkflowFactory('kkr.imp_BdG')
+        assert wf == kkrimp_BdG_wc

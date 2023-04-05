@@ -8,22 +8,22 @@ from aiida.orm import Code, load_node, Bool
 from aiida.engine import WorkChain, ToContext, if_
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
-from aiida_kkr.calculations.kkr import KkrCalculation
-from aiida_kkr.calculations import KkrimpCalculation
+from aiida_kkr.calculations import KkrCalculation, KkrimpCalculation, VoronoiCalculation
 from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode
-from masci_tools.io.common_functions import get_Ry2eV
+from masci_tools.io.common_functions import get_Ry2eV, get_ef_from_potfile
 from aiida.orm import WorkChainNode, RemoteData, StructureData, Dict, FolderData
 from aiida.common.exceptions import InputValidationError
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 from aiida_kkr.tools.common_workfunctions import get_username
 from aiida_kkr.workflows.dos import kkr_dos_wc
+from aiida_kkr.workflows.bs import set_energy_params
 import os
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.5.5'
+__version__ = '0.5.6'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 
 # ToDo: add more default values to wf_parameters
@@ -88,7 +88,7 @@ class kkr_flex_wc(WorkChain):
         # Take input of the workflow or use defaults defined above
         super(kkr_flex_wc, cls).define(spec)
 
-        spec.input('kkr', valid_type=Code, required=True)
+        spec.input('kkr', valid_type=Code, required=False)
         spec.input('options', valid_type=Dict, required=False, default=lambda: Dict(dict=cls._options_default))
         spec.input('wf_parameters', valid_type=Dict, required=False)
         spec.input('remote_data', valid_type=RemoteData, required=True)
@@ -133,6 +133,9 @@ class kkr_flex_wc(WorkChain):
             106,
             'ERROR_KKR_CALCULATION_FAILED',
             message='ERROR: KKR calculation to write out kkrflex files unsuccessful'
+        )
+        spec.exit_code(
+            107, 'ERROR_NO_EF_FOUND', message='ERROR: Could not extract value for Fermi level from parent calculation'
         )
 
         # specify the outputs
@@ -328,12 +331,6 @@ class kkr_flex_wc(WorkChain):
                 self.report(f'INFO: overwriting KKR parameter: {key} with {val} from params_kkr_overwrite input node')
             input_links['params_kkr_overwrite'] = self.inputs.params_kkr_overwrite
 
-        runopt = [i.strip() for i in runopt]
-        if 'KKRFLEX' not in runopt:
-            runopt.append('KKRFLEX')
-
-        updatedict['RUNOPT'] = runopt
-
         self.report(f'INFO: RUNOPT set to: {runopt}')
 
         if 'wf_parameters' in self.inputs:
@@ -341,24 +338,26 @@ class kkr_flex_wc(WorkChain):
             remote_data_parent = self.inputs.remote_data
             parent_calc = remote_data_parent.get_incoming(link_label_filter='remote_folder').first().node
             ef = parent_calc.outputs.output_parameters.get_dict().get('fermi_energy')
+            # check if ef needs to be taken from a voronoi parent
+            if ef is None:
+                objects = parent_calc.outputs.retrieved.list_object_names()
+                fname = VoronoiCalculation._OUT_POTENTIAL_voronoi
+                if fname in objects:
+                    with parent_calc.outputs.retrieved.open(fname) as _f:
+                        ef = get_ef_from_potfile(_f)
+            if ef is None:
+                return self.exit_codes.ERROR_NO_EF_FOUND  # pylint: disable=no-member
 
             if self.ctx.dos_run:
-                # convert emin, emax to Ry units
-                emin = ef + self.ctx.dos_params_dict['emin'] / get_Ry2eV()
-                emax = ef + self.ctx.dos_params_dict['emax'] / get_Ry2eV()
-                # set dos params
-                for key, val in {
-                    'EMIN': emin,
-                    'EMAX': emax,
-                    'NPT2': self.ctx.dos_params_dict['nepts'],
-                    'NPOL': 0,
-                    'NPT1': 0,
-                    'NPT3': 0,
-                    'BZDIVIDE': self.ctx.dos_params_dict['kmesh'],
-                    'IEMXD': self.ctx.dos_params_dict['nepts'],
-                    'TEMPR': self.ctx.dos_params_dict['tempr']
-                }.items():
+                # possibly remove keys which are overwritten from DOS params
+                for key in ['BZDIVIDE', 'NPT2', 'EMIN', 'EMAX', 'TEMPR']:
+                    if key in updatedict:
+                        updatedict.pop(key)
+                # now add the dos settings to the updatedict
+                for key, val in self.ctx.dos_params_dict.items():
                     updatedict[key] = val
+                # set the energy contour properly (i.e. changes units from eV to Ry etc)
+                updatedict = set_energy_params(updatedict, ef, kkrparams())
             elif self.ctx.ef_shift != 0:
                 # get Fermi energy shift in eV
                 ef_shift = self.ctx.ef_shift  #set new E_F in eV
@@ -372,10 +371,13 @@ class kkr_flex_wc(WorkChain):
                 updatedict['ef_set'] = ef_new
 
         #construct the final param node containing all of the params
-        updatenode = Dict(updatedict)
-        updatenode.label = label + 'KKRparam_flex'
-        updatenode.description = descr + 'KKR parameter node extracted from parent parameters and wf_parameter and options input node.'
-        paranode_flex = update_params_wf(self.ctx.input_params_KKR, updatenode, **input_links)
+        if updatedict != {}:
+            updatenode = Dict(updatedict)
+            updatenode.label = label + 'KKRparam_flex'
+            updatenode.description = descr + 'KKR parameter node extracted from parent parameters and wf_parameter and options input node.'
+            paranode_flex = update_params_wf(self.ctx.input_params_KKR, updatenode, **input_links)
+        else:
+            paranode_flex = self.ctx.input_params_KKR
         self.ctx.flex_kkrparams = paranode_flex
         self.ctx.flex_runopt = runopt
 
@@ -458,9 +460,6 @@ class kkr_flex_wc(WorkChain):
                     connection.makedirs(gf_upload_path, ignore_existing=True)
                     abspath_tmat_new = os.path.join(gf_upload_path, KkrimpCalculation._KKRFLEX_TMAT)
                     abspath_gmat_new = os.path.join(gf_upload_path, KkrimpCalculation._KKRFLEX_GREEN)
-
-                    self.report(f'contents of gf_upload_path: {os.listdir(gf_upload_path)}')
-                    self.report(f'contents of remote: {os.listdir(abspath_remote)}')
 
                     # create a symlink to to original dir to be able to find it easily
                     connection.symlink(os.path.join(abspath_remote, 'out_kkr'), os.path.join(gf_upload_path, 'out_kkr'))

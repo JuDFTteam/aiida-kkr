@@ -13,17 +13,19 @@ from aiida.common.exceptions import InputValidationError, ValidationError
 from aiida.common.datastructures import CalcInfo, CodeInfo
 from aiida.common.exceptions import UniquenessError
 from aiida_kkr.tools import (
-    generate_inputcard_from_structure, check_2Dinput_consistency, update_params_wf, vca_check, kick_out_corestates
+    generate_inputcard_from_structure, check_2Dinput_consistency, vca_check, kick_out_corestates
 )
-from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
-from aiida_kkr.tools.tools_kkrimp import make_scoef, write_scoef_full_imp_cls
 from aiida_kkr.tools.find_parent import find_parent_structure
+from aiida_kkr.tools.tools_kkrimp import make_scoef, write_scoef_full_imp_cls
+from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
 from masci_tools.io.kkr_params import __kkr_default_params__, kkrparams
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
+
 __version__ = '0.12.5'
+
 __contributors__ = ('Jens Bröder', 'Philipp Rüßmann')
 
 verbose = False
@@ -301,7 +303,7 @@ class KkrCalculation(CalcJob):
         voro_parent, structure, vca_structure, use_alat_input = self._get_structure_inputs(parent_calc, parameters)
 
         # prepare scoef file if impurity_info was given
-        self._write_scoef_file(tempfolder, parameters, structure, use_alat_input)
+        parameters = self._write_scoef_file(tempfolder, parameters, structure, use_alat_input)
 
         # qdos option, ensure low T, E-contour, qdos run option and write qvec.dat file
         if 'kpoints' in self.inputs:
@@ -498,23 +500,21 @@ class KkrCalculation(CalcJob):
         write_scoef = False
         runopt = parameters.get_dict().get('RUNOPT', None)
 
-        if runopt is not None and 'KKRFLEX' in runopt:
-            write_scoef = True
-        elif found_imp_info:
+        if found_imp_info:
             self.logger.info('Found impurity_info in inputs of the calculation, automatically add runopt KKRFLEX')
             write_scoef = True
-            runopt = parameters.get_dict().get('RUNOPT', [])
-            runopt.append('KKRFLEX')
-            parameters = update_params_wf(
-                parameters,
-                Dict(
-                    dict={
-                        'RUNOPT': runopt,
-                        'nodename': 'update_KKRFLEX',
-                        'nodedesc': 'Update Parameter node with KKRFLEX runopt'
-                    }
-                )
-            )
+            change_values = []
+            if runopt is None:
+                runopt = []
+            runopt = [i.strip() for i in runopt]
+            if 'KKRFLEX' not in runopt:
+                runopt.append('KKRFLEX')
+                change_values.append(['RUNOPT', runopt])
+            parameters = _update_params(parameters, change_values)
+        elif runopt is not None and 'KKRFLEX' in runopt:
+            # if we end up here there is a problem with the input
+            self.logger.info('Need to write scoef file but no impurity_info given!')
+            raise ValidationError('Found RUNOPT KKRFLEX but no impurity_info in inputs')
 
         if found_imp_info and write_scoef:
 
@@ -581,10 +581,7 @@ class KkrCalculation(CalcJob):
                         rescale_alat = None
                     write_scoef_full_imp_cls(imp_info, scoef_file, rescale_alat)
 
-        elif write_scoef:
-            # if we end up here there is a problem with the input
-            self.logger.info('Need to write scoef file but no impurity_info given!')
-            raise ValidationError('Found RUNOPT KKRFLEX but no impurity_info in inputs')
+        return parameters
 
     def _get_shapes_array(self, parent_calc, voro_parent):
         """Get the shapes array from the parent calcualtion or the voronoi parent"""
@@ -1162,12 +1159,12 @@ def _update_params(parameters, change_values):
     """
     if change_values != []:
         new_params = {}
-        #{'nodename': 'changed_params_qdos', 'nodedesc': 'Changed parameters to mathc qdos mode. Changed values: {}'.format(change_values)}
         for key, val in parameters.get_dict().items():
             new_params[key] = val
         for key, val in change_values:
             new_params[key] = val
+
         new_params_node = Dict(new_params)
-        #parameters = update_params_wf(parameters, new_params_node)
+
         parameters = new_params_node
     return parameters

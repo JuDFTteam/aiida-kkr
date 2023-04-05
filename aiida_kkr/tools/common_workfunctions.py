@@ -389,7 +389,7 @@ def get_inputs_common(
         if _sched in ['slurm', 'pbspro']:
             # overwrite settings for serial run
             options['withmpi'] = False
-            options['resources'] = {'num_machines': 1}
+            options['resources'] = {'num_machines': 1, 'tot_num_mpiprocs': 1}
         if _sched in ['sge']:
             options['withmpi'] = False
             options['resources'] = {'parallel_env': 'smpslots', 'tot_num_mpiprocs': 1}
