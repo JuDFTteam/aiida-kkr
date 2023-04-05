@@ -4,7 +4,7 @@
 In this module you find the base workflow for a impurity DOS calculation and
 some helper methods to do so with AiiDA
 """
-from __future__ import print_function, absolute_import
+
 from aiida.orm import Code, load_node, CalcJobNode, Float, Int, Str, Dict, RemoteData, SinglefileData, XyData
 from aiida.plugins import DataFactory
 from aiida.engine import if_, ToContext, WorkChain, calcfunction
@@ -16,7 +16,6 @@ from aiida_kkr.workflows.dos import kkr_dos_wc
 from aiida_kkr.calculations import KkrimpCalculation
 import tarfile
 import os
-from six.moves import range
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
 __copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, '
@@ -226,15 +225,13 @@ class kkr_imp_dos_wc(WorkChain):
         self.ctx.custom_scheduler_commands = options_dict.get(
             'custom_scheduler_commands', self._options_default['custom_scheduler_commands']
         )
-        self.ctx.options_params_dict = Dict(
-            dict={
-                'withmpi': self.ctx.withmpi,
-                'resources': self.ctx.resources,
-                'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
-                'queue_name': self.ctx.queue,
-                'custom_scheduler_commands': self.ctx.custom_scheduler_commands
-            }
-        )
+        self.ctx.options_params_dict = Dict({
+            'withmpi': self.ctx.withmpi,
+            'resources': self.ctx.resources,
+            'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
+            'queue_name': self.ctx.queue,
+            'custom_scheduler_commands': self.ctx.custom_scheduler_commands
+        })
 
         # set workflow parameters for the KKR imputrity calculations
         self.ctx.lmdos = wf_dict.get('lmdos', self._wf_default['lmdos'])
@@ -396,7 +393,7 @@ label: {self.ctx.label_wf}
             if not self.ctx.retrieve_kkrflex:
                 wf_params_gf['retrieve_kkrflex'] = self.ctx.retrieve_kkrflex
             # now convert to AiiDA Dict
-            wf_params_gf = Dict(dict=wf_params_gf)
+            wf_params_gf = Dict(wf_params_gf)
 
             label_gf = 'GF writeout for imp DOS'
             description_gf = 'GF writeout step with energy contour for impurity DOS'
@@ -450,17 +447,15 @@ label: {self.ctx.label_wf}
         nspin = gf_writeout_calc.outputs.output_parameters.get_dict().get('nspin')
         self.ctx.nspin = nspin
         self.report(f'nspin: {nspin}')
-        self.ctx.kkrimp_params_dict = Dict(
-            dict={
-                'nspin': nspin,
-                'nsteps': 1,
-                'kkr_runmax': 1,
-                'dos_run': True,
-                'lmdos': self.ctx.lmdos,
-                'jij_run': self.ctx.jij_run,
-                'do_final_cleanup': self.ctx.cleanup_impcalc_output
-            }
-        )
+        self.ctx.kkrimp_params_dict = Dict({
+            'nspin': nspin,
+            'nsteps': 1,
+            'kkr_runmax': 1,
+            'dos_run': True,
+            'lmdos': self.ctx.lmdos,
+            'jij_run': self.ctx.jij_run,
+            'do_final_cleanup': self.ctx.cleanup_impcalc_output
+        })
         kkrimp_params = self.ctx.kkrimp_params_dict
         label_imp = 'KKRimp DOS (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {})'.format(
             gf_writeout_calc.pk, impurity_pot_or_remote.pk,
@@ -646,8 +641,6 @@ label: {self.ctx.label_wf}
             filelist = os.listdir(folder_abspath)
         else:
             filelist = folder.list_object_names()
-            with folder.open(filelist[0]) as tmpfile:
-                folder_abspath = tmpfile.name.replace(filelist[0], '')
 
         # check if out_ldos* files are there and parse dos files
         if 'out_ldos.interpol.atom=01_spin1.dat' in filelist:
@@ -659,7 +652,7 @@ label: {self.ctx.label_wf}
             last_calc_output_params = last_calc.outputs.output_parameters
             natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')
             # parse dosfiles using nspin, EF and Natom inputs
-            dosXyDatas = parse_impdosfiles(Str(folder_abspath), Int(natom), Int(self.ctx.nspin), Float(ef))
+            dosXyDatas = parse_impdosfiles(folder, Int(natom), Int(self.ctx.nspin), Float(ef))
             dos_extracted = True
         else:
             dos_extracted = False
@@ -669,7 +662,7 @@ label: {self.ctx.label_wf}
 
 
 @calcfunction
-def parse_impdosfiles(dos_abspath, natom, nspin, ef):
+def parse_impdosfiles(folder, natom, nspin, ef):
     """
     Read `out_ldos*` files and create XyData node with l-resolved DOS (+node for interpolated DOS if files are found)
 
@@ -687,19 +680,14 @@ def parse_impdosfiles(dos_abspath, natom, nspin, ef):
     from masci_tools.io.common_functions import get_Ry2eV, get_ef_from_potfile
     from numpy import loadtxt, array
 
-    # add '/' if missing from path
-    abspath = dos_abspath.value
-    if abspath[-1] != '/':
-        abspath += '/'
-
     # read dos files
     dos, dos_int = [], []
     for iatom in range(1, natom.value + 1):
         for ispin in range(1, nspin.value + 1):
-            with open(abspath + 'out_ldos.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+            with folder.open('out_ldos.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                 tmp = loadtxt(dosfile)
                 dos.append(tmp)
-            with open(abspath + 'out_ldos.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+            with folder.open('out_ldos.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                 tmp = loadtxt(dosfile)
                 dos_int.append(tmp)
     dos, dos_int = array(dos), array(dos_int)

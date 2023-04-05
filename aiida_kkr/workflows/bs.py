@@ -5,8 +5,6 @@ This module contains the band structure workflow for KKR which is done by calcul
 also known as Bloch spectral function.
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
 from aiida.orm import Code, Dict, RemoteData, StructureData, Float, Str, WorkChainNode, load_node, CalcJobNode, ArrayData, KpointsData
 from aiida.engine import WorkChain, ToContext, calcfunction
 from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
@@ -18,12 +16,11 @@ from aiida_kkr.tools.extract_kkrhost_noco_angles import extract_noco_angles
 from masci_tools.io.kkr_params import kkrparams
 from masci_tools.io.common_functions import get_Ry2eV
 import numpy as np
-from six.moves import range
 
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.5'
+__version__ = '0.1.6'
 __contributors__ = (u'Rubel Mozumder', u'Philipp Rüßmann')
 
 
@@ -181,7 +178,7 @@ class kkr_bs_wc(WorkChain):
         if 'NPT2' in wf_dict.keys():
             npt2 = wf_dict.pop('NPT2', None)
             wf_dict['nepts'] = npt2
-        # add missing default valuesi
+        # add missing default values
         for key, val in self._wf_default.items():
             if ((key not in wf_dict.keys()) and (key.swapcase() not in wf_dict.keys()) and (val is not None)):
 
@@ -372,7 +369,7 @@ class kkr_bs_wc(WorkChain):
         ##+++ Starts to add the NTP2, EMAX and EMIN from the
         econt_new = self.ctx.BS_params_dict
         if self.ctx.struc_is_alloy:
-            if econt_new['kmesh'] is None:
+            if econt_new.get('kmesh', None) is None:
                 econt_new['kmesh'] = [1, 1, 1]  # overwrite kmesh since the kpoints are used from the input
         kkr_calc = self.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node
         ef = kkr_calc.outputs.output_parameters.get_dict()['fermi_energy']  # unit in Ry
@@ -390,7 +387,7 @@ class kkr_bs_wc(WorkChain):
             NPOL=0,
         )
 
-        updatenode = Dict(dict=para_check.get_dict())
+        updatenode = Dict(para_check.get_dict())
         updatenode.label = label + 'KKRparam_BS'
         updatenode.description = 'KKR parameter node extracted from remote_folder' + descr + ' as well as wf_parameter input node.'
 
@@ -496,7 +493,7 @@ class kkr_bs_wc(WorkChain):
         outputnode_dict['list_of_errors'] = self.ctx.errors
 
         # create output node with data-provenance
-        outputnode = Dict(dict=outputnode_dict)
+        outputnode = Dict(outputnode_dict)
         outputnode.label = 'kkr_BS_wc_results'
         outputnode.description = 'Contains the info of the WC'
 
@@ -594,20 +591,16 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
     q_vec_file = 'qvec.dat'
 
     if q_vec_file in retrieved_list:
-        file_opened = retrieved_folder.open(q_vec_file)
-        q_vec = np.loadtxt(file_opened, skiprows=1)
+        with retrieved_folder.open(q_vec_file) as file_opened:
+            q_vec = np.loadtxt(file_opened, skiprows=1)
 
-    no_q_vec = len(q_vec[:, 0])
-
-    num_qdos_files = len(qdos_file_list)
-
-    with retrieved_folder.open(qdos_file_list[0]) as f:
-        total_qdos = np.loadtxt(f)
-
-    for i in qdos_file_list[1:]:
-        with retrieved_folder.open(i) as f:
-            loaded_file = np.loadtxt(f)
-            total_qdos[:, 5:] += loaded_file[:, 5:]
+    for icount, fname in enumerate(qdos_file_list):
+        with retrieved_folder.open(fname) as _f:
+            loaded_file = np.loadtxt(_f)
+            if icount == 0:
+                total_qdos = loaded_file
+            else:
+                total_qdos[:, 5:] += loaded_file[:, 5:]
 
     ef = fermi_level.value  # in Ry unit
     total_qdos[:, 0] = (total_qdos[:, 0] - ef) * eVscale
@@ -615,7 +608,7 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
     eng_points = np.sort(list(eng_points))
     no_eng_points = len(eng_points)
 
-    qdos_intensity = np.ndarray(shape=(no_eng_points, no_q_vec))
+    qdos_intensity = np.ndarray(shape=(no_eng_points, len(q_vec)))
     for ne in range(np.shape(qdos_intensity)[0]):
         nk = np.shape(qdos_intensity)[1]
         # sum up all l-channels (5 is only the s-channel!)

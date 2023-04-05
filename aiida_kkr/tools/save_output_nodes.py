@@ -2,7 +2,6 @@
 these are calcfunctions used to store nodes which ensures the data provenance
 """
 
-from __future__ import absolute_import
 from aiida.engine import calcfunction
 
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '

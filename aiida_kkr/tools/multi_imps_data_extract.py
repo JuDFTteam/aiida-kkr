@@ -15,12 +15,9 @@ Module includes two classes:
     by python list.
 """
 
-from __future__ import absolute_import
 from aiida.orm import Node
 from typing import List
 import math as m
-#from aiida_kkr.calculations import KkrimpCalculation
-from six.moves import range
 
 
 class CoupleImpurityData(object):

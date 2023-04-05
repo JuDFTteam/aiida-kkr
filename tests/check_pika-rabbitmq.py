@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
-from __future__ import absolute_import
 import pika
 from time import sleep, time
 import timeout_decorator

@@ -111,7 +111,7 @@ def get_kkrpara_defaults():
     # create kkr params node or take from database if found
     if not results:
         defaults, version = kkrparams.get_KKRcalc_parameter_defaults()
-        params = Dict(dict=defaults)
+        params = Dict(defaults)
         params.label = 'Default KKR parameters'
         params.description = f'Version of the KKR params: {version}'
         params.extras['aiida-kkr_cmdline_info'] = 'kkr_default_params'  # pylint: disable=no-member
