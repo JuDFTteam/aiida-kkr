@@ -25,7 +25,7 @@ class kkrimp_BdG_wc(WorkChain):
         a) Writing out of the BdG kkrflex DOS files
         b) One-shot BdG impurity DOS
     The intermediate steps (1 & 2a) can be skipped by providing the corresponding nodes as inputs to the workflow.
-    
+
     inputs::
         :param options: (Dict), Workchain specifications
         :param impurity_info: (Dict), information about the impurity cluster
@@ -33,21 +33,21 @@ class kkrimp_BdG_wc(WorkChain):
         :param kkr: (Code), KKR host code for the writing out kkrflex files
         :param kkrimp: (Code), KKR impurity code for the normal state impurity scf and BdG impurity DOS calculation
         :param BdG_settings: (Dict), set BdG parameters
-        
+
         :param imp_scf.startpot: (SinglefileData), converged impurity potential, skips the impurity scf calculation if provided
         :param imp_scf.wf_parameters: (Dict), parameters for the kkr impurity scf
         :param imp_scf.gf_writeout.params_kkr_overwrite: (Dict), set some input parameters of the KKR calculation for the GF writeout step of impurity scf workchain
         :param imp_scf.scf.params_overwrite: (Dict), set some input parameters of the KKR impurity scf
         :param imp_scf.options: (Dict), specifications for impurity scf workchain
         :param imp_scf.remote_data_host: (RemoteData), parent folder of converged host normal state KkrCalculation
-        
+
         :param dos.wf_parameters: (Dict), parameters for the DOS calculation
         :param dos.gf_dos_remote: (RemoteData), node of precomputed host GF for DOS energy contour
         :param dos.gf_writeout.params_kkr_overwrite: (Dict), set some input parameters of the KKR calculation for the GF writeout step of imßpurity dos workchain
         :param dos.gf_writeout.host_remote: (RemoteData), parent folder of kkrflex writeout step for DOS calculation
         :param dos.gf_writeout.kkr: (Code), KKR code for writing out of kkrflex files for impurity DOS calculation
         :param dos.options: (Dict), specifications for BdG impurity DOS calculation
-        
+
     returns::
         :return workflow_info: (Dict), Information on workflow results
         :return output_parameters: (Dict), output parameters of the workflow
