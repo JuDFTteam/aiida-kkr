@@ -71,7 +71,7 @@ class kkrimp_BdG_wc(WorkChain):
         'queue_name': ''
     }
 
-    @classmethod
+    # @classmethod
     # def get_wf_defaults(self, silent=False):
     #     """
     #     Return the default values of the workflow parameters (wf_parameters input node)
