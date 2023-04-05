@@ -344,9 +344,10 @@ class kkrimp_BdG_wc(WorkChain):
         """
         run BdG scf step only if BdG impurity potential not provided and DOS calculation is not planned
         """
-        if (not 'startpot' in self.inputs.BdG_scf) and (not self.inputs.calc_DOS):
+        # BdG scf not implemented in the KKRimp code yet
+        return False
+        # if (not 'startpot' in self.inputs.BdG_scf) and (not self.inputs.calc_DOS):
             # return True
-            # BdG scf not implemented in the KKRimp code yet
 
     def do_calc_DOS(self):
         """
