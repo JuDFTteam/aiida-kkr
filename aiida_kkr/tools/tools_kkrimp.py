@@ -254,9 +254,13 @@ def get_structure_data(structure):
         naez = n - m
         m = m - 1
         #convert the element symbol from StructureData to the charge number
-        for ikind in range(len(sitekind.symbols)):
-            site_symbol = sitekind.symbols[ikind]
-            charges.append(_atomic_numbers[site_symbol])
+        if sitekind.get_symbols_string() == '{H0.00X1.00}':
+            # special case when HX is mistaken for H instead of X
+            charges.append(0.0)
+        else:
+            for ikind in range(len(sitekind.symbols)):
+                site_symbol = sitekind.symbols[ikind]
+                charges.append(_atomic_numbers[site_symbol])
         i = len(charges) - 1
         a[k][3] = int(naez)
         a[k][4] = float(charges[i])

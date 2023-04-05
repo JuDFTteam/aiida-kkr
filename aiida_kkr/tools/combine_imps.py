@@ -540,16 +540,16 @@ def combine_settings_ldau(**kwargs):
         settings_LDAU_combined['initial_matrices'] = {}
 
     if imp1_has_ldau:
-        for k, v in settings_LDAU1.items():
+        for k, v in settings_LDAU1.items():  # pylint: disable=used-before-assignment
             if 'iatom' in k:
                 iatom = int(k.split('=')[1])
                 # TODO: implement something for the case when LDAU is not only on the impurity site at iatom==0
                 settings_LDAU_combined[f'iatom={iatom}'] = v
                 if has_old_ldaupot1:
-                    settings_LDAU_combined['initial_matrices'][f'iatom={iatom}'] = txts_ldaumat1
+                    settings_LDAU_combined['initial_matrices'][f'iatom={iatom}'] = txts_ldaumat1  # pylint: disable=used-before-assignment
 
     if imp2_has_ldau:
-        for k, v in settings_LDAU2.items():
+        for k, v in settings_LDAU2.items():  # pylint: disable=used-before-assignment
             if 'iatom' in k:
                 iatom = int(k.split('=')[1])
                 if kickout_info['i_removed_from_1'] is not None:
@@ -558,6 +558,6 @@ def combine_settings_ldau(**kwargs):
                     noffset = kickout_info['Ncls1']
                 settings_LDAU_combined[f'iatom={iatom+noffset}'] = v
                 if has_old_ldaupot2:
-                    settings_LDAU_combined['initial_matrices'][f'iatom={iatom+noffset}'] = txts_ldaumat2
+                    settings_LDAU_combined['initial_matrices'][f'iatom={iatom+noffset}'] = txts_ldaumat2  # pylint: disable=used-before-assignment
 
     return Dict(settings_LDAU_combined)

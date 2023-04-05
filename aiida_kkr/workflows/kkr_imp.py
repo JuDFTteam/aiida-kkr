@@ -536,6 +536,7 @@ class kkr_imp_wc(WorkChain):
         kkrcode = self.inputs.kkr
         imp_info = self.inputs.impurity_info
         voro_params = self.ctx.voro_params_dict
+
         if self.ctx.do_gf_calc:
             self.report('INFO: get converged host remote from inputs to extract structure for Voronoi calculation')
             converged_host_remote = self.inputs.remote_data_host
@@ -546,6 +547,9 @@ class kkr_imp_wc(WorkChain):
             remote_data_gf_node = load_node(self.inputs.remote_data_gf.pk)
             GF_host_calc = remote_data_gf_node.get_incoming(link_label_filter=u'remote_folder').first().node
             converged_host_remote = GF_host_calc.inputs.parent_folder
+
+        # find host structure
+        structure_host, voro_calc = VoronoiCalculation.find_parent_structure(converged_host_remote)
 
         # get previous kkr parameters following remote_folder->calc->parameters links
         prev_kkrparams = converged_host_remote.get_incoming(link_label_filter='remote_folder'
@@ -564,10 +568,24 @@ class kkr_imp_wc(WorkChain):
         # add or overwrite some parameters (e.g. things that are only used by voronoi)
         calc_params_dict = calc_params.get_dict()
         # add some voronoi specific parameters automatically if found (RMTREF should also set RMTCORE to the same value)
-        if '<RMTREF>' in list(calc_params_dict.keys()):
+        if calc_params_dict.get('<RMTREF>', None) is not None:
             self.report('INFO: add rmtcore to voro params')
             self.ctx.change_voro_params['<RMTCORE>'] = calc_params_dict['<RMTREF>']
             self.report(self.ctx.change_voro_params)
+
+        # add some voronoi-specific settings starting from host's voronoi run (might have been overwritten in between)
+        # this is necessary to make sure that voronoi creates the same radial mesh for the impurity potential, otherwise KKRimp will fail
+        if voro_calc.inputs.parameters.get_dict().get('RUNOPT', None) is not None:
+            self.report("INFO: copy runopt from host's voronoi run")
+            runopt = self.ctx.change_voro_params.get('RUNOPT', None)
+            if runopt is None:
+                runopt = []
+            runopt += voro_calc.inputs.parameters['RUNOPT']
+            self.ctx.change_voro_params['RUNOPT'] = runopt
+        if voro_calc.inputs.parameters.get_dict().get('RCLUSTZ', None) is not None:
+            self.report("INFO: copy RCLUSTZ from host's voronoi run")
+            self.ctx.change_voro_params['RCLUSTZ'] = voro_calc.inputs.parameters['RCLUSTZ']
+
         changed_params = False
         for key, val in self.ctx.change_voro_params.items():
             if key in ['RUNOPT', 'TESTOPT']:
@@ -582,9 +600,6 @@ class kkr_imp_wc(WorkChain):
             updatenode.label = f'Changed params for voroaux: {list(self.ctx.change_voro_params.keys())}'
             updatenode.description = 'Overwritten voronoi input parameter from kkr_imp_wc input.'
             calc_params = update_params_wf(calc_params, updatenode)
-
-        # find host structure
-        structure_host, voro_calc = VoronoiCalculation.find_parent_structure(converged_host_remote)
 
         # for every impurity, generate a structure and launch the voronoi workflow
         # to get the auxiliary impurity startpotentials

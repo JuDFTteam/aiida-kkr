@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.5'
+__version__ = '0.1.6'
 __contributors__ = (u'Rubel Mozumder', u'Philipp Rüßmann')
 
 
@@ -178,7 +178,7 @@ class kkr_bs_wc(WorkChain):
         if 'NPT2' in wf_dict.keys():
             npt2 = wf_dict.pop('NPT2', None)
             wf_dict['nepts'] = npt2
-        # add missing default valuesi
+        # add missing default values
         for key, val in self._wf_default.items():
             if ((key not in wf_dict.keys()) and (key.swapcase() not in wf_dict.keys()) and (val is not None)):
 
@@ -369,7 +369,7 @@ class kkr_bs_wc(WorkChain):
         ##+++ Starts to add the NTP2, EMAX and EMIN from the
         econt_new = self.ctx.BS_params_dict
         if self.ctx.struc_is_alloy:
-            if econt_new['kmesh'] is None:
+            if econt_new.get('kmesh', None) is None:
                 econt_new['kmesh'] = [1, 1, 1]  # overwrite kmesh since the kpoints are used from the input
         kkr_calc = self.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node
         ef = kkr_calc.outputs.output_parameters.get_dict()['fermi_energy']  # unit in Ry
