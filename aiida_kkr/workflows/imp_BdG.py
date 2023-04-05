@@ -347,7 +347,7 @@ class kkrimp_BdG_wc(WorkChain):
         # BdG scf not implemented in the KKRimp code yet
         return False
         # if (not 'startpot' in self.inputs.BdG_scf) and (not self.inputs.calc_DOS):
-            # return True
+        # return True
 
     def do_calc_DOS(self):
         """
