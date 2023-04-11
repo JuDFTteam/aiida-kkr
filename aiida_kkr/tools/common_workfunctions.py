@@ -386,11 +386,12 @@ def get_inputs_common(
         inputs.metadata.label = ''
 
     if serial:
-        if _sched in ['slurm', 'pbspro']:
+        # check for old aiida name (e.g. "slurm") and new aiida name ("core.slurm") of the scheduler
+        if _sched in ['core.slurm', 'slurm', 'core.pbspro', 'pbspro']:
             # overwrite settings for serial run
             options['withmpi'] = False
             options['resources'] = {'num_machines': 1, 'tot_num_mpiprocs': 1}
-        if _sched in ['sge']:
+        if _sched in ['core.sge', 'sge']:
             options['withmpi'] = False
             options['resources'] = {'parallel_env': 'smpslots', 'tot_num_mpiprocs': 1}
     else:
