@@ -24,7 +24,7 @@ __copyright__ = (
     'IAS-1/PGI-1, Germany. All rights reserved.'
 )
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.13.2'
+__version__ = '0.13.3'
 __contributors__ = u'Philipp Rüßmann'
 
 eV2Ry = 1.0 / get_Ry2eV()
@@ -495,8 +495,9 @@ class kkr_startpot_wc(WorkChain):
                 self.ctx.r_cls = rcls_input
                 updated_params = True
                 update_list.append('RCLUSTZ')
-            elif self.ctx.r_cls > rcls_input:
-                # change rcls with iterations
+            elif self.ctx.nclsmin > 0 and self.ctx.r_cls > rcls_input:
+                # change rcls with iterations, do this only if nclsmin is >0
+                # (0 or negative numbers trigger use of RCLUSTZ)
                 updated_params = True
                 update_list.append('RCLUSTZ')
         else:
