@@ -21,7 +21,7 @@ from numpy import array, array_equal, sqrt, sum, where, loadtxt
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.8.1'
+__version__ = '0.8.2'
 __contributors__ = (u'Philipp Rüßmann', u'Fabian Bertoldo')
 
 #TODO: implement 'ilayer_center' consistency check
@@ -67,11 +67,11 @@ class KkrimpCalculation(CalcJob):
 
     # List of output files that are retrieved if special conditions are fulfilled
     _OUT_JIJMAT = u'out_Jijmatrix'
-    _OUT_JIJ_OF_E_BASE = 'out_Jijmatrix_Eres_IE%0.3i.dat'
-    _OUT_LDOS_BASE = u'out_ldos.atom=%2i_spin%i.dat'
-    _OUT_LDOS_INTERPOL_BASE = u'out_ldos.interpol.atom=%2i_spin%i.dat'
-    _OUT_LMDOS_BASE = u'out_lmdos.atom=%2i_spin%i.dat'
-    _OUT_LMDOS_INTERPOL_BASE = u'out_lmdos.interpol.atom=%2i_spin%i.dat'
+    _OUT_JIJ_OF_E_BASE = 'out_Jijmatrix_Eres_IE*'
+    _OUT_LDOS = u'out_ldos.atom=*'
+    _OUT_LDOS_INTERPOL = u'out_ldos.interpol.atom=*'
+    _OUT_LMDOS = u'out_lmdos.atom=*'
+    _OUT_LMDOS_INTERPOL = u'out_lmdos.interpol.atom=*'
     _OUT_MAGNETICMOMENTS = u'out_magneticmoments'
     _OUT_ORBITALMOMENTS = u'out_orbitalmoments'
     _LDAUPOT = 'ldaupot'
@@ -923,14 +923,6 @@ The Dict node should be of the form
         """Add DOS files to retrieve list"""
 
         if 'lmdos' in allopts or 'ldos' in allopts:
-            # extract NSPIN
-            with tempfolder.open(self._CONFIG) as file:
-                config = file.readlines()
-            itmp = search_string('NSPIN', config)
-            if itmp >= 0:
-                nspin = int(config[itmp].split()[-1])
-            else:
-                raise ValueError('Could not extract NSPIN value from config.cfg')
             # check if mode is Jij
             itmp = search_string('CALCJIJMAT', config)
             if itmp >= 0:
@@ -938,16 +930,11 @@ The Dict node should be of the form
             else:
                 raise ValueError('Could not extract CALCJIJMAT value from config.cfg')
 
-            # extract NATOM from atominfo file
-            natom = self._get_natom(tempfolder)
-
-            # loop over atoms and spins to add DOS output files accordingly
-            for iatom in range(1, natom + 1):
-                for ispin in range(1, nspin + 1):
-                    retrieve_list.append((self._OUT_LDOS_BASE % (iatom, ispin)).replace(' ', '0'))
-                    retrieve_list.append((self._OUT_LDOS_INTERPOL_BASE % (iatom, ispin)).replace(' ', '0'))
-                    retrieve_list.append((self._OUT_LMDOS_BASE % (iatom, ispin)).replace(' ', '0'))
-                    retrieve_list.append((self._OUT_LMDOS_INTERPOL_BASE % (iatom, ispin)).replace(' ', '0'))
+            # add DOS output files accordingly (names have '*' ending to catch all files for atoms
+            retrieve_list.append(self._OUT_LDOS)
+            retrieve_list.append(self._OUT_LDOS_INTERPOL)
+            retrieve_list.append(self._OUT_LMDOS)
+            retrieve_list.append(self._OUT_LMDOS_INTERPOL)
             # add Jij of E file if Jij mode
             if calcjijmat > 0:
                 with kkrflex_file_paths[self._KKRFLEX_TMAT].open(self._KKRFLEX_TMAT, 'r') as f:
@@ -956,8 +943,7 @@ The Dict node should be of the form
                         txt.append(f.readline())
                     nepts = int(txt[1].split()[3])
                 for ie in range(1, nepts + 1):
-                    retrieve_list.append(self._OUT_JIJ_OF_E_BASE % ie)  # energy resolved values
-                    retrieve_list.append((self._OUT_JIJ_OF_E_BASE.replace('IE', 'IE_int')) % ie)  # integrated values
+                    retrieve_list.append(self._OUT_JIJ_OF_E)  # energy resolved values
 
         return retrieve_list
 

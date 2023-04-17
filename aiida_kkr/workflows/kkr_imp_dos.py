@@ -21,7 +21,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.12'
+__version__ = '0.6.13'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 
 #TODO: improve workflow output node structure
@@ -677,11 +677,10 @@ label: {self.ctx.label_wf}
             filelist = folder.list_object_names()
 
         # check if out_ldos* files are there and parse dos files
-        if 'out_ldos.interpol.atom=01_spin1.dat' in filelist:
+        if 'out_ldos.interpol.atom=01_spin1.dat' in filelist or 'out_ldos.interpol.atom=001_spin1.dat' in filelist:
             # extract EF and number of atoms from kkrflex_writeout calculation
             kkrflex_writeout = load_node(self.ctx.pk_flexcalc)
-            parent_calc_kkr_converged = kkrflex_writeout.inputs.parent_folder.get_incoming(node_class=CalcJobNode
-                                                                                           ).first().node
+            parent_calc_kkr_converged = kkrflex_writeout.inputs.parent_folder.get_incoming(node_class=CalcJobNode).first().node
             ef = parent_calc_kkr_converged.outputs.output_parameters.get_dict().get('fermi_energy')
             last_calc_output_params = last_calc.outputs.output_parameters
             natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')
@@ -725,12 +724,22 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
             name0 = 'out_ldos'
             if use_lmdos.value:
                 name0 = 'out_lmdos'
-            with folder.open(name0 + '.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
-                tmp = loadtxt(dosfile)
-                dos.append(tmp)
-            with folder.open(name0 + '.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
-                tmp = loadtxt(dosfile)
-                dos_int.append(tmp)
+            try:
+                # old file names with 2 digits for atom index
+                with folder.open(name0 + '.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                    tmp = loadtxt(dosfile)
+                    dos.append(tmp)
+                with folder.open(name0 + '.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                    tmp = loadtxt(dosfile)
+                    dos_int.append(tmp)
+            except:
+                # new file names with 3 digits for atom numbers
+                with folder.open(name0 + '.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                    tmp = loadtxt(dosfile)
+                    dos.append(tmp)
+                with folder.open(name0 + '.interpol.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                    tmp = loadtxt(dosfile)
+                    dos_int.append(tmp)
     dos, dos_int = array(dos), array(dos_int)
 
     # convert to eV units
