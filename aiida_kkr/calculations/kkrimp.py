@@ -924,6 +924,8 @@ The Dict node should be of the form
 
         if 'lmdos' in allopts or 'ldos' in allopts:
             # check if mode is Jij
+            with tempfolder.open(self._CONFIG) as file:
+                config = file.readlines()
             itmp = search_string('CALCJIJMAT', config)
             if itmp >= 0:
                 calcjijmat = int(config[itmp].split()[-1])
