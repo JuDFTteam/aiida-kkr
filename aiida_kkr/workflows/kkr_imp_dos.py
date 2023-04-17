@@ -680,7 +680,8 @@ label: {self.ctx.label_wf}
         if 'out_ldos.interpol.atom=01_spin1.dat' in filelist or 'out_ldos.interpol.atom=001_spin1.dat' in filelist:
             # extract EF and number of atoms from kkrflex_writeout calculation
             kkrflex_writeout = load_node(self.ctx.pk_flexcalc)
-            parent_calc_kkr_converged = kkrflex_writeout.inputs.parent_folder.get_incoming(node_class=CalcJobNode).first().node
+            parent_calc_kkr_converged = kkrflex_writeout.inputs.parent_folder.get_incoming(node_class=CalcJobNode
+                                                                                           ).first().node
             ef = parent_calc_kkr_converged.outputs.output_parameters.get_dict().get('fermi_energy')
             last_calc_output_params = last_calc.outputs.output_parameters
             natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')
