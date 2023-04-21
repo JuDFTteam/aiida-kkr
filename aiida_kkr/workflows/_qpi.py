@@ -9,6 +9,7 @@ __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.1.0'
 __contributors__ = (u'Philipp Rüßmann')
 
+
 class qpi_wc(engine.WorkChain):
     """
     AiiDA-KKR workchain for calculation of real-space quasiparticle interference (QPI) images
@@ -62,11 +63,11 @@ class qpi_wc(engine.WorkChain):
     _wf_version = __version__
     #TODO change Dict input to own class for this input that inherits from Dict?
     _wf_default = {
-        'energy_point': 0.0, # energy point where QPI is calculated, relative to Fermi energy in eV units
-        'temperature': 100., # temperature smearing for the QPI calculation
-        'batch_size': -1, # size of the batches in which the QPI positions are grouped. -1 means only a single batch
-        'RCLUSTZ': None, # size of screening cluster, if `None` take value from host calculation.
-        'k-mesh': None, # size of k-point mesh, if `None` take value from host calculation.
+        'energy_point': 0.0,  # energy point where QPI is calculated, relative to Fermi energy in eV units
+        'temperature': 100.,  # temperature smearing for the QPI calculation
+        'batch_size': -1,  # size of the batches in which the QPI positions are grouped. -1 means only a single batch
+        'RCLUSTZ': None,  # size of screening cluster, if `None` take value from host calculation.
+        'k-mesh': None,  # size of k-point mesh, if `None` take value from host calculation.
     }
 
     @classmethod
@@ -87,17 +88,17 @@ class qpi_wc(engine.WorkChain):
 
         # define input ports
         #TODO define input ports
-        spec.input(
-            'node',
-            valid_type=,
-            required=False,
-            default=lambda: Dict(dict=cls._options_default),
-            help=''
-        )
+        # spec.input(
+        #     'node',
+        #     valid_type=,
+        #     required=False,
+        #     default=lambda: Dict(dict=cls._options_default),
+        #     help=''
+        # )
 
         # define outputs
         #TODO define output ports
-        spec.output('workflow_info', valid_type=Dict, required=False)
+        spec.output('workflow_info', valid_type=orm.Dict, required=False)
 
         # Outline of the workchain
         #TODO define outline
