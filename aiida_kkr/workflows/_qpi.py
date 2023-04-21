@@ -13,12 +13,12 @@ class qpi_wc(engine.WorkChain):
     """
     AiiDA-KKR workchain for calculation of real-space quasiparticle interference (QPI) images
     (like Fig. 2a Ref. [1]).
-    
+
     The idea is to combine an impurity calculation with its converged potential in the impurity cluster
-    with additional "scanning positions" (in analogy to an STM measurement). Typically this is an impurity 
+    with additional "scanning positions" (in analogy to an STM measurement). Typically this is an impurity
     at a surface and the scanning are is a region above the surface where an STM tip would scan.
 
-    The real-space QPI image is calculated as the change in the local density of states on the 
+    The real-space QPI image is calculated as the change in the local density of states on the
     scanning positions due to the presence of the nearby impurity. According to the Tersof-Hamann model
     this change is expressed as the local density of states at the scanning sites. We calculate this in
     the usual way of computing a DOS for a single energy point with an impurity cluster that consists of
@@ -128,7 +128,7 @@ class qpi_wc(engine.WorkChain):
         Set up context of the workflow and test input nodes for consistency
         """
         self.report(f'INFO: started KKR BdG impurity version {self._wf_version}')
-    
+
         #TODO check inputs with custom validators instead of in here
 
         # validate for kkr code

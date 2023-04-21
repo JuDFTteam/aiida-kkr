@@ -120,7 +120,7 @@ include-package-data = false
 "kkr.imp_BdG" = "aiida_kkr.workflows.imp_BdG:kkrimp_BdG_wc"
 "kkr.decimation" = "aiida_kkr.workflows._decimation:kkr_decimation_wc"
 "kkr.jij" = "aiida_kkr.workflows.jijs:kkr_jij_wc"
-"kkr.qpi" = "aiida_kkr.workflows._qpi:qpi_wc" 
+"kkr.qpi" = "aiida_kkr.workflows._qpi:qpi_wc"
 
 [tool.setuptools.packages.find]
 namespaces = false
