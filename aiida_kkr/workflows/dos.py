@@ -26,7 +26,7 @@ from aiida_kkr.workflows.bs import set_energy_params
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.8.3'
+__version__ = '0.8.4'
 __contributors__ = u'Philipp Rüßmann'
 
 
@@ -427,6 +427,11 @@ class kkr_dos_wc(WorkChain):
                     noco_angles = parent_calc.inputs.initial_noco_angles
                 inputs['initial_noco_angles'] = noco_angles
                 self.report(f'extract nonco angles and use from parent ({noco_angles})')
+
+        # LDA+U settings
+        if 'settings_LDAU' in self.inputs:
+            self.report('Add settings_LDAU input node')
+            inputs.settings_LDAU = self.inputs.settings_LDAU
 
         # run the DOS calculation
         self.report('INFO: doing calculation')

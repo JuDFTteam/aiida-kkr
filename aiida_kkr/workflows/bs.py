@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.6'
+__version__ = '0.1.7'
 __contributors__ = (u'Rubel Mozumder', u'Philipp Rüßmann')
 
 
@@ -447,6 +447,11 @@ class kkr_bs_wc(WorkChain):
                 if noco_angles == {}:
                     noco_angles = parent_calc.inputs.initial_noco_angles
                 self.report(f'extract nonco angles and use from parent ({noco_angles})')
+
+        # LDA+U settings
+        if 'settings_LDAU' in self.inputs:
+            self.report('Add settings_LDAU input node')
+            inputs.settings_LDAU = self.inputs.settings_LDAU
 
         BS_run = self.submit(KkrCalculation, **inputs)
         self.ctx.last_calc = BS_run
