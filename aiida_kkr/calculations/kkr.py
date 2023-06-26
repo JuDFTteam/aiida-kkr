@@ -1223,7 +1223,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             inputcard.append(f'LDAU_PARA\n')
             for iat_ldau in range(nat_ldau):
                 inputcard.append(
-                    f'{atyp[iat_ldau]} {lopt[iat_ldau]} {ueff[iat_ldau]:16.7e} {jeff[iat_ldau]:16.7e} {eref[iat_ldau]:16.7e}\n'
+                    f'{atyp[iat_ldau]+1} {lopt[iat_ldau]} {ueff[iat_ldau]:16.7e} {jeff[iat_ldau]:16.7e} {eref[iat_ldau]:16.7e}\n'
                 )
 
             if reuse_old_ldaupot:
