@@ -1198,7 +1198,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             # this means we need to set up LDA+U
 
             # add ldaupot to retrieve and local copy lists
-            retrieve_list.append(self._LDAUPOT)
+            retrieve_list.append(self._LDAUPOT + '_new')
 
             # add runoption for LDA+U
             with tempfolder.open(self._INPUT_FILE_NAME) as file:
