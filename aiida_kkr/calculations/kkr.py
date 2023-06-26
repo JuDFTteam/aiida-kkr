@@ -17,14 +17,15 @@ from aiida_kkr.tools import (
 )
 from aiida_kkr.tools.find_parent import find_parent_structure
 from aiida_kkr.tools.tools_kkrimp import make_scoef, write_scoef_full_imp_cls
-from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr
+from aiida_kkr.tools.ldau import get_ldaupot_text
+from masci_tools.io.common_functions import get_alat_from_bravais, get_Ang2aBohr, search_string, get_ef_from_potfile
 from masci_tools.io.kkr_params import __kkr_default_params__, kkrparams
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 
-__version__ = '0.12.5'
+__version__ = '0.13.0'
 
 __contributors__ = ('Jens Bröder', 'Philipp Rüßmann')
 
@@ -101,6 +102,8 @@ class KkrCalculation(CalcJob):
     # BdG mode
     _BDG_POT = 'den_lm_ir.%0.3i.%i.txt'
     _BDG_CHI_NS = 'den_lm_ns_*.npy'
+    # LDA+U
+    _LDAUPOT = 'ldaupot'
 
     # template.product entry point defined in setup.json
     _default_parser = 'kkr.kkrparser'
@@ -163,90 +166,114 @@ class KkrCalculation(CalcJob):
             'parent_folder',
             valid_type=RemoteData,
             required=True,
-            help="""Use a remote or local repository folder as parent folder
-            (also for restarts and similar). It should contain all the  needed
-            files for a KKR calc, only edited files should be uploaded from the
-            repository."""
+            help="""
+Use a remote or local repository folder as parent folder
+(also for restarts and similar). It should contain all the  needed
+files for a KKR calc, only edited files should be uploaded from the
+repository.
+"""
         )
         spec.input(
             'impurity_info',
             valid_type=Dict,
             required=False,
-            help="""Use a Parameter node that specifies properties for a following
-            impurity calculation (e.g. setting of impurity cluster in scoef
-            file that is automatically created)."""
+            help="""
+Use a Parameter node that specifies properties for a following
+impurity calculation (e.g. setting of impurity cluster in scoef
+file that is automatically created)."""
         )
         spec.input(
             'kpoints',
             valid_type=KpointsData,
             required=False,
-            help="""Use a KpointsData node that specifies the kpoints for which a
-            bandstructure (i.e. 'qdos') calculation should be performed."""
+            help="""
+Use a KpointsData node that specifies the kpoints for which a
+bandstructure (i.e. 'qdos') calculation should be performed."""
         )
         spec.input(
             'initial_noco_angles',
             valid_type=Dict,
             required=False,
-            help="""Initial non-collinear angles for the magnetic moments of
-            the impurities. These values will be written into the
-            `kkrflex_angle` input file of KKRimp.
-            The Dict node should be of the form
-            initial_noco_angles = Dict(dict={
-                'theta': [theta_at1, theta_at2, ..., theta_atN],
-                # list theta values in degrees (0..180)
-                'phi': [phi_at1, phi_at2, ..., phi_atN],
-                # list phi values in degrees (0..360)
-                'fix_dir': [True/False at_1, ..., True/False at_N]
-                # list of booleans indicating if the direction of the magnetic
-                # moment should be fixed or is allowed relax (True means keep the
-                # direction of the magnetic moment fixed)
-            })
-            Note: The length of the theta, phi and fix_dir lists have to be
-            equal to the number of atoms.
-            """
+            help="""
+Initial non-collinear angles for the magnetic moments of
+the impurities. These values will be written into the
+`kkrflex_angle` input file of KKRimp.
+The Dict node should be of the form
+initial_noco_angles = Dict(dict={
+    'theta': [theta_at1, theta_at2, ..., theta_atN],
+    # list theta values in degrees (0..180)
+    'phi': [phi_at1, phi_at2, ..., phi_atN],
+    # list phi values in degrees (0..360)
+    'fix_dir': [True/False at_1, ..., True/False at_N]
+    # list of booleans indicating if the direction of the magnetic
+    # moment should be fixed or is allowed relax (True means keep the
+    # direction of the magnetic moment fixed)
+})
+Note: The length of the theta, phi and fix_dir lists have to be
+equal to the number of atoms.
+"""
         )
         spec.input(
             'bfield',
             valid_type=Dict,
             required=False,
-            help="""Non-collinear exteral B-field used for constraint calculations.
+            help="""
+Non-collinear exteral B-field used for constraint calculations.
 
-            The Dict node should be of the form
-            initial_noco_angles = Dict(dict={
-                'theta': [theta_at1, theta_at2, ..., theta_atN],
-                # list theta values in degrees (0..180)
-                'phi': [phi_at1, phi_at2, ..., phi_atN],
-                # list phi values in degrees (0..360)
-                'magnitude': [magnitude at_1, ..., magnitude at_N]
-                # list of magnitude of the applied fields in Ry units
-            })
-            Note: The length of the theta, phi and magnitude lists have to be
-            equal to the number of atoms.
-            """
+The Dict node should be of the form
+initial_noco_angles = Dict(dict={
+    'theta': [theta_at1, theta_at2, ..., theta_atN],
+    # list theta values in degrees (0..180)
+    'phi': [phi_at1, phi_at2, ..., phi_atN],
+    # list phi values in degrees (0..360)
+    'magnitude': [magnitude at_1, ..., magnitude at_N]
+    # list of magnitude of the applied fields in Ry units
+})
+Note: The length of the theta, phi and magnitude lists have to be
+equal to the number of atoms.
+"""
         )
         spec.input(
             'deciout_parent',
             valid_type=RemoteData,
             required=False,
-            help="""KkrCalculation RemoteData folder from deci-out calculation"""
+            help='KkrCalculation RemoteData folder from deci-out calculation'
         )
         spec.input(
             'retrieve_kkrflex',
             valid_type=Bool,
             required=False,
             default=lambda: Bool(True),
-            help="""For a GF writeout calculation, determine whether or not
-            the kkrflex_* files are copied to the retrieved (can clutter the
-            database) or are ony left in the remote folder."""
+            help="""
+For a GF writeout calculation, determine whether or not
+the kkrflex_* files are copied to the retrieved (can clutter the
+database) or are ony left in the remote folder.
+"""
         )
         spec.input(
             'anomalous_density',
             valid_type=FolderData,
             required=False,
-            help="""FolderData that contains anomalous density input files for
-            the KKRhost BdG calculation. If these are not give the code looks
-            for them in the retrieved of the parent calculation and takes them
-            from there."""
+            help="""
+FolderData that contains anomalous density input files for
+the KKRhost BdG calculation. If these are not give the code looks
+for them in the retrieved of the parent calculation and takes them
+from there."""
+        )
+        spec.input(
+            'settings_LDAU',
+            valid_type=Dict,
+            required=False,
+            help="""
+Settings for running a LDA+U calculation. The Dict node should be of the form
+    settings_LDAU = Dict(dict={'iatom=0':{
+        'L': 3,         # l-block which gets U correction (1: p, 2: d, 3: f-electrons)
+        'U': 7.,        # U value in eV
+        'J': 0.75,      # J value in eV
+        'Eref_EF': 0.,  # reference energy in eV relative to the Fermi energy. This is the energy where the projector wavefunctions are calculated (should be close in energy where the states that are shifted lie (e.g. for Eu use the Fermi energy))
+    }})
+    Note: you can add multiple entries like the one for iatom==0 in this example. The atom index refers to the corresponding atom in the impurity cluster.
+"""
         )
 
         # define outputs
@@ -370,6 +397,11 @@ class KkrCalculation(CalcJob):
 
         # 6. BdG output files (anomalous density and (q)dos files with _eh etc. endings)
         retrieve_list += self._get_BdG_filelist(parameters, natom, nspin)
+
+        # 7. retrieve LDA+U potential
+        # write ldaupot file and change retrieved list for LDA+U calculation
+        # this is triggered with having the settings_LDAU dict node in input.
+        retrieve_list += self._init_ldau(tempfolder, parent_calc, natom)
 
         ####################################################
         ### Collect all inputs and put into the CalcInfo ###
@@ -1150,6 +1182,129 @@ class KkrCalculation(CalcJob):
             # write to tempfolder
             with tempfolder.open(BdG_pot, 'w') as file_handle:
                 file_handle.writelines(file_txt)
+
+    def _init_ldau(self, tempfolder, parent_calc, natom):
+        """
+        Check if settings_LDAU is in input and set up LDA+U calculation. Reuse old ldaupot of parent_folder contains a file ldaupot.
+        """
+        retrieve_list = []
+
+        # first check if settings_LDAU is in inputs
+        if 'settings_LDAU' not in self.inputs:
+            # do nothing
+            return retrieve_list
+
+        else:
+            # this means we need to set up LDA+U
+
+            # add ldaupot to retrieve and local copy lists
+            retrieve_list.append(self._LDAUPOT)
+
+            # add runoption for LDA+U
+            with tempfolder.open(self._INPUT_FILE_NAME) as file:
+                inputcard = file.readlines()
+            itmp = search_string('RUNOPT', inputcard)
+
+            if itmp >= 0:
+                # add LDA+U as runoption
+                inputcard[itmp + 1] = 'LDA+U   ' + inputcard[itmp + 1]
+            else:
+                # activate LDA+U with keyword
+                inputcard.append('\n# activate LDA+U\n<USE_LDAU>= True\n')
+
+            # create ldaupot file
+            reuse_old_ldaupot, lopt, jeff, ueff, eref, atyp = self._create_or_update_ldaupot(
+                parent_calc, tempfolder, natom
+            )
+
+            # set LDA+U inputs in inputcard
+            nat_ldau = len(lopt)
+            inputcard.append(f'NAT_LDAU= {nat_ldau}\n')
+            inputcard.append(f'LDAU_PARA\n')
+            for iat_ldau in range(nat_ldau):
+                inputcard.append(
+                    f'{atyp[iat_ldau]} {lopt[iat_ldau]} {ueff[iat_ldau]:16.7e} {jeff[iat_ldau]:16.7e} {eref[iat_ldau]:16.7e}\n'
+                )
+
+            if reuse_old_ldaupot:
+                inputcard.append('KREADLDAU= 1\n')
+            else:
+                inputcard.append('KREADLDAU= 0\n')
+
+            # overwrite inputcard
+            with tempfolder.open(self._INPUT_FILE_NAME, 'w') as file:
+                file.writelines(inputcard)
+
+        return retrieve_list
+
+    def _create_or_update_ldaupot(self, parent_calc, tempfolder, natom):
+        """
+        Writes ldaupot to tempfolder.
+
+        If parent_calc is found and it contains an onld ldaupot, we reuse the values for wldau, uldau and phi from there.
+        """
+
+        # extract Fermi energy from parent calculation
+        ef_Ry = parent_calc.outputs.output_parameters['fermi_energy']
+
+        # get old ldaupot file
+        reuse_old_ldaupot = self._get_old_ldaupot(parent_calc, tempfolder)
+
+        # settings dict (defines U, J etc.)
+        ldau_settings = self.inputs.settings_LDAU.get_dict()
+
+        if reuse_old_ldaupot:
+            # reuse wldau, ildau and phi from old ldaupot file
+            # Attention the first number needs to be non-zero
+            txt, lopt, jeff, ueff, eref, atyp = get_ldaupot_text(
+                ldau_settings, ef_Ry, natom, initialize=False, return_luj=True
+            )
+            # now we read the old file
+            with tempfolder.open(self._LDAUPOT + '_old', 'r') as ldaupot_file:
+                txt0 = ldaupot_file.readlines()
+                # find start of wldau etc.
+                ii = 0
+                for line in txt0:
+                    if 'wldau' in line:
+                        break
+                    ii += 1
+                txt0 = txt0[ii:]
+
+            #remove last line (is replace from txt0)
+            txt.pop(-1)
+            # put new header and old bottom together
+            newtxt = txt + ['\n'] + txt0
+        else:
+            # initialize ldaupot file
+            # Attention: here the first number needs to be 0 which triggers generating initial values in KKRimp
+            newtxt, lopt, jeff, ueff, eref, atyp = get_ldaupot_text(
+                ldau_settings, ef_Ry, natom, initialize=True, return_luj=True
+            )
+
+        # now write to file
+        with tempfolder.open(self._LDAUPOT, 'w') as out_filehandle:
+            out_filehandle.writelines(newtxt)
+
+        return reuse_old_ldaupot, lopt, jeff, ueff, eref, atyp
+
+    def _get_old_ldaupot(self, parent_calc, tempfolder):
+        """
+        Copy old ldaupot from retrieved of parent or extract from tarball.
+        If no parent_calc is present this step is skipped.
+        """
+
+        has_ldaupot = False
+
+        if parent_calc is not None:
+            retrieved = parent_calc.outputs.retrieved
+            # copy old file to tempfolder
+            if self._LDAUPOT in retrieved.list_object_names():
+                has_ldaupot = True
+                with tempfolder.open(self._LDAUPOT + '_old', u'w') as newfile:
+                    with retrieved.open(self._LDAUPOT, u'r') as oldfile:
+                        newfile.writelines(oldfile.readlines())
+
+        return has_ldaupot
 
 
 def _update_params(parameters, change_values):
