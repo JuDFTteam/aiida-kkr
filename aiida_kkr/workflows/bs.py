@@ -133,6 +133,22 @@ class kkr_bs_wc(WorkChain):
             required=False,
             help='Overwrite some input parameters of the parent KKR calculation.'
         )
+        # expose LDAU input node
+        spec.input(
+            'settings_LDAU',
+            valid_type=Dict,
+            required=False,
+            help="""
+Settings for running a LDA+U calculation. The Dict node should be of the form
+    settings_LDAU = Dict(dict={'iatom=0':{
+        'L': 3,         # l-block which gets U correction (1: p, 2: d, 3: f-electrons)
+        'U': 7.,        # U value in eV
+        'J': 0.75,      # J value in eV
+        'Eref_EF': 0.,  # reference energy in eV relative to the Fermi energy. This is the energy where the projector wavefunctions are calculated (should be close in energy where the states that are shifted lie (e.g. for Eu use the Fermi energy))
+    }})
+    Note: you can add multiple entries like the one for iatom==0 in this example. The atom index refers to the corresponding atom in the impurity cluster.
+"""
+        )
 
         # Here outputs are defined
         spec.output('results_wf', valid_type=Dict, required=True)
