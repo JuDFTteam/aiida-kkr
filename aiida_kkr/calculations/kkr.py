@@ -1301,7 +1301,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             if self._LDAUPOT in retrieved.list_object_names():
                 has_ldaupot = True
                 with tempfolder.open(self._LDAUPOT + '_old', u'w') as newfile:
-                    with retrieved.open(self._LDAUPOT, u'r') as oldfile:
+                    with retrieved.open(self._LDAUPOT + '_new', u'r') as oldfile:
                         newfile.writelines(oldfile.readlines())
 
         return has_ldaupot
