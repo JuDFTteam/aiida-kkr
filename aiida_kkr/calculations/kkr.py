@@ -1275,7 +1275,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             txt += [f'  {l}' for l in lopt] + ['\n']
             txt += ['IAT  UEFF  JEFF  EREF\n']
             for ii, iat in enumerate(atyp):
-                txt += [f'{iat} {ueff[ii]:16.9e} {jeff[ii]:16.9e} {eref[ii]:16.9e}\n']
+                txt += [f'{iat+1} {ueff[ii]:16.9e} {jeff[ii]:16.9e} {eref[ii]:16.9e}\n']
 
             # put new header and old bottom together
             newtxt = txt + txt0
