@@ -1278,7 +1278,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
                 txt += [f'{iat} {ueff[ii]:16.9e} {jeff[ii]:16.9e} {eref[ii]:16.9e}\n']
 
             # put new header and old bottom together
-            newtxt = txt + ['\n'] + txt0
+            newtxt = txt + txt0
         else:
             # initialize ldaupot file
             # Attention: here the first number needs to be 0 which triggers generating initial values in KKRimp
