@@ -1265,13 +1265,18 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
                 # find start of wldau etc.
                 ii = 0
                 for line in txt0:
-                    if 'wldau' in line:
+                    if 'wldau' in line.lower():
                         break
                     ii += 1
                 txt0 = txt0[ii:]
 
-            #remove last line (is replace from txt0)
-            txt.pop(-1)
+            # create header for ldaupot file
+            txt = txt[0:2] + [f'{len(atyp)}\nLOPT 1.. {len(atyp)}\n']
+            txt += [f'  {l}' for l in lopt] + ['\n']
+            txt += ['IAT  UEFF  JEFF  EREF\n']
+            for ii, iat in enumerate(atyp):
+                txt += [f'{iat} {ueff[ii]:16.9e} {jeff[ii]:16.9e} {eref[ii]:16.9e}\n']
+
             # put new header and old bottom together
             newtxt = txt + ['\n'] + txt0
         else:
@@ -1298,7 +1303,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         if parent_calc is not None:
             retrieved = parent_calc.outputs.retrieved
             # copy old file to tempfolder
-            if self._LDAUPOT in retrieved.list_object_names():
+            if self._LDAUPOT + '_new' in retrieved.list_object_names():
                 has_ldaupot = True
                 with tempfolder.open(self._LDAUPOT + '_old', u'w') as newfile:
                     with retrieved.open(self._LDAUPOT + '_new', u'r') as oldfile:
