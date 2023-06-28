@@ -20,7 +20,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.9.1'
+__version__ = '0.9.2'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -99,7 +99,7 @@ class kkr_imp_wc(WorkChain):
             namespace='scf',
             include=(
                 # 'kkrimp',
-                # 'options',
+                'options',
                 # 'wf_parameters',
                 'params_overwrite'
             )
@@ -179,7 +179,7 @@ class kkr_imp_wc(WorkChain):
             required=False,
             help='Set starting potential (e.g. from preconverged calculation'
         )
-        spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite'))
+        spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite', 'options'))
 
         # structure of the workflow
         spec.outline(
@@ -492,6 +492,12 @@ class kkr_imp_wc(WorkChain):
         if 'params_kkr_overwrite' in self.inputs:
             builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
 
+        if 'gf_writeout' in self.inputs:
+            if 'options' in self.inputs.gf_writeout:
+                builder.options = self.inputs.gf_writeout.options
+            if 'params_kkr_overwrite' in self.inputs.gf_writeout:
+                builder.params_kkr_overwrite = self.inputs.gf_writeout.params_kkr_overwrite
+
         # maybe set kkrflex_retrieve
         wf_params_gf = {}
         if not self.ctx.retrieve_kkrflex:
@@ -782,8 +788,11 @@ class kkr_imp_wc(WorkChain):
         builder.remote_data = gf_remote
         if 'remote_data_gf_Efshift' in self.inputs:
             builder.remote_data_Efshift = self.inputs.remote_data_gf_Efshift
-        if 'params_overwrite' in self.inputs.scf:
-            builder.params_overwrite = self.inputs.scf.params_overwrite
+        if 'scf' in self.inputs:
+            if 'params_overwrite' in self.inputs.scf:
+                builder.params_overwrite = self.inputs.scf.params_overwrite
+            if 'options' in self.inputs.scf:
+                builder.options = self.inputs.scf.options
         builder.wf_parameters = kkrimp_params
         future = self.submit(builder)
 

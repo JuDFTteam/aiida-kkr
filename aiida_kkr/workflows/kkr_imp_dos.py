@@ -148,7 +148,7 @@ class kkr_imp_dos_wc(WorkChain):
         )
 
         spec.expose_inputs(kkr_imp_sub_wc, namespace='BdG', include=('params_overwrite'))
-        spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite'))
+        spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite', 'options'))
 
         # specify the outputs
         spec.output('workflow_info', valid_type=Dict)
@@ -436,6 +436,11 @@ label: {self.ctx.label_wf}
             builder.impurity_info = imp_info
             if 'params_kkr_overwrite' in self.inputs:
                 builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
+            if 'gf_writeout' in self.inputs:
+                if 'params_kkr_overwrite' in self.inputs.gf_writeout:
+                    builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
+                if 'options' in self.inputs.gf_writeout:
+                    builder.options = self.inputs.options
 
             future = self.submit(builder)
 
