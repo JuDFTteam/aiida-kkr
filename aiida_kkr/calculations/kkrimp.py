@@ -1140,6 +1140,7 @@ The Dict node should be of the form
         returns True of ldaupot was found, otherwise returns False
         """
         tar_filenames = []
+        has_ldaupot = False
         if self._FILENAME_TAR in retrieved.list_object_names():
             # get path of tempfolder
             with tempfolder.open('.dummy', 'w') as tmpfile:
