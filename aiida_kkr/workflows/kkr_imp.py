@@ -179,7 +179,7 @@ class kkr_imp_wc(WorkChain):
             required=False,
             help='Set starting potential (e.g. from preconverged calculation'
         )
-        spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite', 'options'))
+        spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite', 'options', 'kkr'))
 
         # structure of the workflow
         spec.outline(
