@@ -132,6 +132,8 @@ class kkr_imp_sub_wc(WorkChain):
             help='Dict of parameters that are given to the KKRimpCalculation. Overwrites automatically set values!'
         )
 
+        spec.expose_inputs(KkrimpCalculation, include=('initial_noco_angles'))
+
         # Here the structure of the workflow is defined
         spec.outline(
             cls.start,
@@ -861,6 +863,10 @@ class kkr_imp_sub_wc(WorkChain):
         # set cleanup option
         if int(aiida_core_version.split('.')[0]) < 2 and self.ctx.do_final_cleanup:
             inputs['cleanup_outfiles'] = Bool(self.ctx.do_final_cleanup)
+
+        # set nonco angles if given
+        if 'initial_noco_angles' in self.inputs:
+            inputs['initial_noco_angles'] = self.inputs.initial_noco_angles
 
         # run the KKR calculation
         message = 'INFO: doing calculation'

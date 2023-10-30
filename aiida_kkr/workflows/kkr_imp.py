@@ -101,7 +101,8 @@ class kkr_imp_wc(WorkChain):
                 # 'kkrimp',
                 'options',
                 # 'wf_parameters',
-                'params_overwrite'
+                'params_overwrite',
+                'initial_noco_angles'
             )
         )
 
@@ -793,6 +794,8 @@ class kkr_imp_wc(WorkChain):
                 builder.params_overwrite = self.inputs.scf.params_overwrite
             if 'options' in self.inputs.scf:
                 builder.options = self.inputs.scf.options
+            if 'initial_noco_angles' in self.inputs.scf:
+                builder.initial_noco_angles = self.inputs.scf.initial_noco_angles
         builder.wf_parameters = kkrimp_params
         future = self.submit(builder)
 

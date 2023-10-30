@@ -21,8 +21,11 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.13'
+__version__ = '0.6.14'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
+
+# activate verbose output, for debugging only
+_VERBOSE_ = True
 
 #TODO: improve workflow output node structure
 #TODO: generalise search for imp_info and conv_host from startpot
@@ -148,6 +151,7 @@ class kkr_imp_dos_wc(WorkChain):
         )
 
         spec.expose_inputs(kkr_imp_sub_wc, namespace='BdG', include=('params_overwrite'))
+        spec.expose_inputs(kkr_imp_sub_wc, include=('initial_noco_angles'))
         spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite', 'options'))
 
         # specify the outputs
@@ -206,6 +210,8 @@ class kkr_imp_dos_wc(WorkChain):
         """
 
         self.report(f'INFO: started KKR impurity DOS workflow version {self._workflowversion}')
+        if _VERBOSE_:
+            self.report(f'inputs: {self.inputs}')
 
         # input both wf and options parameters
         if 'wf_parameters' in self.inputs:
@@ -523,6 +529,8 @@ label: {self.ctx.label_wf}
 
         if 'params_overwrite' in self.inputs.BdG:
             builder.params_overwrite = self.inputs.BdG.params_overwrite
+        if 'initial_noco_angles' in self.inputs:
+            builder.initial_noco_angles = self.inputs.initial_noco_angles
 
         future = self.submit(builder)
 
