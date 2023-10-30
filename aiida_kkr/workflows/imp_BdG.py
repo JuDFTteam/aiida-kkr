@@ -284,7 +284,7 @@ class kkrimp_BdG_wc(WorkChain):
         else:
             builder.options = self.inputs.options
         if 'initial_noco_angles' in self.inputs.imp_scf:
-            builder.scf.initial_noco_angles = self.inputs.imp_scf.initial_noco_angles
+            builder.scf.initial_noco_angles = self.inputs.imp_scf.initial_noco_angles  # pylint: disable=no-member
 
         if 'gf_writeout' in self.inputs.imp_scf:
             if 'options' in self.inputs.imp_scf.gf_writeout:
@@ -330,7 +330,7 @@ class kkrimp_BdG_wc(WorkChain):
         if 'kkr' in self.inputs:
             builder.gf_writeout.kkr = builder.kkr  # pylint: disable=no-member
         if 'initial_noco_angles' in self.inputs.BdG_scf:
-            builder.scf.initial_noco_angles = self.inputs.BdG_scf.initial_noco_angles
+            builder.scf.initial_noco_angles = self.inputs.BdG_scf.initial_noco_angles  # pylint: disable=no-member
 
         builder.remote_data_host = self.inputs.BdG_scf.remote_data_host
 
