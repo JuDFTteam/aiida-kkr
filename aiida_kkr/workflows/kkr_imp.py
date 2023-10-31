@@ -13,7 +13,7 @@ from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools import test_and_get_codenode, neworder_potential_wf, update_params_wf
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.voro_start import kkr_startpot_wc
-from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc, clean_sfd
+from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
 import numpy as np
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
@@ -101,7 +101,8 @@ class kkr_imp_wc(WorkChain):
                 # 'kkrimp',
                 'options',
                 # 'wf_parameters',
-                'params_overwrite'
+                'params_overwrite',
+                'initial_noco_angles'
             )
         )
 
@@ -338,7 +339,6 @@ class kkr_imp_wc(WorkChain):
         self.ctx.hfield = wf_dict.get('hfield', self._wf_default['hfield'])
         self.ctx.init_pos = wf_dict.get('init_pos', self._wf_default['init_pos'])
         self.ctx.accuracy_params = wf_dict.get('accuracy_params', self._wf_default['accuracy_params'])
-        self.ctx.do_final_cleanup = wf_dict.get('do_final_cleanup', self._wf_default['do_final_cleanup'])
         # set up new parameter dict to pass to kkrimp subworkflow later
         self.ctx.kkrimp_params_dict = Dict({
             'nsteps': self.ctx.nsteps,
@@ -354,14 +354,10 @@ class kkr_imp_wc(WorkChain):
             'hfield': self.ctx.hfield,
             'init_pos': self.ctx.init_pos,
             'accuracy_params': self.ctx.accuracy_params,
-            'do_final_cleanup': self.ctx.do_final_cleanup
         })
 
         # retrieve option for kkrlfex files
         self.ctx.retrieve_kkrflex = wf_dict.get('retrieve_kkrflex', self._wf_default['retrieve_kkrflex'])
-
-        # list of things that are cleaned if everything ran through
-        self.ctx.sfd_final_cleanup = []
 
         # report the chosen parameters to the user
         self.report(
@@ -738,8 +734,6 @@ class kkr_imp_wc(WorkChain):
 
         # add starting potential for kkrimp calculation to context
         self.ctx.startpot_kkrimp = startpot_kkrimp
-        # add to list for final cleanup
-        self.ctx.sfd_final_cleanup.append(startpot_kkrimp)
 
         self.report(
             'INFO: created startpotential (pid: {}) for the impurity calculation '
@@ -793,6 +787,8 @@ class kkr_imp_wc(WorkChain):
                 builder.params_overwrite = self.inputs.scf.params_overwrite
             if 'options' in self.inputs.scf:
                 builder.options = self.inputs.scf.options
+            if 'initial_noco_angles' in self.inputs.scf:
+                builder.initial_noco_angles = self.inputs.scf.initial_noco_angles
         builder.wf_parameters = kkrimp_params
         future = self.submit(builder)
 
@@ -853,10 +849,6 @@ class kkr_imp_wc(WorkChain):
             self.out('converged_potential', self.ctx.kkrimp_scf_sub.outputs.host_imp_pot)
             self.out('remote_data_gf', self.ctx.gf_remote)
 
-            # cleanup things that are not needed anymore
-            if self.ctx.do_final_cleanup:
-                self.final_cleanup()
-
             # print final message before exiting
             self.report('INFO: created 3 output nodes for the KKR impurity workflow.')
             self.report(
@@ -868,23 +860,6 @@ class kkr_imp_wc(WorkChain):
         else:
             self.report(self.exit_codes.ERROR_KKRIMP_SUB_WORKFLOW_FAILURE)  # pylint: disable=no-member
             return self.exit_codes.ERROR_KKRIMP_SUB_WORKFLOW_FAILURE  # pylint: disable=no-member
-
-    def final_cleanup(self):
-        """
-        Remove unneeded files to save space
-        """
-        for sfd in self.ctx.sfd_final_cleanup:
-            clean_sfd(sfd)
-        if self.ctx.create_startpot:
-            kkr_startpot = self.ctx.last_voro_calc
-            vorocalc = kkr_startpot.outputs.last_voronoi_remote.get_incoming(link_label_filter=u'remote_folder'
-                                                                             ).first().node
-            ret = vorocalc.outputs.retrieved
-            for fname in ret.list_object_names():
-                if fname not in [VoronoiCalculation._OUTPUT_FILE_NAME, VoronoiCalculation._OUT_POTENTIAL_voronoi]:
-                    # delete all except vor default output file
-                    with ret.open(fname) as f:
-                        ret.delete_object(fname, force=True)
 
     def error_handler(self):
         """Capture errors raised in validate_input"""

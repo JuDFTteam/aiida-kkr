@@ -21,8 +21,11 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.13'
+__version__ = '0.7.0'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
+
+# activate verbose output, for debugging only
+_VERBOSE_ = True
 
 #TODO: improve workflow output node structure
 #TODO: generalise search for imp_info and conv_host from startpot
@@ -60,7 +63,6 @@ class kkr_imp_dos_wc(WorkChain):
     }  # execute KKR with mpi or without
 
     _wf_default = {
-        'clean_impcalc_retrieved': True,  # remove output of KKRimp calculation after successful parsing of DOS files
         'jij_run': False,  # calculate Jij's energy resolved
         'lmdos': False,  # calculate also (l,m) or only l-resolved DOS
         'retrieve_kkrflex': True,  # retrieve kkrflex files to repository or leave on remote computer only
@@ -148,6 +150,7 @@ class kkr_imp_dos_wc(WorkChain):
         )
 
         spec.expose_inputs(kkr_imp_sub_wc, namespace='BdG', include=('params_overwrite'))
+        spec.expose_inputs(kkr_imp_sub_wc, include=('initial_noco_angles'))
         spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite', 'options'))
 
         # specify the outputs
@@ -206,6 +209,8 @@ class kkr_imp_dos_wc(WorkChain):
         """
 
         self.report(f'INFO: started KKR impurity DOS workflow version {self._workflowversion}')
+        if _VERBOSE_:
+            self.report(f'inputs: {self.inputs}')
 
         # input both wf and options parameters
         if 'wf_parameters' in self.inputs:
@@ -247,10 +252,6 @@ class kkr_imp_dos_wc(WorkChain):
         for k, v in self._wf_default['dos_params'].items():
             if k not in self.ctx.dos_params_dict.keys():
                 self.ctx.dos_params_dict[k] = v
-
-        self.ctx.cleanup_impcalc_output = wf_dict.get(
-            'clean_impcalc_retrieved', self._wf_default['clean_impcalc_retrieved']
-        )
 
         # set workflow parameters for the KKR impurity calculation
         self.ctx.jij_run = wf_dict.get('jij_run', self._wf_default['jij_run'])
@@ -487,7 +488,6 @@ label: {self.ctx.label_wf}
             'dos_run': True,
             'lmdos': self.ctx.lmdos,
             'jij_run': self.ctx.jij_run,
-            'do_final_cleanup': self.ctx.cleanup_impcalc_output
         })
         kkrimp_params = self.ctx.kkrimp_params_dict
         label_imp = 'KKRimp DOS (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {})'.format(
@@ -523,6 +523,8 @@ label: {self.ctx.label_wf}
 
         if 'params_overwrite' in self.inputs.BdG:
             builder.params_overwrite = self.inputs.BdG.params_overwrite
+        if 'initial_noco_angles' in self.inputs:
+            builder.initial_noco_angles = self.inputs.initial_noco_angles
 
         future = self.submit(builder)
 
@@ -594,13 +596,6 @@ label: {self.ctx.label_wf}
                 if self.ctx.lmdos:
                     self.out('dos_data_lm', dosXyDatas['dos_data_lm'])
                     self.out('dos_data_interpol_lm', dosXyDatas['dos_data_interpol_lm'])
-                # maybe cleanup retrieved folder of DOS calculation
-                if self.ctx.cleanup_impcalc_output:
-                    message = 'INFO: cleanup after storing of DOS data'
-                    print(message)
-                    self.report(message)
-                    pk_impcalc = self.ctx.kkrimp_dos.outputs.workflow_info['pks_all_calcs'][0]
-                    cleanup_kkrimp_retrieved(pk_impcalc)
 
             message = f'INFO: workflow_info node: {outputnode_t.uuid}'
             print(message)
@@ -791,22 +786,3 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
     output = {'dos_data': dosnode, 'dos_data_interpol': dosnode2}
 
     return output
-
-
-def cleanup_kkrimp_retrieved(pk_impcalc):
-    """
-    remove output_all.tar.gz from retrieved of impurity calculation identified by pk_impcalc
-    """
-    from aiida.orm import load_node
-    from aiida_kkr.calculations import KkrimpCalculation
-
-    # extract retrieved folder
-    doscalc = load_node(pk_impcalc)
-    ret = doscalc.outputs.retrieved
-
-    # name of tarfile
-    tfname = KkrimpCalculation._FILENAME_TAR
-
-    # remove tarfile from retreived dir
-    if tfname in ret.list_object_names():
-        ret.delete_object(tfname, force=True)

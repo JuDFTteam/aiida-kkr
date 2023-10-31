@@ -22,7 +22,7 @@ from numpy import array, array_equal, sqrt, sum, where, loadtxt
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.8.2'
+__version__ = '0.9.0'
 __contributors__ = (u'Philipp Rüßmann', u'Fabian Bertoldo')
 
 #TODO: implement 'ilayer_center' consistency check
@@ -170,13 +170,6 @@ The Dict node should be of the form
     })
     Note: The length of the theta, phi and fix_dir lists have to be equal to the number of atoms in the impurity cluster.
 """
-        )
-        spec.input(
-            'cleanup_outfiles',
-            valid_type=Bool,
-            required=False,
-            default=lambda: Bool(False),
-            help='Cleanup and compress output (works only in aiida-core<2.0 and breaks caching ability).'
         )
 
         # define outputs

@@ -144,7 +144,7 @@ class kkrimp_BdG_wc(WorkChain):
         spec.expose_inputs(
             kkr_imp_wc,
             namespace='imp_scf',
-            include=('startpot', 'wf_parameters', 'gf_writeout', 'scf.params_overwrite')
+            include=('startpot', 'wf_parameters', 'gf_writeout', 'scf.params_overwrite', 'scf.initial_noco_angles')
         )
         spec.inputs['imp_scf']['gf_writeout']['kkr'].required = False
         spec.input('imp_scf.options', required=False, help='computer options for impurity scf step')
@@ -157,7 +157,11 @@ class kkrimp_BdG_wc(WorkChain):
         )
 
         # inputs for impurity BdG scf
-        spec.expose_inputs(kkr_imp_wc, namespace='BdG_scf', include=('startpot', 'remote_data_gf', 'gf_writeout'))
+        spec.expose_inputs(
+            kkr_imp_wc,
+            namespace='BdG_scf',
+            include=('startpot', 'remote_data_gf', 'gf_writeout', 'scf.initial_noco_angles')
+        )
         spec.inputs['BdG_scf']['gf_writeout']['kkr'].required = False
         spec.input('BdG_scf.options', required=False, help='computer options for BdG impurity scf step')
 
@@ -166,7 +170,11 @@ class kkrimp_BdG_wc(WorkChain):
         )
 
         # inputs for impurity dos
-        spec.expose_inputs(kkr_imp_dos_wc, namespace='dos', include=('wf_parameters', 'gf_dos_remote', 'gf_writeout'))
+        spec.expose_inputs(
+            kkr_imp_dos_wc,
+            namespace='dos',
+            include=('wf_parameters', 'gf_dos_remote', 'gf_writeout', 'initial_noco_angles')
+        )
 
         spec.input(
             'dos.gf_writeout.host_remote',
@@ -275,6 +283,8 @@ class kkrimp_BdG_wc(WorkChain):
             builder.options = self.inputs.imp_scf.options
         else:
             builder.options = self.inputs.options
+        if 'initial_noco_angles' in self.inputs.imp_scf:
+            builder.scf.initial_noco_angles = self.inputs.imp_scf.initial_noco_angles  # pylint: disable=no-member
 
         if 'gf_writeout' in self.inputs.imp_scf:
             if 'options' in self.inputs.imp_scf.gf_writeout:
@@ -319,6 +329,8 @@ class kkrimp_BdG_wc(WorkChain):
                 builder.params_kkr_overwrite = self.inputs.BdG_scf.gf_writeout.params_kkr_overwrite
         if 'kkr' in self.inputs:
             builder.gf_writeout.kkr = builder.kkr  # pylint: disable=no-member
+        if 'initial_noco_angles' in self.inputs.BdG_scf:
+            builder.scf.initial_noco_angles = self.inputs.BdG_scf.initial_noco_angles  # pylint: disable=no-member
 
         builder.remote_data_host = self.inputs.BdG_scf.remote_data_host
 
@@ -383,6 +395,10 @@ class kkrimp_BdG_wc(WorkChain):
                     builder.options = self.inputs.imp_scf.options
                 else:
                     builder.options = self.inputs.options
+
+        # set nonco angles
+        if 'initial_noco_angles' in self.inputs.dos:
+            builder.initial_noco_angles = self.inputs.dos.initial_noco_angles
 
         # skip BdG step and just use the starting potential instead?
         # faster and same accuracy?!
