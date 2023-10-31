@@ -42,7 +42,7 @@ class KkrimpParser(Parser):
 
     # pylint: disable=protected-access
 
-    def parse(self, debug=False, ignore_nan=False, **kwargs):
+    def parse(self, debug=False, ignore_nan=False, **kwargs):  # pylint: disable=unexpected-keyword-arg
         """
         Parse output data folder, store results in database.
 
