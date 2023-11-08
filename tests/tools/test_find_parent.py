@@ -23,6 +23,21 @@ def test_find_parent_structure():
     assert voro_parent.uuid == '559b9d9b-3525-402e-9b24-ecd8b801853c'
 
 
+def test_find_structure_kkrimp():
+    """
+    find parent structure from a KkrimpCalculation
+    """
+    # import_with_migration('files/db_dump_kkrimp_out.tar.gz')
+    kkrimp_calc = load_node('eab8db1b-2cc7-4b85-a524-0df4ff2b7da6')
+
+    # now find voronoi parent and structure
+    struc, voro_parent = find_parent_structure(kkrimp_calc)
+
+    # check result
+    assert struc.uuid == 'e51ee6a1-bd27-4901-9612-7bac256bf117'
+    assert voro_parent.uuid == '559b9d9b-3525-402e-9b24-ecd8b801853c'
+
+
 def test_get_calc_from_remote():
     """
     find parent calc from remote

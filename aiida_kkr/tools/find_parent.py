@@ -30,7 +30,11 @@ def get_remote(parent_folder):
     try:
         parent_folder_tmp = parent_folder_tmp0.get_incoming().get_node_by_label('remote_folder')
     except NotExistent:
-        parent_folder_tmp = parent_folder_tmp0
+        try:
+            # check if GFhost_folder is there, this is the case for a KkrimpCalculation
+            parent_folder_tmp = parent_folder_tmp0.get_incoming().get_node_by_label('GFhost_folder')
+        except NotExistent:
+            parent_folder_tmp = parent_folder_tmp0
     return parent_folder_tmp
 
 
