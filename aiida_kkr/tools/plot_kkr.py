@@ -1141,12 +1141,14 @@ class plot_kkr(object):
         # plotting of convergence properties (rms etc.)
         if len(rms_all) > 0:
             # sort rms values and flatten array
-            reorder_rms = array(pks_all).argsort()
+            reorder_rms = array(pks_all).argsort()[::-1]
             rms, niter_calcs, stot = [], [0], []
-            for i in array(rms_all)[reorder_rms]:
+            rms_all_sorted = [rms_all[i] for i in reorder_rms]
+            for i in rms_all_sorted:
                 rms += list(i)
                 niter_calcs.append(len(i) - 0.5)
-            for i in array(stot_all)[reorder_rms]:
+            stot_sorted = [stot_all[i] for i in reorder_rms]
+            for i in stot_sorted:
                 if i is not None:
                     stot += list(i)
             # now plot
