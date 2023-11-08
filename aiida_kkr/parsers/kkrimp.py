@@ -41,8 +41,8 @@ class KkrimpParser(Parser):
         super(KkrimpParser, self).__init__(calc)
 
     # pylint: disable=protected-access
-
-    def parse(self, debug=False, ignore_nan=True, **kwargs):  # pylint: disable=unexpected-keyword-arg
+    # pylint: disable=unexpected-keyword-arg
+    def parse(self, debug=False, ignore_nan=True, **kwargs):
         """
         Parse output data folder, store results in database.
 
