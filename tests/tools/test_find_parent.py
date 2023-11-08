@@ -27,7 +27,7 @@ def test_find_structure_kkrimp():
     """
     find parent structure from a KkrimpCalculation
     """
-    # import_with_migration('files/db_dump_kkrimp_out.tar.gz')
+    import_with_migration('files/db_dump_kkrimp_out.tar.gz')
     kkrimp_calc = load_node('eab8db1b-2cc7-4b85-a524-0df4ff2b7da6')
 
     # now find voronoi parent and structure
