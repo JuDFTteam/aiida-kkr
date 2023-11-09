@@ -13,8 +13,49 @@ import numpy as np
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.7.1'
+__version__ = '0.7.2'
 __contributors__ = ('Philipp Rüßmann')
+
+
+def get_datetime_from_str(calc, verbose=False):
+    """
+    Return a datetime object from the last time a calculation was checked by the scheduler.
+
+    Every calculation should have the  'scheduler_lastchecktime' attribute which has the
+    following format: '2023-11-08T22:44:13.543215+00:00'.
+    This is converted to a datetime object that can be sorted.
+    """
+    from datetime import datetime
+    # get last time stamp of scheduler from calculation attribute
+    try:
+        last_time_on_computer = calc.attributes['scheduler_lastchecktime']
+    except:
+        raise ValueError('Failed to get "scheduler_lastchecktime" from calculation.')
+    # parse date and time from string
+    date = last_time_on_computer.split('T')[0]
+    time = last_time_on_computer.split('T')[1].split('.')[0]
+    # change format
+    datetime_str = date[2:].replace('-', '/') + ' ' + time
+    # convert to datetime object
+    datetime_object = datetime.strptime(datetime_str, '%y/%m/%d %H:%M:%S')
+
+    if verbose:
+        print(datetime_object)  # printed in default format
+
+    #return datetime object of the last time the calculation was checked
+    return datetime_object
+
+
+def get_sorting_indices(calcs):
+    """
+    Get the sorting index for a list of calculations.
+
+    For each calculation the datetime object of the last time the scheduler checked the
+    calculation is extracted. This is then sorted and the sorting index array is returned.
+    """
+    datetimes = [get_datetime_from_str(calc) for calc in calcs]
+    isort = np.array(datetimes).argsort()
+    return isort
 
 
 def remove_empty_atoms(show_empty_atoms, structure, silent=False):
@@ -1048,7 +1089,7 @@ class plot_kkr(object):
             else:
                 ptitle = f'pk= {node.pk}'
 
-            self.make_kkrimp_rmsplot([rms], [stot], [0], rms_goal, ptitle, **kwargs)
+            self.make_kkrimp_rmsplot([rms], [stot], [node], rms_goal, ptitle, **kwargs)
 
         # now return values
         return_any, return_list = False, []
@@ -1088,10 +1129,9 @@ class plot_kkr(object):
                 kwargs.pop(k)
 
         # extract rms from calculations
-        rms_all, pks_all, stot_all = [], [], []
+        rms_all, stot_all = [], []
         rms_goal = None
         for impcalc in impcalcs:
-            pks_all.append(impcalc.pk)
             rms_tmp, rms_goal_tmp, stot_tmp = self.plot_kkrimp_calc(
                 impcalc, return_rms=True, return_stot=True, plot_rms=False
             )
@@ -1108,9 +1148,9 @@ class plot_kkr(object):
         else:
             ptitle = f'pk= {node.pk}'
 
-        self.make_kkrimp_rmsplot(rms_all, stot_all, pks_all, rms_goal, ptitle, **kwargs)
+        self.make_kkrimp_rmsplot(rms_all, stot_all, impcalcs, rms_goal, ptitle, **kwargs)
 
-    def make_kkrimp_rmsplot(self, rms_all, stot_all, pks_all, rms_goal, ptitle, **kwargs):
+    def make_kkrimp_rmsplot(self, rms_all, stot_all, list_of_impcalcs, rms_goal, ptitle, **kwargs):
         """
         plot rms and total spin moment of kkrimp calculation or series of kkrimp calculations
         """
@@ -1141,7 +1181,7 @@ class plot_kkr(object):
         # plotting of convergence properties (rms etc.)
         if len(rms_all) > 0:
             # sort rms values and flatten array
-            reorder_rms = array(pks_all).argsort()[::-1]
+            reorder_rms = get_sorting_indices(list_of_impcalcs)
             rms, niter_calcs, stot = [], [0], []
             rms_all_sorted = [rms_all[i] for i in reorder_rms]
             for i in rms_all_sorted:
