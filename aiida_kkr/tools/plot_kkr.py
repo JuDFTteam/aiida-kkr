@@ -382,6 +382,8 @@ class plot_kkr(object):
     :type switch_xy: bool
     :param iatom: list of atom indices which are supposed to be plotted (default: [], i.e. show all atoms)
     :type iatom: list
+    :param debug: activate debug output
+    :type debug: bool
 
     additional keyword arguments are passed onto the plotting function which allows, for example,
     to change the markers used in a DOS plot to crosses via `marker='x'`
@@ -400,8 +402,17 @@ class plot_kkr(object):
         from aiida import load_profile
         load_profile()
 
+        # used to keep track of structure plotting
         self.sview = None
 
+        # debug mode
+        self.debug = False
+        if 'debug' in kwargs:
+            self.debug = kwargs.pop('debug')
+            print('start plot_kkr')
+            print('kwargs:', kwargs)
+
+        # grouping of node if a list of nodes is the input instead of a single node
         groupmode = False
         if type(nodes) == list:
             if len(nodes) > 1:
@@ -1047,8 +1058,12 @@ class plot_kkr(object):
     def plot_kkrimp_calc(self, node, return_rms=False, return_stot=False, plot_rms=True, **kwargs):
         """plot things from a kkrimp Calculation node"""
 
+        if self.debug:
+            print('in plot_kkrimp_calc')
+            print('kwargs:', kwargs)
+
         # plot impurity cluster
-        if kwargs.get('strucplot', True):
+        if kwargs.get('strucplot', False):
             if _has_ase_notebook():
                 self.sview = plot_imp_cluster(node, **kwargs)
             else:
@@ -1115,10 +1130,14 @@ class plot_kkr(object):
         """plot things from a kkrimp_sub_wc workflow"""
         from aiida_kkr.calculations import KkrimpCalculation
 
+        if self.debug:
+            print('in plot_kkrimp_sub_wc')
+            print('kwargs:', kwargs)
+
         impcalcs = [i.node for i in node.get_outgoing(node_class=KkrimpCalculation).all()]
 
         # plot impurity cluster
-        if len(impcalcs) > 0 and kwargs.get('strucplot', True):
+        if len(impcalcs) > 0 and kwargs.get('strucplot', False):
             if _has_ase_notebook():
                 self.sview = plot_imp_cluster(impcalcs[0], **kwargs)
             else:
@@ -1231,6 +1250,10 @@ class plot_kkr(object):
         from masci_tools.vis.kkr_plot_FS_qdos import FSqdos2D
         from masci_tools.vis.kkr_plot_dos import dosplot
         from matplotlib.pyplot import show, figure, title, xticks, xlabel, axvline
+
+        if self.debug:
+            print('in plot_kkrimp_dos_wc')
+            print('kwargs:', kwargs)
 
         interpol, all_atoms, l_channels, sum_spins, switch_xy = True, False, True, False, False
         ptitle = None
