@@ -4,7 +4,7 @@ This module contains the workflow which combines pre-converged two single-impuri
 """
 
 from aiida.engine import WorkChain, if_, ToContext, calcfunction
-from aiida.orm import load_node, Dict, WorkChainNode, Int, RemoteData, Bool, ArrayData
+from aiida.orm import load_node, Dict, WorkChainNode, Int, RemoteData, Bool, ArrayData, CalcJobNode
 from aiida_kkr.calculations import KkrCalculation, KkrimpCalculation
 from aiida_kkr.workflows import kkr_imp_sub_wc, kkr_flex_wc, kkr_imp_wc
 from aiida_kkr.tools.combine_imps import (
@@ -19,8 +19,11 @@ from masci_tools.io.common_functions import get_Ry2eV
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.3.1'
+__version__ = '0.3.2'
 __contributors__ = (u'Philipp Rüßmann , Rubel Mozumder')
+
+# activate debug writeout
+_debug = False
 
 
 class combine_imps_wc(WorkChain):
@@ -130,9 +133,9 @@ Output node of a single impurity calculation. This can be the output of either t
 workflows or of an `KkrimpCalculation`.
 
 Use these output Dict nodes:
-  * for `kkr_imp_wc`: single_imp_worlfow.outputs.workflow_info
-  * for `kkr_imp_sub_wc`: single_imp_worlfow.outputs.workflow_info
-  * for `KkrimpCalculation`: single_imp_worlfow.outputs.output_parameters
+  * for `kkr_imp_wc`: single_imp_workfow.outputs.workflow_info
+  * for `kkr_imp_sub_wc`: single_imp_workfow.outputs.workflow_info
+  * for `KkrimpCalculation`: single_imp_workfow.outputs.output_parameters
 """
         )
 
@@ -378,12 +381,21 @@ If given then the writeout step of the host GF is omitted."""
             self.report(f'DEBUG: The is the imps_info_in_exact_cluster dict: {imps_info_in_exact_cluster}\n')
             return imps_info_in_exact_cluster
 
+    def get_impinfo_from_hostGF(self, imp_calc):
+        """
+        Extract impurity infor node from the incoming host GF folder
+        """
+        GF_input = imp_calc.inputs.host_Greenfunction_folder
+        parent_calc = GF_input.get_incoming(node_class=CalcJobNode).first().node
+        impinfo = parent_calc.inputs.impurity_info
+        return impinfo
+
     def imps_info_exact_cluster_2imps(self, single_imp1_wc, single_imp2_wc, offset_imp2):
         """
             This construct a python dict keeping info about two single inpurities with respect to the original host structure e.i. before transforming the center to the first impurity position.
         """
-        impinfo1 = single_imp1_wc.inputs.impurity_info
-        impinfo2 = single_imp2_wc.inputs.impurity_info
+        impinfo1 = self.get_impinfo_from_hostGF(single_imp1_wc)
+        impinfo2 = self.get_impinfo_from_hostGF(single_imp2_wc)
         # imp_info_in_exact_cluster keeps the exact data before creating the cluster will help to add more imps later.
         imps_info_in_exact_cluster = {
             'Zimps': [],
@@ -479,13 +491,16 @@ If given then the writeout step of the host GF is omitted."""
         imp2 = self.ctx.imp2
         single_single = self.ctx.single_vs_single
         if single_single:
-            impinfo1 = imp1.inputs.impurity_info
+            if _debug:
+                print('DEBUG:', list(imp1.inputs))
+            impinfo1 = self.get_impinfo_from_hostGF(imp1)
+            # impinfo1 = imp1.inputs.impurity_info
         else:
             if imp1.process_class == self.__class__:
                 imp1 = imp1.get_outgoing(node_class=kkr_imp_sub_wc).all()[0].node
             impinfo1 = imp1.inputs.impurity_info
             self.report(f'DEBUG: impinfo1 : {impinfo1.get_dict()} .')
-        impinfo2 = imp2.inputs.impurity_info
+        impinfo2 = self.get_impinfo_from_hostGF(imp2)
 
         host_structure = self.ctx.host_structure
         offset_imp2 = self.inputs.offset_imp2
@@ -592,9 +607,11 @@ If given then the writeout step of the host GF is omitted."""
             #take gf_writeout directly from input to KkrimpCalculation
             gf_writeout_calc = self.ctx.imp1.inputs.host_Greenfunction_folder.get_incoming(node_class=KkrCalculation
                                                                                            ).first().node
-        if self.ctx.imp1.process_class == kkr_imp_sub_wc:
+        if (self.ctx.imp1.process_class == kkr_imp_sub_wc or self.ctx.imp1.process_class == KkrimpCalculation):
             imp1_sub = self.ctx.imp1
         else:
+            if _debug:
+                print('DEBUG:', self.ctx.imp1, list(self.ctx.imp1.inputs))
             imp1_sub = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node
         if gf_writeout_calc is None:
             gf_writeout_calc = imp1_sub.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node
