@@ -110,7 +110,9 @@ if [[ ! -z "$RUN_ALL" ]]; then
   # now workflow tests
   pytest --cov-report=$repfmt --cov=../ --cov-append --ignore=jukkr workflows/ $addopt
 elif [[ ! -z "$GITHUB_SUITE" ]]; then
-  pytest --cov-report=$repfmt --cov=../ --cov-report xml:coverage.xml --ignore=workflows --ignore=jukkr --mpl -p no:warnings $addopt
+  if [[ -z "$SKIP_NOWORK" ]]; then
+    pytest --cov-report=$repfmt --cov=../ --cov-report xml:coverage.xml --ignore=workflows --ignore=jukkr --mpl -p no:warnings $addopt
+  fi
   pytest --cov-report=$repfmt --cov-append --cov=../ -x ./workflows/test_vorostart_wc.py \
 	  ./workflows/test_scf_wc_simple.py \
 	  ./workflows/test_dos_wc.py \
