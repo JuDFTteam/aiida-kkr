@@ -19,7 +19,7 @@ from masci_tools.util.constants import BOHR_A
 __copyright__ = (u'Copyright (c), 2022, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 __contributors__ = (u'Philipp Rüßmann')
 
 
@@ -417,8 +417,8 @@ class kkr_jij_wc(WorkChain):
 
         # maybe use value provided in input instead
         para = {k.lower(): v for k, v in self.ctx.parent_calc.inputs.parameters.get_dict().items()}
-        if 'use_alat_input' in para:
-            alat_ang = para.get('ALATBASIS') * BOHR_A
+        if 'use_alat_input' in para or 'use_input_alat' in para:
+            alat_ang = para.get('alatbasis') * BOHR_A
 
         # now have Jij radius in alat units
         jijrad = jijrad_ang / alat_ang

@@ -5,7 +5,7 @@ In this module you find the base workflow for a impurity DOS calculation and
 some helper methods to do so with AiiDA
 """
 
-from aiida.orm import Code, load_node, CalcJobNode, Float, Int, Str, Dict, RemoteData, SinglefileData, XyData
+from aiida.orm import Code, load_node, CalcJobNode, Float, Int, Str, Dict, RemoteData, SinglefileData, XyData, Bool
 from aiida.plugins import DataFactory
 from aiida.engine import if_, ToContext, WorkChain, calcfunction
 from aiida.common import LinkType
@@ -21,8 +21,11 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.10'
+__version__ = '0.7.0'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
+
+# activate verbose output, for debugging only
+_VERBOSE_ = True
 
 #TODO: improve workflow output node structure
 #TODO: generalise search for imp_info and conv_host from startpot
@@ -60,9 +63,8 @@ class kkr_imp_dos_wc(WorkChain):
     }  # execute KKR with mpi or without
 
     _wf_default = {
-        'clean_impcalc_retrieved': True,  # remove output of KKRimp calculation after successful parsing of DOS files
         'jij_run': False,  # calculate Jij's energy resolved
-        'lmdos': False,  # caculate l,m or only l-resolved DOS
+        'lmdos': False,  # calculate also (l,m) or only l-resolved DOS
         'retrieve_kkrflex': True,  # retrieve kkrflex files to repository or leave on remote computer only
     }
     # add defaults of dos_params since they are passed onto that workflow
@@ -147,12 +149,18 @@ class kkr_imp_dos_wc(WorkChain):
             help='Settings for LDA+U run (see KkrimpCalculation for details).'
         )
 
+        spec.expose_inputs(kkr_imp_sub_wc, namespace='BdG', include=('params_overwrite'))
+        spec.expose_inputs(kkr_imp_sub_wc, include=('initial_noco_angles'))
+        spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite', 'options'))
+
         # specify the outputs
         spec.output('workflow_info', valid_type=Dict)
         spec.output('last_calc_output_parameters', valid_type=Dict)
         spec.output('last_calc_info', valid_type=Dict)
         spec.output('dos_data', valid_type=XyData)
         spec.output('dos_data_interpol', valid_type=XyData)
+        spec.output('dos_data_lm', valid_type=XyData, required=False)
+        spec.output('dos_data_interpol_lm', valid_type=XyData, required=False)
         spec.output('gf_dos_remote', valid_type=XyData, required=False, help='RemoteData node of the computed host GF.')
 
         # Here the structure of the workflow is defined
@@ -201,6 +209,8 @@ class kkr_imp_dos_wc(WorkChain):
         """
 
         self.report(f'INFO: started KKR impurity DOS workflow version {self._workflowversion}')
+        if _VERBOSE_:
+            self.report(f'inputs: {self.inputs}')
 
         # input both wf and options parameters
         if 'wf_parameters' in self.inputs:
@@ -243,10 +253,6 @@ class kkr_imp_dos_wc(WorkChain):
             if k not in self.ctx.dos_params_dict.keys():
                 self.ctx.dos_params_dict[k] = v
 
-        self.ctx.cleanup_impcalc_output = wf_dict.get(
-            'clean_impcalc_retrieved', self._wf_default['clean_impcalc_retrieved']
-        )
-
         # set workflow parameters for the KKR impurity calculation
         self.ctx.jij_run = wf_dict.get('jij_run', self._wf_default['jij_run'])
 
@@ -286,72 +292,15 @@ label: {self.ctx.label_wf}
 
         if 'imp_pot_sfd' in inputs:
             # check if input potential has incoming return link
-            if len(inputs.imp_pot_sfd.get_incoming(link_type=LinkType.RETURN).all()) < 1:
-                self.report(
-                    'input potential not from kkrimp workflow: take remote_data folder of host system from input'
-                )
-                if 'impurity_info' in inputs and 'host_remote' in inputs:
-                    self.ctx.imp_info = inputs.impurity_info
-                    self.ctx.conv_host_remote = inputs.host_remote
-                else:
-                    message = 'WARNING: startpot has no parent and can not find a converged host RemoteData node'
-                    print(message)
-                    self.report(message)
-                    if 'impurity_info' not in inputs:
-                        message = '`impurity_info` optional input node not given but needed in this case.'
-                        print(message)
-                        self.report(message)
-                    if 'host_remote' not in inputs:
-                        message = '`host_remote` optional input node not given but needed in this case.'
-                        print(message)
-                        self.report(message)
-                    inputs_ok = False
-                    self.ctx.errors.append(1)
+            if len(inputs.imp_pot_sfd.get_incoming(link_type=LinkType.RETURN).all()) == 0:
+                inputs_ok = self._imp_pot_not_from_wf(inputs_ok)
             else:
-                # if return ink is found get input nodes automatically
-                message = 'INFO: get converged host RemoteData node and impurity_info node from database'
-                print(message)
-                self.report(message)
-                self.ctx.kkr_imp_wf = inputs.imp_pot_sfd.get_incoming(node_class=kkr_imp_sub_wc).first().node
-                message = f'INFO: found underlying kkr impurity workflow (pk: {self.ctx.kkr_imp_wf.pk})'
-                print(message)
-                self.report(message)
-                self.ctx.imp_info = self.ctx.kkr_imp_wf.inputs.impurity_info
-                message = f'INFO: found impurity_info node (pk: {self.ctx.imp_info.pk})'
-                print(message)
-                self.report(message)
-                if 'remote_data' in self.ctx.kkr_imp_wf.inputs:
-                    remote_data_gf_writeout = self.ctx.kkr_imp_wf.inputs.remote_data
-                    gf_writeout_calc = remote_data_gf_writeout.get_incoming(node_class=CalcJobNode).first().node
-                    self.ctx.conv_host_remote = gf_writeout_calc.inputs.parent_folder
-                    message = 'INFO: imported converged_host_remote (pk: {}) and impurity_info from database'.format(
-                        self.ctx.conv_host_remote.pk
-                    )
-                    print(message)
-                    self.report(message)
-                else:
-                    self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inputs.gf_remote.inputs.remote_folder.inputs.parent_calc_folder.inputs.remote_folder.outputs.remote_folder
-                    message = 'INFO: imported converged_host_remote (pk: {}) and impurity_info from database'.format(
-                        self.ctx.conv_host_remote.pk
-                    )
-                    print(message)
-                    self.report(message)
+                gf_writeout_calc = self._imp_pot_from_wf()
 
         if 'gf_dos_remote' in self.inputs:
             self.ctx.skip_gfstep = True
         else:
-            if 'kkr' not in self.inputs:
-                self.report('[ERROR] `kkr` input node needed if `gf_dos_remote` is not given')
-                inputs_ok = False
-                self.ctx.errors.append(3)  # raises ERROR_KKR_CODE_MISSING
-            if gf_writeout_calc is not None:
-                self.report('Use extraced host remote')
-            elif 'host_remote' not in self.inputs:
-                self.report('[ERROR] `host_remote` input node needed if `gf_dos_remote` is not given')
-                inputs_ok = False
-                self.ctx.errors.append(4)  # raises ERROR_HOST_REMOTE_MISSING
-            else:
-                self.ctx.conv_host_remote = self.inputs.host_remote
+            inputs_ok = self._check_gf_writeout_inputs(inputs_ok, gf_writeout_calc)
 
         if 'imp_pot_sfd' in self.inputs and 'kkrimp_remote' in self.inputs:
             self.report('[ERROR] both `imp_pot_sfd` and `kkrimp_remote` node in inputs')
@@ -371,6 +320,86 @@ label: {self.ctx.label_wf}
 
         message = f'INFO: validated input successfully: {inputs_ok}'
         self.report(message)
+
+        return inputs_ok
+
+    def _imp_pot_not_from_wf(self, inputs_ok):
+        """
+        input impurity potential is not from a kkrimp workflow
+        this means we need also have the `impurity_info` and `host_remote` input nodes
+        to be able to run the calculation
+        """
+        self.report('input potential not from kkrimp workflow: take remote_data folder of host system from input')
+        inputs = self.inputs
+        if 'impurity_info' in inputs and 'host_remote' in inputs:
+            self.ctx.imp_info = inputs.impurity_info
+            self.ctx.conv_host_remote = inputs.host_remote
+        else:
+            message = 'WARNING: startpot has no parent and can not find a converged host RemoteData node'
+            self.report(message)
+            if 'impurity_info' not in inputs:
+                message = '`impurity_info` optional input node not given but needed in this case.'
+                self.report(message)
+            if 'host_remote' not in inputs:
+                message = '`host_remote` optional input node not given but needed in this case.'
+                self.report(message)
+            inputs_ok = False
+            self.ctx.errors.append(1)
+
+        return inputs_ok
+
+    def _imp_pot_from_wf(self):
+        """
+        we try to extract the input nodes for the GF writeout step from the incoming links to the impurity potential
+        """
+        # if return link is found get input nodes automatically
+        message = 'INFO: get converged host RemoteData node and impurity_info node from database'
+        self.report(message)
+        self.ctx.kkr_imp_wf = self.inputs.imp_pot_sfd.get_incoming(node_class=kkr_imp_sub_wc).first().node
+        message = f'INFO: found underlying kkr impurity workflow (pk: {self.ctx.kkr_imp_wf.pk})'
+        self.report(message)
+        self.ctx.imp_info = self.ctx.kkr_imp_wf.inputs.impurity_info
+        message = f'INFO: found impurity_info node (pk: {self.ctx.imp_info.pk})'
+        self.report(message)
+
+        if 'remote_data' in self.ctx.kkr_imp_wf.inputs:
+            remote_data_gf_writeout = self.ctx.kkr_imp_wf.inputs.remote_data
+            gf_writeout_calc = remote_data_gf_writeout.get_incoming(node_class=CalcJobNode).first().node
+            self.ctx.conv_host_remote = gf_writeout_calc.inputs.parent_folder
+            message = 'INFO: imported converged_host_remote (pk: {}) and impurity_info from database'.format(
+                self.ctx.conv_host_remote.pk
+            )
+            self.report(message)
+        else:
+            # follow links in DB upwards to get the remote_folder of the parent calculation
+            self.ctx.conv_host_remote = self.ctx.kkr_imp_wf.inputs.gf_remote.inputs.remote_folder.inputs.parent_calc_folder.inputs.remote_folder.outputs.remote_folder
+            message = 'INFO: imported converged_host_remote (pk: {}) and impurity_info from database'.format(
+                self.ctx.conv_host_remote.pk
+            )
+            self.report(message)
+
+        if 'host_remote' in self.inputs:
+            self.ctx.conv_host_remote = self.inputs.host_remote
+
+        return gf_writeout_calc
+
+    def _check_gf_writeout_inputs(self, inputs_ok, gf_writeout_calc):
+        """
+        check if all necessary inputs are there for the GF writeout step
+        """
+        if 'kkr' not in self.inputs:
+            self.report('[ERROR] `kkr` input node needed if `gf_dos_remote` is not given')
+            inputs_ok = False
+            self.ctx.errors.append(3)  # raises ERROR_KKR_CODE_MISSING
+
+        if gf_writeout_calc is not None:
+            self.report('Use extraced host remote')
+        elif 'host_remote' not in self.inputs:
+            self.report('[ERROR] `host_remote` input node needed if `gf_dos_remote` is not given')
+            inputs_ok = False
+            self.ctx.errors.append(4)  # raises ERROR_HOST_REMOTE_MISSING
+        else:
+            self.ctx.conv_host_remote = self.inputs.host_remote
 
         return inputs_ok
 
@@ -408,6 +437,11 @@ label: {self.ctx.label_wf}
             builder.impurity_info = imp_info
             if 'params_kkr_overwrite' in self.inputs:
                 builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
+            if 'gf_writeout' in self.inputs:
+                if 'params_kkr_overwrite' in self.inputs.gf_writeout:
+                    builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
+                if 'options' in self.inputs.gf_writeout:
+                    builder.options = self.inputs.options
 
             future = self.submit(builder)
 
@@ -454,7 +488,6 @@ label: {self.ctx.label_wf}
             'dos_run': True,
             'lmdos': self.ctx.lmdos,
             'jij_run': self.ctx.jij_run,
-            'do_final_cleanup': self.ctx.cleanup_impcalc_output
         })
         kkrimp_params = self.ctx.kkrimp_params_dict
         label_imp = 'KKRimp DOS (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {})'.format(
@@ -487,6 +520,11 @@ label: {self.ctx.label_wf}
         if 'settings_LDAU' in self.inputs:
             self.report('Add settings_LDAU input node')
             builder.settings_LDAU = self.inputs.settings_LDAU
+
+        if 'params_overwrite' in self.inputs.BdG:
+            builder.params_overwrite = self.inputs.BdG.params_overwrite
+        if 'initial_noco_angles' in self.inputs:
+            builder.initial_noco_angles = self.inputs.initial_noco_angles
 
         future = self.submit(builder)
 
@@ -555,13 +593,9 @@ label: {self.ctx.label_wf}
             if dos_extracted:
                 self.out('dos_data', dosXyDatas['dos_data'])
                 self.out('dos_data_interpol', dosXyDatas['dos_data_interpol'])
-                # maybe cleanup retrieved folder of DOS calculation
-                if self.ctx.cleanup_impcalc_output:
-                    message = 'INFO: cleanup after storing of DOS data'
-                    print(message)
-                    self.report(message)
-                    pk_impcalc = self.ctx.kkrimp_dos.outputs.workflow_info['pks_all_calcs'][0]
-                    cleanup_kkrimp_retrieved(pk_impcalc)
+                if self.ctx.lmdos:
+                    self.out('dos_data_lm', dosXyDatas['dos_data_lm'])
+                    self.out('dos_data_interpol_lm', dosXyDatas['dos_data_interpol_lm'])
 
             message = f'INFO: workflow_info node: {outputnode_t.uuid}'
             print(message)
@@ -643,7 +677,7 @@ label: {self.ctx.label_wf}
             filelist = folder.list_object_names()
 
         # check if out_ldos* files are there and parse dos files
-        if 'out_ldos.interpol.atom=01_spin1.dat' in filelist:
+        if 'out_ldos.interpol.atom=01_spin1.dat' in filelist or 'out_ldos.interpol.atom=001_spin1.dat' in filelist:
             # extract EF and number of atoms from kkrflex_writeout calculation
             kkrflex_writeout = load_node(self.ctx.pk_flexcalc)
             parent_calc_kkr_converged = kkrflex_writeout.inputs.parent_folder.get_incoming(node_class=CalcJobNode
@@ -652,7 +686,11 @@ label: {self.ctx.label_wf}
             last_calc_output_params = last_calc.outputs.output_parameters
             natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')
             # parse dosfiles using nspin, EF and Natom inputs
-            dosXyDatas = parse_impdosfiles(folder, Int(natom), Int(self.ctx.nspin), Float(ef))
+            dosXyDatas = parse_impdosfiles(folder, Int(natom), Int(self.ctx.nspin), Float(ef), Bool(False))
+            if self.ctx.lmdos:
+                dosXyDatas2 = parse_impdosfiles(folder, Int(natom), Int(self.ctx.nspin), Float(ef), Bool(True))
+                dosXyDatas['dos_data_lm'] = dosXyDatas2['dos_data']
+                dosXyDatas['dos_data_interpol_lm'] = dosXyDatas2['dos_data_interpol']
             dos_extracted = True
         else:
             dos_extracted = False
@@ -662,7 +700,7 @@ label: {self.ctx.label_wf}
 
 
 @calcfunction
-def parse_impdosfiles(folder, natom, nspin, ef):
+def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
     """
     Read `out_ldos*` files and create XyData node with l-resolved DOS (+node for interpolated DOS if files are found)
 
@@ -684,12 +722,25 @@ def parse_impdosfiles(folder, natom, nspin, ef):
     dos, dos_int = [], []
     for iatom in range(1, natom.value + 1):
         for ispin in range(1, nspin.value + 1):
-            with folder.open('out_ldos.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
-                tmp = loadtxt(dosfile)
-                dos.append(tmp)
-            with folder.open('out_ldos.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
-                tmp = loadtxt(dosfile)
-                dos_int.append(tmp)
+            name0 = 'out_ldos'
+            if use_lmdos.value:
+                name0 = 'out_lmdos'
+            try:
+                # old file names with 2 digits for atom index
+                with folder.open(name0 + '.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                    tmp = loadtxt(dosfile)
+                    dos.append(tmp)
+                with folder.open(name0 + '.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                    tmp = loadtxt(dosfile)
+                    dos_int.append(tmp)
+            except:
+                # new file names with 3 digits for atom numbers
+                with folder.open(name0 + '.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                    tmp = loadtxt(dosfile)
+                    dos.append(tmp)
+                with folder.open(name0 + '.interpol.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                    tmp = loadtxt(dosfile)
+                    dos_int.append(tmp)
     dos, dos_int = array(dos), array(dos_int)
 
     # convert to eV units
@@ -706,6 +757,11 @@ def parse_impdosfiles(folder, natom, nspin, ef):
     dosnode.set_x(dos[:, :, 0], 'E-EF', 'eV')
 
     name = ['tot', 's', 'p', 'd', 'f', 'g']
+    if use_lmdos.value:
+        name = [
+            'tot', 's', 'p1', 'p2', 'p3', 'd1', 'd2', 'd3', 'd4', 'd5', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'g1',
+            'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9'
+        ]
     name = name[:len(dos[0, 0, 1:]) - 1] + ['ns']
 
     ylists = [[], [], []]
@@ -730,22 +786,3 @@ def parse_impdosfiles(folder, natom, nspin, ef):
     output = {'dos_data': dosnode, 'dos_data_interpol': dosnode2}
 
     return output
-
-
-def cleanup_kkrimp_retrieved(pk_impcalc):
-    """
-    remove output_all.tar.gz from retrieved of impurity calculation identified by pk_impcalc
-    """
-    from aiida.orm import load_node
-    from aiida_kkr.calculations import KkrimpCalculation
-
-    # extract retrieved folder
-    doscalc = load_node(pk_impcalc)
-    ret = doscalc.outputs.retrieved
-
-    # name of tarfile
-    tfname = KkrimpCalculation._FILENAME_TAR
-
-    # remove tarfile from retreived dir
-    if tfname in ret.list_object_names():
-        ret.delete_object(tfname, force=True)

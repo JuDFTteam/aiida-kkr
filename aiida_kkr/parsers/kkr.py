@@ -18,7 +18,7 @@ from contextlib import ExitStack
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.7.0'
+__version__ = '0.8.0'
 __contributors__ = ('Jens Broeder', u'Philipp Rüßmann')
 
 
@@ -201,6 +201,11 @@ class KkrParser(Parser):
                 self.logger.info('take output of parser run 2')
                 success, msg_list, out_dict = success2, msg_list2, out_dict2
 
+        # TODO discriminate between real errors and warnings
+        msg_list = [i for i in msg_list if 'single particle energies' not in i]
+        if len(msg_list) == 0:
+            success = True
+
         out_dict['parser_errors'] = msg_list
         # add file open errors to parser output of error messages
         for (err_cat, f_err) in file_errors:
@@ -224,21 +229,3 @@ class KkrParser(Parser):
 
         if not success:
             return self.exit_codes.ERROR_KKR_PARSING_FAILED
-        else:  # cleanup after parsing (only if parsing was successful)
-            # cleanup only works below aiida-core v2.0
-            if int(aiida_core_version.split('.')[0]) < 2:
-                # delete completely parsed output files
-                self.remove_unnecessary_files()
-                # then (maybe) tar the output to save space
-                # TODO needs implementing (see kkrimp parser)
-
-    def remove_unnecessary_files(self):
-        """
-        Remove files that are not needed anymore after parsing
-        The information is completely parsed (i.e. in outdict of calculation)
-        and keeping the file would just be a duplication.
-        """
-        files_to_delete = [KkrCalculation._POTENTIAL, KkrCalculation._SHAPEFUN]
-        for fileid in files_to_delete:
-            if fileid in self.retrieved.list_object_names():
-                self.retrieved.delete_object(fileid, force=True)

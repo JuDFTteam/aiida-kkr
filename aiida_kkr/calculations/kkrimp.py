@@ -11,8 +11,9 @@ from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from masci_tools.io.kkr_params import kkrparams
 from .voro import VoronoiCalculation
 from .kkr import KkrCalculation
-from aiida_kkr.tools.tools_kkrimp import modify_potential, make_scoef, write_scoef_full_imp_cls
+from aiida_kkr.tools.tools_kkrimp import modify_potential, make_scoef, write_scoef_full_imp_cls, get_imp_info_from_parent
 from aiida_kkr.tools.common_workfunctions import get_username
+from aiida_kkr.tools.ldau import get_ldaupot_text
 from masci_tools.io.common_functions import search_string, get_ef_from_potfile
 import os
 import tarfile
@@ -21,7 +22,7 @@ from numpy import array, array_equal, sqrt, sum, where, loadtxt
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.7.0'
+__version__ = '0.9.1'
 __contributors__ = (u'Philipp Rüßmann', u'Fabian Bertoldo')
 
 #TODO: implement 'ilayer_center' consistency check
@@ -48,11 +49,13 @@ class KkrimpCalculation(CalcJob):
     _SHAPEFUN = u'shapefun'
     _KKRFLEX_ANGLE = u'kkrflex_angle'
     _KKRFLEX_LLYFAC = u'kkrflex_llyfac'
+    _KKRFLEX_SOCFAC = u'kkrflex_spinorbitperatom'
 
     # full list of kkrflex files
     _ALL_KKRFLEX_FILES = KkrCalculation._ALL_KKRFLEX_FILES
     _ALL_KKRFLEX_FILES.append(_KKRFLEX_ANGLE)
     _ALL_KKRFLEX_FILES.append(_KKRFLEX_LLYFAC)
+    _ALL_KKRFLEX_FILES.append(_KKRFLEX_SOCFAC)
 
     # List of output files that should always be present (are always retrieved)
     _OUT_POTENTIAL = u'out_potential'
@@ -65,11 +68,11 @@ class KkrimpCalculation(CalcJob):
 
     # List of output files that are retrieved if special conditions are fulfilled
     _OUT_JIJMAT = u'out_Jijmatrix'
-    _OUT_JIJ_OF_E_BASE = 'out_Jijmatrix_Eres_IE%0.3i.dat'
-    _OUT_LDOS_BASE = u'out_ldos.atom=%2i_spin%i.dat'
-    _OUT_LDOS_INTERPOL_BASE = u'out_ldos.interpol.atom=%2i_spin%i.dat'
-    _OUT_LMDOS_BASE = u'out_lmdos.atom=%2i_spin%i.dat'
-    _OUT_LMDOS_INTERPOL_BASE = u'out_lmdos.interpol.atom=%2i_spin%i.dat'
+    _OUT_JIJ_OF_E_BASE = 'out_Jijmatrix_Eres_IE*'
+    _OUT_LDOS = u'out_ldos.atom=*'
+    _OUT_LDOS_INTERPOL = u'out_ldos.interpol.atom=*'
+    _OUT_LMDOS = u'out_lmdos.atom=*'
+    _OUT_LMDOS_INTERPOL = u'out_lmdos.interpol.atom=*'
     _OUT_MAGNETICMOMENTS = u'out_magneticmoments'
     _OUT_ORBITALMOMENTS = u'out_orbitalmoments'
     _LDAUPOT = 'ldaupot'
@@ -168,13 +171,6 @@ The Dict node should be of the form
     Note: The length of the theta, phi and fix_dir lists have to be equal to the number of atoms in the impurity cluster.
 """
         )
-        spec.input(
-            'cleanup_outfiles',
-            valid_type=Bool,
-            required=False,
-            default=lambda: Bool(False),
-            help='Cleanup and compress output (works only in aiida-core<2.0 and breaks caching ability).'
-        )
 
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the KKRimp calculation')
@@ -222,8 +218,8 @@ The Dict node should be of the form
 
         retrieve_list = [
             self._OUTPUT_FILE_NAME, self._CONFIG, self._KKRFLEX_ATOMINFO, self._KKRFLEX_ANGLE, self._KKRFLEX_LLYFAC,
-            self._OUT_POTENTIAL, self._OUTPUT_000, self._OUT_TIMING_000, self._OUT_ENERGYSP_PER_ATOM,
-            self._OUT_ENERGYTOT_PER_ATOM
+            self._KKRFLEX_SOCFAC, self._OUT_POTENTIAL, self._OUTPUT_000, self._OUT_TIMING_000,
+            self._OUT_ENERGYSP_PER_ATOM, self._OUT_ENERGYTOT_PER_ATOM
         ]
 
         # extract run and test options (these change retrieve list in some cases)
@@ -298,26 +294,16 @@ The Dict node should be of the form
         else:
             parent_calc = parent_calcs.first().node
         # extract impurity_info
+        found_impurity_inputnode = False
         if 'impurity_info' in self.inputs:
             imp_info_inputnode = self.inputs.impurity_info
             if not isinstance(imp_info_inputnode, Dict):
                 raise InputValidationError('impurity_info not of type Dict')
-            if 'impurity_info' in parent_calc.get_incoming().all_link_labels():
-                imp_info = parent_calc.get_incoming().get_node_by_label('impurity_info')
-            else:
-                imp_info = None
-            if imp_info is None:
-                raise InputValidationError('host_Greenfunction calculation does not have an input node impurity_info')
             found_impurity_inputnode = True
             found_host_parent = True
-        else:
-            if 'impurity_info' in parent_calc.get_incoming().all_link_labels():
-                imp_info = parent_calc.get_incoming().get_node_by_label('impurity_info')
-            else:
-                imp_info = None
-            if imp_info is None:
-                raise InputValidationError('host_Greenfunction calculation does not have an input node impurity_info')
-            found_impurity_inputnode = False
+        imp_info = get_imp_info_from_parent(parent_calc)
+        if imp_info is None:
+            raise InputValidationError('host_Greenfunction calculation does not have an input node impurity_info')
 
         # if impurity input is seperate input, check if it is the same as
         # the one from the parent calc (except for 'Zimp'). If that's not the
@@ -494,80 +480,8 @@ The Dict node should be of the form
         fill kkr params for KKRimp and write config file
         also writes kkrflex_llyfac file if Lloyd is used in the host system
         """
-        # initialize kkrimp parameter set with default values
-        params_kkrimp = kkrparams(
-            params_type='kkrimp',
-            NPAN_LOGPANELFAC=2,
-            RADIUS_MIN=-1,
-            NCOLL=0,
-            SPINORBIT=0,
-            SCFSTEPS=1,
-            IMIX=0,
-            MIXFAC=0.05,
-            ITDBRY=20,
-            BRYMIX=0.05,
-            QBOUND=10**-7,
-            RUNFLAG=[],
-            TESTFLAG=[],
-            HFIELD=[0.0, 0],
-            CALCFORCE=0,
-            CALCJIJMAT=0,
-            CALCORBITALMOMENT=0,
-            ICST=2
-        )
 
-        # keys that are being overwritten from host calculation settings
-        keys_overwrite = [
-            'NSPIN', 'KVREL', 'XC', 'INS', 'ICST', 'RADIUS_LOGPANELS', 'NPAN_EQ', 'NPAN_LOG', 'NCHEB', 'QBOUND'
-        ]
-        for key in keys_overwrite:
-            if key == 'XC':
-                key0 = 'KEXCOR'
-            elif key == 'RADIUS_LOGPANELS':
-                key0 = 'R_LOG'
-            elif key == 'MIXFAC':
-                key0 = 'STRMIX'
-            else:
-                key0 = key
-            val = params_host.get_value(key0)
-            if val is not None:
-                params_kkrimp.set_value(key, val)
-        # settings for SOC solver
-        runopts = params_host.get_value('RUNOPT')
-        if 'NEWSOSOL' in runopts:
-            params_kkrimp.set_multiple_values(NCOLL=1, SPINORBIT=1, CALCORBITALMOMENT=1, TESTFLAG=['tmatnew'])
-        else:
-            params_kkrimp.set_multiple_values(NCOLL=0, SPINORBIT=0, CALCORBITALMOMENT=0, TESTFLAG=[])
-
-        # extract input RUNFLAGS
-        runflag = None
-        if parameters is not None:
-            for (key, val) in parameters.get_set_values():
-                if key == 'RUNFLAG':
-                    runflag = list(val)
-        if runflag is None:
-            runflag = []
-
-        # special settings
-        runopts = params_host.get_value('RUNOPT')
-        if 'SIMULASA' in runopts or (params_kkrimp.get_value('NCOLL') > 0 and params_kkrimp.get_value('INS') == 0):
-            runflag.append('SIMULASA')
-        # take care of LLYsimple (i.e. Lloyd in host system)
-        if 'LLOYD' in runopts:
-            # add runflag for imp code
-            runflag.append('LLYsimple')
-            # also extract renormalization factor and create kkrflex_llyfac file (contains one value only)
-            with GFhost_folder.open('output.000.txt') as f:
-                txt = f.readlines()
-                iline = search_string('RENORM_LLY: Renormalization factor of total charge', txt)
-                if iline >= 0:
-                    llyfac = txt[iline].split()[-1]
-                    # now write kkrflex_llyfac to tempfolder where later on config file is also written
-                    with tempfolder.open(self._KKRFLEX_LLYFAC, 'w') as f2:
-                        f2.writelines([llyfac])
-
-        # now set runflags
-        params_kkrimp.set_value('RUNFLAG', runflag)
+        runflag, params_kkrimp = self._initialize_kkrimp_params(params_host, parameters, GFhost_folder, tempfolder)
 
         # overwrite keys if found in parent_calc (previous KKRimp calculation)
         # here `parent_calc_folder` is the `remote` output node of the previous KKRimp calculation
@@ -591,90 +505,13 @@ The Dict node should be of the form
         # special run mode: calculation of Jijs
         if parameters.get_value('CALCJIJMAT') is not None and parameters.get_value('CALCJIJMAT') == 1:
             self.report('Found CALCJIJMAT=1: trigger JIJ mode which overwrites IMIX, MIXFAC, SCFSTEPS and RUNFLAGs')
-
-            # settings in config file
-            runflag.append('force_angles')
-            # take care of LDA+U
-            if 'settings_LDAU' in self.inputs:
-                # this prevents mixing LDAU potential in between iterations
-                runflag.append('freezeldau')
-
-            # now add runflags
-            params_kkrimp.set_multiple_values(IMIX=0, MIXFAC=0., SCFSTEPS=3, RUNFLAG=runflag)
-
-            # for DOS mode add flag to writeout Jij info energy resolved (this will be retrieved if )
-            testflag = params_kkrimp.get_value('TESTFLAG')
-            testflag.append('Jij(E)')
-            params_kkrimp.set_value('TESTFLAG', testflag)
-
-            # extract NATOM from atominfo file
-            with GFhost_folder.open(self._KKRFLEX_ATOMINFO) as file:
-                atominfo = file.readlines()
-            itmp = search_string('NATOM', atominfo)
-            if itmp >= 0:
-                natom = int(atominfo[itmp + 1].split()[0])
-            else:
-                raise ValueError('Could not extract NATOM value from kkrflex_atominfo')
-
-            # now write kkrflex_angle file
-            with tempfolder.open(self._KKRFLEX_ANGLE, 'w') as kkrflex_angle_file:
-                for istep in range(3):
-                    for iatom in range(natom):
-                        if istep == 0:
-                            kkrflex_angle_file.write(f'   0.0    0.0    1\n')
-                        elif istep == 1:
-                            kkrflex_angle_file.write(f'  90.0    0.0    1\n')
-                        else:
-                            kkrflex_angle_file.write(f'  90.0   90.0    1\n')
+            runflag = self._activate_jij_calc(runflag, params_kkrimp, GFhost_folder, tempfolder)
 
         # write kkrflex_angle file
         # DOES NOT WORK TOGETHER WITH JIJ mode!!!
         if 'initial_noco_angles' in self.inputs:
             self.report('Found `initial_noco_angles` input node, writing kkrflex_angle file')
-
-            # check if calculation is no Jij run
-            if parameters.get_value('CALCJIJMAT') is not None and parameters.get_value('CALCJIJMAT') == 1:
-                raise InputValidationError('ERROR: ')
-
-            # extract NATOM from atominfo file
-            with GFhost_folder.open(self._KKRFLEX_ATOMINFO) as file:
-                atominfo = file.readlines()
-            itmp = search_string('NATOM', atominfo)
-            if itmp >= 0:
-                natom = int(atominfo[itmp + 1].split()[0])
-            else:
-                raise ValueError('Could not extract NATOM value from kkrflex_atominfo')
-
-            # extract values from input node
-            thetas = self.inputs.initial_noco_angles['theta']
-            if len(thetas) != natom:
-                raise InputValidationError(
-                    'Error: `theta` list in `initial_noco_angles` input node needs to have the same length as number of atoms in the impurity cluster!'
-                )
-            phis = self.inputs.initial_noco_angles['phi']
-            if len(phis) != natom:
-                raise InputValidationError(
-                    'Error: `phi` list in `initial_noco_angles` input node needs to have the same length as number of atoms in the impurity cluster!'
-                )
-            fix_dirs = self.inputs.initial_noco_angles['fix_dir']
-            if len(fix_dirs) != natom:
-                raise InputValidationError(
-                    'Error: `fix_dir` list in `initial_noco_angles` input node needs to have the same length as number of atoms in the impurity cluster!'
-                )
-
-            # now write kkrflex_angle file
-            with tempfolder.open(self._KKRFLEX_ANGLE, 'w') as kkrflex_angle_file:
-                for iatom in range(natom):
-                    theta, phi, fix_dir = thetas[iatom], phis[iatom], fix_dirs[iatom]
-                    # check consistency
-                    if theta < 0 or theta > 180:
-                        raise InputValidationError(
-                            f'Error: theta value out of range (0..180): iatom={iatom}, theta={theta}'
-                        )
-                    if phi < 0 or phi > 360:
-                        raise InputValidationError(f'Error: phi value out of range (0..360): iatom={iatom}, phi={phi}')
-                    # write line
-                    kkrflex_angle_file.write(f'   {theta}    {phi}    {fix_dir}\n')
+            self._write_kkrflex_angle(parameters, GFhost_folder, tempfolder)
 
         # write config.cfg
         with tempfolder.open(self._CONFIG, u'w') as config_file:
@@ -694,7 +531,12 @@ The Dict node should be of the form
         # read scoef for comparison with Rimp_rel
         scoef = []
         with tempfolder.open(KkrCalculation._SCOEF, u'r') as scoeffile:
-            scoef = loadtxt(scoeffile, skiprows=1)[:, :3]
+            n_rows = len(scoeffile.readlines()) - 1
+        with tempfolder.open(KkrCalculation._SCOEF, u'r') as scoeffile:
+            if n_rows > 1:
+                scoef = loadtxt(scoeffile, skiprows=1)[:, :3]
+            else:
+                scoef = loadtxt(scoeffile, skiprows=1)[:3]
 
         # find replaceZimp list from Zimp and Rimp_rel
         imp_info_dict = imp_info.get_dict()
@@ -707,7 +549,10 @@ The Dict node should be of the form
         for iatom in range(len(Zimp_list)):
             rtmp = array(Rimp_rel_list[iatom])[:3]
             self.report(f'INFO: Rimp_rel {iatom}, {rtmp}')
-            diff = sqrt(sum((rtmp - scoef)**2, axis=1))
+            if n_rows > 1:
+                diff = sqrt(sum((rtmp - scoef)**2, axis=1))
+            else:
+                diff = sqrt(sum((rtmp - scoef)**2, axis=0))
             Zimp = Zimp_list[iatom]
             ipos_replace = where(diff == diff.min())[0][0]
             replace_zatom_imp.append([ipos_replace, Zimp])
@@ -820,6 +665,222 @@ The Dict node should be of the form
         if '.dummy' in os.listdir(tempfolder_path):
             os.remove(os.path.join(tempfolder_path, '.dummy'))
 
+    def _get_natom(self, tempfolder):
+        """Get the number of atoms in the impurity cluster from kkrflex_atominfo file"""
+        with tempfolder.open(self._KKRFLEX_ATOMINFO) as file:
+            atominfo = file.readlines()
+        itmp = search_string('NATOM', atominfo)
+        if itmp >= 0:
+            natom = int(atominfo[itmp + 1].split()[0])
+        else:
+            raise ValueError('Could not extract NATOM value from kkrflex_atominfo')
+        return natom
+
+    def _initialize_kkrimp_params(self, params_host, parameters, GFhost_folder, tempfolder):
+        """Initialize KKRimp parameters and set keys that are the same as in the host calculation"""
+
+        # initialize kkrimp parameter set with default values
+        params_kkrimp = kkrparams(
+            params_type='kkrimp',
+            NPAN_LOGPANELFAC=2,
+            RADIUS_MIN=-1,
+            NCOLL=0,
+            SPINORBIT=0,
+            SCFSTEPS=1,
+            IMIX=0,
+            MIXFAC=0.05,
+            ITDBRY=20,
+            BRYMIX=0.05,
+            QBOUND=10**-7,
+            RUNFLAG=[],
+            TESTFLAG=[],
+            HFIELD=[0.0, 0],
+            CALCFORCE=0,
+            CALCJIJMAT=0,
+            CALCORBITALMOMENT=0,
+            ICST=2
+        )
+
+        # keys that are being overwritten from host calculation settings
+        keys_overwrite = [
+            'NSPIN', 'KVREL', 'XC', 'INS', 'ICST', 'RADIUS_LOGPANELS', 'NPAN_EQ', 'NPAN_LOG', 'NCHEB', 'QBOUND'
+        ]
+        for key in keys_overwrite:
+            if key == 'XC':
+                key0 = 'KEXCOR'
+            elif key == 'RADIUS_LOGPANELS':
+                key0 = 'R_LOG'
+            elif key == 'MIXFAC':
+                key0 = 'STRMIX'
+            else:
+                key0 = key
+            val = params_host.get_value(key0)
+            if val is not None:
+                params_kkrimp.set_value(key, val)
+
+        # settings for SOC solver
+        use_cheby = False
+        runopts = params_host.get_value('RUNOPT')
+        if runopts is not None and 'NEWSOSOL' in runopts:
+            use_cheby = True
+        if (
+            params_host.get_value('<USE_CHEBYCHEV_SOLVER>') is not None and
+            params_host.get_value('<USE_CHEBYCHEV_SOLVER>')
+        ):
+            use_cheby = True
+        if use_cheby:
+            params_kkrimp.set_multiple_values(NCOLL=1, SPINORBIT=1, CALCORBITALMOMENT=1, TESTFLAG=['tmatnew'])
+        else:
+            params_kkrimp.set_multiple_values(NCOLL=0, SPINORBIT=0, CALCORBITALMOMENT=0, TESTFLAG=[])
+
+        # SOC solver but with SOC strength scaled to zero
+        if use_cheby:
+            # maybe deactivate SOC in KKRimp calculation
+            self._set_nosoc(params_host, GFhost_folder, tempfolder)
+
+        # extract input RUNFLAGS
+        runflag = None
+        if parameters is not None:
+            for (key, val) in parameters.get_set_values():
+                if key == 'RUNFLAG':
+                    runflag = list(val)
+        if runflag is None:
+            runflag = []
+
+        # special settings
+        runopts = params_host.get_value('RUNOPT')
+        if 'SIMULASA' in runopts or (params_kkrimp.get_value('NCOLL') > 0 and params_kkrimp.get_value('INS') == 0):
+            runflag.append('SIMULASA')
+        # take care of LLYsimple (i.e. Lloyd in host system)
+        if 'LLOYD' in runopts:
+            runflag = self._use_lloyd(runflag, GFhost_folder, tempfolder)
+
+        # now set runflags
+        params_kkrimp.set_value('RUNFLAG', runflag)
+
+        return runflag, params_kkrimp
+
+    def _set_nosoc(self, params_host, GFhost_folder, tempfolder):
+        """Check if host is a noSOC calculation and then set the kkrflex_spinorbitperatom accordingly"""
+
+        # check if noSOC mode was used in the host run
+        nosoc = False
+        if (params_host.get_value('<SET_CHEBY_NOSOC>') is not None and params_host.get_value('<SET_CHEBY_NOSOC>')):
+            nosoc = True
+        if params_host.get_value('<SOCSCL>') is not None:
+            # TODO make this more flexible, now only SOC on/off is possible
+            socscale = params_host.get_value('<SOCSCL>')
+            try:
+                for scl in socscale:
+                    if scl < 1e-14:
+                        nosoc = True
+            except TypeError:
+                if socscale < 1e-14:
+                    nosoc = True
+
+        # maybe deactivate SOC by writing the kkrflex_spinorbitperatom file
+        if nosoc:
+            # extract NATOM from atominfo file
+            natom = self._get_natom(GFhost_folder)
+
+            # set soc scale factor (should be integer at the moment!)
+            socscale = [0 for i in range(natom)]
+
+            # now write kkrflex_spinorbitperatom file
+            with tempfolder.open(self._KKRFLEX_SOCFAC, 'w') as kkrflex_socfac:
+                for socscl in socscale:
+                    kkrflex_socfac.write(f' {socscl}\n')
+
+    def _use_lloyd(self, runflag, GFhost_folder, tempfolder):
+        """Use the LLYsimple version of KKRimp code with the average renormalization factor from the host calculation"""
+        # add runflag for imp code
+        runflag.append('LLYsimple')
+        # also extract renormalization factor and create kkrflex_llyfac file (contains one value only)
+        with GFhost_folder.open('output.000.txt') as f:
+            txt = f.readlines()
+            iline = search_string('RENORM_LLY: Renormalization factor of total charge', txt)
+            if iline >= 0:
+                llyfac = txt[iline].split()[-1]
+                # now write kkrflex_llyfac to tempfolder where later on config file is also written
+                with tempfolder.open(self._KKRFLEX_LLYFAC, 'w') as f2:
+                    f2.writelines([llyfac])
+        return runflag
+
+    def _activate_jij_calc(self, runflag, params_kkrimp, GFhost_folder, tempfolder):
+        """Adapt runoptions to use Jij calculation and set inputs for Jij run"""
+
+        # settings in config file
+        runflag.append('force_angles')
+        # take care of LDA+U
+        if 'settings_LDAU' in self.inputs:
+            # this prevents mixing LDAU potential in between iterations
+            runflag.append('freezeldau')
+
+        # now add runflags
+        params_kkrimp.set_multiple_values(IMIX=0, MIXFAC=0., SCFSTEPS=3, RUNFLAG=runflag)
+
+        # for DOS mode add flag to writeout Jij info energy resolved (this will be retrieved if )
+        testflag = params_kkrimp.get_value('TESTFLAG')
+        testflag.append('Jij(E)')
+        params_kkrimp.set_value('TESTFLAG', testflag)
+
+        # extract NATOM from atominfo file
+        natom = self._get_natom(GFhost_folder)
+
+        # now write kkrflex_angle file
+        with tempfolder.open(self._KKRFLEX_ANGLE, 'w') as kkrflex_angle_file:
+            for istep in range(3):
+                for iatom in range(natom):
+                    if istep == 0:
+                        kkrflex_angle_file.write(f'   0.0    0.0    1\n')
+                    elif istep == 1:
+                        kkrflex_angle_file.write(f'  90.0    0.0    1\n')
+                    else:
+                        kkrflex_angle_file.write(f'  90.0   90.0    1\n')
+
+        return runflag
+
+    def _write_kkrflex_angle(self, parameters, GFhost_folder, tempfolder):
+        """Create the kkrflex_angle file in tempfolder"""
+
+        # check if calculation is no Jij run
+        if parameters.get_value('CALCJIJMAT') is not None and parameters.get_value('CALCJIJMAT') == 1:
+            raise InputValidationError('ERROR: ')
+
+        # extract NATOM from atominfo file
+        natom = self._get_natom(GFhost_folder)
+
+        # extract values from input node
+        thetas = self.inputs.initial_noco_angles['theta']
+        if len(thetas) != natom:
+            raise InputValidationError(
+                'Error: `theta` list in `initial_noco_angles` input node needs to have the same length as number of atoms in the impurity cluster!'
+            )
+        phis = self.inputs.initial_noco_angles['phi']
+        if len(phis) != natom:
+            raise InputValidationError(
+                'Error: `phi` list in `initial_noco_angles` input node needs to have the same length as number of atoms in the impurity cluster!'
+            )
+        fix_dirs = self.inputs.initial_noco_angles['fix_dir']
+        if len(fix_dirs) != natom:
+            raise InputValidationError(
+                'Error: `fix_dir` list in `initial_noco_angles` input node needs to have the same length as number of atoms in the impurity cluster!'
+            )
+
+        # now write kkrflex_angle file
+        with tempfolder.open(self._KKRFLEX_ANGLE, 'w') as kkrflex_angle_file:
+            for iatom in range(natom):
+                theta, phi, fix_dir = thetas[iatom], phis[iatom], fix_dirs[iatom]
+                # check consistency
+                if theta < 0 or theta > 180:
+                    raise InputValidationError(
+                        f'Error: theta value out of range (0..180): iatom={iatom}, theta={theta}'
+                    )
+                if phi < 0 or phi > 360:
+                    raise InputValidationError(f'Error: phi value out of range (0..360): iatom={iatom}, phi={phi}')
+                # write line
+                kkrflex_angle_file.write(f'   {theta}    {phi}    {fix_dir}\n')
+
     def _check_key_setting_consistency(self, params_kkrimp, key, val):
         """
         Check if key/value pair that is supposed to be set is not in conflict with previous settings of parameters in params_kkrimp
@@ -846,37 +907,20 @@ The Dict node should be of the form
         """Add DOS files to retrieve list"""
 
         if 'lmdos' in allopts or 'ldos' in allopts:
-            # extract NSPIN
+            # check if mode is Jij
             with tempfolder.open(self._CONFIG) as file:
                 config = file.readlines()
-            itmp = search_string('NSPIN', config)
-            if itmp >= 0:
-                nspin = int(config[itmp].split()[-1])
-            else:
-                raise ValueError('Could not extract NSPIN value from config.cfg')
-            # check if mode is Jij
             itmp = search_string('CALCJIJMAT', config)
             if itmp >= 0:
                 calcjijmat = int(config[itmp].split()[-1])
             else:
                 raise ValueError('Could not extract CALCJIJMAT value from config.cfg')
 
-            # extract NATOM from atominfo file
-            with tempfolder.open(self._KKRFLEX_ATOMINFO) as file:
-                atominfo = file.readlines()
-            itmp = search_string('NATOM', atominfo)
-            if itmp >= 0:
-                natom = int(atominfo[itmp + 1].split()[0])
-            else:
-                raise ValueError('Could not extract NATOM value from kkrflex_atominfo')
-
-            # loop over atoms and spins to add DOS output files accordingly
-            for iatom in range(1, natom + 1):
-                for ispin in range(1, nspin + 1):
-                    retrieve_list.append((self._OUT_LDOS_BASE % (iatom, ispin)).replace(' ', '0'))
-                    retrieve_list.append((self._OUT_LDOS_INTERPOL_BASE % (iatom, ispin)).replace(' ', '0'))
-                    retrieve_list.append((self._OUT_LMDOS_BASE % (iatom, ispin)).replace(' ', '0'))
-                    retrieve_list.append((self._OUT_LMDOS_INTERPOL_BASE % (iatom, ispin)).replace(' ', '0'))
+            # add DOS output files accordingly (names have '*' ending to catch all files for atoms
+            retrieve_list.append(self._OUT_LDOS)
+            retrieve_list.append(self._OUT_LDOS_INTERPOL)
+            retrieve_list.append(self._OUT_LMDOS)
+            retrieve_list.append(self._OUT_LMDOS_INTERPOL)
             # add Jij of E file if Jij mode
             if calcjijmat > 0:
                 with kkrflex_file_paths[self._KKRFLEX_TMAT].open(self._KKRFLEX_TMAT, 'r') as f:
@@ -885,8 +929,7 @@ The Dict node should be of the form
                         txt.append(f.readline())
                     nepts = int(txt[1].split()[3])
                 for ie in range(1, nepts + 1):
-                    retrieve_list.append(self._OUT_JIJ_OF_E_BASE % ie)  # energy resolved values
-                    retrieve_list.append((self._OUT_JIJ_OF_E_BASE.replace('IE', 'IE_int')) % ie)  # integrated values
+                    retrieve_list.append(self._OUT_JIJ_OF_E)  # energy resolved values
 
         return retrieve_list
 
@@ -963,13 +1006,7 @@ The Dict node should be of the form
             ef_Ry = get_ef_from_potfile(potfile)
 
         # extract NATOM from atominfo file
-        with tempfolder.open(self._KKRFLEX_ATOMINFO) as file:
-            atominfo = file.readlines()
-        itmp = search_string('NATOM', atominfo)
-        if itmp >= 0:
-            natom = int(atominfo[itmp + 1].split()[0])
-        else:
-            raise ValueError('Could not extract NATOM value from kkrflex_atominfo')
+        natom = self._get_natom(tempfolder)
 
         # get old ldaupot file
         reuse_old_ldaupot = self.get_old_ldaupot(parent_calc_folder, tempfolder)
@@ -1086,6 +1123,7 @@ The Dict node should be of the form
         returns True of ldaupot was found, otherwise returns False
         """
         tar_filenames = []
+        has_ldaupot = False
         if self._FILENAME_TAR in retrieved.list_object_names():
             # get path of tempfolder
             with tempfolder.open('.dummy', 'w') as tmpfile:
@@ -1137,85 +1175,3 @@ The Dict node should be of the form
                 raise ValueError('Could not extract CALCJIJMAT value from config.cfg')
 
         return retrieve_list
-
-
-def get_ldaupot_text(ldau_settings, ef_Ry, natom, initialize=True):
-    """
-    create the text for the ldaupot file
-    """
-    from masci_tools.io.common_functions import get_Ry2eV
-
-    eV2Ry = 1. / get_Ry2eV()
-
-    # these lists are extracted from ldau_settings node and then written to the ldaupot file
-    iatoms_ldau = []
-    lopt = []
-    ueff = []
-    jeff = []
-    eref = []
-
-    # extract values from ldau_settings
-    for key, val in ldau_settings.items():
-        if 'iatom' in key:
-            iatoms_ldau.append(int(key.split('=')[1]))
-            lopt.append(val['L'])
-            # add values in Ry units
-            jeff.append(val['J'] * eV2Ry)
-            ueff.append(val['U'] * eV2Ry)
-            eref.append(val['Eref_EF'] * eV2Ry + ef_Ry)
-
-    if initialize:
-        # this means we initialize this file
-        ldaurun = 0
-    else:
-        # this means wldau etc are reused (need to be added to the file)
-        ldaurun = 1
-
-    # collect text which is written to ldaupot
-    txt = [f'{ldaurun} ']
-    txt_lopt, txt_jeff, txt_ueff, txt_eref = [], [], [], []
-    ii = 0
-    for iatom in range(natom):
-        if iatom not in iatoms_ldau:
-            txt_lopt += [f'{-1} ']
-            txt_jeff += [f'{0.0} ']
-            txt_ueff += [f'{0.0} ']
-            txt_eref += [f'{0.0} ']
-        else:
-            txt_lopt += [f'{lopt[ii]} ']
-            txt_jeff += [f'{jeff[ii]} ']
-            txt_ueff += [f'{ueff[ii]} ']
-            txt_eref += [f'{eref[ii]} ']
-            ii += 1
-    txt += ['\n'] + txt_lopt + ['\n'] + txt_ueff + ['\n'] + txt_jeff + ['\n'] + txt_eref
-    txt += ['\nwldau\nuldau\nphi\n']
-
-    # add initial matrices
-    if initialize and 'initial_matrices' in ldau_settings.keys():
-        # save for consistency check
-        nldauatoms = ii
-
-        # change first number from 0 to 1 to signal reading-in instead of calculating initial matrices
-        txt[0] = '1 '
-
-        # remove last dummy line, will be replaced with starting values now
-        txt[-1] = '\n'
-        txt_wldau = ['wldau\n']
-        txt_uldau = ['uldau\n']
-        txt_phi = ['phi\n']
-        ii = 0
-        for iatom in range(natom):
-            if iatom in iatoms_ldau:
-                txt_wldau += [f'atom {iatom+1}\n'] + ldau_settings['initial_matrices'][f'iatom={iatom}']['wldau']
-                txt_uldau += [f'atom {iatom+1}\n'] + ldau_settings['initial_matrices'][f'iatom={iatom}']['uldau']
-                txt_phi += [f'atom {iatom+1}\n'] + ldau_settings['initial_matrices'][f'iatom={iatom}']['phi']
-                ii += 1  # count number of atoms
-
-        # consistency check
-        if nldauatoms != ii:
-            raise ValueError('initial_matrices input inconsistent')
-
-        # add additional lines to txt
-        txt = txt + txt_wldau + txt_uldau + txt_phi
-
-    return txt

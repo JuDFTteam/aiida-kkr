@@ -88,7 +88,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.8", "3.9", "3.10"]
-        aiida: [{version: 'aiida-core==2.1.2', name: '2.1.2'}]
+        aiida: [{version: 'aiida-core==2.3.0', name: '2.3.0'}]
         masci-tools: [{version: 'git+https://github.com/JuDFTteam/masci-tools.git@develop', name: '-masci-develop'}]
         allowed-to-fail: [false]
 
@@ -183,5 +183,6 @@ jobs:
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         file: ./tests/coverage.xml
         fail_ci_if_error: true
