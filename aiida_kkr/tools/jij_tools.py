@@ -334,6 +334,11 @@ def parse_jij_calc_data(
             jijs_shells_x, jijs_shells_y, jijs_shells_z, shells, cell, get_sites(structure), alat, verbose=verbose
         )
 
+    # sort arrays
+    isort = np.lexsort(jijs_expanded[:, :5][:, ::-1].transpose())
+    jijs_expanded = jijs_expanded[isort]
+    positions_expanded = positions_expanded[isort]
+
     # create an auxiliary structure that contains only the sites which are used in the Jij step
     # (i.e. we drop all sites where we don't have couplings)
     struc_jij_sites, mappings_back, mu_s = get_jij_structure(structure, jijs_expanded, jij_calc)
