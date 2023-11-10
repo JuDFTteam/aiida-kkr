@@ -7,9 +7,7 @@ from aiida.cmdline.utils import decorators
 from aiida.cmdline.params import arguments
 
 
-@click.command(
-    name='plot',
-)
+@click.command(name='plot',)
 @click.option('-f', 'filename', type=click.File('r'), default=None)
 @click.option(
     '-o',
