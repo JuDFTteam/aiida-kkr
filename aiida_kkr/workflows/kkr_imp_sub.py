@@ -17,7 +17,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.9.4'
+__version__ = '0.10.0'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann')
 
 #TODO: work on return results function
@@ -82,8 +82,6 @@ class kkr_imp_sub_wc(WorkChain):
         False,  # specify if DOS should be calculated (!KKRFLEXFILES with energy contour necessary as GF_remote_data!)
         'lmdos': True,  # specify if DOS calculation should calculate l-resolved or l and m resolved output
         'jij_run': False,  # specify if Jijs should be calculated (!changes behavior of the code!!!)
-        'do_final_cleanup':
-        True,  # decide whether or not to clean up intermediate files (THIS BREAKS CACHABILITY!) # TODO: remove for aiida-core>2
         #                   # Some parameter for direct solver (if None, use the same as in host code, otherwise overwrite)
         'accuracy_params': {
             'RADIUS_LOGPANELS': None,  # where to set change of logarithmic to linear radial mesh
@@ -131,6 +129,8 @@ class kkr_imp_sub_wc(WorkChain):
             required=False,
             help='Dict of parameters that are given to the KKRimpCalculation. Overwrites automatically set values!'
         )
+
+        spec.expose_inputs(KkrimpCalculation, include=('initial_noco_angles'))
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -229,8 +229,6 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.last_remote = None
         # link to previous host impurity potential
         self.ctx.last_pot = None
-        # intermediate single file data objects that contain potential files which can be clean up at the end
-        self.ctx.sfd_pot_to_clean = []
         # convergence info about rms etc. (used to determine convergence behavior)
         self.ctx.last_rms_all = []
         self.ctx.rms_all_steps = []
@@ -252,9 +250,6 @@ class kkr_imp_sub_wc(WorkChain):
             wf_dict = self._wf_default
             message = 'INFO: using default wf parameter'
             self.report(message)
-
-        # cleanup intermediate calculations (WARNING: THIS PREVENTS USING CACHING!!!)
-        self.ctx.do_final_cleanup = wf_dict.get('do_final_cleanup', self._wf_default['do_final_cleanup'])
 
         # set option parameters from input, or defaults
         self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
@@ -765,7 +760,6 @@ class kkr_imp_sub_wc(WorkChain):
             emin = GF_out_params.get_dict().get('energy_contour_group').get('emin')
             # then use this value to get rid of all core states that are lower than emin (return the same input potential if no states have been removed
             imp_pot = kick_out_corestates_wf(imp_pot, Float(emin))
-            self.ctx.sfd_pot_to_clean.append(imp_pot)
             if 'impurity_info' in self.inputs:
                 message = 'INFO: using impurity_info node as input for kkrimp calculation'
                 self.report(message)
@@ -858,9 +852,10 @@ class kkr_imp_sub_wc(WorkChain):
         # add LDA+U input node if it was set in parent calculation of last kkrimp_remote or from input port
         if self.ctx.settings_LDAU is not None:
             inputs['settings_LDAU'] = self.ctx.settings_LDAU
-        # set cleanup option
-        if int(aiida_core_version.split('.')[0]) < 2 and self.ctx.do_final_cleanup:
-            inputs['cleanup_outfiles'] = Bool(self.ctx.do_final_cleanup)
+
+        # set nonco angles if given
+        if 'initial_noco_angles' in self.inputs:
+            inputs['initial_noco_angles'] = self.inputs.initial_noco_angles
 
         # run the KKR calculation
         message = 'INFO: doing calculation'
@@ -895,7 +890,6 @@ class kkr_imp_sub_wc(WorkChain):
             retrieved_folder = self.ctx.kkr.outputs.retrieved
             imp_pot_sfd = extract_imp_pot_sfd(retrieved_folder)
             self.ctx.last_pot = imp_pot_sfd
-            self.ctx.sfd_pot_to_clean.append(self.ctx.last_pot)
             print('use potfile sfd:', self.ctx.last_pot)
         except:
             message = 'ERROR: no output potential found'
@@ -1199,36 +1193,12 @@ class kkr_imp_sub_wc(WorkChain):
             """
         self.report(message)
 
-        # cleanup of unnecessary files after convergence
-        # WARNING: THIS DESTROYS CACHABILITY OF THE WORKFLOW!!!
-        if self.ctx.do_final_cleanup:
-            if self.ctx.successful:
-                self.report('INFO: clean output of calcs')
-                remove_out_pot_impcalcs(self.ctx.successful, all_pks)
-                self.report('INFO: clean up raw_input folders')
-                clean_raw_input(self.ctx.successful, all_pks)
-
-            # clean intermediate single file data which are not needed after successful run or after DOS run
-            if self.ctx.successful or self.ctx.dos_run:
-                self.final_cleanup()
-
         self.report('INFO: done with kkr_scf workflow!\n')
 
     def error_handler(self):
         """Capture errors raised in validate_input"""
         if self.ctx.exit_code is not None:
             return self.ctx.exit_code
-
-    def final_cleanup(self):
-        uuid_last_calc = self.ctx.last_pot.uuid
-        if not self.ctx.dos_run:
-            sfds_to_clean = [i for i in self.ctx.sfd_pot_to_clean if i.uuid != uuid_last_calc]
-        else:
-            # in case of DOS run we can also clean the last output sfd file since this is never used
-            sfds_to_clean = self.ctx.sfd_pot_to_clean
-        # now clean all sfd files that are not needed anymore
-        for sfd_to_clean in sfds_to_clean:
-            clean_sfd(sfd_to_clean)
 
     def _overwrite_parameters_from_input(self, new_params):
         """Overwrite input parameters for KKRimpCalculation if found in input"""
@@ -1240,120 +1210,6 @@ class kkr_imp_sub_wc(WorkChain):
                 self.report(f'old value: {new_params[key]}')
                 self.report(f'overwritten value: {val}')
             new_params[key] = val
-
-
-def remove_out_pot_impcalcs(successful, pks_all_calcs, dry_run=False):
-    """
-    Remove out_potential file from all but the last KKRimp calculation if workflow was successful
-
-    Usage::
-
-        imp_wf = load_node(266885) # maybe start with outer workflow
-        pk_imp_scf = imp_wf.outputs.workflow_info['used_subworkflows'].get('kkr_imp_sub')
-        imp_scf_wf = load_node(pk_imp_scf) # this is now the imp scf sub workflow
-        successful = imp_scf_wf.outputs.workflow_info['successful']
-        pks_all_calcs = imp_scf_wf.outputs.workflow_info['pks_all_calcs']
-    """
-    import tarfile, os
-    from aiida.orm import load_node
-    from aiida.common.folders import SandboxFolder
-    from aiida_kkr.calculations import KkrimpCalculation
-
-    if dry_run:
-        print('test', successful, len(pks_all_calcs))
-
-    # name of tarfile
-    tfname = KkrimpCalculation._FILENAME_TAR
-
-    # cleanup only if calculation was successful
-    if successful and len(pks_all_calcs) > 1:
-        # remove out_potential for calculations
-        # note that also last calc can be cleaned since output potential is stored in single file data
-        pks_for_cleanup = pks_all_calcs[:]
-
-        # loop over all calculations
-        for pk in pks_for_cleanup:
-            if dry_run:
-                print('pk_for_cleanup:', pk)
-            # get getreived folder of calc
-            calc = load_node(pk)
-            ret = calc.outputs.retrieved
-
-            # open tarfile if present
-            if tfname in ret.list_object_names():
-                delete_and_retar = False
-                with ret.open(tfname) as tf:
-                    tf_abspath = tf.name
-
-                # create Sandbox folder which is used to temporarily extract output_all.tar.gz
-                tmpfolder = SandboxFolder()
-                tmpfolder_path = tmpfolder.abspath
-                with tarfile.open(tf_abspath) as tf:
-                    tar_filenames = [ifile.name for ifile in tf.getmembers()]
-                    # check if out_potential is in tarfile
-                    if KkrimpCalculation._OUT_POTENTIAL in tar_filenames:
-                        tf.extractall(tmpfolder_path)
-                        delete_and_retar = True
-
-                if delete_and_retar and not dry_run:
-                    # delete out_potential
-                    os.remove(os.path.join(tmpfolder_path, KkrimpCalculation._OUT_POTENTIAL))
-                    with tarfile.open(tf_abspath, 'w:gz') as tf:
-                        # remove out_potential from list of files
-                        tar_filenames = [i for i in tar_filenames if i != KkrimpCalculation._OUT_POTENTIAL]
-                        for f in tar_filenames:
-                            # create new tarfile without out_potential file
-                            fabs = os.path.join(tmpfolder_path, f)
-                            tf.add(fabs, arcname=os.path.basename(fabs))
-                elif dry_run:
-                    print('dry run:')
-                    print('delete and retar?', delete_and_retar)
-                    print('tmpfolder_path', tmpfolder_path)
-
-                # clean up temporary Sandbox folder
-                if not dry_run:
-                    tmpfolder.erase()
-
-
-def clean_raw_input(successful, pks_calcs, dry_run=False):
-    """
-    Clean raw_input directories that contain copies of shapefun and potential files
-    This however breaks provenance (strictly speaking) and therefore should only be done
-    for the calculations of a successfully finished workflow (see email on mailing list from 25.11.2019).
-    """
-    from aiida.orm import load_node
-    from aiida_kkr.calculations import KkrimpCalculation
-    if successful:
-        for pk in pks_calcs:
-            node = load_node(pk)
-            # clean only nodes that are KkrimpCalculations
-            if node.process_class == KkrimpCalculation:
-                raw_input_folder = node._raw_input_folder
-                # clean potential and shapefun files
-                for filename in [KkrimpCalculation._POTENTIAL, KkrimpCalculation._SHAPEFUN]:
-                    if filename in raw_input_folder.get_content_list():
-                        if dry_run:
-                            print(f'clean {filename}')
-                        else:
-                            raw_input_folder.remove_path(filename)
-    elif dry_run:
-        print('no raw_inputs to clean')
-
-
-def clean_sfd(sfd_to_clean, nkeep=30):
-    """
-    Clean up potential file (keep only header) to save space in the repository
-    WARNING: this breaks cachability!
-    """
-    with sfd_to_clean.open(sfd_to_clean.filename) as f:
-        txt = f.readlines()
-    # remove all lines after nkeep lines
-    txt2 = txt[:nkeep]
-    # add note to end of file
-    txt2 += [u'WARNING: REST OF FILE WAS CLEANED SO SAVE SPACE!!!\n']
-    # overwrite file
-    with sfd_to_clean.open(sfd_to_clean.filename, 'w') as fnew:
-        fnew.writelines(txt2)
 
 
 @calcfunction

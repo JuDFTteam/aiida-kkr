@@ -26,7 +26,7 @@ from aiida_kkr.workflows.bs import set_energy_params
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.8.3'
+__version__ = '0.8.4'
 __contributors__ = u'Philipp Rüßmann'
 
 
@@ -121,6 +121,22 @@ class kkr_dos_wc(WorkChain):
             valid_type=orm.Dict,
             required=False,
             help='Overwrite some input parameters of the parent KKR calculation.'
+        )
+        # expose LDAU input node
+        spec.input(
+            'settings_LDAU',
+            valid_type=orm.Dict,
+            required=False,
+            help="""
+Settings for running a LDA+U calculation. The Dict node should be of the form
+    settings_LDAU = Dict(dict={'iatom=0':{
+        'L': 3,         # l-block which gets U correction (1: p, 2: d, 3: f-electrons)
+        'U': 7.,        # U value in eV
+        'J': 0.75,      # J value in eV
+        'Eref_EF': 0.,  # reference energy in eV relative to the Fermi energy. This is the energy where the projector wavefunctions are calculated (should be close in energy where the states that are shifted lie (e.g. for Eu use the Fermi energy))
+    }})
+    Note: you can add multiple entries like the one for iatom==0 in this example. The atom index refers to the corresponding atom in the impurity cluster.
+"""
         )
 
         # define outputs
@@ -427,6 +443,11 @@ class kkr_dos_wc(WorkChain):
                     noco_angles = parent_calc.inputs.initial_noco_angles
                 inputs['initial_noco_angles'] = noco_angles
                 self.report(f'extract nonco angles and use from parent ({noco_angles})')
+
+        # LDA+U settings
+        if 'settings_LDAU' in self.inputs:
+            self.report('Add settings_LDAU input node')
+            inputs.settings_LDAU = self.inputs.settings_LDAU
 
         # run the DOS calculation
         self.report('INFO: doing calculation')

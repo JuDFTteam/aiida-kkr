@@ -9,7 +9,7 @@ from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
 __copyright__ = (u'Copyright (c), 2022, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 __contributors__ = (u'David Antognini Silva, Philipp Rüßmann')
 
 # TODO: add _wf_default parameters and activate get_wf_defaults method
@@ -27,7 +27,7 @@ class kkrimp_BdG_wc(WorkChain):
     The intermediate steps (1 & 2a) can be skipped by providing the corresponding nodes as inputs to the workflow.
 
     inputs::
-        :param options: (Dict), Workchain specifications
+        :param options: (Dict), computer options
         :param impurity_info: (Dict), information about the impurity cluster
         :param voronoi: (Code), Voronoi code for creating the impurity starting potential
         :param kkr: (Code), KKR host code for the writing out kkrflex files
@@ -37,8 +37,9 @@ class kkrimp_BdG_wc(WorkChain):
         :param imp_scf.startpot: (SinglefileData), converged impurity potential, skips the impurity scf calculation if provided
         :param imp_scf.wf_parameters: (Dict), parameters for the kkr impurity scf
         :param imp_scf.gf_writeout.params_kkr_overwrite: (Dict), set some input parameters of the KKR calculation for the GF writeout step of impurity scf workchain
+        :param imp_scf.gf_writeout.options: (Dict), computer settings
         :param imp_scf.scf.params_overwrite: (Dict), set some input parameters of the KKR impurity scf
-        :param imp_scf.options: (Dict), specifications for impurity scf workchain
+        :param imp_scf.options: (Dict), computer settings
         :param imp_scf.remote_data_host: (RemoteData), parent folder of converged host normal state KkrCalculation
 
         :param dos.wf_parameters: (Dict), parameters for the DOS calculation
@@ -46,7 +47,8 @@ class kkrimp_BdG_wc(WorkChain):
         :param dos.gf_writeout.params_kkr_overwrite: (Dict), set some input parameters of the KKR calculation for the GF writeout step of imßpurity dos workchain
         :param dos.gf_writeout.host_remote: (RemoteData), parent folder of kkrflex writeout step for DOS calculation
         :param dos.gf_writeout.kkr: (Code), KKR code for writing out of kkrflex files for impurity DOS calculation
-        :param dos.options: (Dict), specifications for BdG impurity DOS calculation
+        :param dos.gf_writeout.options: (Dict), computer settings
+        :param dos.options: (Dict), computer settings
 
     returns::
         :return workflow_info: (Dict), Information on workflow results
@@ -142,7 +144,7 @@ class kkrimp_BdG_wc(WorkChain):
         spec.expose_inputs(
             kkr_imp_wc,
             namespace='imp_scf',
-            include=('startpot', 'wf_parameters', 'gf_writeout', 'scf.params_overwrite')
+            include=('startpot', 'wf_parameters', 'gf_writeout', 'scf.params_overwrite', 'scf.initial_noco_angles')
         )
         spec.inputs['imp_scf']['gf_writeout']['kkr'].required = False
         spec.input('imp_scf.options', required=False, help='computer options for impurity scf step')
@@ -155,7 +157,11 @@ class kkrimp_BdG_wc(WorkChain):
         )
 
         # inputs for impurity BdG scf
-        spec.expose_inputs(kkr_imp_wc, namespace='BdG_scf', include=('startpot', 'remote_data_gf', 'gf_writeout'))
+        spec.expose_inputs(
+            kkr_imp_wc,
+            namespace='BdG_scf',
+            include=('startpot', 'remote_data_gf', 'gf_writeout', 'scf.initial_noco_angles')
+        )
         spec.inputs['BdG_scf']['gf_writeout']['kkr'].required = False
         spec.input('BdG_scf.options', required=False, help='computer options for BdG impurity scf step')
 
@@ -164,7 +170,11 @@ class kkrimp_BdG_wc(WorkChain):
         )
 
         # inputs for impurity dos
-        spec.expose_inputs(kkr_imp_dos_wc, namespace='dos', include=('wf_parameters', 'gf_dos_remote', 'gf_writeout'))
+        spec.expose_inputs(
+            kkr_imp_dos_wc,
+            namespace='dos',
+            include=('wf_parameters', 'gf_dos_remote', 'gf_writeout', 'initial_noco_angles')
+        )
 
         spec.input(
             'dos.gf_writeout.host_remote',
@@ -273,8 +283,12 @@ class kkrimp_BdG_wc(WorkChain):
             builder.options = self.inputs.imp_scf.options
         else:
             builder.options = self.inputs.options
+        if 'initial_noco_angles' in self.inputs.imp_scf:
+            builder.scf.initial_noco_angles = self.inputs.imp_scf.initial_noco_angles  # pylint: disable=no-member
 
         if 'gf_writeout' in self.inputs.imp_scf:
+            if 'options' in self.inputs.imp_scf.gf_writeout:
+                builder.gf_writeout.options = self.inputs.imp_scf.gf_writeout.options  # pylint: disable=no-member
             if 'kkr' in self.inputs.imp_scf.gf_writeout:
                 builder.kkr = self.inputs.imp_scf.gf_writeout.kkr
             if 'params_kkr_overwrite' in self.inputs.imp_scf.gf_writeout:
@@ -315,6 +329,8 @@ class kkrimp_BdG_wc(WorkChain):
                 builder.params_kkr_overwrite = self.inputs.BdG_scf.gf_writeout.params_kkr_overwrite
         if 'kkr' in self.inputs:
             builder.gf_writeout.kkr = builder.kkr  # pylint: disable=no-member
+        if 'initial_noco_angles' in self.inputs.BdG_scf:
+            builder.scf.initial_noco_angles = self.inputs.BdG_scf.initial_noco_angles  # pylint: disable=no-member
 
         builder.remote_data_host = self.inputs.BdG_scf.remote_data_host
 
@@ -380,6 +396,10 @@ class kkrimp_BdG_wc(WorkChain):
                 else:
                     builder.options = self.inputs.options
 
+        # set nonco angles
+        if 'initial_noco_angles' in self.inputs.dos:
+            builder.initial_noco_angles = self.inputs.dos.initial_noco_angles
+
         # skip BdG step and just use the starting potential instead?
         # faster and same accuracy?!
         if 'startpot' in self.inputs.BdG_scf:
@@ -412,6 +432,8 @@ class kkrimp_BdG_wc(WorkChain):
                 builder.params_kkr_overwrite = self.inputs.dos.gf_writeout.params_kkr_overwrite
             if 'host_remote' in self.inputs.dos.gf_writeout:
                 builder.host_remote = self.inputs.dos.gf_writeout.host_remote
+            if 'options' in self.inputs.dos.gf_writeout:
+                builder.gf_writeout.options = self.inputs.dos.gf_writeout.options  # pylint: disable=no-member
         if 'kkr' in self.inputs:
             builder.gf_writeout.kkr = builder.kkr  # pylint: disable=no-member
         if 'gf_dos_remote' in self.inputs.dos:

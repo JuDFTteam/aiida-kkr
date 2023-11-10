@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aiida-kkr"
-version = "2.0.0"
+version = "2.0.1"
 description = "AiiDA plugin for the JuKKR codes"
 classifiers = [
     "License :: OSI Approved :: MIT License",
@@ -60,7 +60,7 @@ Documentation = "https://aiida-kkr.readthedocs.io"
 [project.optional-dependencies]
 pre-commit = [
     "pre-commit==3.3.3",
-    "yapf==0.33.0",
+    "yapf==0.40.1",
     "pylint==1.9.4; python_version<'3.0'",
     "pylint==2.17.2; python_version>='3.0'",
 ]
