@@ -11,7 +11,7 @@ from aiida.common.datastructures import (CalcInfo, CodeInfo)
 from masci_tools.io.kkr_params import kkrparams
 from .voro import VoronoiCalculation
 from .kkr import KkrCalculation
-from aiida_kkr.tools.tools_kkrimp import modify_potential, make_scoef, write_scoef_full_imp_cls
+from aiida_kkr.tools.tools_kkrimp import modify_potential, make_scoef, write_scoef_full_imp_cls, get_imp_info_from_parent
 from aiida_kkr.tools.common_workfunctions import get_username
 from aiida_kkr.tools.ldau import get_ldaupot_text
 from masci_tools.io.common_functions import search_string, get_ef_from_potfile
@@ -22,7 +22,7 @@ from numpy import array, array_equal, sqrt, sum, where, loadtxt
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.9.0'
+__version__ = '0.9.1'
 __contributors__ = (u'Philipp Rüßmann', u'Fabian Bertoldo')
 
 #TODO: implement 'ilayer_center' consistency check
@@ -294,26 +294,16 @@ The Dict node should be of the form
         else:
             parent_calc = parent_calcs.first().node
         # extract impurity_info
+        found_impurity_inputnode = False
         if 'impurity_info' in self.inputs:
             imp_info_inputnode = self.inputs.impurity_info
             if not isinstance(imp_info_inputnode, Dict):
                 raise InputValidationError('impurity_info not of type Dict')
-            if 'impurity_info' in parent_calc.get_incoming().all_link_labels():
-                imp_info = parent_calc.get_incoming().get_node_by_label('impurity_info')
-            else:
-                imp_info = None
-            if imp_info is None:
-                raise InputValidationError('host_Greenfunction calculation does not have an input node impurity_info')
             found_impurity_inputnode = True
             found_host_parent = True
-        else:
-            if 'impurity_info' in parent_calc.get_incoming().all_link_labels():
-                imp_info = parent_calc.get_incoming().get_node_by_label('impurity_info')
-            else:
-                imp_info = None
-            if imp_info is None:
-                raise InputValidationError('host_Greenfunction calculation does not have an input node impurity_info')
-            found_impurity_inputnode = False
+        imp_info = get_imp_info_from_parent(parent_calc)
+        if imp_info is None:
+            raise InputValidationError('host_Greenfunction calculation does not have an input node impurity_info')
 
         # if impurity input is seperate input, check if it is the same as
         # the one from the parent calc (except for 'Zimp'). If that's not the

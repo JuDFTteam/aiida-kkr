@@ -9,6 +9,9 @@ from aiida.orm import load_node, Dict, load_group
 from aiida_kkr.workflows import combine_imps_wc
 from ..conftest import import_with_migration
 
+# activate debug mode?
+_debug = True
+
 
 def write_graph(node, label=''):
     #if create_graph_file:
@@ -25,11 +28,15 @@ def write_graph(node, label=''):
 
 def get_single_imp_inputs():
     # import single imp calculations
-    group_pk = import_with_migration(test_dir / 'data_dir/kkr_imp_wc-nodes-4e7fa222d8fbe143b13363013103a8e3.tar.gz')
+    group_pk = import_with_migration(test_dir / 'data_dir/kkr_imp_sub_wc-nodes-6227d9003b63b76d1fd41bd5322771b5.tar.gz')
+    if _debug:
+        print(group_pk, [i.label for i in load_group(group_pk).nodes])
     for node in load_group(group_pk).nodes:
-        if node.label == 'kkrimp_scf full Cu host_in_host':
+        if 'KKRimp calculation step 4' in node.label:
             imp1 = node
-    imp1_out = imp1.outputs.workflow_info
+    if _debug:
+        print(imp1, list(imp1.outputs), list(imp1.inputs))
+    imp1_out = imp1.outputs.output_parameters
     imp2_out = imp1_out  # use the same impurity and create a dimer
 
     return imp1_out, imp2_out
