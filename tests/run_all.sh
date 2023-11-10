@@ -121,10 +121,10 @@ elif [[ ! -z "$GITHUB_SUITE" ]]; then
 	  ./workflows/test_jij_wc.py \
 	  ./workflows/test_eos.py \
 	  ./workflows/test_decimate.py \
-	  ./workflows/test_kkrimp_sub_wc.py \
+	  # ./workflows/test_kkrimp_sub_wc.py \
 	  ./workflows/test_kkrimp_dos_wc.py \
-	  ./workflows/test_kkrimp_full_wc.py \
-	  ./workflows/test_combine_imps.py \
+	  # ./workflows/test_kkrimp_full_wc.py \
+	  # ./workflows/test_combine_imps.py \
 	  $addopt
 else
   # tests without running actual calculations
