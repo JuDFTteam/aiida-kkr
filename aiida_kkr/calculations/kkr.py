@@ -257,21 +257,14 @@ class KkrCalculation(CalcJob):
         spec.default_output_node = 'output_parameters'
 
         # define exit codes, also used in parser
-        spec.exit_code(
-            301,
-            'ERROR_NO_OUTPUT_FILE',
-            message='KKR output file not found',
-        )
-        spec.exit_code(
-            302,
-            'ERROR_KKR_PARSING_FAILED',
-            message='KKR parser retuned an error',
-        )
-        spec.exit_code(
-            303,
-            'ERROR_NO_SHAPEFUN_FOUND',
-            message='Could not find shapefun from voronoi parent',
-        )
+        spec.exit_code(301, 'ERROR_NO_OUTPUT_FILE', message='KKR output file not found')
+        spec.exit_code(302, 'ERROR_NOT_ENOUGH_MEMORY', message='KkrCalculation needs more memory')
+        spec.exit_code(303, 'ERROR_TIME_LIMIT', message='KkrCalculation needs more runtime')
+        spec.exit_code(304, 'ERROR_KKR_PARSING_FAILED', message='KKR parser retuned an error')
+        spec.exit_code(305, 'ERROR_OPENING_OUTPUTS', message='Kkr parser could not open an output file')
+        spec.exit_code(306, 'ERROR_CALCULATION_FAILED', message='KkrCalculation failed for an unknown reason')
+        spec.exit_code(307, 'ERROR_NO_SHAPEFUN_FOUND', message='Could not find shapefun from voronoi parent')
+        spec.exit_code(308, 'ERROR_RLOG_TOO_SMALL', message='RLOG too small for Chebychev solver')
 
     def prepare_for_submission(self, tempfolder):
         """
