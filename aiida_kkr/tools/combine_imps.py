@@ -82,31 +82,27 @@ def make_potfile_sfd(**kwargs):
     for key in kwargs.keys():
         retrieved = kwargs[key]
 
-    with SandboxFolder() as tempfolder:
-        # find path of tempfolder
-        with tempfolder.open('.dummy', 'w') as dummyfile:
-            tempfolder_path = dummyfile.name
-            tempfolder_path = tempfolder_path.replace('.dummy', '')
+    from aiida.plugins import DataFactory
+    import tempfile
+    import os
 
-        # extract output potential here
-        tar_filenames = []
-        if KkrimpCalculation._FILENAME_TAR in retrieved.list_object_names():
-            # get path of tarfile
-            with retrieved.open(KkrimpCalculation._FILENAME_TAR) as tf:
-                tfpath = tf.name
-            # extract file from tarfile of retrieved to tempfolder
-            with tarfile.open(tfpath) as tf:
-                tar_filenames = [ifile.name for ifile in tf.getmembers()]
-                filename = KkrimpCalculation._OUT_POTENTIAL
-                if filename in tar_filenames:
-                    tf.extract(filename, tempfolder_path)  # extract to tempfolder
+    # Create a SinglefileData node
+    SinglefileData = DataFactory('singlefile')
+    out_potential_content = retrieved.get_object_content("out_potential")
 
-        # store as SingleFileData
-        with tempfolder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as potfile:
-            potfile_sfd = SinglefileData(file=potfile)
+    # Create a temporary file
+    temp_dir = tempfile.gettempdir()
+    temp_file = os.path.join(temp_dir, 'out_potential')
+    with open(temp_file, 'w') as f:
+        f.write(out_potential_content)
 
-        return potfile_sfd
+    # Create a SinglefileData node with the temporary file
+    potfile_sfd = SinglefileData(temp_file)
 
+    # Remove the temporary file
+    os.remove(temp_file)
+    
+    return potfile_sfd
 
 def extract_potfile_from_retrieved(retrieved):
     """
@@ -115,7 +111,7 @@ def extract_potfile_from_retrieved(retrieved):
 
     # check if retrieved has already a single file data child with given link label
     children = [res.node for res in retrieved.get_outgoing(link_label_filter='create_potfile_sfd').all()]
-    if len(children) > 0:
+    if len(children) > 0 and 'result' in children[0].outputs:
         potfile_sfd = children[0].outputs.result
         print('take existing node')
     else:

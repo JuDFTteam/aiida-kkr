@@ -607,7 +607,7 @@ If given then the writeout step of the host GF is omitted."""
             #take gf_writeout directly from input to KkrimpCalculation
             gf_writeout_calc = self.ctx.imp1.inputs.host_Greenfunction_folder.get_incoming(node_class=KkrCalculation
                                                                                            ).first().node
-        if (self.ctx.imp1.process_class == kkr_imp_sub_wc or self.ctx.imp1.process_class == KkrimpCalculation):
+        elif self.ctx.imp1.process_class == kkr_imp_sub_wc:
             imp1_sub = self.ctx.imp1
         else:
             if _debug:
@@ -746,6 +746,8 @@ If given then the writeout step of the host GF is omitted."""
             builder.options = self.inputs.scf.options
         if 'wf_parameters' in self.inputs.scf:
             builder.wf_parameters = self.inputs.scf.wf_parameters
+        if 'params_overwrite' in self.inputs.scf :
+            builder.params_overwrite = self.inputs.scf.params_overwrite
 
         # take care of LDA+U settings
         add_ldausettings, settings_LDAU_combined = self.get_ldau_combined()

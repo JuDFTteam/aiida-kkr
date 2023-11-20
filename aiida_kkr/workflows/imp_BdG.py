@@ -155,6 +155,13 @@ class kkrimp_BdG_wc(WorkChain):
             required=False,
             help='Parent folder of previously converged host normal state KkrCalculation'
         )
+        
+        spec.input(
+            'imp_scf.remote_data_gf',
+            valid_type=RemoteData,
+            required=False,
+            help='RemoteData node of precomputed host Green function'
+        )
 
         # inputs for impurity BdG scf
         spec.expose_inputs(
@@ -278,6 +285,8 @@ class kkrimp_BdG_wc(WorkChain):
         builder.kkr = self.inputs.kkr
         builder.kkrimp = self.inputs.kkrimp
         builder.remote_data_host = self.inputs.imp_scf.remote_data_host
+        if 'remote_data_gf' in self.inputs.imp_scf:
+            builder.remote_data_gf = self.inputs.imp_scf.remote_data_gf
         builder.wf_parameters = self.inputs.imp_scf.wf_parameters
         if 'options' in self.inputs.imp_scf:
             builder.options = self.inputs.imp_scf.options
@@ -429,7 +438,7 @@ class kkrimp_BdG_wc(WorkChain):
             if 'kkr' in self.inputs.dos.gf_writeout:
                 builder.kkr = self.inputs.dos.gf_writeout.kkr
             if 'params_kkr_overwrite' in self.inputs.dos.gf_writeout:
-                builder.params_kkr_overwrite = self.inputs.dos.gf_writeout.params_kkr_overwrite
+                builder.gf_writeout.params_kkr_overwrite = self.inputs.dos.gf_writeout.params_kkr_overwrite
             if 'host_remote' in self.inputs.dos.gf_writeout:
                 builder.host_remote = self.inputs.dos.gf_writeout.host_remote
             if 'options' in self.inputs.dos.gf_writeout:

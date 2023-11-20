@@ -439,9 +439,9 @@ label: {self.ctx.label_wf}
                 builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
             if 'gf_writeout' in self.inputs:
                 if 'params_kkr_overwrite' in self.inputs.gf_writeout:
-                    builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
+                    builder.params_kkr_overwrite = self.inputs.gf_writeout.params_kkr_overwrite
                 if 'options' in self.inputs.gf_writeout:
-                    builder.options = self.inputs.options
+                    builder.options = self.inputs.gf_writeout.options
 
             future = self.submit(builder)
 
