@@ -746,7 +746,7 @@ If given then the writeout step of the host GF is omitted."""
             builder.options = self.inputs.scf.options
         if 'wf_parameters' in self.inputs.scf:
             builder.wf_parameters = self.inputs.scf.wf_parameters
-        if 'params_overwrite' in self.inputs.scf :
+        if 'params_overwrite' in self.inputs.scf:
             builder.params_overwrite = self.inputs.scf.params_overwrite
 
         # take care of LDA+U settings

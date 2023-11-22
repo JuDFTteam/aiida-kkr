@@ -22,7 +22,7 @@ from numpy import array, array_equal, sqrt, sum, where, loadtxt
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.9.1'
+__version__ = '0.10.0'
 __contributors__ = (u'Philipp Rüßmann', u'Fabian Bertoldo')
 
 #TODO: implement 'ilayer_center' consistency check
@@ -50,6 +50,7 @@ class KkrimpCalculation(CalcJob):
     _KKRFLEX_ANGLE = u'kkrflex_angle'
     _KKRFLEX_LLYFAC = u'kkrflex_llyfac'
     _KKRFLEX_SOCFAC = u'kkrflex_spinorbitperatom'
+    _KKRFLEX_RIMPSHIFT = u'kkrflex_rimpshift'
 
     # full list of kkrflex files
     _ALL_KKRFLEX_FILES = KkrCalculation._ALL_KKRFLEX_FILES
@@ -147,13 +148,14 @@ class KkrimpCalculation(CalcJob):
             required=False,
             help="""
 Settings for running a LDA+U calculation. The Dict node should be of the form
-    settings_LDAU = Dict(dict={'iatom=0':{
+    settings_LDAU = Dict({'iatom=0':{
         'L': 3,         # l-block which gets U correction (1: p, 2: d, 3: f-electrons)
         'U': 7.,        # U value in eV
         'J': 0.75,      # J value in eV
         'Eref_EF': 0.,  # reference energy in eV relative to the Fermi energy. This is the energy where the projector wavefunctions are calculated (should be close in energy where the states that are shifted lie (e.g. for Eu use the Fermi energy))
     }})
-    Note: you can add multiple entries like the one for iatom==0 in this example. The atom index refers to the corresponding atom in the impurity cluster.
+
+Note: you can add multiple entries like the one for iatom==0 in this example. The atom index refers to the corresponding atom in the impurity cluster.
 """
         )
         spec.input(
@@ -163,12 +165,26 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             help="""
 Initial non-collinear angles for the magnetic moments of the impurities. These values will be written into the `kkrflex_angle` input file of KKRimp.
 The Dict node should be of the form
-    initial_noco_angles = Dict(dict={
+    initial_noco_angles = Dict({
         'theta': [theta_at1, theta_at2, ..., theta_atN], # list theta values in degrees (0..180)
         'phi': [phi_at1, phi_at2, ..., phi_atN],         # list phi values in degrees (0..360)
         'fix_dir': [True, False, ..., True/False],       # list of booleans indicating of the direction of the magentic moment should be fixed or is allowed to be updated (True means keep the direction of the magnetic moment fixed)
     })
-    Note: The length of the theta, phi and fix_dir lists have to be equal to the number of atoms in the impurity cluster.
+
+Note: The length of the theta, phi and fix_dir lists have to be equal to the number of atoms in the impurity cluster.
+"""
+        )
+        spec.input(
+            'rimpshift',
+            valid_type=Dict,
+            required=False,
+            help="""
+Shift for atoms in the impurity cluster used in U-transformation.
+
+The Dict node should be of the form
+    rimpshift = Dict({'shifts': [[0., 0., 0.], ... ]})
+
+Note: The length of the 'shifts' attribute should be an array with three numbers indicating the shift for each atom in the impurity cluster.
 """
         )
 
@@ -221,6 +237,9 @@ The Dict node should be of the form
             self._KKRFLEX_SOCFAC, self._OUT_POTENTIAL, self._OUTPUT_000, self._OUT_TIMING_000,
             self._OUT_ENERGYSP_PER_ATOM, self._OUT_ENERGYTOT_PER_ATOM
         ]
+
+        # maybe create kkrflex_rimpshift file
+        self._write_kkrflex_rimpshift(tempfolder, parameters)
 
         # extract run and test options (these change retrieve list in some cases)
         allopts = self.get_run_test_opts(parameters)
@@ -845,7 +864,7 @@ The Dict node should be of the form
 
         # check if calculation is no Jij run
         if parameters.get_value('CALCJIJMAT') is not None and parameters.get_value('CALCJIJMAT') == 1:
-            raise InputValidationError('ERROR: ')
+            raise InputValidationError('ERROR: angles cannot be set if Jij mode is chosen!')
 
         # extract NATOM from atominfo file
         natom = self._get_natom(GFhost_folder)
@@ -880,6 +899,31 @@ The Dict node should be of the form
                     raise InputValidationError(f'Error: phi value out of range (0..360): iatom={iatom}, phi={phi}')
                 # write line
                 kkrflex_angle_file.write(f'   {theta}    {phi}    {fix_dir}\n')
+
+    def _write_kkrflex_rimpshift(self, tempfolder, parameters):
+        """Create the kkrflex_rimpshift file in tempfolder for U-transformation"""
+
+        if 'rimpshift' in self.inputs:
+            # check if calculation is no Jij run
+            if parameters.get_value('LATTICE_RELAX') is not None and parameters.get_value('LATTICE_RELAX') != 1:
+                raise InputValidationError('ERROR: "LATTICE_RELAX" in the input parameters needs to be set to 1.')
+
+            # extract NATOM from atominfo file
+            natom = self._get_natom(tempfolder)
+
+            # extract values from input node
+            rimpshift = self.inputs.rimpshift['shifts']
+            if len(rimpshift) != natom:
+                raise InputValidationError(
+                    'Error: `shifts` list in `rimpshift` input node needs to have the same length as number of atoms in the impurity cluster!'
+                )
+
+            # now write kkrflex_rimpshift file
+            with tempfolder.open(self._KKRFLEX_RIMPSHIFT, 'w') as kkrflex_rimpshift_file:
+                for iatom in range(natom):
+                    shift = rimpshift[iatom]
+                    # write line
+                    kkrflex_rimpshift_file.write(f'   {shift[0]}    {shift[1]}    {shift[2]}\n')
 
     def _check_key_setting_consistency(self, params_kkrimp, key, val):
         """

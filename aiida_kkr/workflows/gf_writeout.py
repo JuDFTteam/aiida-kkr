@@ -89,7 +89,7 @@ class kkr_flex_wc(WorkChain):
         super(kkr_flex_wc, cls).define(spec)
 
         spec.input('kkr', valid_type=Code, required=False)
-        spec.input('options', valid_type=Dict, required=False)#, default=lambda: Dict(dict=cls._options_default))
+        spec.input('options', valid_type=Dict, required=False)
         spec.input('wf_parameters', valid_type=Dict, required=False)
         spec.input('remote_data', valid_type=RemoteData, required=True)
         spec.input('impurity_info', valid_type=Dict, required=True)

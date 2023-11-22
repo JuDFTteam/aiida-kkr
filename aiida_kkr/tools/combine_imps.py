@@ -88,7 +88,7 @@ def make_potfile_sfd(**kwargs):
 
     # Create a SinglefileData node
     SinglefileData = DataFactory('singlefile')
-    out_potential_content = retrieved.get_object_content("out_potential")
+    out_potential_content = retrieved.get_object_content('out_potential')
 
     # Create a temporary file
     temp_dir = tempfile.gettempdir()
@@ -101,8 +101,9 @@ def make_potfile_sfd(**kwargs):
 
     # Remove the temporary file
     os.remove(temp_file)
-    
+
     return potfile_sfd
+
 
 def extract_potfile_from_retrieved(retrieved):
     """
