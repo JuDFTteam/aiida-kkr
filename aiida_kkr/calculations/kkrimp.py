@@ -183,6 +183,7 @@ Shift for atoms in the impurity cluster used in U-transformation.
 
 The Dict node should be of the form
     rimpshift = Dict({'shifts': [[0., 0., 0.], ... ]})
+where the shifts are given in atomic units (i.e. the internal KKR units).
 
 Note: The length of the 'shifts' attribute should be an array with three numbers indicating the shift for each atom in the impurity cluster.
 """
