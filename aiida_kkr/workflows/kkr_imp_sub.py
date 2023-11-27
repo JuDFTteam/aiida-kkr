@@ -17,7 +17,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.10.0'
+__version__ = '0.10.1'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann')
 
 #TODO: work on return results function
@@ -130,7 +130,7 @@ class kkr_imp_sub_wc(WorkChain):
             help='Dict of parameters that are given to the KKRimpCalculation. Overwrites automatically set values!'
         )
 
-        spec.expose_inputs(KkrimpCalculation, include=('initial_noco_angles'))
+        spec.expose_inputs(KkrimpCalculation, include=('initial_noco_angles', 'rimpshift'))
 
         # Here the structure of the workflow is defined
         spec.outline(
