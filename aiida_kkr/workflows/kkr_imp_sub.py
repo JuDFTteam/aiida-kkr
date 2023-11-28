@@ -856,6 +856,8 @@ class kkr_imp_sub_wc(WorkChain):
         # set nonco angles if given
         if 'initial_noco_angles' in self.inputs:
             inputs['initial_noco_angles'] = self.inputs.initial_noco_angles
+        if 'rimpshift' in self.inputs:
+            inputs['rimpshift'] = self.inputs.rimpshift
 
         # run the KKR calculation
         message = 'INFO: doing calculation'

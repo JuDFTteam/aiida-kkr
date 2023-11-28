@@ -525,6 +525,8 @@ label: {self.ctx.label_wf}
             builder.params_overwrite = self.inputs.BdG.params_overwrite
         if 'initial_noco_angles' in self.inputs:
             builder.initial_noco_angles = self.inputs.initial_noco_angles
+        if 'rimpshift' in self.inputs:
+            builder.rimpshift = self.inputs.rimpshift
 
         future = self.submit(builder)
 

@@ -20,7 +20,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.9.2'
+__version__ = '0.9.3'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -102,7 +102,8 @@ class kkr_imp_wc(WorkChain):
                 'options',
                 # 'wf_parameters',
                 'params_overwrite',
-                'initial_noco_angles'
+                'initial_noco_angles',
+                'rimpshift'
             )
         )
 
@@ -789,6 +790,8 @@ class kkr_imp_wc(WorkChain):
                 builder.options = self.inputs.scf.options
             if 'initial_noco_angles' in self.inputs.scf:
                 builder.initial_noco_angles = self.inputs.scf.initial_noco_angles
+            if 'rimpshift' in self.inputs.scf:
+                builder.rimpshift = self.inputs.scf.rimpshift
         builder.wf_parameters = kkrimp_params
         future = self.submit(builder)
 
