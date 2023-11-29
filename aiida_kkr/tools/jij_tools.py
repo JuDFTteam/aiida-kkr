@@ -35,9 +35,12 @@ def get_jijs_shells(jij_calc, verbose=False):
             try:
                 tmp = np.loadtxt(f)
             except:
+                # this means we could not read the file which happens, for example,
+                # in case of CPA where "&" characters are inserted to mark the end of block
                 f.seek(0)
                 txt = f.readlines()
-                tmp = np.loadtxt(txt[:-1])
+                txt = [line for line in txt if '&' not in line]
+                tmp = np.loadtxt(txt)
         # sort by radius
         jij_atom = tmp[tmp[:, 0].argsort()]
         if len(jij_atom[0]) > 4:
