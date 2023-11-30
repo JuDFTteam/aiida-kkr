@@ -416,8 +416,8 @@ class kkr_jij_wc(WorkChain):
         alat_ang = get_alat_from_bravais(np.array(struc.cell), struc.pbc[2])
 
         # maybe use value provided in input instead
-        para = {k.lower(): v for k, v in self.ctx.parent_calc.inputs.parameters.get_dict().items()}
-        if 'use_alat_input' in para or 'use_input_alat' in para:
+        para = {k.lower(): v for k, v in self.ctx.parent_calc.inputs.parameters.get_dict().items() if v is not None}
+        if para.get('use_alat_input', False) or para.get('use_input_alat', False):
             alat_ang = para.get('alatbasis') * BOHR_A
 
         # now have Jij radius in alat units
