@@ -8,6 +8,7 @@ from aiida import orm, engine
 from aiida_kkr.tools import find_parent_structure
 from aiida_kkr.tools.combine_imps import get_scoef_single_imp
 from aiida_kkr.tools.imp_cluster_tools import pos_exists_already, combine_clusters
+from masci_tools.io.common_functions import get_alat_from_bravais
 
 __copyright__ = (u'Copyright (c), 2023, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
@@ -78,6 +79,10 @@ def get_r_offset(clust1, clust2, host_structure, add_position):
 
     # combine to offset vector
     r_offset = r_out_of_plane + r_in_plane
+
+    # convert from Ang to alat units (used internally in KKR)
+    alat = get_alat_from_bravais(np.array(host_structure.cell), host_structure.pbc[2])
+    r_offset /= alat
 
     return r_offset
 
