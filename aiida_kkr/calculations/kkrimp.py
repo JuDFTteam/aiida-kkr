@@ -14,15 +14,16 @@ from .kkr import KkrCalculation
 from aiida_kkr.tools.tools_kkrimp import modify_potential, make_scoef, write_scoef_full_imp_cls, get_imp_info_from_parent
 from aiida_kkr.tools.common_workfunctions import get_username
 from aiida_kkr.tools.ldau import get_ldaupot_text
+from aiida_kkr.tools.imp_cluster_tools import get_scoef_single_imp
 from masci_tools.io.common_functions import search_string, get_ef_from_potfile
 import os
 import tarfile
-from numpy import array, array_equal, sqrt, sum, where, loadtxt
+import numpy as np
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.10.0'
+__version__ = '0.10.1'
 __contributors__ = (u'Philipp Rüßmann', u'Fabian Bertoldo')
 
 #TODO: implement 'ilayer_center' consistency check
@@ -330,18 +331,29 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
         # case, raise an error
         if found_impurity_inputnode and found_host_parent:
             check_consistency_imp_info = False
-            #TODO: implement also 'ilayer_center' check
             if 'imp_cls' in imp_info_inputnode.get_dict().keys():
-                input_imp_cls_arr = array(imp_info_inputnode.get_dict()['imp_cls'])
-                parent_imp_cls_arr = array(imp_info.get_dict()['imp_cls'])
-                is_identical = array_equal(input_imp_cls_arr[:, 0:4], parent_imp_cls_arr[:, 0:4])
+                input_imp_cls_arr = np.array(imp_info_inputnode.get_dict()['imp_cls'])
+
+                try:
+                    parent_imp_cls_arr = np.array(imp_info.get_dict()['imp_cls'])
+                except:
+                    host_structure, _ = VoronoiCalculation.find_parent_structure(parent_calc)
+                    parent_imp_cls_arr = get_scoef_single_imp(host_structure, imp_info)
+
+                is_identical = np.array_equal(
+                    np.round(input_imp_cls_arr[:, 0:4], 5), np.round(parent_imp_cls_arr[:, 0:4], 5)
+                )
 
                 if is_identical:
                     check_consistency_imp_info = True
                 else:
                     self.report('impurity_info node from input and from previous GF calculation are NOT compatible!.')
+                    self.report(f'impurity_info node from input: {input_imp_cls_arr[:, 0:4]}')
+                    self.report(f'impurity_info node from previous GF calculation: {parent_imp_cls_arr[:, 0:4]}')
 
+            #TODO: implement also 'ilayer_center' check
             elif imp_info_inputnode.get_dict().get('Rcut') == imp_info.get_dict().get('Rcut'):
+
                 check_consistency_imp_info = True
                 try:
                     if (
@@ -554,9 +566,9 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
             n_rows = len(scoeffile.readlines()) - 1
         with tempfolder.open(KkrCalculation._SCOEF, u'r') as scoeffile:
             if n_rows > 1:
-                scoef = loadtxt(scoeffile, skiprows=1)[:, :3]
+                scoef = np.loadtxt(scoeffile, skiprows=1)[:, :3]
             else:
-                scoef = loadtxt(scoeffile, skiprows=1)[:3]
+                scoef = np.loadtxt(scoeffile, skiprows=1)[:3]
 
         # find replaceZimp list from Zimp and Rimp_rel
         imp_info_dict = imp_info.get_dict()
@@ -567,14 +579,14 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
         self.report(f'DEBUG: Rimp_rel_list: {Rimp_rel_list}.')
 
         for iatom in range(len(Zimp_list)):
-            rtmp = array(Rimp_rel_list[iatom])[:3]
+            rtmp = np.array(Rimp_rel_list[iatom])[:3]
             self.report(f'INFO: Rimp_rel {iatom}, {rtmp}')
             if n_rows > 1:
-                diff = sqrt(sum((rtmp - scoef)**2, axis=1))
+                diff = np.sqrt(np.sum((rtmp - scoef)**2, axis=1))
             else:
-                diff = sqrt(sum((rtmp - scoef)**2, axis=0))
+                diff = np.sqrt(np.sum((rtmp - scoef)**2, axis=0))
             Zimp = Zimp_list[iatom]
-            ipos_replace = where(diff == diff.min())[0][0]
+            ipos_replace = np.where(diff == diff.min())[0][0]
             replace_zatom_imp.append([ipos_replace, Zimp])
 
         for (iatom, zimp) in replace_zatom_imp:
