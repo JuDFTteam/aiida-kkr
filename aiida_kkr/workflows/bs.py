@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.7'
+__version__ = '0.1.8'
 __contributors__ = (u'Rubel Mozumder', u'Philipp Rüßmann')
 
 
@@ -292,10 +292,16 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             saux = StructureData(cell=cell)
             for isite, site in enumerate(struc_kkr.sites):
                 kind = struc_kkr.get_kind(site.kind_name)
+                symbols = kind.symbols
+                weights = kind.weights
+                # replace old way of empty site with new 'X' kind
+                if site.kind_name == 'HX' and kind.weights[0] < 1e-8:
+                    symbols = 'X'
+                    weights = 1.0
                 saux.append_atom(
                     name='atom' + str(isite) + ':' + site.kind_name,
-                    symbols=kind.symbols,
-                    weights=kind.weights,
+                    symbols=symbols,
+                    weights=weights,
                     position=site.position
                 )
             # use auxiliary structure inside k-point generator
