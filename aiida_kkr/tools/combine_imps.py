@@ -19,8 +19,8 @@ from .imp_cluster_tools import (
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.3.2'
-__contributors__ = (u'Philipp Rüßmann')
+__version__ = '0.3.3'
+__contributors__ = (u'Philipp Rüßmann, David Antognini Silva')
 
 # activate debug writeout
 debug = False
@@ -262,9 +262,9 @@ def get_ldaumatrices(retrieved):
                         iphi = ii
                     ii += 1
                 # save matrices to output dict
-                txt_dict_ldaumats['wldau'] = txt[iwldau + 2:iuldau]
-                txt_dict_ldaumats['uldau'] = txt[iuldau + 2:iphi]
-                txt_dict_ldaumats['phi'] = txt[iphi + 2:]
+                txt_dict_ldaumats['wldau'] = txt[iwldau + 1:iuldau]
+                txt_dict_ldaumats['uldau'] = txt[iuldau + 1:iphi]
+                txt_dict_ldaumats['phi'] = txt[iphi + 1:]
 
     return has_ldaupot_file, txt_dict_ldaumats
 
@@ -300,17 +300,11 @@ def combine_settings_ldau(**kwargs):
     # now combine LDAU settings
     settings_LDAU_combined = {}
 
-    if has_old_ldaupot1 or has_old_ldaupot2:
-        settings_LDAU_combined['initial_matrices'] = {}
-
     if imp1_has_ldau:
         for k, v in settings_LDAU1.items():  # pylint: disable=used-before-assignment
             if 'iatom' in k:
                 iatom = int(k.split('=')[1])
-                # TODO: implement something for the case when LDAU is not only on the impurity site at iatom==0
                 settings_LDAU_combined[f'iatom={iatom}'] = v
-                if has_old_ldaupot1:
-                    settings_LDAU_combined['initial_matrices'][f'iatom={iatom}'] = txts_ldaumat1  # pylint: disable=used-before-assignment
 
     if imp2_has_ldau:
         for k, v in settings_LDAU2.items():  # pylint: disable=used-before-assignment
@@ -321,7 +315,63 @@ def combine_settings_ldau(**kwargs):
                 else:
                     noffset = kickout_info['Ncls1']
                 settings_LDAU_combined[f'iatom={iatom+noffset}'] = v
-                if has_old_ldaupot2:
-                    settings_LDAU_combined['initial_matrices'][f'iatom={iatom+noffset}'] = txts_ldaumat2  # pylint: disable=used-before-assignment
+
+    if has_old_ldaupot1:
+        settings_LDAU_combined['initial_matrices'] = {}
+        settings_LDAU_combined['initial_matrices'] = get_LDAU_initmatrices_dict(txts_ldaumat1)  # pylint: disable=used-before-assignment
+
+    if has_old_ldaupot2:
+        # If the dictionary already exists, update it with the new values
+        if 'initial_matrices' in settings_LDAU_combined:
+            settings_LDAU_combined['initial_matrices'].update(get_LDAU_initmatrices_dict(txts_ldaumat2, noffset))
+        else:
+            # If the dictionary does not exist, create it with the new values
+            settings_LDAU_combined['initial_matrices'] = {}
+            settings_LDAU_combined['initial_matrices'] = get_LDAU_initmatrices_dict(txts_ldaumat2, noffset)
 
     return Dict(settings_LDAU_combined)
+
+
+def get_LDAU_initmatrices_dict(txts_ldaumat1, offset=0):
+    """
+    Put the initial matrices text content of `get_ldaumatrices` output in a
+    Dictionnary form sorted by atoms.
+    """
+
+    # Loop through characters ('wldau', 'uldau', 'phi')
+    for char in ['wldau', 'uldau', 'phi']:
+        atom_line = []
+        iatoms = []
+
+        # Save atom number and lines in which atoms information starts
+        for iline in range(len(txts_ldaumat1[char])):
+            if txts_ldaumat1[char][iline][:4] == 'atom':
+                iatom = txts_ldaumat1[char][iline].split()[1]
+                iatoms.append(iatom)
+                atom_line.append(iline)
+        atom_line.append(len(txts_ldaumat1[char]))
+
+        mat = []
+        # Extract matrices based on atom lines
+        for iatom in range(len(atom_line) - 1):
+            mat.append(txts_ldaumat1[char][atom_line[iatom] + 1:atom_line[iatom + 1]])
+
+        # Assign matrices to corresponding variables based on the character
+        if char == 'wldau':
+            wldaumat = mat
+        elif char == 'uldau':
+            uldaumat = mat
+        elif char == 'phi':
+            phimat = mat
+
+    # Create a dictionary to store the organized data
+    LDAU_initmatrices_dict = {}
+
+    # Fill the dictionary with atom-wise information
+    for iatom in range(len(iatoms)):
+        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}'] = {}
+        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['wldau'] = wldaumat[iatom]
+        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['uldau'] = uldaumat[iatom]
+        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['phi'] = phimat[iatom]
+
+    return LDAU_initmatrices_dict
