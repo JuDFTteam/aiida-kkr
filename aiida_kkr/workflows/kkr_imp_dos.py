@@ -21,7 +21,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.7.1'
+__version__ = '0.7.2'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 
 # activate verbose output, for debugging only
@@ -158,7 +158,7 @@ class kkr_imp_dos_wc(WorkChain):
         spec.output('last_calc_output_parameters', valid_type=Dict)
         spec.output('last_calc_info', valid_type=Dict)
         spec.output('dos_data', valid_type=XyData)
-        spec.output('dos_data_interpol', valid_type=XyData)
+        spec.output('dos_data_interpol', valid_type=XyData, required=False)
         spec.output('dos_data_lm', valid_type=XyData, required=False)
         spec.output('dos_data_interpol_lm', valid_type=XyData, required=False)
         spec.output('gf_dos_remote', valid_type=XyData, required=False, help='RemoteData node of the computed host GF.')
@@ -594,10 +594,12 @@ label: {self.ctx.label_wf}
 
             if dos_extracted:
                 self.out('dos_data', dosXyDatas['dos_data'])
-                self.out('dos_data_interpol', dosXyDatas['dos_data_interpol'])
+                if 'dos_data_interpol' in dosXyDatas:
+                    self.out('dos_data_interpol', dosXyDatas['dos_data_interpol'])
                 if self.ctx.lmdos:
                     self.out('dos_data_lm', dosXyDatas['dos_data_lm'])
-                    self.out('dos_data_interpol_lm', dosXyDatas['dos_data_interpol_lm'])
+                    if 'dos_data_interpol_lm' in dosXyDatas:
+                        self.out('dos_data_interpol_lm', dosXyDatas['dos_data_interpol_lm'])
 
             message = f'INFO: workflow_info node: {outputnode_t.uuid}'
             print(message)
@@ -732,25 +734,36 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
                 with folder.open(name0 + '.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     tmp = loadtxt(dosfile)
                     dos.append(tmp)
-                with folder.open(name0 + '.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
-                    tmp = loadtxt(dosfile)
-                    dos_int.append(tmp)
+                try:
+                    with folder.open(name0 + '.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                        tmp = loadtxt(dosfile)
+                        dos_int.append(tmp)
+                except:
+                    # skip this, can happen if only a single energy point is there
+                    pass
             except:
                 # new file names with 3 digits for atom numbers
                 with folder.open(name0 + '.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     tmp = loadtxt(dosfile)
                     dos.append(tmp)
-                with folder.open(name0 + '.interpol.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
-                    tmp = loadtxt(dosfile)
-                    dos_int.append(tmp)
-    dos, dos_int = array(dos), array(dos_int)
+                try:
+                    with folder.open(name0 + '.interpol.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                        tmp = loadtxt(dosfile)
+                        dos_int.append(tmp)
+                except:
+                    # skip this, can happen if only a single energy point is there
+                    pass
+    dos = array(dos)
+    if len(dos_int) > 0:
+        dos_int = array(dos_int)
 
     # convert to eV units
     eVscale = get_Ry2eV()
     dos[:, :, 0] = (dos[:, :, 0] - ef.value) * eVscale
     dos[:, :, 1:] = dos[:, :, 1:] / eVscale
-    dos_int[:, :, 0] = (dos_int[:, :, 0] - ef.value) * eVscale
-    dos_int[:, :, 1:] = dos_int[:, :, 1:] / eVscale
+    if len(dos_int) > 0:
+        dos_int[:, :, 0] = (dos_int[:, :, 0] - ef.value) * eVscale
+        dos_int[:, :, 1:] = dos_int[:, :, 1:] / eVscale
 
     # create output nodes
     dosnode = XyData()
@@ -774,17 +787,20 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
     dosnode.set_y(ylists[0], ylists[1], ylists[2])
 
     # node for interpolated DOS
-    dosnode2 = XyData()
-    dosnode2.label = 'dos_interpol_data'
-    dosnode2.description = 'Array data containing iterpolated DOS (i.e. dos at finite imaginary part of energy). 3D array with (atoms, energy point, l-channel) dimensions.'
-    dosnode2.set_x(dos_int[:, :, 0], 'E-EF', 'eV')
-    ylists = [[], [], []]
-    for l in range(len(name)):
-        ylists[0].append(dos_int[:, :, 1 + l])
-        ylists[1].append('interpolated dos ' + name[l])
-        ylists[2].append('states/eV')
-    dosnode2.set_y(ylists[0], ylists[1], ylists[2])
+    if len(dos_int) > 0:
+        dosnode2 = XyData()
+        dosnode2.label = 'dos_interpol_data'
+        dosnode2.description = 'Array data containing iterpolated DOS (i.e. dos at finite imaginary part of energy). 3D array with (atoms, energy point, l-channel) dimensions.'
+        dosnode2.set_x(dos_int[:, :, 0], 'E-EF', 'eV')
+        ylists = [[], [], []]
+        for l in range(len(name)):
+            ylists[0].append(dos_int[:, :, 1 + l])
+            ylists[1].append('interpolated dos ' + name[l])
+            ylists[2].append('states/eV')
+        dosnode2.set_y(ylists[0], ylists[1], ylists[2])
 
-    output = {'dos_data': dosnode, 'dos_data_interpol': dosnode2}
+        output = {'dos_data': dosnode, 'dos_data_interpol': dosnode2}
+    else:
+        output = {'dos_data': dosnode}
 
     return output
