@@ -16,3 +16,4 @@ from ._combine_imps import combine_imps_wc
 from ._decimation import kkr_decimation_wc
 from .jijs import kkr_jij_wc
 from .imp_BdG import kkrimp_BdG_wc
+from .STM import STM_wc
