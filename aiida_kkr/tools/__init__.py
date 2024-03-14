@@ -19,7 +19,7 @@ from .kick_out_core_states import *
 from .neworder_potential import *
 from .find_parent import get_calc_from_remote, get_remote, get_parent
 from .bdg_tools import get_anomalous_density_data
-from .ldau import get_ldaupot_text
+from .ldau import *
 
 
 # expose structure finder from VoronoiCalculation

@@ -15,11 +15,12 @@ from .imp_cluster_tools import (
     pos_exists_already, get_inplane_neighbor, get_scoef_single_imp, get_zimp, combine_clusters,
     create_combined_imp_info, create_combined_imp_info_cf
 )
+from aiida_kkr.tools import get_ldaumatrices, get_LDAU_initmatrices_dict
 
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.3.3'
+__version__ = '0.3.4'
 __contributors__ = (u'Philipp Rüßmann, David Antognini Silva')
 
 # activate debug writeout
@@ -235,40 +236,6 @@ def combine_potentials_cf(kickout_info, pot_imp1, pot_imp2, nspin_node):
     return combine_potentials(kickout_info, pot_imp1, pot_imp2, nspin_node)
 
 
-def get_ldaumatrices(retrieved):
-    """
-    Take retrieved folder of KkrimpCalculation and extract ldaupot file
-    If it exists we extract the LDAU matrices 'wldau', 'uldau' and 'phi'
-    """
-    has_ldaupot_file = False
-    txt_dict_ldaumats = {}
-
-    # create Sandbox to extract ldaupot file there
-    with SandboxFolder() as tempfolder:
-        # extract ldaupot file to tempfolder if it exists
-        has_ldaupot_file = KkrimpCalculation.get_ldaupot_from_retrieved(retrieved, tempfolder)
-        # now read ldau matrices and store in txt_dict_ldaumats
-        if has_ldaupot_file:
-            with tempfolder.open(KkrimpCalculation._LDAUPOT + '_old') as ldaupot_file:
-                # read file and look for keywords to identify where matrices are stored in the file
-                txt = ldaupot_file.readlines()
-                ii = 0
-                for line in txt:
-                    if 'wldau' in line:
-                        iwldau = ii
-                    if 'uldau' in line:
-                        iuldau = ii
-                    if 'phi' in line:
-                        iphi = ii
-                    ii += 1
-                # save matrices to output dict
-                txt_dict_ldaumats['wldau'] = txt[iwldau + 1:iuldau]
-                txt_dict_ldaumats['uldau'] = txt[iuldau + 1:iphi]
-                txt_dict_ldaumats['phi'] = txt[iphi + 1:]
-
-    return has_ldaupot_file, txt_dict_ldaumats
-
-
 @calcfunction
 def combine_settings_ldau(**kwargs):
     """
@@ -330,48 +297,3 @@ def combine_settings_ldau(**kwargs):
             settings_LDAU_combined['initial_matrices'] = get_LDAU_initmatrices_dict(txts_ldaumat2, noffset)
 
     return Dict(settings_LDAU_combined)
-
-
-def get_LDAU_initmatrices_dict(txts_ldaumat1, offset=0):
-    """
-    Put the initial matrices text content of `get_ldaumatrices` output in a
-    Dictionnary form sorted by atoms.
-    """
-
-    # Loop through characters ('wldau', 'uldau', 'phi')
-    for char in ['wldau', 'uldau', 'phi']:
-        atom_line = []
-        iatoms = []
-
-        # Save atom number and lines in which atoms information starts
-        for iline in range(len(txts_ldaumat1[char])):
-            if txts_ldaumat1[char][iline][:4] == 'atom':
-                iatom = txts_ldaumat1[char][iline].split()[1]
-                iatoms.append(iatom)
-                atom_line.append(iline)
-        atom_line.append(len(txts_ldaumat1[char]))
-
-        mat = []
-        # Extract matrices based on atom lines
-        for iatom in range(len(atom_line) - 1):
-            mat.append(txts_ldaumat1[char][atom_line[iatom] + 1:atom_line[iatom + 1]])
-
-        # Assign matrices to corresponding variables based on the character
-        if char == 'wldau':
-            wldaumat = mat
-        elif char == 'uldau':
-            uldaumat = mat
-        elif char == 'phi':
-            phimat = mat
-
-    # Create a dictionary to store the organized data
-    LDAU_initmatrices_dict = {}
-
-    # Fill the dictionary with atom-wise information
-    for iatom in range(len(iatoms)):
-        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}'] = {}
-        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['wldau'] = wldaumat[iatom]
-        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['uldau'] = uldaumat[iatom]
-        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['phi'] = phimat[iatom]
-
-    return LDAU_initmatrices_dict

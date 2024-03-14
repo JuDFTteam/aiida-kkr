@@ -8,7 +8,7 @@ from aiida import __version__ as aiida_core_version
 from aiida.orm import Float, Code, CalcJobNode, RemoteData, StructureData, Dict, SinglefileData, FolderData, Bool
 from aiida.engine import WorkChain, ToContext, while_, if_, calcfunction
 from masci_tools.io.kkr_params import kkrparams
-from aiida_kkr.tools import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
+from aiida_kkr.tools import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf, get_ldaumatrices, get_LDAU_initmatrices_dict
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from numpy import array
 import tarfile, os
@@ -17,8 +17,8 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.10.1'
-__contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann')
+__version__ = '0.10.3'
+__contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann', u'David Antognini Silva')
 
 #TODO: work on return results function
 #TODO: edit inspect_kkrimp function
@@ -925,6 +925,12 @@ class kkr_imp_sub_wc(WorkChain):
             # check rms
             self.ctx.rms.append(last_calc_output['convergence_group']['rms'])
             rms_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_all_iterations'])
+            # check rms of LDAU pot (if LDAU is set)
+            rms_LDAU = last_calc_output['convergence_group']['rms_LDAU']
+            self.ctx.rms_LDAU = rms_LDAU
+            if rms_LDAU != 0.0:
+                rms_LDAU_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_LDAU_all_iterations'])
+                self.ctx.last_rms_LDAU_all = rms_LDAU_all_iter_last_calc
 
             # add lists of last iterations
             self.ctx.last_rms_all = rms_all_iter_last_calc
@@ -1033,6 +1039,11 @@ class kkr_imp_sub_wc(WorkChain):
                 message = 'INFO: convergence check: rms goes up too fast, convergence is not expected'
                 self.report(message)
                 on_track = False
+                if self.ctx.rms_LDAU != 0:
+                    if self.ctx.last_rms_LDAU_all[-1] < self.ctx.last_rms_LDAU_all[0]:
+                        message = 'INFO: convergence check: rms LDAU potential goes down, convergence could still be expected in the next KkrimpCalulation run'
+                        self.report(message)
+                        on_track = True
             elif len(self.ctx.last_rms_all) == 1:
                 message = 'INFO: convergence check: already converged after single iteration'
                 self.report(message)
@@ -1041,6 +1052,11 @@ class kkr_imp_sub_wc(WorkChain):
                 message = 'INFO: convergence check: rms does not shrink fast enough, convergence is not expected'
                 self.report(message)
                 on_track = False
+                if self.ctx.rms_LDAU != 0:
+                    if self.ctx.last_rms_LDAU_all[-1] < self.ctx.last_rms_LDAU_all[0]:
+                        message = 'INFO: convergence check: rms LDAU potential goes down, convergence could still be expected in the next KkrimpCalulation run'
+                        self.report(message)
+                        on_track = True
         elif calc_reached_qbound:
             message = 'INFO: convergence check: calculation reached QBOUND'
             self.report(message)
