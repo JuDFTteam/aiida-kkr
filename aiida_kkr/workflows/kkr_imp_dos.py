@@ -468,6 +468,8 @@ label: {self.ctx.label_wf}
             gf_writeout_remote = self.inputs.gf_dos_remote
             gf_writeout_calc = gf_writeout_remote.get_incoming(node_class=CalcJobNode).first().node
             self.ctx.pk_flexcalc = gf_writeout_calc.pk
+        
+        self.ctx.gf_writeout_remote = gf_writeout_remote
 
         options = self.ctx.options_params_dict
         kkrimpcode = self.inputs.kkrimp
@@ -608,7 +610,7 @@ label: {self.ctx.label_wf}
             self.out('workflow_info', outputnode_t)
             self.out('last_calc_output_parameters', last_calc_output_params)
             self.out('last_calc_info', last_calc_info)
-            self.out('gf_dos_remote', gf_writeout_remote)
+            self.out('gf_dos_remote', self.ctx.gf_writeout_remote)
 
             message = 'INFO: created output nodes for KKR imp DOS workflow.'
             print(message)

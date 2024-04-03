@@ -111,7 +111,7 @@ def get_imp_info_add_position(host_calc, imp_info, add_position):
     Create combined impurity info node for the original
     imp cluster + an additional (STM tip) position
     """
-    
+
     # extract host structure
     host_structure = find_parent_structure(host_calc)
 
@@ -138,7 +138,7 @@ def get_imp_info_add_position(host_calc, imp_info, add_position):
 
 
 @engine.calcfunction
-def get_imp_info_add_position_cf(add_position, host_remote, imp_info ):
+def get_imp_info_add_position_cf(add_position, host_remote, imp_info):
     """
     Create a new impurty info node that combines the impurity cluster
     of an original calculation and an STM scanning position.

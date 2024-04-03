@@ -961,7 +961,7 @@ class plot_kkr(object):
             rms = []
 
         if len(rms) > 1:
-            self.rmsplot(rms, neutr, nofig, p, logscale, only, label=label)
+            self.rmsplot(rms, neutr, nofig, ptitle, logscale, only, label=label)
             # maybe save as file
             save_fig_to_file(kwargs, 'plot_kkr_out_rms.png')
 
