@@ -1,7 +1,8 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Workflow for simulating an STM around an impurity
+# Workflow for STM swf_parameterson around a magnetic impurity
 
-from aiida.engine import WorkChain, ToContext, if_
+from aiida.engine import WorkChain, ToContext, if_, calcfunction
 from aiida.orm import Dict, RemoteData, Code, CalcJobNode, WorkChainNode, Float, Bool, XyData, SinglefileData, List
 from aiida.orm import Group, load_group
 from aiida_kkr.workflows import kkr_imp_wc, kkr_imp_dos_wc, kkr_dos_wc, kkr_flex_wc
@@ -34,16 +35,16 @@ class STM_wc(WorkChain):
      
         :return workflow_info: (Dict), Information of workflow results
                             like success, last result node, list with convergence behavior
-        :return STM_lmdos: (XYData), Returns the plot of the lmDOS of the calculation 
-        :retrun STM_lmdos_interpol: (XYData), Returns the interpolated lmDOS of the calculation"""
+        :return STM_dos_data: (XYData), Returns the plot of the lmDOS of the calculation 
+        :retrun STM_lmdos_data: (XYData), Returns the interpolated lmDOS of the calculation"""
     
-    # TO DO: Ask how the stm tool works for the calculation of the impurity combined radius. 
-    # TO DO: Ask how to run the code on the local machine for the testing.
-    # TO DO: Find most efficient way to parallelize the calculations : matrix, dict, group (?)
     # TO DO: Add a parameter to include spherical cluster.
-    # TO DO: Add BdG_Imp_dos setting for the workflow.
-    # TO DO: Fix the KKRImpflex step, It loads random values
-        
+    # TO DO: Add BdG_Imp_dos setting for the workflow.    
+    # TO DO: Add the initialize step.
+    # TO DO: Add the 'path creation' step.
+    # TO DO: Add the point symmetry analysis.
+    # TO DO: Add check that between the ilayer and the actual number of layers in the structure.
+    # TO DO: Add to the outputs the calculated imp_info and imp_potential.
      
     _wf_version = __version__
     _wf_label = 'STM_wc'
@@ -157,27 +158,23 @@ class STM_wc(WorkChain):
             required=False,
             help=
             'with this input we can directly load the gf_dos files without calculating them')
-        
-        #spec.expose_input(
-        #    kkr_flex_wc,
-        #    namespace='gf_writeout',
-        #    include=('wf_parameters')
-        #)
-        
+    
+        spec.expose_inputs(kkr_imp_dos_wc, namespace='NSHELD', include=('params_overwrite'))
+    
         # Specify the possible outputs
-        spec.output('tip_position', valid_type=Dict, required=True)
+        spec.output('tip_position', valid_type=Dict)
         
-        #spec.output('combined_potential', valid_type=Dict, required=True)
-                 
-        #spec.output('combined_node',nvalid_type=SinglefileData,nrequired=True)
+        spec.output('STM_dos_data', valid_type=XyData, required=True)
         
-        spec.output('STM_data', valid_type=List, required=True)
-        
-        #spec.output('STM_lmdos_data_interpol', valid_type=XyData, required=True)
+        spec.output('STM_dos_data_lmdos', valid_type=XyData, required=True)
         
         #spec.output('workflow_info', valid_type=Dict)
         
-        spec.output('kkrflex', valid_type=RemoteData)
+        spec.output('kkrflexfiles', valid_type=RemoteData)
+        
+        spec.output('combined_imp_info', valid_type=Dict)
+        
+        spec.output('combined_imp_potential', valid_type=SinglefileData)
             
         # Define all possible error messages
         
@@ -187,39 +184,76 @@ class STM_wc(WorkChain):
         spec.exit_code(
             101, 'ERROR_IMP_INFO_NOT_CORRECT', 'The node provided for the impurity info is not valid'
         )
+        spec.exit_code(
+            102, 'ERROR_NO_IMP_POT_SFD', 'No impurity node has been given in the intput'
+        )
+        spec.exit_code(
+            103, 'ERROR_NO_IMPURITY_INFO', 'No impurity info has been given in the input'
+        )
+        spec.exit_code(
+            104, 'ERROR_NO_DATA_FOR_THE_GF_STEP', """Neither the kkrflex files nor the KKR builder have been given. Please
+                                                     provide already converged kkrflex files, or the kkr builder to evaluate them"""
+        )
+        spec.exit_code(
+            201, 'ERROR_IMP_SUB_WORKFLOW_FAILURE', 'A step in the kkr_imp_dos workflow has failed' 
+        )
             
             
         spec.outline(
             # For initializing workflow
             cls.start,
-            # We first run the gf
-            #cls.gf_writeout_run,
+            # We first aggregate all the impurity data
             # The gf is then used to evaluate the STM lmdos
+            #cls.gf_writeout_run,
+            
             cls.STM_lmdos_run, 
             # Data aggregator, used to make the final result more user friendly
-            cls.aggregate_results,
+            # cls.finalize_results,
             
             cls.results
         )
         
             
-    def combine_potentials(self,impurity_to_combine, da, db):
+    def combine_potentials(self, impurity_to_combine, da, db):
         from aiida_kkr.tools.tools_STM_scan import get_imp_info_add_position_cf
         """
-        Here we want to combine the impurity potential and the host potential
+        Here we want to combine the impurity information and the host information 
         """
+       
+        imp_info = self.inputs.imp_info #(impurity to combine)
+        host_remote = self.inputs.host_remote
+
+        # Since the objects in AiiDA are immutable we have to create a new dictionary and then convert  
+        # it to the right AiiDA type
         tip_position = {}
-        
         tip_position['ilayer'] = self.inputs.tip_position['ilayer']
         tip_position['da'] = da
         tip_position['db'] = db
         
-        imp_info = self.inputs.imp_info #(impurity to combine)
-        host_remote = self.inputs.host_remote
-        
-        combined_potential = get_imp_info_add_position_cf(host_remote, imp_info, tip_position)
-        #self.ctx.combined_potential = combined_potential
-        return combined_potential
+        combined_imp_info = get_imp_info_add_position_cf(tip_position, host_remote, imp_info)
+        # Add check to see if imp_cls is there
+        if 'imp_cls' in impurity_to_combine:
+            
+            new_combined_imp_info = {}
+            
+            for key, value in impurity_to_combine.items():
+                if key == 'Zimp':
+                    new_combined_imp_info[key] = impurity_to_combine[key]
+                    new_combined_imp_info[key].append(combined_imp_info[key][-1])
+                else:
+                    # Here we have lists of list that we need to confront
+                    new_combined_imp_info[key] = impurity_to_combine[key]
+                    set_tmp = [set(row) for row in impurity_to_combine[key]]
+                    
+                    new_combined_imp_info[key] += [row for row in combined_imp_info[key] if set(row) not in set_tmp]
+                    
+            new_combined_imp_info = orm.Dict(dict=new_combined_imp_info)
+
+        else:
+            
+            new_combined_imp_info = combined_imp_info            
+                        
+        return new_combined_imp_info
             
     def combine_nodes(self, node_to_combine, da, db):
         from aiida_kkr.tools.tools_STM_scan import create_combined_potential_node_cf
@@ -227,17 +261,18 @@ class STM_wc(WorkChain):
         Here we create a combined potential node from the host potential (no impurity)
         and from the impurity potential
         """
-        tip_position = {}
+        #imp_potential_node = self.inputs.imp_potential_node # (node_to_combine).
+        host_remote = self.inputs.host_remote # the remote host structure remains the same.
     
-        tip_position['ilayer'] = self.inputs.tip_position['ilayer']
+        # Since the objects in AiiDA are immutable we have to create a new dictionary and then convert  
+        # it to the right AiiDA type
+        
+        tip_position = {}
+        tip_position['ilayer'] = self.inputs.tip_position['ilayer'] # for now we require that the z position remains the same.
         tip_position['da'] = da
         tip_position['db'] = db
-        
-        imp_potential_node = self.inputs.imp_potential_node # (node_to_combine)
-        host_remote = self.inputs.host_remote
-        
-        combined_node = create_combined_potential_node_cf(tip_position, host_remote, imp_potential_node)
-        #self.ctx.combined_node = combined_node
+
+        combined_node = create_combined_potential_node_cf(tip_position, host_remote, node_to_combine)                
         return combined_node
     
     def start(self):
@@ -304,12 +339,6 @@ class STM_wc(WorkChain):
         # set workflow label and description
         self.ctx.description_wf = self.inputs.get('description', self._wf_description)
         self.ctx.label_wf = self.inputs.get('label', self._wf_label)
-
-        # whether or not to compute the GF writeout step
-        self.ctx.skip_gfstep = False
-            
-        #if 'kkrflex_files' in self.inputs:
-        #    self.ctx.skip_gfstep = True
         
         message = f"""
                         INFO: use the following parameter:
@@ -330,23 +359,36 @@ class STM_wc(WorkChain):
         self.ctx.formula = ''
         
         
-    #def validate_input(self):
-    #    
-    #    inputs = self.inputs
-    #    inputs_ok = True
-    #    gf_writeout_calc = None
-    #    
-    #    if 'imp_potential_node' in inputs:
-    #        # check if input potential has incoming return link
-    #        if len(inputs.imp_potential_node.get_incoming(link_type=LinkType.RETURN).all()) == 0:
-    #            inputs_ok = self._imp_pot_not_from_wf(inputs_ok)
-    #        else:
-    #            gf_writeout_calc = self._imp_pot_from_wf()
-    #
-    #    if 'gf_dos_remote' in self.inputs:
-    #        self.ctx.skip_gfstep = True
-    #    else:
-    #        inputs_ok = self._check_gf_writeout_inputs(inputs_ok, gf_writeout_calc)
+    def validate_input(self):
+        
+        inputs = self.inputs
+        inputs_ok = True
+        gf_writeout_calc = None
+        
+        if not 'imp_potential_node' in inputs:
+            inputs_ok = False
+            return self.exit_codes.ERROR_NO_IMP_POT_SFD
+        
+        if not 'imp_info' in inputs:
+            inputs_ok = False
+            return self.exit_codes.ERROR_NO_IMP_INFO
+        
+        if not 'kkrflex_files' and 'kkr' in inputs:
+            inputs_ok = False
+            return self.exit_codes.ERROR_NO_DATA_FOR_THE_GF_STEP
+            
+        
+        if 'imp_potential_node' in inputs:
+            # check if input potential has incoming return link
+            if len(inputs.imp_potential_node.get_incoming(link_type=LinkType.RETURN).all()) == 0:
+                inputs_ok = self._imp_pot_not_from_wf(inputs_ok)
+            else:
+                gf_writeout_calc = self._imp_pot_from_wf()
+    
+        if 'gf_dos_remote' in self.inputs:
+            self.ctx.skip_gfstep = True
+        else:
+            inputs_ok = self._check_gf_writeout_inputs(inputs_ok, gf_writeout_calc)
     
     def gf_writeout_run(self):
         """This function would allow the workchian to evaluate the needed kkrflex files 
@@ -373,59 +415,51 @@ class STM_wc(WorkChain):
             
             return ToContext(gf_node=gf_run)
         
-    def impurity_cluster_evaluation(self, impurity_info, imp_potential_node, x, y):
+    def impurity_cluster_evaluation(self):
         
         # Here we create an impurity cluster that has inside all the positions on which the STM will scan
         
-        for da in np.arange(-x, x+1, 1):
+        # We now want to iterate over several in-plane positions. 
+        # These are the number of vectors in which we want to move the STM tip.
+        x = self.inputs.tip_position['nx']
+        y = self.inputs.tip_position['ny']
+        
+        impurity_info = self.inputs.imp_info # for the first step we combine the impurity info from the input
+        imp_potential_node = self.inputs.imp_potential_node # for the first step we combine the impurity node from the input    
+                
+        # Aggregation of the impurity info
+       
+        for da in np.arange(x, x+1, 1):
             for db in np.arange(-y, y+1, 1):
+        
+                tmp_imp_info = self.combine_potentials(impurity_info, da, db)
+                impurity_info = tmp_imp_info
+                        
+                # Aggregation the impurity nodes
+                tmp_imp_pot = self.combine_nodes(imp_potential_node, da, db)
+                imp_potential_node = tmp_imp_pot
                 
-                #tmp = self.combine_potentials(impurity_info, da, db)
-                #impurity_info = tmp
-                
-                tmp = self.combine_nodes(imp_potential_node, da, db)
-                imp_potential_node = tmp
-                
-        return  imp_potential_node
-                     
+        return impurity_info, imp_potential_node      
 
     def STM_lmdos_run(self):
         """In this part of the worflow we want to simulate the lmdos which a STM is able to measure """
         
-        # First we would like to distinguish between an impurity dos and a normal state calculation
-         # Builder from tge     
+        # First we would like to distinguish between an impurity dos and a normal state calculation     
         builder = kkr_imp_dos_wc.get_builder()
         
         # Code loading
         builder.kkrimp = self.inputs.kkrimp # needed for the kkr_imp_dos_wc
-        builder.kkr = self.inputs.kkr # needed to evaluate the kkr_flex files in the DOS step
-        
+       
         # Builder options
         builder.options = self.ctx.options_params_dict
         
-        #Testing kkrflex files
-        #builder.gf_dos_remote = self.inputs.kkrflex_files
-        #builder.kkrimp_remote = self.inputs.remote_data
-        
-        #if not self.ctx.skip_gfstep:
-        #    # use computed gf_writeout
-        #    if not self.ctx.gf_node.is_finished_ok:
-        #        return self.exit_codes.ERROR_GF_WRITEOUT_UNSUCCESFUL  # pylint: disable=no-member
-        #    else:
-        #        builder.gf_dos_remote = self.ctx.gf_node.outputs.GF_host_remote
-        #        kkrflex_out = self.ctx.gf_node.outputs.GF_host_remote
-        #else:
-        #    # use gf_writeout from input
-        #    builder.gf_dos_remote = self.inputs.kkrflex_files
-        #    kkrflex_out = self.inputs.kkrflex_files
-        
-        # load the information of the impurity
-        #nspin = gf_writeout_calc.outputs.output_parameters.get_dict().get('nspin')
-        #self.ctx.nspin = nspin
-        #self.report(f'nspin: {nspin}')
+        # Check if the kkrflex files are already given in the outputs
+        if 'kkrflex_files' in self.inputs:
+            builder.gf_dos_remote = self.inputs.kkrflex_files
+        else:
+            builder.kkr = self.inputs.kkr # needed to evaluate the kkr_flex files in the DOS step
         
         self.ctx.kkrimp_params_dict = Dict(dict={
-            'nspin': 2, # take this information from the input 
             'nsteps': 1,
             'kkr_runmax': 1,
             'dos_run': True,
@@ -434,6 +468,7 @@ class STM_wc(WorkChain):
             'dos_params': self.ctx.dos_params_dict
         })
         
+        builder.params_kkr_overwrite = orm.Dict({'NSHELD': 1500})
         
         # We want to set the energy to the Fermi level
         
@@ -451,116 +486,68 @@ class STM_wc(WorkChain):
         builder.wf_parameters = self.ctx.kkrimp_params_dict       
         # Host remote files that will be used for the actual plot step.
         builder.host_remote = self.inputs.host_remote
+    
         
-        # We now want to iterate over several in-plane positions. 
-        # These are the number of vectors in which we want to move the STM tip.
+        # Here we create the impurity cluster for the STM scanning tool
+        impurity_info, imp_pot_sfd = self.impurity_cluster_evaluation()
+        
+        # impurity info for the workflow
+        builder.impurity_info = impurity_info    
+        builder.imp_pot_sfd = imp_pot_sfd
+        
         x = self.inputs.tip_position['nx']
         y = self.inputs.tip_position['ny']
         
-        # Here we create the impurity cluster for the STM scanning tool
-        imp_pot_sfd = self.impurity_cluster_evaluation(self.inputs.imp_info, self.inputs.imp_potential_node, x, y)
+        calc = self.submit(builder)
+        message = f"""INFO: running DOS step for an STM measurement (pk: {calc.pk}) at position
+                          (ilayer: {self.inputs.tip_position['ilayer']}, da: {x}, db: {y} )"""
         
-        Dict_result = {}
-        # Indexing of the node number
-        self.ctx.num_nodes = 0
+        print(message)
+        self.report(message)
         
-        for da in np.arange(-x, x+1, 1):
-                
-            for db in np.arange(-y, y+1, 1):
-                
-                # Insertion of the combined potential at the position da, db
-                builder.impurity_info = self.combine_potentials(self.inputs.imp_info, da, db)
-                
-                # Insertion of the combined potential node at the positon da, db
-                builder.imp_pot_sfd = imp_pot_sfd
-                
-                # Insertion of the remote data for the gf step
-                #builder.kkrimp_remote = self.inputs.remote_data
-                                
-                position = f'{da} {db}'
-                builder.metadata.label = position
-                #Here we store the information of the postion of the vector
-                
-                calc = self.submit(builder)
-                message = f"""INFO: running DOS step for an STM measurement (pk: {calc.pk}) at position
-                          (ilayer: {self.inputs.tip_position['ilayer']}, da: {da}, db: {db} )"""
-                print(message)
-                self.report(message)
-                
-                Dict_result[f'node_{self.ctx.num_nodes}'] = calc
-                self.ctx.num_nodes += 1
-                
-                
-                        
-        """Next Gen features"""
-        # LDA+U settings
-        #if 'settings_LDAU' in self.inputs:
-        #    self.report('Add settings_LDAU input node')
-        #    builder.settings_LDAU = self.inputs.settings_LDAU
-
-        #if 'params_overwrite' in self.inputs.BdG:
-        #    builder.params_overwrite = self.inputs.BdG.params_overwrite
-        #if 'initial_noco_angles' in self.inputs:
-        #    builder.initial_noco_angles = self.inputs.initial_noco_angles
-        #if 'rimpshift' in self.inputs:
-        #    builder.rimpshift = self.inputs.rimpshift
-        
-        #lis = []
-        #STM_lmdos = {}
-        return ToContext(**Dict_result)
+        return ToContext(STM_data = calc)
+       
     
-    def aggregate_results(self):
-        
-        # Function returns the data in a user-friendly way
-        
-        array = []
+    def finalize_results(self):
+        list_dos = []
+        list_label = []
         
         for number in range(self.ctx.num_nodes):
             
-            data = []
-            # Here we select the node 
             attribute_name = f'node_{number}'
             current_node = getattr(self.ctx, attribute_name)
-            
-            # Now we want to extract the positions for the label 
-            string = current_node.label            
-            data.append(string)
-                
-            
-            #for part in string:
-            #    key, value = part.split(':')
-            #    extracted_values[key] = value
-            #    
-            #da_value = extracted_values.get('x')
-            #db_value = extracted_values.get('y')
-            #
-            #data.append(int(da_value))
-            #data.append(int(db_value))
-            
-            # Here we append the lm dos
-            data.append(current_node.outputs.dos_data_lm)
-            
-            array.append(data)
+            # Here we return the node where the calculation node itself
+            list_dos.append(current_node.outputs.dos_data_lm)
+            list_label.append(current_node.label)
+        
+        STM_data = aggregate_results(list_dos, list_label)
+        return ToContext(STM_data = STM_data)
         
         
+    def results(self):
         
+        if not self.ctx.STM_data.is_finished_ok:
+            
+            message = 'ERROR: sub workflow for STM calculation failed'
+            print(message)
+            self.report(message)
+            return self.exit_codes.ERROR_IMP_SUB_WORKFLOW_FAILURE
         
-        #for k, v in self.ctx.node00.items():
-        #    
-        #    data = []
-        #    
-        #    string = k.strip('()')
-        #    var = string.split(',')
-        #    
-        #    # Append the da position
-        #    data.append(int(var[0]))
-        #    # Append the db position
-        #    data.append(int(var[1]))
-        #
-        #    # Access the da and db position of the lattice site
-        #    data.append(v.outputs.dos_data_lm)
-        #    
-        #    lis.append(data)
+        else:
+
+            # Declaring the output
+            self.out("STM_dos_data", self.ctx.STM_data.outputs.dos_data)
+            self.out("STM_dos_data_lmdos", self.ctx.STM_data.outputs.dos_data_lm)
+            #self.out("workflow_info", self.ctx.STM_lmdos.outputs.workflow_info)
+            self.out("tip_position", self.inputs.tip_position)
+            try:
+                self.out("kkrflexfiles",self.ctx.STM_data.outputs.gf_dos_remote)
+            except:
+                pass
+        
+        #self.out("combined_imp_info", impurity_info)
+        #self.out("combined_imp_potential", imp_pot_sfd)
+    
         
         message = 'INFO: created output nodes for KKR STM workflow.'
         print(message)
@@ -568,58 +555,6 @@ class STM_wc(WorkChain):
         self.report(
             '\n'
             '|------------------------------------------------------------------------------------------------------------------|\n'
-            '|-------------------------------------| Done with the STM workflow! |----------------------------------------------|\n'
+            '|-----------------------------------------| Done with the STM workflow! |------------------------------------------|\n'
             '|------------------------------------------------------------------------------------------------------------------|'
         )
-        
-        self.ctx.STM_data = orm.List(array)
-        
-        #last_calc_pk = self.ctx.kkrimp_dos.outputs.workflow_info.get_dict().get('last_calc_nodeinfo')['pk']
-        #last_calc = load_node(last_calc_pk)
-        #last_calc_output_params = last_calc.outputs.output_parameters
-        #last_calc_info = self.ctx.kkrimp_dos.outputs.workflow_info
-        #outputnode_dict = {}
-        #outputnode_dict['impurity_info'] = self.ctx.imp_info.get_dict()
-        #outputnode_dict['workflow_name'] = self.__class__.__name__
-        #outputnode_dict['workflow_version'] = self._workflowversion
-        #if not self.ctx.skip_gfstep:
-        #    outputnode_dict['used_subworkflows'] = {'gf_writeout': self.ctx.gf_writeout.pk}
-        #else:
-        #    outputnode_dict['used_subworkflows'] = {}
-        #outputnode_dict['used_subworkflows']['impurity_dos'] = self.ctx.kkrimp_dos.pk
-        ## interpol dos file and store to XyData nodes
-        #dos_extracted, dosXyDatas = self.extract_dos_data(last_calc)
-        #message = f'INFO: extracted DOS data? {dos_extracted}'
-        #print(message)
-        #self.report(message)
-        ## create results node and link rest of results
-        #link_nodes = dosXyDatas.copy()
-        #link_nodes['last_calc_output_parameters'] = last_calc_output_params
-        #link_nodes['last_calc_remote'] = last_calc.outputs.remote_folder
-        #outputnode_t = create_out_dict_node(Dict(dict=outputnode_dict), **link_nodes)
-        #outputnode_t.label = 'kkr_imp_dos_wc_inform'
-        #outputnode_t.description = 'Contains information for workflow'
-        #if dos_extracted:
-        #    self.out('dos_data', dosXyDatas['dos_data'])
-        #    if 'dos_data_interpol' in dosXyDatas:
-        #        self.out('dos_data_interpol', dosXyDatas['dos_data_interpol'])
-        #    if self.ctx.lmdos:
-        #        self.out('dos_data_lm', dosXyDatas['dos_data_lm'])
-        #        if 'dos_data_interpol_lm' in dosXyDatas:
-        #            self.out('dos_data_interpol_lm', dosXyDatas['dos_data_interpol_lm'])
-        #message = f'INFO: workflow_info node: {outputnode_t.uuid}'
-        #print(message)
-        #self.report(message)
-        #self.out('workflow_info', outputnode_t)
-        #self.out('last_calc_output_parameters', last_calc_output_params)
-        #self.out('last_calc_info', last_calc_info)
-    
-    def results(self):
-
-        # Declaring the output
-        self.out("STM_data", self.ctx.STM_data)
-        #self.out("STM_lmdos_data_interpol", self.ctx.STM_lmdos.outputs.dos_data_interpol_lm)
-        #self.out("workflow_info", self.ctx.STM_lmdos.outputs.workflow_info)
-        self.out("tip_position", self.inputs.tip_position)
-        #self.out("kkrflexfiles",kkrflex_out)
-      

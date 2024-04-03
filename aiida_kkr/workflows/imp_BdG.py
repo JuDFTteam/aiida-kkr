@@ -210,7 +210,7 @@ class kkrimp_BdG_wc(WorkChain):
 
         # Here outlines are being specified
         spec.outline(
-            # For initialiging workflow
+            # For initializing workflow
             cls.start,
             cls.validate_input,
             if_(cls.do_imp_pot_calc)(cls.imp_pot_calc),
