@@ -926,11 +926,14 @@ class kkr_imp_sub_wc(WorkChain):
             self.ctx.rms.append(last_calc_output['convergence_group']['rms'])
             rms_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_all_iterations'])
             # check rms of LDAU pot (if LDAU is set)
-            rms_LDAU = last_calc_output['convergence_group']['rms_LDAU']
-            self.ctx.rms_LDAU = rms_LDAU
-            if rms_LDAU != 0.0:
-                rms_LDAU_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_LDAU_all_iterations'])
-                self.ctx.last_rms_LDAU_all = rms_LDAU_all_iter_last_calc
+            try:
+                rms_LDAU = last_calc_output['convergence_group']['rms_LDAU']
+                self.ctx.rms_LDAU = rms_LDAU
+                if rms_LDAU != 0.0:
+                    rms_LDAU_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_LDAU_all_iterations'])
+                    self.ctx.last_rms_LDAU_all = rms_LDAU_all_iter_last_calc
+            except:
+                pass 
 
             # add lists of last iterations
             self.ctx.last_rms_all = rms_all_iter_last_calc
