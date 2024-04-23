@@ -161,7 +161,9 @@ class kkr_imp_dos_wc(WorkChain):
         spec.output('dos_data_interpol', valid_type=XyData, required=False)
         spec.output('dos_data_lm', valid_type=XyData, required=False)
         spec.output('dos_data_interpol_lm', valid_type=XyData, required=False)
-        spec.output('gf_dos_remote', valid_type=RemoteData, required=False, help='RemoteData node of the computed host GF.')
+        spec.output(
+            'gf_dos_remote', valid_type=RemoteData, required=False, help='RemoteData node of the computed host GF.'
+        )
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -468,7 +470,7 @@ label: {self.ctx.label_wf}
             gf_writeout_remote = self.inputs.gf_dos_remote
             gf_writeout_calc = gf_writeout_remote.get_incoming(node_class=CalcJobNode).first().node
             self.ctx.pk_flexcalc = gf_writeout_calc.pk
-        
+
         self.ctx.gf_writeout_remote = gf_writeout_remote
 
         options = self.ctx.options_params_dict
@@ -737,18 +739,18 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
                 with folder.open(name0 + '.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     tmp = loadtxt(dosfile)
                     dos.append(tmp)
-                
+
                 with folder.open(name0 + '.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     tmp = loadtxt(dosfile)
                     if len(tmp) > 0:
                         dos_int.append(tmp)
-                                     
+
             except:
                 # new file names with 3 digits for atom numbers
                 with folder.open(name0 + '.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     tmp = loadtxt(dosfile)
                     dos.append(tmp)
-                
+
                 with folder.open(name0 + '.interpol.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     try:
                         tmp = loadtxt(dosfile)
@@ -757,7 +759,6 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
                     # can happen if there are too few points to interpolate on
                     if len(tmp) > 0:
                         dos_int.append(tmp)
-                
 
     dos = array(dos)
     if len(dos_int) > 0:
@@ -770,10 +771,13 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
     dos[:, :, 0] = (dos[:, :, 0] - ef.value) * eVscale
     dos[:, :, 1:] = dos[:, :, 1:] / eVscale
     if len(dos_int) > 0:
-        dos_int[:, :, 0] = (dos_int[:, :, 0] - ef.value) * eVscale
-        dos_int[:, :, 1:] = dos_int[:, :, 1:] / eVscale
-    else :
-        pass 
+        try:
+            dos_int[:, :, 0] = (dos_int[:, :, 0] - ef.value) * eVscale
+            dos_int[:, :, 1:] = dos_int[:, :, 1:] / eVscale
+        except:
+            message = 'Not enough data were present in the interpolated dos, due to a lack of energy points to interpolate on'
+    else:
+        pass
 
     # create output nodes
     dosnode = XyData()

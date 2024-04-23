@@ -107,7 +107,7 @@ class kkr_bs_wc(WorkChain):
             'remote_data',
             valid_type=RemoteData,
             required=True,
-            help='Parent folder of previoously converged KkrCalculation'
+            help='Parent folder of previously converged KkrCalculation'
         )
         spec.input('kkr', valid_type=Code, required=True, help='KKRhost code, needed to run the qdos KkrCalculation')
         spec.input(
