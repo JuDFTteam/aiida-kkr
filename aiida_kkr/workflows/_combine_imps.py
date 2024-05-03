@@ -540,7 +540,7 @@ If given then the writeout step of the host GF is omitted."""
             ):
                 if (offset, ilayer) == (imp_offset_index, imp2_ilayer):
                     self.report(
-                        f"ERROR: The new impurity is overlaping with the existing impurities. Change the 'ilayer_certer': {ilayer} or 'offset_index'{offset}."
+                        f"ERROR: The new impurity is overlaping with the existing impurities. Change the 'ilayer_center': {ilayer} or 'offset_index'{offset}."
                     )
                     return self.exit_codes.ERROR_SOMETHING_WENT_WRONG  # pylint: disable=no-member
 

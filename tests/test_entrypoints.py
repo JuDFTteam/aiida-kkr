@@ -205,10 +205,10 @@ class TestAiida_kkr_entrypoints(object):
 
         wf = WorkflowFactory('kkr.imp_BdG')
         assert wf == kkrimp_BdG_wc
-    
+
     def test_kkr_STM_workchain_entry_point(self):
         from aiida_kkr.workflows.kkr_STM import kkr_STM_wc
         from aiida.plugins import WorkflowFactory
-        
+
         wf = WorkflowFactory('kkr.STM')
         assert wf == kkr_STM_wc
