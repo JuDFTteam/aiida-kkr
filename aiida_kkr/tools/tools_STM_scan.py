@@ -240,10 +240,17 @@ def STM_pathfinder(host_structure):
     """This function is used to help visualize the scanned positions
        and the symmetries that are present in the system            """
     """
+<<<<<<< HEAD
     inputs::
     host_struture : RemoteData : The Remote data contains all the information needed to create the path to scan
 
     outputs::
+=======
+    inputs:
+    host_struture : RemoteData : The Remote data contains all the information needed to create the path to scan
+
+    outputs:
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
     struc_info : Dict  : Dictionary containing the structural information of the film
     matrices   : Array : Array containing the matrices that generate the symmetries of the system
 
@@ -341,10 +348,14 @@ def lattice_generation(x_len, y_len, rot, vec):
 
     for i in range(-x_len, x_len + 1):
         for j in range(-y_len, y_len + 1):
+<<<<<<< HEAD
             if ( 
                (lattice_points[i][j][0] > 0 or math.isclose(lattice_points[i][j][0],0, abs_tol=1e-3)) and
                (lattice_points[i][j][1] > 0 or math.isclose(lattice_points[i][j][1],0, abs_tol=1e-3))
                 ):
+=======
+            if lattice_points[i][j][0] >= 0 and lattice_points[i][j][1] >= 0:
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
                 for element in rot[1:]:
                     point = np.dot(element, lattice_points[i][j])
                     if point[0] >= 0 and point[1] >= 0:

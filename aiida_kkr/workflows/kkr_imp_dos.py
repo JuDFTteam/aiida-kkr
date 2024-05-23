@@ -786,12 +786,14 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
     dosnode.set_x(dos[:, :, 0], 'E-EF', 'eV')
 
     name = ['tot', 's', 'p', 'd', 'f', 'g']
+    name = name[:len(dos[0, 0, 1:]) - 1] + ['ns']
+
     if use_lmdos.value:
         name = [
-            'tot', 's', 'p1', 'p2', 'p3', 'd1', 'd2', 'd3', 'd4', 'd5', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'g1',
-            'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9'
+            's', 'p1', 'p2', 'p3', 'd1', 'd2', 'd3', 'd4', 'd5', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'g1', 'g2',
+            'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9'
         ]
-    name = name[:len(dos[0, 0, 1:]) - 1] + ['ns']
+        name = name[:len(dos[0, 0, 1:])]
 
     ylists = [[], [], []]
     for l in range(len(name)):
