@@ -4,7 +4,9 @@ from aiida.engine import WorkChain, ToContext, if_, calcfunction
 from aiida.orm import Dict, RemoteData, Code, CalcJobNode, WorkChainNode, Float, Bool, XyData, SinglefileData, List
 from aiida.orm import Group, load_group
 from aiida.common import LinkType
-from aiida_kkr.workflows import kkr_imp_wc, kkr_imp_dos_wc, kkr_dos_wc, kkr_flex_wc, kkr_imp_sub_wc
+from aiida_kkr.workflows.kkr_imp_dos import kkr_imp_dos_wc
+from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
+from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
 from aiida_kkr.tools.find_parent import get_calc_from_remote
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
 
@@ -12,7 +14,7 @@ __copyright__ = (u'Copyright (c), 2024, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.1.0'
-__contributors__ = (u'Raffaele Aliberti, David Antognini Silva, Philipp Rüßmann')
+__contributors__ = (u'Raffaele Aliberti', u'David Antognini Silva', u'Philipp Rüßmann')
 _VERBOSE_ = True
 
 
@@ -153,7 +155,7 @@ class kkr_STM_wc(WorkChain):
         # One parameter which is crucial is the NSHELD, which determines the impurity cluster radius.
         spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite'))
 
-        # Here we expose the BdG calculations from the kkr_imp_sub
+        # Here we expose the BdG calculations from the kkr_imp_dos_wc
         spec.expose_inputs(kkr_imp_sub_wc, namespace='BdG', include=('params_overwrite'))
         spec.expose_inputs(kkr_imp_sub_wc, include=('initial_noco_angles', 'rimpshift'))
 
@@ -260,8 +262,7 @@ class kkr_STM_wc(WorkChain):
         # it to the right AiiDA type
 
         tip_position = {}
-        tip_position['ilayer'] = self.inputs.tip_position['ilayer'
-                                                          ]  # for now we require that the z position remains the same.
+        tip_position['ilayer'] = self.inputs.tip_position['ilayer']  # for now we require that the z position remains the same.
         tip_position['da'] = da
         tip_position['db'] = db
 
@@ -434,6 +435,11 @@ class kkr_STM_wc(WorkChain):
         else:
             # This is a big value of NSHELD to make sure that most calculations work
             builder.gf_writeout.params_kkr_overwrite = Dict(dict={'NSHELD': 1500})
+            
+        # Update the BdG parameters if they are inserted in the workflow
+        if 'BdG' in self.inputs:
+            if 'params_kkr_overwrite' in self.inputs.BdG:
+                builder.BdG.params_overwrite = self.inputs.BdG.params_kkr_overwrite
 
         self.ctx.kkrimp_params_dict = Dict(
             dict={
@@ -454,8 +460,7 @@ class kkr_STM_wc(WorkChain):
         # Finally we overwrite the number of energy points to 1
         # This is because we want many epoints around the impurity position
 
-        self.ctx.kkrimp_params_dict['dos_params'][
-            'nepts'] = 7  # Here 7 because of the interpolated files that aren't generated
+        self.ctx.kkrimp_params_dict['dos_params']['nepts'] = 7  # Here 7 because of the interpolated files that aren't generated
 
         #builder.metadata.label = label_imp  # pylint: disable=no-member
         #builder.metadata.description = description_imp  # pylint: disable=no-member
