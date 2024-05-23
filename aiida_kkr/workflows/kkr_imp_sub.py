@@ -933,7 +933,7 @@ class kkr_imp_sub_wc(WorkChain):
                     rms_LDAU_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_LDAU_all_iterations'])
                     self.ctx.last_rms_LDAU_all = rms_LDAU_all_iter_last_calc
             except:
-                pass 
+                pass
 
             # add lists of last iterations
             self.ctx.last_rms_all = rms_all_iter_last_calc
