@@ -32,8 +32,11 @@ class kkr_STM_wc(WorkChain):
         :param wf_parameters: (Dict), parameters that are used to run the workflow
         :param kkr: (Code), KKR host code for the writing out kkrflex files
         :param kkrimp: (Code), KKR impurity code for the normal state impurity scf and BdG impurity DOS calculation
+<<<<<<< HEAD
         :param gf_writeout.params_kkr_overwrite (Dict), overwrite parameters for the GF calculation
         :param kkr_imp_sub.params_kkr_overwrite (Dict), overwrite parameters for the impurity calculation
+=======
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
 
      returns::
 
@@ -81,10 +84,13 @@ class kkr_STM_wc(WorkChain):
         super(kkr_STM_wc, cls).define(spec)
 
         spec.input('kkr', valid_type=Code, required=False, help='KKRhost code, needed if gf_dos_remote is not given.')
+<<<<<<< HEAD
         spec.input('kkrimp', valid_type=Code, required=True, help='KKRimp code, always needed.')
+=======
 
         spec.input('kkrimp', valid_type=Code, required=True, help='KKRimp code, always needed.')
 
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
         spec.input(
             'options',
             valid_type=Dict,
@@ -92,6 +98,10 @@ class kkr_STM_wc(WorkChain):
             default=lambda: Dict(dict=cls._options_default),
             help='Computer options (resources, quene name, etc.).'
         )
+<<<<<<< HEAD
+=======
+
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
         spec.input(
             'wf_parameters',
             valid_type=Dict,
@@ -99,6 +109,10 @@ class kkr_STM_wc(WorkChain):
             default=lambda: Dict(dict=cls._wf_default),
             help='Workflow parameter (see `kkr_dos_wc.get_wf_defaults()`).'
         )
+<<<<<<< HEAD
+=======
+
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
         spec.input(
             'tip_position',
             valid_type=Dict,
@@ -113,15 +127,25 @@ class kkr_STM_wc(WorkChain):
             # nx is the number of (symmetric) steps that we take in the x-direction starting from the impurity
             # ny is the number of (symmetric) steps that we take in the y-direction starting from the impurity
             # (0,0) correspond to calculate the DOS only on the impurity site
+<<<<<<< HEAD
+            help=
+            'How many sites will be scanned in the da and db direction (Bravais Lattice). And the layer that is being scanned.'
+        )
+=======
             help='How many sites will be scanned in the x and y direction. And the layer that is being scanned.'
         )
 
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
         spec.input(
             'imp_info',
             valid_type=Dict,
             required=True,
             help='Information of the impurity like position in the unit cell, screening cluster, atom type.'
         )
+<<<<<<< HEAD
+=======
+
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
         spec.input(
             'host_calc',
             valid_type=RemoteData,
@@ -129,24 +153,40 @@ class kkr_STM_wc(WorkChain):
             help='The information about the clean host structure is required in order to continue the cluster'
             'Inside a bigger host structure with empty sites.'
         )
+<<<<<<< HEAD
+=======
+
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
         spec.input(
             'host_remote',
             valid_type=RemoteData,
             required=True,
             help='Remote Data containing the remote folder from the outputs of the host calculation',
         )
+<<<<<<< HEAD
+=======
+
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
         spec.input(
             'imp_potential_node',
             valid_type=SinglefileData,
             required=True,
             help='Impurity potential node',
         )
+<<<<<<< HEAD
+=======
+
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
         spec.input(
             'remote_data',
             valid_type=RemoteData,
             required=False,
             help='Remote data from a converged kkr calculation, required for the gf writeout step',
         )
+<<<<<<< HEAD
+=======
+
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
         spec.input(
             'kkrflex_files',
             valid_type=RemoteData,
@@ -158,6 +198,7 @@ class kkr_STM_wc(WorkChain):
         # One parameter which is crucial is the NSHELD, which determines the impurity cluster radius.
         spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite'))
 
+<<<<<<< HEAD
         # Here we expose the BdG calculations from the kkr_imp_dos_wc
         spec.expose_inputs(kkr_imp_sub_wc, namespace='BdG', include=('params_overwrite'))
         spec.expose_inputs(kkr_imp_sub_wc, include=('initial_noco_angles', 'rimpshift'))
@@ -169,6 +210,7 @@ class kkr_STM_wc(WorkChain):
         #spec.output('workflow_info', valid_type=Dict)
         spec.output('kkrflexfiles', valid_type=RemoteData)
         spec.output('combined_imp_info', valid_type=Dict)
+=======
         # Specify the possible outputs
         spec.output('tip_position', valid_type=Dict)
 
@@ -182,6 +224,7 @@ class kkr_STM_wc(WorkChain):
 
         spec.output('combined_imp_info', valid_type=Dict)
 
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
         spec.output('combined_imp_potential', valid_type=SinglefileData)
 
         # Define all possible error messages
@@ -209,6 +252,14 @@ class kkr_STM_wc(WorkChain):
             cls.results
         )
 
+<<<<<<< HEAD
+    def combine_potentials(self, host_structure, impurity_to_combine, da, db):
+        from aiida_kkr.tools.tools_STM_scan import get_imp_info_add_position
+        import numpy as np  # TO DO: optimize this call, only need append from numpy
+        """
+        Here we want to combine the impurity information and the host information
+        """
+=======
     def combine_potentials(self, impurity_to_combine, da, db):
         from aiida_kkr.tools.tools_STM_scan import get_imp_info_add_position_cf
         """
@@ -220,11 +271,13 @@ class kkr_STM_wc(WorkChain):
 
         # Since the objects in AiiDA are immutable we have to create a new dictionary and then convert
         # it to the right AiiDA type
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
         tip_position = {}
 
         tip_position['ilayer'] = self.inputs.tip_position['ilayer']
         tip_position['da'] = da
         tip_position['db'] = db
+<<<<<<< HEAD
         #print(impurity_to_combine.get_dict())
         imp_info = self.inputs.imp_info  #(impurity to combine)
         #host_remote = self.inputs.host_remote
@@ -238,6 +291,8 @@ class kkr_STM_wc(WorkChain):
         if 'imp_cls' in impurity_to_combine:
 
             for key in impurity_to_combine.keys():
+=======
+
         combined_imp_info = get_imp_info_add_position_cf(tip_position, host_remote, imp_info)
         # Add check to see if imp_cls is there
         if 'imp_cls' in impurity_to_combine:
@@ -245,6 +300,7 @@ class kkr_STM_wc(WorkChain):
             new_combined_imp_info = {}
 
             for key, value in impurity_to_combine.items():
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
                 if key == 'Zimp':
                     #print(impurity_to_combine[key])
                     impurity_to_combine[key].append(combined_imp_info[key][-1])
@@ -252,6 +308,7 @@ class kkr_STM_wc(WorkChain):
                 #    np.append(impurity_to_combine[key], [combined_imp_info[key][-1]], axis=0)
                 #    print(impurity_to_combine[key])
                 else:
+<<<<<<< HEAD
                     #print(combined_imp_info[key][-1])
                     impurity_to_combine[key] = np.append(impurity_to_combine[key], [combined_imp_info[key][-1]], axis=0)
                     #print(impurity_to_combine[key])
@@ -270,6 +327,7 @@ class kkr_STM_wc(WorkChain):
 
             # Convert to an AiiDA Dictionary
             new_combined_imp_info = impurity_to_combine
+=======
                     # Here we have lists of list that we need to confront
                     new_combined_imp_info[key] = impurity_to_combine[key]
                     set_tmp = [set(row) for row in impurity_to_combine[key]]
@@ -277,6 +335,7 @@ class kkr_STM_wc(WorkChain):
                     new_combined_imp_info[key] += [row for row in combined_imp_info[key] if set(row) not in set_tmp]
 
             new_combined_imp_info = orm.Dict(dict=new_combined_imp_info)
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
 
         else:
 
@@ -284,25 +343,42 @@ class kkr_STM_wc(WorkChain):
 
         return new_combined_imp_info
 
+<<<<<<< HEAD
+    def combine_nodes(self, host_calc, node_to_combine, da, db):
+        from aiida_kkr.tools.tools_STM_scan import create_combined_potential_node
+=======
     def combine_nodes(self, node_to_combine, da, db):
         from aiida_kkr.tools.tools_STM_scan import create_combined_potential_node_cf
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
         """
         Here we create a combined potential node from the host potential (no impurity)
         and from the impurity potential
         """
         #imp_potential_node = self.inputs.imp_potential_node # (node_to_combine).
+<<<<<<< HEAD
+        #host_remote = self.inputs.host_remote # the remote host structure remains the same.
+=======
         host_remote = self.inputs.host_remote  # the remote host structure remains the same.
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
 
         # Since the objects in AiiDA are immutable we have to create a new dictionary and then convert
         # it to the right AiiDA type
 
         tip_position = {}
+<<<<<<< HEAD
+        tip_position['ilayer'] = self.inputs.tip_position['ilayer']  # for now we require that the z position remains the same.
+        tip_position['da'] = da
+        tip_position['db'] = db
+
+        combined_node = create_combined_potential_node(tip_position, host_calc, node_to_combine)
+=======
         tip_position['ilayer'] = self.inputs.tip_position['ilayer'
                                                           ]  # for now we require that the z position remains the same.
         tip_position['da'] = da
         tip_position['db'] = db
 
         combined_node = create_combined_potential_node_cf(tip_position, host_remote, node_to_combine)
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
         return combined_node
 
     def start(self):
@@ -408,7 +484,10 @@ class kkr_STM_wc(WorkChain):
 
     def impurity_cluster_evaluation(self):
         from aiida_kkr.tools import tools_STM_scan
+<<<<<<< HEAD
         from aiida_kkr.tools import find_parent_structure
+=======
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
 
         # Here we create an impurity cluster that has inside all the positions on which the STM will scan
 
@@ -420,10 +499,13 @@ class kkr_STM_wc(WorkChain):
         impurity_info = self.inputs.imp_info  # for the first step we combine the impurity info from the input
         imp_potential_node = self.inputs.imp_potential_node  # for the first step we combine the impurity node from the input
 
+<<<<<<< HEAD
         host_remote = self.inputs.host_remote
         host_calc = host_remote.get_incoming(node_class=CalcJobNode).first().node
         host_structure = find_parent_structure(host_remote)
 
+=======
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
         # Information of the host structure
         struc_info, symm_matrices = tools_STM_scan.STM_pathfinder(host_remote)
 
@@ -436,7 +518,11 @@ class kkr_STM_wc(WorkChain):
         coeff = tools_STM_scan.find_linear_combination_coefficients(struc_info['plane_vectors'], used_pos)
 
         for element in coeff:
+<<<<<<< HEAD
+            tmp_imp_info = self.combine_potentials(host_structure, impurity_info, element[0], element[1])
+=======
             tmp_imp_info = self.combine_potentials(impurity_info, element[0], element[1])
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
             impurity_info = tmp_imp_info
 
             # Aggregation the impurity nodes
@@ -471,11 +557,14 @@ class kkr_STM_wc(WorkChain):
         else:
             # This is a big value of NSHELD to make sure that most calculations work
             builder.gf_writeout.params_kkr_overwrite = Dict(dict={'NSHELD': 1500})
-
+<<<<<<< HEAD
+            
         # Update the BdG parameters if they are inserted in the workflow
         if 'BdG' in self.inputs:
             if 'params_kkr_overwrite' in self.inputs.BdG:
                 builder.BdG.params_overwrite = self.inputs.BdG.params_kkr_overwrite
+=======
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
 
         self.ctx.kkrimp_params_dict = Dict(
             dict={
@@ -496,7 +585,12 @@ class kkr_STM_wc(WorkChain):
         # Finally we overwrite the number of energy points to 1
         # This is because we want many epoints around the impurity position
 
+<<<<<<< HEAD
         self.ctx.kkrimp_params_dict['dos_params']['nepts'] = 7  # Here 7 because of the interpolated files that aren't generated
+=======
+        self.ctx.kkrimp_params_dict['dos_params'][
+            'nepts'] = 7  # Here 7 because of the interpolated files that aren't generated
+>>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
 
         #builder.metadata.label = label_imp  # pylint: disable=no-member
         #builder.metadata.description = description_imp  # pylint: disable=no-member
