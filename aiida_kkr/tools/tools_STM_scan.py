@@ -106,14 +106,14 @@ def offset_clust2(clust1, clust2, host_structure, add_position):
     return clust2_offset
 
 
-def get_imp_info_add_position(host_calc, imp_info, add_position):
+def get_imp_info_add_position(add_position, host_structure, imp_info):
     """
     Create combined impurity info node for the original
     imp cluster + an additional (STM tip) position
     """
 
     # extract host structure
-    host_structure = find_parent_structure(host_calc)
+    # host_structure = find_parent_structure(host_calc)
 
     # convert imp info to cls form
     imp_info_cls, clust1 = convert_to_imp_cls(host_structure, imp_info)
@@ -138,14 +138,14 @@ def get_imp_info_add_position(host_calc, imp_info, add_position):
 
 
 @engine.calcfunction
-def get_imp_info_add_position_cf(host_remote, imp_info, add_position):
+def get_imp_info_add_position_cf(add_position, host_structure, imp_info):
     """
     Create a new impurty info node that combines the impurity cluster
     of an original calculation and an STM scanning position.
     """
 
     # then combine the imp info
-    imp_info_combined = get_imp_info_add_position(host_remote, imp_info, add_position)
+    imp_info_combined = get_imp_info_add_position(add_position, host_structure, imp_info)
 
     return imp_info_combined
 
@@ -154,7 +154,7 @@ def get_imp_info_add_position_cf(host_remote, imp_info, add_position):
 # combine potentials
 
 
-def extract_host_potential(add_position, host_remote):
+def extract_host_potential(add_position, host_calc):
     """
     Extract the potential of the position in the host that matches the additional position
     """
@@ -163,7 +163,7 @@ def extract_host_potential(add_position, host_remote):
     ilayer = add_position['ilayer']
 
     # get host calculation from remote
-    host_calc = host_remote.get_incoming(node_class=orm.CalcJobNode).first().node
+    #host_calc = host_remote.get_incoming(node_class=orm.CalcJobNode).first().node
 
     # read potential from host's retrieved node
     with host_calc.outputs.retrieved.open('out_potential') as _f:
@@ -183,12 +183,12 @@ def extract_host_potential(add_position, host_remote):
     return pot_add
 
 
-def add_host_potential_to_imp(add_position, host_remote, imp_potential_node):
+def add_host_potential_to_imp(add_position, host_calc, imp_potential_node):
     """
     combine host potential with impurity potential
     """
     # get add potential from host
-    pot_add = extract_host_potential(add_position, host_remote)
+    pot_add = extract_host_potential(add_position, host_calc)
 
     # get impurity potential and convert to list
     pot_imp = imp_potential_node.get_content().split('\n')
@@ -200,7 +200,7 @@ def add_host_potential_to_imp(add_position, host_remote, imp_potential_node):
     return pot_combined
 
 
-def create_combined_potential_node(add_position, host_remote, imp_potential_node):
+def create_combined_potential_node(add_position, host_calc, imp_potential_node):
     """
     Combine impurity potential with an additional potential from the host for
     the STM tip position (additional position)
@@ -208,7 +208,7 @@ def create_combined_potential_node(add_position, host_remote, imp_potential_node
     import io
 
     # combine potential texts
-    pot_combined = add_host_potential_to_imp(add_position, host_remote, imp_potential_node)
+    pot_combined = add_host_potential_to_imp(add_position, host_calc, imp_potential_node)
 
     # convert to byte string and put into SinglefilData node
     pot_combined_string = ''
@@ -218,14 +218,13 @@ def create_combined_potential_node(add_position, host_remote, imp_potential_node
 
     return pot_combined_node
 
-
 @engine.calcfunction
-def create_combined_potential_node_cf(add_position, host_remote, imp_potential_node):
+def create_combined_potential_node_cf(add_position, host_calc, imp_potential_node):
     """
     Calcfunction that combines the impurity potential with an addition potential site from the host
     """
 
-    pot_combined_node = create_combined_potential_node(add_position, host_remote, imp_potential_node)
+    pot_combined_node = create_combined_potential_node(add_position, host_calc, imp_potential_node)
 
     return pot_combined_node
 
