@@ -487,7 +487,7 @@ class kkr_STM_wc(WorkChain):
         calc = self.submit(builder)
         message = f"""INFO: running DOS step for an STM measurement (pk: {calc.pk}) at position
                           (ilayer: {self.inputs.tip_position['ilayer']}, da: {x}, db: {y} )"""
-        
+
         if self.inputs.BdG.params_kkr_overwrite:
             message = f"""INFO: runnig DOS step (pk: {calc.pk}) BdG is present"""
 

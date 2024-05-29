@@ -218,6 +218,7 @@ def create_combined_potential_node(add_position, host_calc, imp_potential_node):
 
     return pot_combined_node
 
+
 @engine.calcfunction
 def create_combined_potential_node_cf(add_position, host_calc, imp_potential_node):
     """
