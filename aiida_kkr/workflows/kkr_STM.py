@@ -208,7 +208,7 @@ class kkr_STM_wc(WorkChain):
         imp_info = self.inputs.imp_info  #(impurity to combine)
         #host_remote = self.inputs.host_remote
 
-        combined_imp_info = get_imp_info_add_position(tip_position, host_structure, imp_info)
+        combined_imp_info = get_imp_info_add_position(Dict(tip_position), host_structure, imp_info)
         # Since the objects in AiiDA are immutable we have to create a new dictionary and then convert
         # it to the right AiiDA type
 
@@ -424,6 +424,9 @@ class kkr_STM_wc(WorkChain):
         # Check if the kkrflex files are already given in the outputs
         if 'kkrflex_files' in self.inputs:
             builder.gf_dos_remote = self.inputs.kkrflex_files
+            message = f'Remote host function is given in the outputs from the node: {self.inputs.kkrflex_files}'
+            print(message)
+            self.report(message)
         else:
             builder.kkr = self.inputs.kkr  # needed to evaluate the kkr_flex files in the DOS step
 
@@ -440,6 +443,7 @@ class kkr_STM_wc(WorkChain):
         if 'BdG' in self.inputs:
             if 'params_kkr_overwrite' in self.inputs.BdG:
                 builder.BdG.params_overwrite = self.inputs.BdG.params_kkr_overwrite
+               
 
         self.ctx.kkrimp_params_dict = Dict(
             dict={
@@ -482,6 +486,9 @@ class kkr_STM_wc(WorkChain):
         calc = self.submit(builder)
         message = f"""INFO: running DOS step for an STM measurement (pk: {calc.pk}) at position
                           (ilayer: {self.inputs.tip_position['ilayer']}, da: {x}, db: {y} )"""
+        
+        if self.inputs.BdG.params_kkr_overwrite:
+            message = f"""INFO: runnig DOS step (pk: {calc.pk}) BdG is present"""
 
         print(message)
         self.report(message)
