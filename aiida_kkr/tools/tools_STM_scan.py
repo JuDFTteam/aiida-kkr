@@ -234,20 +234,16 @@ def create_combined_potential_node_cf(add_position, host_remote, imp_potential_n
 # STM pathfinder
 
 
-def STM_pathfinder(host_structure):
-    #from aiida_kkr.tools import find_parent_structure
-    from ase.spacegroup import Spacegroup
+def STM_pathfinder(host_remote):
     """This function is used to help visualize the scanned positions
        and the symmetries that are present in the system
-    """
-    """
+
     inputs::
-    host_struture : RemoteData : The Remote data contains all the information needed to create the path to scan
+    host_remote : RemoteData : The Remote data contains all the information needed to create the path to scan
 
     outputs::
     struc_info : Dict  : Dictionary containing the structural information of the film
     matrices   : Array : Array containing the matrices that generate the symmetries of the system
-
     """
 
     def info_creation(structure):
@@ -262,12 +258,13 @@ def STM_pathfinder(host_structure):
             if vec[2] == 0:
                 plane_vectors['plane_vectors'].append(vec[:2])
 
-        space_symmetry = get_spacegroup(ase_struc)
+        space_symmetry = get_spacegroup(structure)
         plane_vectors['space_group'] = space_symmetry.no
 
         return plane_vectors
 
     def symmetry_finder(struc_info):
+        from ase.spacegroup import Spacegroup
         # Here we get the symmetry operations that are possible
         symmetry_matrices = Spacegroup(struc_info['space_group'])
 
@@ -284,12 +281,21 @@ def STM_pathfinder(host_structure):
 
         return unique_matrices
 
-    struc = find_parent_structure(host_structure)
+    struc = find_parent_structure(host_remote)
     # clone the structure since it has already been saved in AiiDA and cannot be modified
     supp_struc = struc.clone()
 
     # If the structure is not periodic in every direction we force it to be.
-    supp_struc.pbc = (True, True, True)
+    if not supp_struc.pbc[2]:
+        # find film thickness
+        zs = np.array([i.position[2] for i in supp_struc.sites])
+        z = zs.max() - zs.min() + 5  # add 5 to have a unit cell larger than the considered film thickness
+        # set third bravais vector along z direction
+        cell = supp_struc.cell
+        cell[2] = [0, 0, z]
+        supp_struc.set_cell(cell)
+        # change periodic boundary conditions to periodic
+        supp_struc.pbc = (True, True, True)
 
     # ASE struc
     ase_struc = supp_struc.get_ase()
