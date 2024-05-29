@@ -161,7 +161,9 @@ class kkr_imp_dos_wc(WorkChain):
         spec.output('dos_data_interpol', valid_type=XyData, required=False)
         spec.output('dos_data_lm', valid_type=XyData, required=False)
         spec.output('dos_data_interpol_lm', valid_type=XyData, required=False)
-        spec.output('gf_dos_remote', valid_type=XyData, required=False, help='RemoteData node of the computed host GF.')
+        spec.output(
+            'gf_dos_remote', valid_type=RemoteData, required=False, help='RemoteData node of the computed host GF.'
+        )
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -469,6 +471,8 @@ label: {self.ctx.label_wf}
             gf_writeout_calc = gf_writeout_remote.get_incoming(node_class=CalcJobNode).first().node
             self.ctx.pk_flexcalc = gf_writeout_calc.pk
 
+        self.ctx.gf_writeout_remote = gf_writeout_remote
+
         options = self.ctx.options_params_dict
         kkrimpcode = self.inputs.kkrimp
         if 'imp_pot_sfd' in self.inputs:
@@ -608,6 +612,7 @@ label: {self.ctx.label_wf}
             self.out('workflow_info', outputnode_t)
             self.out('last_calc_output_parameters', last_calc_output_params)
             self.out('last_calc_info', last_calc_info)
+            self.out('gf_dos_remote', self.ctx.gf_writeout_remote)
 
             message = 'INFO: created output nodes for KKR imp DOS workflow.'
             print(message)
@@ -734,36 +739,45 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
                 with folder.open(name0 + '.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     tmp = loadtxt(dosfile)
                     dos.append(tmp)
-                try:
-                    with folder.open(name0 + '.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
-                        tmp = loadtxt(dosfile)
+
+                with folder.open(name0 + '.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                    tmp = loadtxt(dosfile)
+                    if len(tmp) > 0:
                         dos_int.append(tmp)
-                except:
-                    # skip this, can happen if only a single energy point is there
-                    pass
+
             except:
                 # new file names with 3 digits for atom numbers
                 with folder.open(name0 + '.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     tmp = loadtxt(dosfile)
                     dos.append(tmp)
-                try:
-                    with folder.open(name0 + '.interpol.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
+
+                with folder.open(name0 + '.interpol.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                    try:
                         tmp = loadtxt(dosfile)
+                    except:
+                        pass
+                    # can happen if there are too few points to interpolate on
+                    if len(tmp) > 0:
                         dos_int.append(tmp)
-                except:
-                    # skip this, can happen if only a single energy point is there
-                    pass
+
     dos = array(dos)
     if len(dos_int) > 0:
         dos_int = array(dos_int)
+    else:
+        pass
 
     # convert to eV units
     eVscale = get_Ry2eV()
     dos[:, :, 0] = (dos[:, :, 0] - ef.value) * eVscale
     dos[:, :, 1:] = dos[:, :, 1:] / eVscale
     if len(dos_int) > 0:
-        dos_int[:, :, 0] = (dos_int[:, :, 0] - ef.value) * eVscale
-        dos_int[:, :, 1:] = dos_int[:, :, 1:] / eVscale
+        try:
+            dos_int[:, :, 0] = (dos_int[:, :, 0] - ef.value) * eVscale
+            dos_int[:, :, 1:] = dos_int[:, :, 1:] / eVscale
+        except:
+            message = 'Not enough data were present in the interpolated dos, due to a lack of energy points to interpolate on'
+    else:
+        pass
 
     # create output nodes
     dosnode = XyData()
@@ -772,12 +786,14 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
     dosnode.set_x(dos[:, :, 0], 'E-EF', 'eV')
 
     name = ['tot', 's', 'p', 'd', 'f', 'g']
+    name = name[:len(dos[0, 0, 1:]) - 1] + ['ns']
+
     if use_lmdos.value:
         name = [
-            'tot', 's', 'p1', 'p2', 'p3', 'd1', 'd2', 'd3', 'd4', 'd5', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'g1',
-            'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9'
+            's', 'p1', 'p2', 'p3', 'd1', 'd2', 'd3', 'd4', 'd5', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'g1', 'g2',
+            'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9'
         ]
-    name = name[:len(dos[0, 0, 1:]) - 1] + ['ns']
+        name = name[:len(dos[0, 0, 1:])]
 
     ylists = [[], [], []]
     for l in range(len(name)):

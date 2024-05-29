@@ -262,7 +262,8 @@ class kkr_STM_wc(WorkChain):
         # it to the right AiiDA type
 
         tip_position = {}
-        tip_position['ilayer'] = self.inputs.tip_position['ilayer']  # for now we require that the z position remains the same.
+        tip_position['ilayer'] = self.inputs.tip_position['ilayer'
+                                                          ]  # for now we require that the z position remains the same.
         tip_position['da'] = da
         tip_position['db'] = db
 
@@ -360,15 +361,15 @@ class kkr_STM_wc(WorkChain):
 
         if not 'imp_potential_node' in inputs:
             inputs_ok = False
-            return self.exit_codes.ERROR_NO_IMP_POT_SFD
+            return self.exit_codes.ERROR_NO_IMP_POT_SFD  # pylint: disable=no-member
 
         if not 'imp_info' in inputs:
             inputs_ok = False
-            return self.exit_codes.ERROR_NO_IMP_INFO
+            return self.exit_codes.ERROR_NO_IMP_INFO  # pylint: disable=no-member
 
         if not 'kkrflex_files' and 'kkr' in inputs:
             inputs_ok = False
-            return self.exit_codes.ERROR_NO_DATA_FOR_THE_GF_STEP
+            return self.exit_codes.ERROR_NO_DATA_FOR_THE_GF_STEP  # pylint: disable=no-member
 
     def impurity_cluster_evaluation(self):
         from aiida_kkr.tools import tools_STM_scan
@@ -431,15 +432,15 @@ class kkr_STM_wc(WorkChain):
         # The bigger the scanning position, the greater it must be set.
         if 'gf_writeout' in self.inputs:
             if 'params_kkr_overwrite' in self.inputs.gf_writeout:
-                builder.gf_writeout.params_kkr_overwrite = self.inputs.gf_writeout.params_kkr_overwrite
+                builder.gf_writeout.params_kkr_overwrite = self.inputs.gf_writeout.params_kkr_overwrite  # pylint: disable=no-member
         else:
             # This is a big value of NSHELD to make sure that most calculations work
-            builder.gf_writeout.params_kkr_overwrite = Dict(dict={'NSHELD': 1500})
-            
+            builder.gf_writeout.params_kkr_overwrite = Dict(dict={'NSHELD': 1500})  # pylint: disable=no-member
+
         # Update the BdG parameters if they are inserted in the workflow
         if 'BdG' in self.inputs:
             if 'params_kkr_overwrite' in self.inputs.BdG:
-                builder.BdG.params_overwrite = self.inputs.BdG.params_kkr_overwrite
+                builder.BdG.params_overwrite = self.inputs.BdG.params_kkr_overwrite  # pylint: disable=no-member
 
         self.ctx.kkrimp_params_dict = Dict(
             dict={
@@ -460,7 +461,8 @@ class kkr_STM_wc(WorkChain):
         # Finally we overwrite the number of energy points to 1
         # This is because we want many epoints around the impurity position
 
-        self.ctx.kkrimp_params_dict['dos_params']['nepts'] = 7  # Here 7 because of the interpolated files that aren't generated
+        self.ctx.kkrimp_params_dict['dos_params'][
+            'nepts'] = 7  # Here 7 because of the interpolated files that aren't generated
 
         #builder.metadata.label = label_imp  # pylint: disable=no-member
         #builder.metadata.description = description_imp  # pylint: disable=no-member
@@ -499,7 +501,7 @@ class kkr_STM_wc(WorkChain):
             message = 'ERROR: sub workflow for STM calculation failed'
             print(message)
             self.report(message)
-            return self.exit_codes.ERROR_IMP_SUB_WORKFLOW_FAILURE
+            return self.exit_codes.ERROR_IMP_SUB_WORKFLOW_FAILURE  # pylint: disable=no-member
 
         else:
 

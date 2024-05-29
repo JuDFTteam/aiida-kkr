@@ -13,8 +13,8 @@ from masci_tools.io.common_functions import get_alat_from_bravais
 __copyright__ = (u'Copyright (c), 2023, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.0'
-__contributors__ = (u'Philipp Rüßmann')
+__version__ = '0.1.1'
+__contributors__ = (u'Philipp Rüßmann', u'Raffaele Aliberti')
 
 ##############################################################################
 # combine impurty clusters
@@ -229,6 +229,7 @@ def create_combined_potential_node_cf(add_position, host_remote, imp_potential_n
 
     return pot_combined_node
 
+
 #####################################################################
 # STM pathfinder
 
@@ -237,9 +238,8 @@ def STM_pathfinder(host_structure):
     #from aiida_kkr.tools import find_parent_structure
     from ase.spacegroup import Spacegroup
     """This function is used to help visualize the scanned positions
-       and the symmetries that are present in the system            
+       and the symmetries that are present in the system
     """
-    
     """
     inputs::
     host_struture : RemoteData : The Remote data contains all the information needed to create the path to scan
@@ -342,10 +342,8 @@ def lattice_generation(x_len, y_len, rot, vec):
 
     for i in range(-x_len, x_len + 1):
         for j in range(-y_len, y_len + 1):
-            if ( 
-               (lattice_points[i][j][0] > 0 or math.isclose(lattice_points[i][j][0],0, abs_tol=1e-3)) and
-               (lattice_points[i][j][1] > 0 or math.isclose(lattice_points[i][j][1],0, abs_tol=1e-3))
-                ):
+            if ((lattice_points[i][j][0] > 0 or math.isclose(lattice_points[i][j][0], 0, abs_tol=1e-3)) and
+                (lattice_points[i][j][1] > 0 or math.isclose(lattice_points[i][j][1], 0, abs_tol=1e-3))):
                 for element in rot[1:]:
                     point = np.dot(element, lattice_points[i][j])
                     if point[0] >= 0 and point[1] >= 0:

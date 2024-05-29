@@ -121,6 +121,7 @@ include-package-data = false
 "kkr.decimation" = "aiida_kkr.workflows._decimation:kkr_decimation_wc"
 "kkr.jij" = "aiida_kkr.workflows.jijs:kkr_jij_wc"
 "kkr.combine_imp" = "aiida_kkr.workflows._combine_imps:combine_imps_wc"
+"kkr.STM" = "aiida_kkr.workflows.kkr_STM:kkr_STM_wc"
 
 [tool.setuptools.packages.find]
 namespaces = false

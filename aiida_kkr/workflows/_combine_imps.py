@@ -19,7 +19,7 @@ from masci_tools.io.common_functions import get_Ry2eV
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.3.3'
+__version__ = '0.3.4'
 __contributors__ = (u'Philipp Rüßmann , Rubel Mozumder, David Antognini Silva')
 
 # activate debug writeout
@@ -390,12 +390,21 @@ If given then the writeout step of the host GF is omitted."""
         """
         Extract impurity infor node from the incoming host GF folder
         """
+        if 'impurity_info' in imp_calc.inputs:
+            return imp_calc.inputs.impurity_info
+
         if imp_calc.process_class == KkrimpCalculation:
             GF_input = imp_calc.inputs.host_Greenfunction_folder
         elif imp_calc.process_class == kkr_imp_sub_wc:
             GF_input = imp_calc.inputs.remote_data
+        elif imp_calc.process_class == kkr_imp_wc:
+            GF_input = imp_calc.inputs.remote_data_gf
+        else:
+            raise ValueError('Unable to get impinfo')
+
         parent_calc = GF_input.get_incoming(node_class=CalcJobNode).first().node
         impinfo = parent_calc.inputs.impurity_info
+
         return impinfo
 
     def imps_info_exact_cluster_2imps(self, single_imp1_wc, single_imp2_wc, offset_imp2):
@@ -540,7 +549,7 @@ If given then the writeout step of the host GF is omitted."""
             ):
                 if (offset, ilayer) == (imp_offset_index, imp2_ilayer):
                     self.report(
-                        f"ERROR: The new impurity is overlaping with the existing impurities. Change the 'ilayer_certer': {ilayer} or 'offset_index'{offset}."
+                        f"ERROR: The new impurity is overlaping with the existing impurities. Change the 'ilayer_center': {ilayer} or 'offset_index'{offset}."
                     )
                     return self.exit_codes.ERROR_SOMETHING_WENT_WRONG  # pylint: disable=no-member
 
@@ -981,18 +990,6 @@ If given then the writeout step of the host GF is omitted."""
 def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_node):
     """parser output of Jij calculation and return as ArrayData node"""
 
-    _FILENAME_TAR = 'output_all.tar.gz'
-
-    if _FILENAME_TAR in retrieved.list_object_names():
-        # get path of tarfile
-        with retrieved.open(_FILENAME_TAR) as tf:
-            tfpath = tf.name
-        # extract file from tarfile of retrieved to tempfolder
-        with tarfile.open(tfpath) as tf:
-            tar_filenames = [ifile.name for ifile in tf.getmembers()]
-            filename = 'out_Jijmatrix'
-            if filename in tar_filenames:
-                tf.extract(filename, tfpath.replace(_FILENAME_TAR, ''))  # extract to tempfolder
     # Collect the zimp for impurity_output_node
     try:
         imp1_z = impurity1_output_node.get_incoming(node_class=kkr_imp_wc
@@ -1013,7 +1010,9 @@ def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_
     imp2_z = impurity2_output_node.get_incoming(node_class=kkr_imp_wc
                                                 ).first().node.inputs.impurity_info.get_dict()['Zimp']
 
-    jijdata = np.loadtxt(tfpath.replace(_FILENAME_TAR, '') + 'out_Jijmatrix')
+    with retrieved.open('out_Jijmatrix') as _f:
+        jijdata = np.loadtxt(_f)
+
     impurity_info = impurity_info.get_dict()
     pos = np.array(impurity_info['imp_cls'])
     z = np.array(impurity_info['imp_cls'])[:, 4]

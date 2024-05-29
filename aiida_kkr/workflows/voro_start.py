@@ -556,7 +556,7 @@ class kkr_startpot_wc(WorkChain):
                 kkr_para.set_value('EMIN', emin_new)
                 self.report(f'INFO: setting EMIN to {emin_new} (DOS check showed that EMIN is too high)')
             if 'ef_set' in update_list:
-                kkr_para.set_value('EFSET', self.ctx.ef_set)
+                kkr_para.set_value('EF_SET', self.ctx.ef_set)
                 self.report(f'INFO: setting Fermi level of stating potential to {self.ctx.ef_set}')
 
             updatenode = orm.Dict(dict=kkr_para.get_dict())
