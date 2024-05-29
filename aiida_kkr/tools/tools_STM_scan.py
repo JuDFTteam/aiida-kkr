@@ -6,8 +6,8 @@ This module contains helper functions and tools doing STM-like scans around impu
 import numpy as np
 from aiida import orm, engine
 from aiida_kkr.tools import find_parent_structure
-from aiida_kkr.tools.combine_imps import get_scoef_single_imp
-from aiida_kkr.tools.imp_cluster_tools import pos_exists_already, combine_clusters
+from aiida_kkr.tools.imp_cluster_tools import pos_exists_already, combine_clusters, create_combined_imp_info_cf, get_scoef_single_imp
+#from aiida_kkr.tools.combine_imps import get_scoef_single_imp
 from masci_tools.io.common_functions import get_alat_from_bravais
 
 __copyright__ = (u'Copyright (c), 2023, Forschungszentrum Jülich GmbH, '
@@ -98,7 +98,7 @@ def offset_clust2(clust1, clust2, host_structure, add_position):
     """
     Compute and add offset to clust2
     """
-    r_offset = get_r_offset(clust1, clust2, host_structure, add_position)
+    r_offset = get_r_offset(clust1, clust2, host_structure, orm.Dict(add_position))
 
     clust2_offset = clust2.copy()
     clust2_offset[:, :3] += r_offset
@@ -106,14 +106,14 @@ def offset_clust2(clust1, clust2, host_structure, add_position):
     return clust2_offset
 
 
-def get_imp_info_add_position(host_calc, imp_info, add_position):
+def get_imp_info_add_position(add_position, host_structure, imp_info):
     """
     Create combined impurity info node for the original
     imp cluster + an additional (STM tip) position
     """
 
     # extract host structure
-    host_structure = find_parent_structure(host_calc)
+    # host_structure = find_parent_structure(host_calc)
 
     # convert imp info to cls form
     imp_info_cls, clust1 = convert_to_imp_cls(host_structure, imp_info)
@@ -138,14 +138,14 @@ def get_imp_info_add_position(host_calc, imp_info, add_position):
 
 
 @engine.calcfunction
-def get_imp_info_add_position_cf(add_position, host_remote, imp_info):
+def get_imp_info_add_position_cf(add_position, host_structure, imp_info):
     """
     Create a new impurty info node that combines the impurity cluster
     of an original calculation and an STM scanning position.
     """
 
     # then combine the imp info
-    imp_info_combined = get_imp_info_add_position(host_remote, imp_info, add_position)
+    imp_info_combined = get_imp_info_add_position(add_position, host_structure, imp_info)
 
     return imp_info_combined
 
@@ -154,7 +154,7 @@ def get_imp_info_add_position_cf(add_position, host_remote, imp_info):
 # combine potentials
 
 
-def extract_host_potential(add_position, host_remote):
+def extract_host_potential(add_position, host_calc):
     """
     Extract the potential of the position in the host that matches the additional position
     """
@@ -163,7 +163,7 @@ def extract_host_potential(add_position, host_remote):
     ilayer = add_position['ilayer']
 
     # get host calculation from remote
-    host_calc = host_remote.get_incoming(node_class=orm.CalcJobNode).first().node
+    #host_calc = host_remote.get_incoming(node_class=orm.CalcJobNode).first().node
 
     # read potential from host's retrieved node
     with host_calc.outputs.retrieved.open('out_potential') as _f:
@@ -183,12 +183,12 @@ def extract_host_potential(add_position, host_remote):
     return pot_add
 
 
-def add_host_potential_to_imp(add_position, host_remote, imp_potential_node):
+def add_host_potential_to_imp(add_position, host_calc, imp_potential_node):
     """
     combine host potential with impurity potential
     """
     # get add potential from host
-    pot_add = extract_host_potential(add_position, host_remote)
+    pot_add = extract_host_potential(add_position, host_calc)
 
     # get impurity potential and convert to list
     pot_imp = imp_potential_node.get_content().split('\n')
@@ -200,7 +200,7 @@ def add_host_potential_to_imp(add_position, host_remote, imp_potential_node):
     return pot_combined
 
 
-def create_combined_potential_node(add_position, host_remote, imp_potential_node):
+def create_combined_potential_node(add_position, host_calc, imp_potential_node):
     """
     Combine impurity potential with an additional potential from the host for
     the STM tip position (additional position)
@@ -208,7 +208,7 @@ def create_combined_potential_node(add_position, host_remote, imp_potential_node
     import io
 
     # combine potential texts
-    pot_combined = add_host_potential_to_imp(add_position, host_remote, imp_potential_node)
+    pot_combined = add_host_potential_to_imp(add_position, host_calc, imp_potential_node)
 
     # convert to byte string and put into SinglefilData node
     pot_combined_string = ''
@@ -220,12 +220,12 @@ def create_combined_potential_node(add_position, host_remote, imp_potential_node
 
 
 @engine.calcfunction
-def create_combined_potential_node_cf(add_position, host_remote, imp_potential_node):
+def create_combined_potential_node_cf(add_position, host_calc, imp_potential_node):
     """
     Calcfunction that combines the impurity potential with an addition potential site from the host
     """
 
-    pot_combined_node = create_combined_potential_node(add_position, host_remote, imp_potential_node)
+    pot_combined_node = create_combined_potential_node(add_position, host_calc, imp_potential_node)
 
     return pot_combined_node
 
@@ -235,15 +235,15 @@ def create_combined_potential_node_cf(add_position, host_remote, imp_potential_n
 
 
 def STM_pathfinder(host_structure):
-    from aiida_kkr.tools import find_parent_structure
+    #from aiida_kkr.tools import find_parent_structure
     from ase.spacegroup import Spacegroup
     """This function is used to help visualize the scanned positions
        and the symmetries that are present in the system            """
     """
-    inputs:
+    inputs::
     host_struture : RemoteData : The Remote data contains all the information needed to create the path to scan
 
-    outputs:
+    outputs::
     struc_info : Dict  : Dictionary containing the structural information of the film
     matrices   : Array : Array containing the matrices that generate the symmetries of the system
 
@@ -341,7 +341,8 @@ def lattice_generation(x_len, y_len, rot, vec):
 
     for i in range(-x_len, x_len + 1):
         for j in range(-y_len, y_len + 1):
-            if lattice_points[i][j][0] >= 0 and lattice_points[i][j][1] >= 0:
+            if ((lattice_points[i][j][0] > 0 or math.isclose(lattice_points[i][j][0], 0, abs_tol=1e-3)) and
+                (lattice_points[i][j][1] > 0 or math.isclose(lattice_points[i][j][1], 0, abs_tol=1e-3))):
                 for element in rot[1:]:
                     point = np.dot(element, lattice_points[i][j])
                     if point[0] >= 0 and point[1] >= 0:
@@ -372,7 +373,7 @@ def lattice_generation(x_len, y_len, rot, vec):
 
 
 def lattice_plot(plane_vectors, symm_vec, symm_matrices, grid_length_x, grid_length_y):
-    from aiida_kkr.tools import lattice_generation
+    #from aiida_kkr.tools.tools_STM_scan import lattice_generation
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
