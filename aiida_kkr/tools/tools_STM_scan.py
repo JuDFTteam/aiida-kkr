@@ -64,8 +64,9 @@ def get_r_offset(clust1, clust2, host_structure, add_position):
     """
     # calculate out-of plane vector from the ilayer indices of the two clusters
     r_out_of_plane = np.array([0., 0., 0.])
-    ilayer1 = int(clust1[0, 3])
-    ilayer2 = int(clust2[0, 3])
+    # minus 1 because of conversion from fortran to python standard (counting starts at 0)
+    ilayer1 = int(clust1[0, 3]) - 1
+    ilayer2 = int(clust2[0, 3]) - 1
     if ilayer1 != ilayer2:
         pos1 = np.array(host_structure.sites[ilayer1].position)
         pos2 = np.array(host_structure.sites[ilayer2].position)
