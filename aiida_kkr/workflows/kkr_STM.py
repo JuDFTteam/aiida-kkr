@@ -339,6 +339,11 @@ label: {self.ctx.label_wf}
         used in self-consistency + the additional scanning sites.
         """
         from aiida_kkr.tools import find_parent_structure
+        if _VERBOSE_:
+            from time import time
+
+            # measure time at start
+            t_start = time()
 
         # Here we create an impurity cluster that has inside all the positions on which the STM will scan
 
@@ -352,14 +357,31 @@ label: {self.ctx.label_wf}
         # now find all the positions we need to scan
         coeff = self.get_scanning_positions(host_remote)
 
+        if _VERBOSE_:
+            # timing counters
+            t_imp_info, t_pot = 0., 0.
+
         # construct impurity potential and imp_info for the impurity cluster + scanning area
         for element in coeff:
+            if _VERBOSE_:
+                t0 = time()
             tmp_imp_info = self.combine_potentials(host_structure, impurity_info, element[0], element[1])
             impurity_info = tmp_imp_info
+
+            if _VERBOSE_:
+                t_imp_info += time() - t0
+                t0 = time()
 
             # Aggregation the impurity nodes
             tmp_imp_pot = self.combine_nodes(host_calc, imp_potential_node, element[0], element[1])
             imp_potential_node = tmp_imp_pot
+
+            if _VERBOSE_:
+                t_pot += time() - t0
+
+        if _VERBOSE_:
+            # report elapsed time for cluster generation
+            self.report(f'time for cluster generation (s): {time()-t_start}, imp_info={t_imp_info}, pot={t_pot}')
 
         return impurity_info, imp_potential_node
 
