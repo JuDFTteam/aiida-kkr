@@ -13,7 +13,7 @@ from masci_tools.io.common_functions import get_alat_from_bravais
 __copyright__ = (u'Copyright (c), 2023, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 __contributors__ = (u'Philipp Rüßmann', u'Raffaele Aliberti')
 
 ##############################################################################
@@ -53,8 +53,12 @@ def get_imp_cls_add(host_structure, add_position):
     define auxiliary imp_info for adding position and generate rcls
     """
     Zadd = get_Zadd(host_structure, add_position)
-    imp_info2 = orm.Dict({'ilayer_center': add_position['ilayer'], 'Zimp': [Zadd], 'Rcut': 1e-5})
-    clust2 = get_scoef_single_imp(host_structure, imp_info2)
+    ilayer = add_position['ilayer']
+    imp_info2 = orm.Dict({'ilayer_center': ilayer, 'Zimp': [Zadd], 'Rcut': 1e-5})
+    # old version is too slow:
+    # clust2 = get_scoef_single_imp(host_structure, imp_info2)
+    # new version creates the array without calling the get_scoef_single_imp function:
+    clust2 = np.array([[0., 0., 0., ilayer + 1, 0., 0.]])
     return imp_info2, clust2
 
 
