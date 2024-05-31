@@ -471,18 +471,14 @@ label: {self.ctx.label_wf}
         builder.impurity_info = impurity_info
         builder.imp_pot_sfd = imp_pot_sfd
 
-        x = self.inputs.tip_position['nx']
-        y = self.inputs.tip_position['ny']
-
+        # submit calculation
         calc = self.submit(builder)
 
-        message = f"""INFO: running DOS step for an STM measurement (pk: {calc.pk}) at position
-(ilayer: {self.inputs.tip_position['ilayer']}, da: {x}, db: {y} )"""
-
+        # print report
+        message = f"""INFO: running DOS step for an STM measurement (pk: {calc.pk}) at position (ilayer: {self.inputs.tip_position['ilayer']})"""
         if 'params_kkr_overwrite' in self.inputs.BdG:
             if self.inputs.BdG.params_kkr_overwrite:
                 message += f'\nINFO: runnig DOS step (pk: {calc.pk}) BdG is present'
-
         self.report(message)
 
         # Save the calculated impurity cluster and impurity info in the context
