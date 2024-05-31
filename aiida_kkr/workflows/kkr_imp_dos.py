@@ -10,6 +10,7 @@ from aiida.plugins import DataFactory
 from aiida.engine import if_, ToContext, WorkChain, calcfunction
 from aiida.common import LinkType
 from aiida.common.folders import SandboxFolder
+from aiida_kkr.tools import truncate_string
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
 from aiida_kkr.workflows.dos import kkr_dos_wc
@@ -507,7 +508,8 @@ label: {self.ctx.label_wf}
         )
 
         builder = kkr_imp_sub_wc.get_builder()
-        builder.metadata.label = label_imp  # pylint: disable=no-member
+        # Attention: label and description must not be loo long (255 characters max)!
+        builder.metadata.label = truncate_string(label_imp, 255)  # pylint: disable=no-member
         builder.metadata.description = description_imp  # pylint: disable=no-member
         builder.kkrimp = kkrimpcode
         builder.options = options

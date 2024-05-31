@@ -153,7 +153,7 @@ class kkr_STM_wc(WorkChain):
 
         # Here we expose the inputs for the GF calculations step.
         # One parameter which is crucial is the NSHELD, which determines the impurity cluster radius.
-        spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite'))
+        spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite', 'options'))
 
         # Here we expose the BdG calculations from the kkr_imp_dos_wc
         spec.expose_inputs(kkr_imp_sub_wc, namespace='BdG', include=('params_overwrite'))
@@ -334,15 +334,13 @@ label: {self.ctx.label_wf}
             return self.exit_codes.ERROR_NO_DATA_FOR_THE_GF_STEP  # pylint: disable=no-member
 
     def impurity_cluster_evaluation(self):
-        from aiida_kkr.tools import tools_STM_scan
+        """
+        Create the combined impurity cluster and potential for the impurity region
+        used in self-consistency + the additional scanning sites.
+        """
         from aiida_kkr.tools import find_parent_structure
 
         # Here we create an impurity cluster that has inside all the positions on which the STM will scan
-
-        # We now want to iterate over several in-plane positions.
-        # These are the number of vectors in which we want to move the STM tip.
-        x = self.inputs.tip_position['nx']
-        y = self.inputs.tip_position['ny']
 
         impurity_info = self.inputs.imp_info  # for the first step we combine the impurity info from the input
         imp_potential_node = self.inputs.imp_potential_node  # for the first step we combine the impurity node from the input
@@ -351,16 +349,10 @@ label: {self.ctx.label_wf}
         host_calc = host_remote.get_incoming(node_class=CalcJobNode).first().node
         host_structure = find_parent_structure(host_remote)
 
-        # Information of the host structure
-        struc_info, symm_matrices = tools_STM_scan.STM_pathfinder(host_remote)
+        # now find all the positions we need to scan
+        coeff = self.get_scanning_positions(host_remote)
 
-        # Path creation step. (The the identity operator is present, but will be excluded)
-        unused_pos, used_pos = tools_STM_scan.lattice_generation(x, y, symm_matrices, struc_info['plane_vectors'])
-
-        # Since the combine tools use the element already in the units of da and db, we use a helper function
-        # to have the indices of the linear combination of the used position vectors in the base of the Bravais lattice.
-        coeff = tools_STM_scan.find_linear_combination_coefficients(struc_info['plane_vectors'], used_pos)
-
+        # construct impurity potential and imp_info for the impurity cluster + scanning area
         for element in coeff:
             tmp_imp_info = self.combine_potentials(host_structure, impurity_info, element[0], element[1])
             impurity_info = tmp_imp_info
@@ -370,6 +362,45 @@ label: {self.ctx.label_wf}
             imp_potential_node = tmp_imp_pot
 
         return impurity_info, imp_potential_node
+
+    def get_scanning_positions(self, host_remote):
+        """
+        Extract scanning positions either from input 'scan_positions' or from 'nx', 'ny' + symmetry analysis
+
+        If  'scan_positions' is found in 'tip_position' input dict we use these positions which should
+        be 2D array of integers with the positions in units of the structure's in-plane Bravais matrix.
+
+        Otherwise we use the 'nx', 'ny' input to define a scanning region where an automated symmetry
+        analysis is done to reduce the scanning area to the irreducible part.
+        """
+        from aiida_kkr.tools import tools_STM_scan
+
+        generate_scan_positions = True
+        if 'scan_positions' in self.inputs.tip_position:
+            coeff = self.inputs.tip_position['scan_positions']
+            if coeff is not None:
+                # check if coefficients exists and are valid
+                # TODO: improve the validity check
+                generate_scan_positions = False
+
+        if generate_scan_positions:
+
+            # Information of the host structure
+            struc_info, symm_matrices = tools_STM_scan.STM_pathfinder(host_remote)
+
+            # We now want to iterate over several in-plane positions.
+            # These are the number of vectors in which we want to move the STM tip.
+            x = self.inputs.tip_position['nx']
+            y = self.inputs.tip_position['ny']
+
+            # Path creation step. (The the identity operator is present, but will be excluded)
+            unused_pos, used_pos = tools_STM_scan.lattice_generation(x, y, symm_matrices, struc_info['plane_vectors'])
+
+            # Since the combine tools use the element already in the units of da and db, we use a helper function
+            # to have the indices of the linear combination of the used position vectors in the base of the Bravais lattice.
+            coeff = tools_STM_scan.find_linear_combination_coefficients(struc_info['plane_vectors'], used_pos)
+
+        return coeff
 
     def STM_lmdos_run(self):
         """In this part of the worflow we want to simulate the lmdos which a STM is able to measure """
@@ -387,7 +418,6 @@ label: {self.ctx.label_wf}
         if 'kkrflex_files' in self.inputs:
             builder.gf_dos_remote = self.inputs.kkrflex_files
             message = f'Remote host function is given in the outputs from the node: {self.inputs.kkrflex_files}'
-            print(message)
             self.report(message)
         else:
             builder.kkr = self.inputs.kkr  # needed to evaluate the kkr_flex files in the DOS step
@@ -408,9 +438,9 @@ label: {self.ctx.label_wf}
 
         self.ctx.kkrimp_params_dict = Dict(
             dict={
-                'nsteps': 1,
-                'kkr_runmax': 1,
-                'dos_run': True,
+                'nsteps': 1,  # redundant because this is already set inside the kkr_imp_dos workchain?!
+                'kkr_runmax': 1,  # redundant because this is already set inside the kkr_imp_dos workchain?!
+                'dos_run': True,  # redundant because this is already set inside the kkr_imp_dos workchain?!
                 'retrieve_kkrflex': self.ctx.retrieve_kkrflex,
                 'lmdos': self.ctx.lmdos,
                 'jij_run': self.ctx.jij_run,
