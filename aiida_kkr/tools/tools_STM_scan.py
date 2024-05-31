@@ -193,7 +193,14 @@ def add_host_potential_to_imp(add_position, host_calc, imp_potential_node):
     combine host potential with impurity potential
     """
     # get add potential from host
-    pot_add = extract_host_potential(add_position, host_calc)
+    potname = f'host_pot:{add_position["ilayer"]}'
+    if potname in imp_potential_node.extras:
+        # reuse existing host position if we have found it previously
+        pot_add = imp_potential_node.extras[potname]
+    else:
+        # get host postition and store as extra
+        pot_add = extract_host_potential(add_position, host_calc)
+        imp_potential_node.set_extra(potname, pot_add)
 
     # get impurity potential and convert to list
     pot_imp = imp_potential_node.get_content().split('\n')

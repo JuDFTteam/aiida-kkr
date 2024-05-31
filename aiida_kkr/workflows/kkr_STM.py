@@ -449,6 +449,8 @@ label: {self.ctx.label_wf}
         if 'gf_writeout' in self.inputs:
             if 'params_kkr_overwrite' in self.inputs.gf_writeout:
                 builder.gf_writeout.params_kkr_overwrite = self.inputs.gf_writeout.params_kkr_overwrite  # pylint: disable=no-member
+            if 'options' in self.inputs.gf_writeout:
+                builder.gf_writeout.options = self.inputs.gf_writeout.options  # pylint: disable=no-member
         else:
             # This is a big value of NSHELD to make sure that most calculations work
             builder.gf_writeout.params_kkr_overwrite = Dict(dict={'NSHELD': 1500})  # pylint: disable=no-member
