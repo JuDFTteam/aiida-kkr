@@ -309,14 +309,14 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
         if _VERBOSE_:
             message = f"""
-INFO: use the following parameter:
-withmpi: {self.ctx.withmpi}
-Resources: {self.ctx.resources}
-Walltime (s): {self.ctx.max_wallclock_seconds}
-queue name: {self.ctx.queue}
-scheduler command: {self.ctx.custom_scheduler_commands}
-description: {self.ctx.description_wf}
-label: {self.ctx.label_wf}
+                        INFO: use the following parameter:
+                        withmpi: {self.ctx.withmpi}
+                        Resources: {self.ctx.resources}
+                        Walltime (s): {self.ctx.max_wallclock_seconds}
+                        queue name: {self.ctx.queue}
+                        scheduler command: {self.ctx.custom_scheduler_commands}
+                        description: {self.ctx.description_wf}
+                        label: {self.ctx.label_wf}
                       """
             self.report(message)
 
