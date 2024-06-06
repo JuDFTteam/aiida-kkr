@@ -6,15 +6,15 @@ This module contains helper functions and tools doing STM-like scans around impu
 import numpy as np
 from aiida import orm, engine
 from aiida_kkr.tools import find_parent_structure
-from aiida_kkr.tools.imp_cluster_tools import pos_exists_already, combine_clusters, create_combined_imp_info_cf, get_scoef_single_imp
-#from aiida_kkr.tools.combine_imps import get_scoef_single_imp
+from aiida_kkr.tools.combine_imps import get_scoef_single_imp
+from aiida_kkr.tools.imp_cluster_tools import pos_exists_already, combine_clusters
 from masci_tools.io.common_functions import get_alat_from_bravais
 
 __copyright__ = (u'Copyright (c), 2023, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.1'
-__contributors__ = (u'Philipp Rüßmann, Raffaele Aliberti')
+__version__ = '0.1.2'
+__contributors__ = (u'Philipp Rüßmann', u'Raffaele Aliberti')
 
 ##############################################################################
 # combine impurty clusters
@@ -53,8 +53,12 @@ def get_imp_cls_add(host_structure, add_position):
     define auxiliary imp_info for adding position and generate rcls
     """
     Zadd = get_Zadd(host_structure, add_position)
-    imp_info2 = orm.Dict({'ilayer_center': add_position['ilayer'], 'Zimp': [Zadd], 'Rcut': 1e-5})
-    clust2 = get_scoef_single_imp(host_structure, imp_info2)
+    ilayer = add_position['ilayer']
+    imp_info2 = orm.Dict({'ilayer_center': ilayer, 'Zimp': [Zadd], 'Rcut': 1e-5})
+    # old version is too slow:
+    # clust2 = get_scoef_single_imp(host_structure, imp_info2)
+    # new version creates the array without calling the get_scoef_single_imp function:
+    clust2 = np.array([[0., 0., 0., ilayer + 1, 0., 0.]])
     return imp_info2, clust2
 
 
@@ -64,8 +68,9 @@ def get_r_offset(clust1, clust2, host_structure, add_position):
     """
     # calculate out-of plane vector from the ilayer indices of the two clusters
     r_out_of_plane = np.array([0., 0., 0.])
-    ilayer1 = int(clust1[0, 3])
-    ilayer2 = int(clust2[0, 3])
+    # minus 1 because of conversion from fortran to python standard (counting starts at 0)
+    ilayer1 = int(clust1[0, 3]) - 1
+    ilayer2 = int(clust2[0, 3]) - 1
     if ilayer1 != ilayer2:
         pos1 = np.array(host_structure.sites[ilayer1].position)
         pos2 = np.array(host_structure.sites[ilayer2].position)
@@ -98,7 +103,7 @@ def offset_clust2(clust1, clust2, host_structure, add_position):
     """
     Compute and add offset to clust2
     """
-    r_offset = get_r_offset(clust1, clust2, host_structure, orm.Dict(add_position))
+    r_offset = get_r_offset(clust1, clust2, host_structure, add_position)
 
     clust2_offset = clust2.copy()
     clust2_offset[:, :3] += r_offset
@@ -188,7 +193,14 @@ def add_host_potential_to_imp(add_position, host_calc, imp_potential_node):
     combine host potential with impurity potential
     """
     # get add potential from host
-    pot_add = extract_host_potential(add_position, host_calc)
+    potname = f'host_pot:{add_position["ilayer"]}'
+    if potname in imp_potential_node.extras:
+        # reuse existing host position if we have found it previously
+        pot_add = imp_potential_node.extras[potname]
+    else:
+        # get host postition and store as extra
+        pot_add = extract_host_potential(add_position, host_calc)
+        imp_potential_node.set_extra(potname, pot_add)
 
     # get impurity potential and convert to list
     pot_imp = imp_potential_node.get_content().split('\n')
@@ -234,26 +246,16 @@ def create_combined_potential_node_cf(add_position, host_calc, imp_potential_nod
 # STM pathfinder
 
 
-def STM_pathfinder(host_structure):
-    #from aiida_kkr.tools import find_parent_structure
-    from ase.spacegroup import Spacegroup
+def STM_pathfinder(host_remote):
     """This function is used to help visualize the scanned positions
-       and the symmetries that are present in the system            """
-    """
-<<<<<<< HEAD
+       and the symmetries that are present in the system
+
     inputs::
-    host_struture : RemoteData : The Remote data contains all the information needed to create the path to scan
+    host_remote : RemoteData : The Remote data contains all the information needed to create the path to scan
 
     outputs::
-=======
-    inputs:
-    host_struture : RemoteData : The Remote data contains all the information needed to create the path to scan
-
-    outputs:
->>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
     struc_info : Dict  : Dictionary containing the structural information of the film
     matrices   : Array : Array containing the matrices that generate the symmetries of the system
-
     """
 
     def info_creation(structure):
@@ -268,12 +270,13 @@ def STM_pathfinder(host_structure):
             if vec[2] == 0:
                 plane_vectors['plane_vectors'].append(vec[:2])
 
-        space_symmetry = get_spacegroup(ase_struc)
+        space_symmetry = get_spacegroup(structure)
         plane_vectors['space_group'] = space_symmetry.no
 
         return plane_vectors
 
     def symmetry_finder(struc_info):
+        from ase.spacegroup import Spacegroup
         # Here we get the symmetry operations that are possible
         symmetry_matrices = Spacegroup(struc_info['space_group'])
 
@@ -290,12 +293,21 @@ def STM_pathfinder(host_structure):
 
         return unique_matrices
 
-    struc = find_parent_structure(host_structure)
+    struc = find_parent_structure(host_remote)
     # clone the structure since it has already been saved in AiiDA and cannot be modified
     supp_struc = struc.clone()
 
     # If the structure is not periodic in every direction we force it to be.
-    supp_struc.pbc = (True, True, True)
+    if not supp_struc.pbc[2]:
+        # find film thickness
+        zs = np.array([i.position[2] for i in supp_struc.sites])
+        z = zs.max() - zs.min() + 5  # add 5 to have a unit cell larger than the considered film thickness
+        # set third bravais vector along z direction
+        cell = supp_struc.cell
+        cell[2] = [0, 0, z]
+        supp_struc.set_cell(cell)
+        # change periodic boundary conditions to periodic
+        supp_struc.pbc = (True, True, True)
 
     # ASE struc
     ase_struc = supp_struc.get_ase()
@@ -348,14 +360,8 @@ def lattice_generation(x_len, y_len, rot, vec):
 
     for i in range(-x_len, x_len + 1):
         for j in range(-y_len, y_len + 1):
-<<<<<<< HEAD
-            if ( 
-               (lattice_points[i][j][0] > 0 or math.isclose(lattice_points[i][j][0],0, abs_tol=1e-3)) and
-               (lattice_points[i][j][1] > 0 or math.isclose(lattice_points[i][j][1],0, abs_tol=1e-3))
-                ):
-=======
-            if lattice_points[i][j][0] >= 0 and lattice_points[i][j][1] >= 0:
->>>>>>> deeb2f88313d293946f7657d00f7dcac0bc22d12
+            if ((lattice_points[i][j][0] > 0 or math.isclose(lattice_points[i][j][0], 0, abs_tol=1e-3)) and
+                (lattice_points[i][j][1] > 0 or math.isclose(lattice_points[i][j][1], 0, abs_tol=1e-3))):
                 for element in rot[1:]:
                     point = np.dot(element, lattice_points[i][j])
                     if point[0] >= 0 and point[1] >= 0:
