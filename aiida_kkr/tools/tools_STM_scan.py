@@ -266,7 +266,7 @@ def STM_pathfinder(host_remote):
     for vec in struc_dict['lattice']['matrix']:
         # Is this sufficient to find all the in-plane vectors?
         if vec[2] == 0:
-            plane_vectors['plane_vectors'].append(vec)
+            plane_vectors['plane_vectors'].append(vec[:2])
 
     # Here we get the symmetry operations that are possible
     symmetry_matrices = SpacegroupAnalyzer(py_struc).get_point_group_operations(cartesian=True)
