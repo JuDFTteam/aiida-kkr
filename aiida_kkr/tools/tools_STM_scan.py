@@ -247,78 +247,61 @@ def create_combined_potential_node_cf(add_position, host_calc, imp_potential_nod
 
 
 def STM_pathfinder(host_remote):
-    """This function is used to help visualize the scanned positions
-       and the symmetries that are present in the system
-
-    inputs::
-    host_remote : RemoteData : The Remote data contains all the information needed to create the path to scan
-
-    outputs::
-    struc_info : Dict  : Dictionary containing the structural information of the film
-    matrices   : Array : Array containing the matrices that generate the symmetries of the system
-    """
-
-    def info_creation(structure):
-        from ase.spacegroup import get_spacegroup
-        # List of the Bravais vectors
-        vec_list = structure.cell.tolist()
-
-        # Find the Bravais vectors that are in plane vectors
-        plane_vectors = {'plane_vectors': [], 'space_group': ''}
-        for vec in vec_list:
-            # Is this sufficient to find all the in-plane vectors?
-            if vec[2] == 0:
-                plane_vectors['plane_vectors'].append(vec[:2])
-
-        space_symmetry = get_spacegroup(structure)
-        plane_vectors['space_group'] = space_symmetry.no
-
-        return plane_vectors
-
-    def symmetry_finder(struc_info):
-        from ase.spacegroup import Spacegroup
-        # Here we get the symmetry operations that are possible
-        symmetry_matrices = Spacegroup(struc_info['space_group'])
-
-        # Reduce the dimensionality, we only want the 2D matrices
-        matrices = []
-        for element in symmetry_matrices.get_rotations():
-            matrices.append(element[:2, :2])
-
-        # Uniqueness of the elements must be preserved
-        unique_matrices = []
-        for matrix in matrices:
-            if not any(np.array_equal(matrix, m) for m in unique_matrices):
-                unique_matrices.append(matrix)
-
-        return unique_matrices
+    from pymatgen.symmetry.analyzer import SpacegroupAnalyzer, SymmOp
+    from aiida_kkr.tools import find_parent_structure
 
     struc = find_parent_structure(host_remote)
     # clone the structure since it has already been saved in AiiDA and cannot be modified
     supp_struc = struc.clone()
 
     # If the structure is not periodic in every direction we force it to be.
-    if not supp_struc.pbc[2]:
-        # find film thickness
-        zs = np.array([i.position[2] for i in supp_struc.sites])
-        z = zs.max() - zs.min() + 5  # add 5 to have a unit cell larger than the considered film thickness
-        # set third bravais vector along z direction
-        cell = supp_struc.cell
-        cell[2] = [0, 0, z]
-        supp_struc.set_cell(cell)
-        # change periodic boundary conditions to periodic
-        supp_struc.pbc = (True, True, True)
+    supp_struc.pbc = (True, True, True)
 
-    # ASE struc
-    ase_struc = supp_struc.get_ase()
+    # Pymatgen struc
+    py_struc = supp_struc.get_pymatgen()
 
-    # Structural informations are stored here
-    struc_info = info_creation(ase_struc)
+    struc_dict = py_struc.as_dict()
+    # Find the Bravais vectors that are in plane vectors
+    plane_vectors = {'plane_vectors': [], 'space_group': ''}
+    for vec in struc_dict['lattice']['matrix']:
+        # Is this sufficient to find all the in-plane vectors?
+        if vec[2] == 0:
+            plane_vectors['plane_vectors'].append(vec)
 
-    # The structural informations are then used to find the symmetries of the system
-    symm_matrices = symmetry_finder(struc_info)
+    # Here we get the symmetry operations that are possible
+    symmetry_matrices = SpacegroupAnalyzer(py_struc).get_point_group_operations(cartesian=True)
 
-    return struc_info, symm_matrices
+    plane_vectors['space_group'] = SpacegroupAnalyzer(py_struc).get_symmetry_dataset()['number']
+
+    # Here we get the symmetry rotations
+
+    supp_mat = []
+
+    # Get the affine representation of the matrices
+    for symmops in range(len(symmetry_matrices)):
+        supp_mat.append(np.array(SymmOp.as_dict(symmetry_matrices[symmops])['matrix'][:3]))
+
+    # Get only the rotation matrices and correct the numerical error
+    rot_mat = []
+
+    # Take only the matrices for the in-plane rotations
+    for elements in range(len(supp_mat)):
+        rot_mat.append(supp_mat[elements][0:2, 0:2])
+
+    # Sometimes it will happen that some rotation matrices projected to the 2D space will have the same representation.
+    # here we only take the unique ones
+    unique_matrices = []
+    for matrix in rot_mat:
+        if not any(np.array_equal(matrix, m) for m in unique_matrices):
+            unique_matrices.append(matrix)
+
+    # Round off the numerical error
+    for elements in range(len(unique_matrices)):
+        for rows in range(len(unique_matrices[elements])):
+            for cols in range(len(unique_matrices[elements][rows])):
+                unique_matrices[elements][rows][cols] = round(unique_matrices[elements][rows][cols])
+
+    return plane_vectors, unique_matrices
 
 
 @engine.calcfunction
