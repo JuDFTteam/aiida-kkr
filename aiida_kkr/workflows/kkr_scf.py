@@ -33,8 +33,8 @@ from aiida_kkr.workflows.dos import kkr_dos_wc
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.11.1'
-__contributors__ = (u'Jens Broeder', u'Philipp Rüßmann')
+__version__ = '0.11.2'
+__contributors__ = (u'Jens Broeder', u'Philipp Rüßmann', u'David Antognini Silva')
 
 eV2Ry = 1.0 / get_Ry2eV()
 
@@ -262,6 +262,12 @@ class kkr_scf_wc(WorkChain):
             Initial non-collinear angles for the magnetic moments of the
             impurities. See KkrCalculation for details.
             """
+        )
+        spec.input(
+            'params_kkr_overwrite',
+            valid_type=orm.Dict,
+            required=False,
+            help='Set some input parameters of the KKR calculation.'
         )
 
         # define output nodes
@@ -1218,7 +1224,14 @@ class kkr_scf_wc(WorkChain):
         description = f'KKR calculation of step {self.ctx.loop_count}, using mixing scheme {self.ctx.last_mixing_scheme}'
         code = self.inputs.kkr
         remote = self.ctx.last_remote
-        params = self.ctx.last_params
+        params = self.ctx.last_params.get_dict()
+
+        # overwrite some parameters of the KKR calculation by hand before setting mandatory keys
+        if 'params_kkr_overwrite' in self.inputs:
+            for key, val in self.inputs.params_kkr_overwrite.get_dict().items():
+                params[key] = val
+                self.report(f'INFO: overwriting KKR parameter: {key} with {val} from params_kkr_overwrite input node')
+
         options = {
             'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
             'resources': self.ctx.resources,
@@ -1233,7 +1246,7 @@ class kkr_scf_wc(WorkChain):
             options,
             label,
             description,
-            parameters=params,
+            parameters=orm.Dict(params),
             serial=(not self.ctx.withmpi),
         )
 
