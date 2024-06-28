@@ -103,7 +103,8 @@ class kkr_imp_wc(WorkChain):
                 # 'wf_parameters',
                 'params_overwrite',
                 'initial_noco_angles',
-                'rimpshift'
+                'rimpshift',
+                'settings_LDAU',
             )
         )
 
