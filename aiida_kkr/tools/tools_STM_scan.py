@@ -132,7 +132,9 @@ def get_imp_info_add_position(add_position, host_structure, imp_info):
     # combine cluster information
     pos_exists_in_imp1, _ = pos_exists_already(clust1, clust2)
     if pos_exists_in_imp1:
-        raise ValueError('Additional position exists already in impurity cluster.')
+        # If the position exists already we simply skip the addition of the new scanning position
+        return None
+        #raise ValueError('Additional position exists already in impurity cluster.')
     cluster_combined, rimp_rel_combined, _, _ = combine_clusters(clust1, clust2_offset, False, debug=False)
     # combine the zimp arrays
     zimp_combined = imp_info['Zimp'] + imp_info2['Zimp']

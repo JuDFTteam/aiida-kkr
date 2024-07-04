@@ -195,7 +195,9 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         """
         Here we want to combine the impurity information and the host information
         """
-        tip_position = {}
+        tip_position = {
+        }  # Since the objects in AiiDA are immutable we have to create a new dictionary and then convert
+        # it to the right AiiDA type
 
         tip_position['ilayer'] = self.inputs.tip_position['ilayer']
         tip_position['da'] = da
@@ -203,10 +205,11 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         imp_info = self.inputs.imp_info  #(impurity to combine)
 
         combined_imp_info = get_imp_info_add_position(Dict(tip_position), host_structure, imp_info)
-        # Since the objects in AiiDA are immutable we have to create a new dictionary and then convert
-        # it to the right AiiDA type
 
-        #new_combined_imp_info = {}
+        # If the position already exists we simply return the old dictionary
+        if combined_imp_info is None:
+            return impurity_to_combine
+
         # Add check to see if imp_cls is there
         if 'imp_cls' in impurity_to_combine:
 
