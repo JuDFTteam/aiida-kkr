@@ -920,25 +920,32 @@ class kkr_imp_sub_wc(WorkChain):
         self.report(message)
 
         if self.ctx.kkrimp_step_success and found_last_calc_output:
-            # check convergence
-            self.ctx.kkr_converged = last_calc_output['convergence_group']['calculation_converged']
-            # check rms
-            self.ctx.rms.append(last_calc_output['convergence_group']['rms'])
-            rms_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_all_iterations'])
-            # check rms of LDAU pot (if LDAU is set)
-            try:
-                rms_LDAU = last_calc_output['convergence_group']['rms_LDAU']
-                self.ctx.rms_LDAU = rms_LDAU
-                if rms_LDAU != 0.0:
-                    rms_LDAU_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_LDAU_all_iterations'])
-                    self.ctx.last_rms_LDAU_all = rms_LDAU_all_iter_last_calc
-            except:
-                pass
+            # The convergence group is not created if the impurity calculation is a dos calculation
 
-            # add lists of last iterations
-            self.ctx.last_rms_all = rms_all_iter_last_calc
-            if self.ctx.kkrimp_step_success and self.convergence_on_track():
-                self.ctx.rms_all_steps += rms_all_iter_last_calc
+            if 'doscalc' in last_calc_output['convergence_group']:
+                self.ctx.kkr_converged = True
+            else:
+                # check convergence
+                self.ctx.kkr_converged = last_calc_output['convergence_group']['calculation_converged']
+                # check rms
+                self.ctx.rms.append(last_calc_output['convergence_group']['rms'])
+                rms_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_all_iterations'])
+                # check rms of LDAU pot (if LDAU is set)
+                try:
+                    rms_LDAU = last_calc_output['convergence_group']['rms_LDAU']
+                    self.ctx.rms_LDAU = rms_LDAU
+                    if rms_LDAU != 0.0:
+                        rms_LDAU_all_iter_last_calc = list(
+                            last_calc_output['convergence_group']['rms_LDAU_all_iterations']
+                        )
+                        self.ctx.last_rms_LDAU_all = rms_LDAU_all_iter_last_calc
+                except:
+                    pass
+
+                # add lists of last iterations
+                self.ctx.last_rms_all = rms_all_iter_last_calc
+                if self.ctx.kkrimp_step_success and self.convergence_on_track():
+                    self.ctx.rms_all_steps += rms_all_iter_last_calc
         else:
             self.ctx.kkr_converged = False
 
@@ -1149,25 +1156,32 @@ class kkr_imp_sub_wc(WorkChain):
 
         # report the status
         if self.ctx.successful:
-            self.report(
-                'STATUS: Done, the convergence criteria are reached.\n'
-                'INFO: The charge density of the KKR calculation pk= {} '
-                'converged after {} KKR runs and {} iterations to {} \n'
-                ''.format(
-                    last_calc_pk, self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps', [])),
-                    self.ctx.last_rms_all[-1]
+            try:
+                self.report(
+                    'STATUS: Done, the convergence criteria are reached.\n'
+                    'INFO: The charge density of the KKR calculation pk= {} '
+                    'converged after {} KKR runs and {} iterations to {} \n'
+                    ''.format(
+                        last_calc_pk, self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps', [])),
+                        self.ctx.last_rms_all[-1]
+                    )
                 )
-            )
+            except:
+                self.report('A DOS calculation has been performed, the convergence data are superflous')
         else:  # Termination ok, but not converged yet...
-            self.report(
-                'STATUS/WARNING: Done, the maximum number of runs '
-                'was reached or something failed.\n INFO: The '
-                'charge density of the KKR calculation pk= '
-                'after {} KKR runs and {} iterations is {} "me/bohr^3"\n'
-                ''.format(
-                    self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps', [])), self.ctx.last_rms_all[-1]
+            try:
+                self.report(
+                    'STATUS/WARNING: Done, the maximum number of runs '
+                    'was reached or something failed.\n INFO: The '
+                    'charge density of the KKR calculation pk= '
+                    'after {} KKR runs and {} iterations is {} "me/bohr^3"\n'
+                    ''.format(
+                        self.ctx.loop_count - 1, sum(self.ctx.KKR_steps_stats.get('isteps', [])),
+                        self.ctx.last_rms_all[-1]
+                    )
                 )
-            )
+            except:
+                self.report('A DOS calculation has been performed, the convergence data are superflous')
 
         # create results node and link all calculations
         message = 'INFO: create results nodes'
