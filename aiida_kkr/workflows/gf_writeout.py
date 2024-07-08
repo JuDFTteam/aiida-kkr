@@ -334,19 +334,20 @@ class kkr_flex_wc(WorkChain):
         self.report(f'INFO: RUNOPT set to: {runopt}')
 
         if 'wf_parameters' in self.inputs:
-            # extract Fermi energy in Ry
-            remote_data_parent = self.inputs.remote_data
-            parent_calc = remote_data_parent.get_incoming(link_label_filter='remote_folder').first().node
-            ef = parent_calc.outputs.output_parameters.get_dict().get('fermi_energy')
-            # check if ef needs to be taken from a voronoi parent
-            if ef is None:
-                objects = parent_calc.outputs.retrieved.list_object_names()
-                fname = VoronoiCalculation._OUT_POTENTIAL_voronoi
-                if fname in objects:
-                    with parent_calc.outputs.retrieved.open(fname) as _f:
-                        ef = get_ef_from_potfile(_f)
-            if ef is None:
-                return self.exit_codes.ERROR_NO_EF_FOUND  # pylint: disable=no-member
+            if self.ctx.dos_run or self.ctx.ef_shift != 0:
+                # extract Fermi energy in Ry
+                remote_data_parent = self.inputs.remote_data
+                parent_calc = remote_data_parent.get_incoming(link_label_filter='remote_folder').first().node
+                ef = parent_calc.outputs.output_parameters.get_dict().get('fermi_energy')
+                # check if ef needs to be taken from a voronoi parent
+                if ef is None:
+                    objects = parent_calc.outputs.retrieved.list_object_names()
+                    fname = VoronoiCalculation._OUT_POTENTIAL_voronoi
+                    if fname in objects:
+                        with parent_calc.outputs.retrieved.open(fname) as _f:
+                            ef = get_ef_from_potfile(_f)
+                if ef is None:
+                    return self.exit_codes.ERROR_NO_EF_FOUND  # pylint: disable=no-member
 
             if self.ctx.dos_run:
                 # possibly remove keys which are overwritten from DOS params

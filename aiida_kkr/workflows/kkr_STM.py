@@ -451,8 +451,10 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         # The bigger the scanning position, the greater it must be set.
         if 'gf_writeout' in self.inputs:
             if 'params_kkr_overwrite' in self.inputs.gf_writeout:
+                self.report('set "params_kkr_overwrite" input to "builder.gf_writeout"')
                 builder.gf_writeout.params_kkr_overwrite = self.inputs.gf_writeout.params_kkr_overwrite  # pylint: disable=no-member
             if 'options' in self.inputs.gf_writeout:
+                self.report('set "options" input to "builder.gf_writeout"')
                 builder.gf_writeout.options = self.inputs.gf_writeout.options  # pylint: disable=no-member
         else:
             # This is a big value of NSHELD to make sure that most calculations work
