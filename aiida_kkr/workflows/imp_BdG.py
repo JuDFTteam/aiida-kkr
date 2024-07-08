@@ -14,7 +14,6 @@ __contributors__ = (u'David Antognini Silva, Philipp Rüßmann')
 
 # TODO: add _wf_default parameters and activate get_wf_defaults method
 # TODO: add input interdependencies in the workchain description
-# TODO: add lmdos output node
 
 
 class kkrimp_BdG_wc(WorkChain):
@@ -214,6 +213,8 @@ class kkrimp_BdG_wc(WorkChain):
         spec.output('output_parameters', valid_type=Dict, required=False)
         spec.output('dos_data', required=False, valid_type=XyData)
         spec.output('dos_data_interpol', required=False, valid_type=XyData)
+        spec.output('dos_data_lm', required=False, valid_type=XyData)
+        spec.output('dos_data_lm_interpol', required=False, valid_type=XyData)
         spec.output('impurity_potential', valid_type=SinglefileData)
         spec.output('gf_host_BdG', valid_type=RemoteData, required=False)
 
@@ -473,9 +474,16 @@ class kkrimp_BdG_wc(WorkChain):
         return the results nodes of the workchain
         """
         if self.inputs.calc_DOS:
-            self.out('dos_data', self.ctx.DOS_node.outputs.dos_data)
-            self.out('dos_data_interpol', self.ctx.DOS_node.outputs.dos_data_interpol)
-        else:
+            if 'dos_data' in self.ctx.DOS_node.outputs.dos_data:
+                self.out('dos_data', self.ctx.DOS_node.outputs.dos_data)
+            if 'dos_data_interpol' in self.ctx.DOS_node.outputs.dos_data_interpol:
+                self.out('dos_data_interpol', self.ctx.DOS_node.outputs.dos_data_interpol)
+            if 'dos_data_lm' in self.ctx.DOS_node.outputs:
+                self.out('dos_data_lm', self.ctx.DOS_node.outputs.dos_data_lm)
+            if 'dos_data_interpol_lm' in self.ctx.DOS_node.outputs:
+                self.out('dos_data_interpol_lm', self.ctx.DOS_node.outputs.dos_data_interpol_lm)
+
+        if self.do_BdG_scf():
             if 'startpot' not in self.inputs.BdG_scf:
                 self.out('workflow_info', self.ctx.last_imp_calc_BdG.outputs.workflow_info)
                 self.out('output_parameters', self.ctx.last_imp_calc_BdG.outputs.last_calc_output_parameters)
