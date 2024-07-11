@@ -25,7 +25,7 @@ def convert_to_imp_cls(host_structure, imp_info):
     convert imp info to rcls form
     """
     if 'imp_cls' in imp_info.get_dict():
-        clust1 = imp_info['imp_cls']
+        clust1 = np.array(imp_info['imp_cls'])
         imp_info_cls = imp_info
     else:
         # convert Zimp, Rcut info to imp_cls info
@@ -56,7 +56,7 @@ def get_imp_cls_add(host_structure, add_position):
     ilayer = add_position['ilayer']
     imp_info2 = orm.Dict({'ilayer_center': ilayer, 'Zimp': [Zadd], 'Rcut': 1e-5})
     # old version is too slow:
-    # clust2 = get_scoef_single_imp(host_structure, imp_info2)
+    #clust2 = get_scoef_single_imp(host_structure, imp_info2)
     # new version creates the array without calling the get_scoef_single_imp function:
     clust2 = np.array([[0., 0., 0., ilayer + 1, 0., 0.]])
     return imp_info2, clust2
@@ -250,7 +250,6 @@ def create_combined_potential_node_cf(add_position, host_calc, imp_potential_nod
 
 def STM_pathfinder(host_remote):
     from pymatgen.symmetry.analyzer import SpacegroupAnalyzer, SymmOp
-    from aiida_kkr.tools import find_parent_structure
 
     struc = find_parent_structure(host_remote)
     # clone the structure since it has already been saved in AiiDA and cannot be modified
