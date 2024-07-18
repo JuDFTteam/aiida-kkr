@@ -16,10 +16,7 @@ def has_struc(parent_folder):
     """
     Check if parent_folder has structure information in its input
     """
-    success = True
-    if 'structure' not in parent_folder.get_incoming().all_link_labels():
-        success = False
-    return success
+    return 'structure' in parent_folder.base.links.get_incoming().all_link_labels()
 
 
 def get_remote(parent_folder):
@@ -28,11 +25,11 @@ def get_remote(parent_folder):
     """
     parent_folder_tmp0 = parent_folder
     try:
-        parent_folder_tmp = parent_folder_tmp0.get_incoming().get_node_by_label('remote_folder')
+        parent_folder_tmp = parent_folder_tmp0.base.links.get_incoming().get_node_by_label('remote_folder')
     except NotExistent:
         try:
             # check if GFhost_folder is there, this is the case for a KkrimpCalculation
-            parent_folder_tmp = parent_folder_tmp0.get_incoming().get_node_by_label('GFhost_folder')
+            parent_folder_tmp = parent_folder_tmp0.base.links.get_incoming().get_node_by_label('GFhost_folder')
         except NotExistent:
             parent_folder_tmp = parent_folder_tmp0
     return parent_folder_tmp
@@ -46,21 +43,21 @@ def get_parent(input_folder):
 
     # first option: parent_calc_folder (KkrimpCalculation)
     try:
-        parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_calc_folder')
+        parent_folder_tmp = input_folder_tmp0.base.links.get_incoming().get_node_by_label('parent_calc_folder')
         return_input = False
     except NotExistent:
         return_input = True
 
     # second option: parent_folder (KkrCalculation)
     try:
-        parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_folder')
+        parent_folder_tmp = input_folder_tmp0.base.links.get_incoming().get_node_by_label('parent_folder')
         return_input = False
     except NotExistent:
         return_input = return_input & True
 
     # third option: parent_KKR option (special mode of VoronoiCalculation)
     try:
-        parent_folder_tmp = input_folder_tmp0.get_incoming().get_node_by_label('parent_KKR')
+        parent_folder_tmp = input_folder_tmp0.base.links.get_incoming().get_node_by_label('parent_KKR')
         return_input = False
     except NotExistent:
         return_input = return_input & True
@@ -104,8 +101,9 @@ def get_calc_from_remote(calc_remote):
     if not isinstance(calc_remote, RemoteData):
         raise ValueError('input node is not a RemoteData folder')
 
-    parents = calc_remote.get_incoming(node_class=CalcJobNode).all()
+    parents = calc_remote.base.links.get_incoming(node_class=CalcJobNode).all()
     if len(parents) != 1:
         raise ValueError('Parent is not unique!')
 
     return parents[0].node
+                               
