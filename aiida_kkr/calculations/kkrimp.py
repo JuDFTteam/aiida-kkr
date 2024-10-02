@@ -928,6 +928,9 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
                     )
                 if phi < 0 or phi > 360:
                     raise InputValidationError(f'Error: phi value out of range (0..360): iatom={iatom}, phi={phi}')
+                # convert fix_dir to integer if given as boolean
+                if isinstance(fix_dir, bool):
+                    fix_dir = (1 if fix_dir else 0)
                 # write line
                 kkrflex_angle_file.write(f'   {theta}    {phi}    {fix_dir}\n')
 

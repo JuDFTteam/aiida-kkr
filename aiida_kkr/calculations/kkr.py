@@ -25,7 +25,7 @@ __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 
-__version__ = '0.13.0'
+__version__ = '0.13.1'
 
 __contributors__ = ('Jens Bröder', 'Philipp Rüßmann')
 
@@ -1062,6 +1062,9 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
                     raise InputValidationError(
                         f'Error: theta value out of range (0..180): iatom={iatom}, theta={theta}'
                     )
+                # convert fix_dir to boolean if given as integer
+                if not isinstance(fix_dir, bool):
+                    fix_dir = (fix_dir == 1)
                 # write line
                 noco_angle_file.write(f'   {theta}    {phi}    {fix_dir[iatom]}\n')
 

@@ -103,7 +103,8 @@ class kkr_imp_wc(WorkChain):
                 # 'wf_parameters',
                 'params_overwrite',
                 'initial_noco_angles',
-                'rimpshift'
+                'rimpshift',
+                'settings_LDAU',
             )
         )
 
@@ -792,6 +793,8 @@ class kkr_imp_wc(WorkChain):
                 builder.initial_noco_angles = self.inputs.scf.initial_noco_angles
             if 'rimpshift' in self.inputs.scf:
                 builder.rimpshift = self.inputs.scf.rimpshift
+            if 'settings_LDAU' in self.inputs.scf:
+                builder.settings_LDAU = self.inputs.scf.settings_LDAU
         builder.wf_parameters = kkrimp_params
         future = self.submit(builder)
 

@@ -222,7 +222,7 @@ def test_and_get_codenode(codenode, expected_code_type, use_exceptions=False):
         qb = QueryBuilder()
         qb.append(Code, filters={'attributes.input_plugin': {'==': expected_code_type}}, project='*')
 
-        valid_code_labels = [f'{c.label}@{c.get_computer().name}' for [c] in qb.all()]
+        valid_code_labels = [f'{c.label}@{c.computer.label}' for [c] in qb.all()]
 
         if valid_code_labels:
             msg = (
