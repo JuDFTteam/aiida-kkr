@@ -13,9 +13,9 @@ from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
 __copyright__ = (u'Copyright (c), 2024, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.1'
+__version__ = '0.1.4'
 __contributors__ = (u'Raffaele Aliberti', u'David Antognini Silva', u'Philipp Rüßmann')
-_VERBOSE_ = True
+_VERBOSE_ = False
 
 
 class kkr_STM_wc(WorkChain):
@@ -45,8 +45,7 @@ class kkr_STM_wc(WorkChain):
     # TO DO: Add the initialize step.
     # TO DO: Add a better creation of the impurity cluster.
     # TO DO: Add check that between the ilayer and the actual number of layers in the structure.
-    # TO DO: Add to the outputs the calculated imp_info and imp_potential.
-    # TO DO: Add BdG options for the builder run
+    # TO DO: Don't run the clustering step if kkrflexfiles are given: It's redundant and it can lead to errors
 
     _wf_version = __version__
     _wf_label = 'STM_wc'
@@ -342,11 +341,14 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         used in self-consistency + the additional scanning sites.
         """
         from aiida_kkr.tools import find_parent_structure
-        if _VERBOSE_:
-            from time import time
+        from aiida_kkr.tools.imp_cluster_tools import pos_exists_already
+        from aiida_kkr.tools.tools_STM_scan import get_imp_cls_add, convert_to_imp_cls, offset_clust2
 
-            # measure time at start
-            t_start = time()
+        #if _VERBOSE_:
+        #    from time import time
+        #
+        #    # measure time at start
+        #    t_start = time()
 
         # Here we create an impurity cluster that has inside all the positions on which the STM will scan
 
@@ -360,33 +362,72 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         # now find all the positions we need to scan
         coeff = self.get_scanning_positions(host_remote)
 
-        if _VERBOSE_:
-            # timing counters
-            t_imp_info, t_pot = 0., 0.
+        #if _VERBOSE_:
+        #    # timing counters
+        #    t_imp_info, t_pot = 0., 0.
+
+        _, imp_clust = convert_to_imp_cls(host_structure, impurity_info)
 
         # construct impurity potential and imp_info for the impurity cluster + scanning area
+
+        # Check if the impuirty cluster already exists, if so create a new entity that can be modified
+        if 'imp_cls' in impurity_info:
+            impurity_info_aux = impurity_info.clone()
+            imp_potential_node_aux = imp_potential_node.clone()
+        else:  # Otherwise use the one from the inputs
+            impurity_info_aux = impurity_info
+            imp_potential_node_aux = imp_potential_node
+
         for element in coeff:
-            if _VERBOSE_:
-                t0 = time()
-            tmp_imp_info = self.combine_potentials(host_structure, impurity_info, element[0], element[1])
-            impurity_info = tmp_imp_info
 
-            if _VERBOSE_:
-                t_imp_info += time() - t0
-                t0 = time()
+            #if _VERBOSE_:
+            #    t0 = time()
 
-            # Aggregation the impurity nodes
-            tmp_imp_pot = self.combine_nodes(host_calc, imp_potential_node, element[0], element[1])
-            imp_potential_node = tmp_imp_pot
+            # Check if the position is already in the cluster
+            tmp_pos = {}
+            tmp_pos['ilayer'] = self.inputs.tip_position['ilayer']
+            tmp_pos['da'] = element[0]
+            tmp_pos['db'] = element[1]
 
-            if _VERBOSE_:
-                t_pot += time() - t0
+            message = f'position to be embedded {tmp_pos}'
 
-        if _VERBOSE_:
-            # report elapsed time for cluster generation
-            self.report(f'time for cluster generation (s): {time()-t_start}, imp_info={t_imp_info}, pot={t_pot}')
+            _, tmp_clust = get_imp_cls_add(host_structure, tmp_pos)
+            #clust_offset = offset_clust2(imp_clust, tmp_clust, host_structure, Dict(tmp_pos))
 
-        return impurity_info, imp_potential_node
+            #if _VERBOSE_:
+            #    t_cluster_offset += time()-t0
+
+            if pos_exists_already(imp_clust, tmp_clust)[0]:
+                message = f'The position {tmp_pos} is already present in the system'
+                self.report(message)
+                continue  # If the position exists already skip the embedding
+            else:
+                # Aggregation of the impurity potential
+                tmp_imp_info = self.combine_potentials(host_structure, impurity_info_aux, element[0], element[1])
+                impurity_info_aux = tmp_imp_info
+
+                message = 'imp info has been embedded'
+                self.report(message)
+
+                #if _VERBOSE_:
+                #    t_imp_info += time() - t0
+                #    t0 = time()
+
+                # Aggregation the impurity nodes
+                tmp_imp_pot = self.combine_nodes(host_calc, imp_potential_node_aux, element[0], element[1])
+                imp_potential_node_aux = tmp_imp_pot
+
+                message = 'imp pot has been embedded'
+                self.report(message)
+
+                #if _VERBOSE_:
+                #    t_pot += time() - t0
+
+        #if _VERBOSE_:
+        #    # report elapsed time for cluster generation
+        #    self.report(f'time for cluster generation (s): {time()-t_start}, cluster generation={t_cluster_offset}, imp_info={t_imp_info}, pot={t_pot}')
+
+        return impurity_info_aux, imp_potential_node_aux
 
     def get_scanning_positions(self, host_remote):
         """
@@ -398,6 +439,7 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         Otherwise we use the 'nx', 'ny' input to define a scanning region where an automated symmetry
         analysis is done to reduce the scanning area to the irreducible part.
         """
+        # TO DO update this tool to get scanning positions even in the presence of more than one impurity
         from aiida_kkr.tools import tools_STM_scan
 
         generate_scan_positions = True
@@ -442,7 +484,8 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         # Check if the kkrflex files are already given in the outputs
         if 'kkrflex_files' in self.inputs:
             builder.gf_dos_remote = self.inputs.kkrflex_files
-            message = f'Remote host function is given in the outputs from the node: {self.inputs.kkrflex_files}'
+            message = f"""Remote host function is given in the outputs from the node: {self.inputs.kkrflex_files}. Please also make sure of
+                          using the right impurity potentials from the already converged calculation."""
             self.report(message)
         else:
             builder.kkr = self.inputs.kkr  # needed to evaluate the kkr_flex files in the DOS step
@@ -451,10 +494,8 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         # The bigger the scanning position, the greater it must be set.
         if 'gf_writeout' in self.inputs:
             if 'params_kkr_overwrite' in self.inputs.gf_writeout:
-                self.report('set "params_kkr_overwrite" input to "builder.gf_writeout"')
                 builder.gf_writeout.params_kkr_overwrite = self.inputs.gf_writeout.params_kkr_overwrite  # pylint: disable=no-member
             if 'options' in self.inputs.gf_writeout:
-                self.report('set "options" input to "builder.gf_writeout"')
                 builder.gf_writeout.options = self.inputs.gf_writeout.options  # pylint: disable=no-member
         else:
             # This is a big value of NSHELD to make sure that most calculations work
@@ -494,7 +535,24 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         builder.host_remote = self.inputs.host_remote
 
         # Here we create the impurity cluster for the STM scanning tool
+
+        #if 'Rcut' in self.inputs.imp_info.get_dict():
+        #    # If the data doesn't come from a previous calculation we create it
+        #    impurity_info, imp_pot_sfd = self.impurity_cluster_evaluation()
+        #else:
+        #    impurity_info = self.inputs.imp_info
+        #    imp_pot_sfd = self.inputs.imp_potential_node
+
         impurity_info, imp_pot_sfd = self.impurity_cluster_evaluation()
+
+        # With this we make sure that the actual number of angles is the same as the number of embedded impurity
+        if 'initial_noco_angles' in self.inputs:
+            inital_noco_angles_aux = self.inputs.initial_noco_angles.clone()
+            for imp in impurity_info.get_dict()['Zimp']:
+                if imp == 0:
+                    inital_noco_angles_aux.get_dict()['phi'].append(0.0)
+                    inital_noco_angles_aux.get_dict()['theta'].append(0.0)
+                    inital_noco_angles_aux.get_dict()['fix_dir'].append(1)
 
         # impurity info for the workflow
         builder.impurity_info = impurity_info
@@ -511,6 +569,7 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         self.report(message)
 
         # Save the calculated impurity cluster and impurity info in the context
+
         self.ctx.impurity_info = impurity_info
         self.ctx.imp_pot_sfd = imp_pot_sfd
 

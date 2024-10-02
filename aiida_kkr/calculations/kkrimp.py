@@ -77,7 +77,9 @@ class KkrimpCalculation(CalcJob):
     _OUT_LMDOS_INTERPOL = u'out_lmdos.interpol.atom=*'
     _OUT_MAGNETICMOMENTS = u'out_magneticmoments'
     _OUT_ORBITALMOMENTS = u'out_orbitalmoments'
-    _LDAUPOT = 'ldaupot'
+    _LDAUPOT = u'ldaupot'
+
+    _TEST_RHO2NS = u'test_rho2ns'
 
     # template.product entry point defined in setup.json
     _default_parser = u'kkr.kkrimpparser'
