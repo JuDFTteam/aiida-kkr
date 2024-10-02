@@ -78,7 +78,7 @@ class combine_imps_wc(WorkChain):
     _workflowversion = __version__
     _wf_default = {
         'jij_run': False,  # Any kind of addition in _wf_default should be updated into the start() as well.
-        'allow_unconverged_inputs': False, # start calculation only if previous impurity calculations are converged?
+        'allow_unconverged_inputs': False,  # start calculation only if previous impurity calculations are converged?
     }
 
     @classmethod
@@ -232,11 +232,13 @@ If given then the writeout step of the host GF is omitted."""
         message = f'INFO: started combine_imps_wc workflow version {self._workflowversion}'
         self.report(message)
 
-        self.ctx.run_options = self._wf_default        
+        self.ctx.run_options = self._wf_default
         self.ctx.allow_unconverged_inputs = self._wf_default.get('allow_unconverged_inputs', False)
         if 'wf_parameters_overwrite' in self.inputs:
             self.ctx.wf_parameters_overwrite = self.inputs.wf_parameters_overwrite.get_dict()
-            self.ctx.allow_unconverged_inputs = self.ctx.wf_parameters_overwrite.get('global', {}).get('allow_unconverged_inputs', False)
+            self.ctx.allow_unconverged_inputs = self.ctx.wf_parameters_overwrite.get('global', {}).get(
+                'allow_unconverged_inputs', False
+            )
 
         exit_code, self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
         if exit_code != 0:
@@ -393,7 +395,7 @@ If given then the writeout step of the host GF is omitted."""
             imps_info_in_exact_cluster['ilayers'].append(imp2_impurity_info.get_dict()['ilayer_center'])
             # TODO: Delete the below print line as it is for deburging
             self.report(f'DEBUG: The is the imps_info_in_exact_cluster dict: {imps_info_in_exact_cluster}\n')
-            return 0, imps_info_in_exact_cluster # return also exit code
+            return 0, imps_info_in_exact_cluster  # return also exit code
 
     def get_impinfo_from_hostGF(self, imp_calc):
         """
@@ -547,7 +549,7 @@ If given then the writeout step of the host GF is omitted."""
         exit_code, self.ctx.imps_info_in_exact_cluster = self.extract_imps_info_exact_cluster()
         if exit_code != 0:
             return exit_code
-        
+
         imps_info_in_exact_cluster = self.ctx.imps_info_in_exact_cluster
         if single_single:
             if offset_imp2.get_dict()['index'] < 0:
