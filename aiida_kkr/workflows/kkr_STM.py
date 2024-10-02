@@ -374,6 +374,9 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         if 'imp_cls' in impurity_info:
             impurity_info_aux = impurity_info.clone()
             imp_potential_node_aux = imp_potential_node.clone()
+        else:  # Otherwise use the one from the inputs
+            impurity_info_aux = impurity_info
+            imp_potential_node_aux = imp_potential_node
 
         for element in coeff:
 
@@ -389,12 +392,12 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
             message = f'position to be embedded {tmp_pos}'
 
             _, tmp_clust = get_imp_cls_add(host_structure, tmp_pos)
-            clust_offset = offset_clust2(imp_clust, tmp_clust, host_structure, Dict(tmp_pos))
+            #clust_offset = offset_clust2(imp_clust, tmp_clust, host_structure, Dict(tmp_pos))
 
             #if _VERBOSE_:
             #    t_cluster_offset += time()-t0
 
-            if pos_exists_already(imp_clust[:, :3], clust_offset[0, :3])[0]:
+            if pos_exists_already(imp_clust, tmp_clust)[0]:
                 message = f'The position {tmp_pos} is already present in the system'
                 self.report(message)
                 continue  # If the position exists already skip the embedding

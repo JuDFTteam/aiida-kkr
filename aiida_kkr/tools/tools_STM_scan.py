@@ -320,55 +320,57 @@ def STM_pathfinder_cf(host_structure):
 # lattice generation (function of lattice plot)
 
 
-def lattice_generation(x_len, y_len, rot, vec):
-    import math
+def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
     """
-    x_len : int  : value to create points between - x and x.
-    y_len : int  : value to create points between - y and y.
-    rot   : list : list of the rotation matrices given by the symmetry of the system.
-    vec   : list : list containing the two Bravais vectors.
-    """
+        x_len  : int  : value to create points between - x and x.
+        y_len  : int  : value to create points between - y and y.
+        rot    : list : list of the rotation matrices given by the symmetry of the system.
+        vec    : list : list containing the two Bravais vectors.
+        start_x: int  : starting value for the lattice generation in the x direction
+        start_y: int  : starting value for the lattice generation in the y direction
+        """
 
-    # Here we create a grid in made of points whic are the linear combination of the lattice vectors
+    # Here we create a grid  made of points which are the linear combination of the lattice vectors
+    x_len = xmax * 10
+    y_len = ymax * 10  # maybe there is a way to make this more efficient...
+
+    x_interval = [i for i in range(-x_len, x_len)]
+
+    y_interval = [i for i in range(-y_len, y_len)]
+
     lattice_points = []
 
-    for i in range(-x_len, x_len + 1):
-        lattice_points_col = []
-        for j in range(-y_len, y_len + 1):
-            p = [i * x + j * y for x, y in zip(vec[0], vec[1])]
-            lattice_points_col.append(p)
-        lattice_points.append(lattice_points_col)
+    # Now we only generate points in the first quadrant and the we use the symmetry analysis
+    # To visualize the other unscanned sites
 
-    # Eliminiatio of the symmetrical sites
+    for i in x_interval:
+        lattice_points_col = []
+        for j in y_interval:
+            p = [i * x + j * y for x, y in zip(vec[0], vec[1])]
+            if ((p[0] < 0 or p[0] > xmax) or (p[1] < 0 or p[1] > ymax)) or (p[0] < x_start or p[1] < y_start):
+                continue
+            else:
+                lattice_points_col.append(p)
+        if len(lattice_points_col) != 0:
+            lattice_points.append(lattice_points_col)
+
+    #print(lattice_points)
     points_to_eliminate = []
 
-    for i in range(-x_len, x_len + 1):
-        for j in range(-y_len, y_len + 1):
-            if ((lattice_points[i][j][0] > 0 or math.isclose(lattice_points[i][j][0], 0, abs_tol=1e-3)) and
-                (lattice_points[i][j][1] > 0 or math.isclose(lattice_points[i][j][1], 0, abs_tol=1e-3))):
-                for element in rot[1:]:
-                    point = np.dot(element, lattice_points[i][j])
-                    if point[0] >= 0 and point[1] >= 0:
-                        continue
-                    else:
-                        points_to_eliminate.append(point)
+    for i in range(len(lattice_points)):
+        for j in range(len(lattice_points[i])):
+            #print(lattice_points[i][j])
+            #if lattice_points[i][j][0] >= 0 and lattice_points[i][j][1] >= 0:
+            for element in rot[1:]:
+                point = np.dot(element, lattice_points[i][j])
+                #if point[0] >= 0 and point[1] >=0:
+                #    continue
+                #else:
+                points_to_eliminate.append(point)
 
-    points_to_scan = []
+    #print(point_to_eliminate)
 
-    for i in range(-x_len, x_len + 1):
-        for j in range(-y_len, y_len + 1):
-            eliminate = False
-            for elem in points_to_eliminate:
-                # Since there can be some numerical error in the dot product we use the isclose function
-                if (
-                    math.isclose(elem[0], lattice_points[i][j][0], abs_tol=1e-4) and
-                    math.isclose(elem[1], lattice_points[i][j][1], abs_tol=1e-4)
-                ):
-                    eliminate = True
-            if not eliminate:
-                points_to_scan.append(lattice_points[i][j])
-
-    return points_to_eliminate, points_to_scan
+    return points_to_eliminate, lattice_points
 
 
 ###############################################################################################
