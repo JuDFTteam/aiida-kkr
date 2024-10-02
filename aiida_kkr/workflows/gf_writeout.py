@@ -153,6 +153,7 @@ class kkr_flex_wc(WorkChain):
         ####### init #######
         # internal para / control para
         self.ctx.abort = False
+        self.ctx.exit_code = None
 
         # input both wf and options parameters
         options_dict = self.inputs.options.get_dict()
@@ -224,13 +225,13 @@ class kkr_flex_wc(WorkChain):
 
         if not 'impurity_info' in inputs:
             input_ok = False
-            return self.exit_codes.ERROR_INVALID_INPUT_IMP_INFO  # pylint: disable=no-member
+            self.ctx.exit_code = self.exit_codes.ERROR_INVALID_INPUT_IMP_INFO  # pylint: disable=no-member
 
         if 'remote_data' in inputs:
             input_ok = True
         else:
             input_ok = False
-            return self.exit_codes.ERROR_INVALID_REMOTE_DATA  # pylint: disable=no-member
+            self.ctx.exit_code = self.exit_codes.ERROR_INVALID_REMOTE_DATA  # pylint: disable=no-member
 
         # extract correct remote folder of last calculation if input remote_folder node
         # is not from KKRCalculation but kkr_scf_wc workflow
@@ -264,7 +265,7 @@ class kkr_flex_wc(WorkChain):
                          'use the plugin kkr.kkr')
                 self.ctx.errors.append(error)
                 input_ok = False
-                return self.exit_codes.ERROR_INVALID_INPUT_KKR  # pylint: disable=no-member
+                self.ctx.exit_code = self.exit_codes.ERROR_INVALID_INPUT_KKR  # pylint: disable=no-member
 
         # set self.ctx.input_params_KKR
         self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
@@ -483,6 +484,9 @@ class kkr_flex_wc(WorkChain):
         This should run through and produce output nodes even if everything failed,
         therefore it only uses results from context.
         """
+
+        if self.ctx.exit_code is not None:
+            return self.ctx.exit_code
 
         # capture error of unsuccessful flexrun
         if not self.ctx.flexrun.is_finished_ok:
