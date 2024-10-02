@@ -13,7 +13,7 @@ from masci_tools.io.common_functions import get_alat_from_bravais
 __copyright__ = (u'Copyright (c), 2023, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 __contributors__ = (u'Philipp Rüßmann', u'Raffaele Aliberti')
 
 ##############################################################################
@@ -249,6 +249,19 @@ def create_combined_potential_node_cf(add_position, host_calc, imp_potential_nod
 
 
 def STM_pathfinder(host_remote):
+    """
+    Calcfunction that gives back the structural information of the film, and the symmetries of the system
+
+    inputs ::
+
+           host_remote : Remote_data : node containing the remote data of the host material
+
+    return ::
+
+           plane_vectors   : list : list containing the 2 in plane vectors that span the surface.
+           unique_matrices : list : list of matrices, contains the 2x2 matrices that constitue the symmetry operations of the system.
+    """
+
     from pymatgen.symmetry.analyzer import SpacegroupAnalyzer, SymmOp
 
     struc = find_parent_structure(host_remote)
@@ -322,12 +335,22 @@ def STM_pathfinder_cf(host_structure):
 
 def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
     """
+
+        inputs ::
+
         x_len  : int  : value to create points between - x and x.
         y_len  : int  : value to create points between - y and y.
         rot    : list : list of the rotation matrices given by the symmetry of the system.
         vec    : list : list containing the two Bravais vectors.
         start_x: int  : starting value for the lattice generation in the x direction
         start_y: int  : starting value for the lattice generation in the y direction
+
+        return ::
+
+        points_to_eliminate : list : list of list containing the (x,y) positions to NOT to
+                                     be scanned
+        points_to_scan      : list : list of list containing the (x,y) positions to BE be
+                                     scanned
         """
 
     # Here we create a grid  made of points which are the linear combination of the lattice vectors
@@ -338,31 +361,31 @@ def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
 
     y_interval = [i for i in range(-y_len, y_len)]
 
-    lattice_points = []
+    points_to_scan = []
 
     # Now we only generate points in the first quadrant and the we use the symmetry analysis
     # To visualize the other unscanned sites
 
     for i in x_interval:
-        lattice_points_col = []
+        points_to_scan_col = []
         for j in y_interval:
             p = [i * x + j * y for x, y in zip(vec[0], vec[1])]
             if ((p[0] < 0 or p[0] > xmax) or (p[1] < 0 or p[1] > ymax)) or (p[0] < x_start or p[1] < y_start):
                 continue
             else:
-                lattice_points_col.append(p)
-        if len(lattice_points_col) != 0:
-            lattice_points.append(lattice_points_col)
+                points_to_scan_col.append(p)
+        if len(points_to_scan_col) != 0:
+            points_to_scan.append(points_to_scan_col)
 
     #print(lattice_points)
     points_to_eliminate = []
 
-    for i in range(len(lattice_points)):
-        for j in range(len(lattice_points[i])):
+    for i in range(len(points_to_scan)):
+        for j in range(len(points_to_scan[i])):
             #print(lattice_points[i][j])
             #if lattice_points[i][j][0] >= 0 and lattice_points[i][j][1] >= 0:
             for element in rot[1:]:
-                point = np.dot(element, lattice_points[i][j])
+                point = np.dot(element, points_to_scan[i][j])
                 #if point[0] >= 0 and point[1] >=0:
                 #    continue
                 #else:
@@ -370,7 +393,7 @@ def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
 
     #print(point_to_eliminate)
 
-    return points_to_eliminate, lattice_points
+    return points_to_eliminate, points_to_scan
 
 
 ###############################################################################################
@@ -378,13 +401,31 @@ def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
 
 
 def lattice_plot(plane_vectors, symm_vec, symm_matrices, grid_length_x, grid_length_y):
+    """
+        Helper tool to plot the position that will be scanned in the submission of the
+        kkr_STM_wc workchain
+
+        inputs ::
+
+        plane_vectors : list : list containing the Bravais vector of the 2D lattice
+        symm_vec      : bool : Toggle to show or not the Bravais vectors in the plot
+        symm_matrices : list : list of the point-group symmetries matrices of the system
+        grid_length_x : int  : scanning distance in the x direction
+        grid_length_y : int  : scanning distance in the y direction
+
+        return ::
+
+        None
+
+    """
+
     #from aiida_kkr.tools.tools_STM_scan import lattice_generation
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
     origin = np.array([[0, 0], [0, 0]])
     # Generation of the points to plot
-    unused, used = lattice_generation(grid_length_x, grid_length_y, symm_matrices, plane_vectors)
+    unused, used = lattice_generation(symm_matrices, plane_vectors, 0, 0, grid_length_x, grid_length_y)
 
     # Plotting of the points
     for element in unused:
@@ -432,7 +473,19 @@ def lattice_plot(plane_vectors, symm_vec, symm_matrices, grid_length_x, grid_len
 def find_linear_combination_coefficients(plane_vectors, vectors):
     from operator import itemgetter
     """This helper function takes the planar vectors and a list of vectors
-       and return the coefficients in the base of the planar vectors"""
+       and return the coefficients in the base of the planar vectors
+
+       inputs ::
+
+       plane vectors: list : list of list of the form [[a_x, a_y], [b_x, b_y]]
+
+       returns ::
+
+       indices : list : list of list of the form [[int_1, int_1]...[int_n, int_n]]
+                        the integers refers to how many times that specific vectors is
+                        present in the linear combination r = int_x * a + int_2 * b
+
+       """
 
     # Formulate the system of equations Ax = b
     A = np.vstack((plane_vectors[0], plane_vectors[1])).T
