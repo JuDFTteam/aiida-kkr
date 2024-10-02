@@ -19,7 +19,7 @@ from masci_tools.io.common_functions import get_Ry2eV
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.3.4'
+__version__ = '0.3.5'
 __contributors__ = (u'Philipp Rüßmann , Rubel Mozumder, David Antognini Silva')
 
 # activate debug writeout
@@ -78,6 +78,7 @@ class combine_imps_wc(WorkChain):
     _workflowversion = __version__
     _wf_default = {
         'jij_run': False,  # Any kind of addition in _wf_default should be updated into the start() as well.
+        'allow_unconverged_inputs': False, # start calculation only if previous impurity calculations are converged?
     }
 
     @classmethod
@@ -230,12 +231,19 @@ If given then the writeout step of the host GF is omitted."""
         """
         message = f'INFO: started combine_imps_wc workflow version {self._workflowversion}'
         self.report(message)
-        if 'wf_parameters_overwrite' in self.inputs:
-            self.ctx.wf_parameters_overwrite = self.inputs.wf_parameters_overwrite
 
-        self.ctx.run_options = {'jij_run': False}
-        self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
-        self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
+        self.ctx.run_options = self._wf_default        
+        self.ctx.allow_unconverged_inputs = self._wf_default.get('allow_unconverged_inputs', False)
+        if 'wf_parameters_overwrite' in self.inputs:
+            self.ctx.wf_parameters_overwrite = self.inputs.wf_parameters_overwrite.get_dict()
+            self.ctx.allow_unconverged_inputs = self.ctx.wf_parameters_overwrite.get('global', {}).get('allow_unconverged_inputs', False)
+
+        exit_code, self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
+        if exit_code != 0:
+            return exit_code
+        exit_code, self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
+        if exit_code != 0:
+            return exit_code
         self.ctx.single_vs_single = True  # It is assumed
 
         # find and compare host structures for the two imps to make sure the impurities are consistent
@@ -278,7 +286,7 @@ If given then the writeout step of the host GF is omitted."""
         imp_1 = self.ctx.imp1
         imp_2 = self.ctx.imp2
         # check for the impurity1 whether from single kkr_imp_wc or not
-        if imp_1.process_class == KkrCalculation or imp_1.process_class == KkrimpCalculation:
+        if imp_1.process_class == KkrimpCalculation:
             Zimp_num_1 = imp_1.inputs.impurity_info.get_dict().get('Zimp')
             if isinstance(Zimp_num_1, list):
                 if len(Zimp_num_1) > 1:
@@ -293,7 +301,7 @@ If given then the writeout step of the host GF is omitted."""
             single_imp_1 = False
 
         # check for the impurity2 whether from single kkr_imp_wc or not
-        if imp_2.process_class == KkrCalculation or imp_2.process_class == KkrimpCalculation:
+        if imp_2.process_class == KkrimpCalculation:
             Zimp_num_2 = imp_2.inputs.impurity_info.get_dict().get('Zimp')
             if isinstance(Zimp_num_2, list):
                 if len(Zimp_num_2) > 1:
@@ -335,16 +343,13 @@ If given then the writeout step of the host GF is omitted."""
             self.report(
                 f'DEBUG: The is the imps_info_in_exact_cluster dict for single-single imp calc: {imps_info_in_exact_cluster}\n'
             )
-            return imps_info_in_exact_cluster
+            return 0, imps_info_in_exact_cluster
         else:
             imp1_input = self.ctx.imp1
             # This 'if clause' to extract the imps_info_in_exact_cluster from  workflow_info of the input impurity node
             if imp1_input.process_class == combine_imps_wc:
                 parent_combine_wc = imp1_input
                 out_workflow_info = parent_combine_wc.outputs.workflow_info
-
-
-#                out_workflow_info = parent_combine_wc.get_outgoing(link_label_filter='workflow_info').all()[0].node
 
             elif imp1_input.process_class == KkrimpCalculation:
                 kkrimp_sub = imp1_input.get_incoming(node_class=kkr_imp_sub_wc).all()[0].node
@@ -364,8 +369,12 @@ If given then the writeout step of the host GF is omitted."""
                 parent_input_imp2 = parent_combine_wc.inputs.impurity2_output_node
                 parent_input_offset = parent_combine_wc.inputs.offset_imp2
 
-                parent_imp1_wc_or_calc = self.get_imp_node_from_input(impurity_output_node=parent_input_imp1)
-                parent_imp2_wc_or_calc = self.get_imp_node_from_input(impurity_output_node=parent_input_imp2)
+                exit_code, parent_imp1_wc_or_calc = self.get_imp_node_from_input(impurity_output_node=parent_input_imp1)
+                if exit_code != 0:
+                    return exit_code, None
+                exit_code, parent_imp2_wc_or_calc = self.get_imp_node_from_input(impurity_output_node=parent_input_imp2)
+                if exit_code != 0:
+                    return exit_code, None
 
                 # Here below imps_info_in_exact_cluster is construct from the inputs impurity1_output_node, and impurity2_output_node as the idea was not calculated in the old version attempt of the combine_imps_wc.
 
@@ -384,7 +393,7 @@ If given then the writeout step of the host GF is omitted."""
             imps_info_in_exact_cluster['ilayers'].append(imp2_impurity_info.get_dict()['ilayer_center'])
             # TODO: Delete the below print line as it is for deburging
             self.report(f'DEBUG: The is the imps_info_in_exact_cluster dict: {imps_info_in_exact_cluster}\n')
-            return imps_info_in_exact_cluster
+            return 0, imps_info_in_exact_cluster # return also exit code
 
     def get_impinfo_from_hostGF(self, imp_calc):
         """
@@ -454,28 +463,26 @@ If given then the writeout step of the host GF is omitted."""
             inc = imp_out.get_incoming(link_label_filter='workflow_info').all()
             if len(inc) != 1:
                 self.report(f'input node of imp {iimp} inconsistent')
-                return self.exit_codes.ERROR_INPUT_NODE_INCONSISTENT  # pylint: disable=maybe-no-member
+                return self.exit_codes.ERROR_INPUT_NODE_INCONSISTENT, None  # pylint: disable=maybe-no-member
             imp = inc[0].node
 
         # consistency checks of input nodes
         # check if input calc was converged etc.
         if not self._check_input_imp(imp):
             self.report(f'something wrong with imp {iimp}: {imp}')
-            return self.exit_codes.ERROR_SOMETHING_WENT_WRONG  # pylint: disable=maybe-no-member
+            return self.exit_codes.ERROR_SOMETHING_WENT_WRONG, None  # pylint: disable=maybe-no-member
 
-        return imp
+        # return exit code and imp calculation
+        return 0, imp
 
     def _check_input_imp(self, imp_calc_or_wf):
         """
-        check if input calculation is a kkr_imp_wc workflow which did converge
+        check if input calculation is of the right process_class and if it did converge
         """
 
-        if imp_calc_or_wf.process_class == KkrimpCalculation:
-            # imp_calc_or_wf can be KkrimpClaculation
-            if not imp_calc_or_wf.outputs.output_parameters['convergence_group']['calculation_converged']:
-                return False
-        else:
-            # imp_calc_or_wf should be kkr_imp_wc or kkr_imp_sub_wc or combine_imps_wc workflow
+        if imp_calc_or_wf.process_class != KkrimpCalculation:
+            # if imp_calc_or_wf is not a KkrimpCalculation
+            # check if imp_calc_or_wf is kkr_imp_wc, kkr_imp_sub_wc or combine_imps_wc workflow
             if not isinstance(imp_calc_or_wf, WorkChainNode):
                 self.report(f'impurity_workflow not a WorkChainNode: {imp_calc_or_wf}')
                 return False
@@ -487,7 +494,12 @@ If given then the writeout step of the host GF is omitted."""
                 self.report(f'impurity_workflow class is wrong: {imp_calc_or_wf}')
                 return False
 
+        if (not self.ctx.allow_unconverged_inputs):
             # calculation should be converged
+            if imp_calc_or_wf.process_class == KkrimpCalculation:
+                if not imp_calc_or_wf.outputs.output_parameters['convergence_group']['calculation_converged']:
+                    self.report(f'impurity calculation not converged: {imp_calc_or_wf}')
+                    return False
             if imp_calc_or_wf.process_class == kkr_imp_wc:
                 if not imp_calc_or_wf.outputs.workflow_info.get_dict().get('converged'):
                     self.report('impurity_workflow not converged')
@@ -532,7 +544,10 @@ If given then the writeout step of the host GF is omitted."""
         self.report(f'imp info 1: {impinfo1}')
         self.report(f'imp info 2: {impinfo2}')
 
-        self.ctx.imps_info_in_exact_cluster = self.extract_imps_info_exact_cluster()
+        exit_code, self.ctx.imps_info_in_exact_cluster = self.extract_imps_info_exact_cluster()
+        if exit_code != 0:
+            return exit_code
+        
         imps_info_in_exact_cluster = self.ctx.imps_info_in_exact_cluster
         if single_single:
             if offset_imp2.get_dict()['index'] < 0:
@@ -706,7 +721,7 @@ If given then the writeout step of the host GF is omitted."""
         run_options = self.ctx.run_options
         # Update the scf_wf_parameters from the wf_parameters_overwrite
         if 'wf_parameters_overwrite' in self.inputs:
-            wf_parameters_overwrite = self.ctx.wf_parameters_overwrite.get_dict()
+            wf_parameters_overwrite = self.ctx.wf_parameters_overwrite
 
             for key, val in wf_parameters_overwrite.items():
                 # Update the scf_wf_parameters from wf_parameters_overwrite

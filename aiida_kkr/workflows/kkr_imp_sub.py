@@ -17,7 +17,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.10.3'
+__version__ = '0.10.4'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann', u'David Antognini Silva')
 
 #TODO: work on return results function
@@ -66,13 +66,13 @@ class kkr_imp_sub_wc(WorkChain):
 
     _wf_default = {
         'kkr_runmax': 5,  # Maximum number of kkr jobs/starts (defauld iterations per start)
-        'convergence_criterion': 1 * 10**-7,  # Stop if charge denisty is converged below this value
+        'convergence_criterion': 1e-7,  # Stop if charge denisty is converged below this value
         'mixreduce': 0.5,  # reduce mixing factor by this factor if calculaito fails due to too large mixing
-        'threshold_aggressive_mixing': 1 * 10**-2,  # threshold after which agressive mixing is used
-        'strmix': 0.03,  # mixing factor of simple mixing
+        'threshold_aggressive_mixing': 1e-2,  # threshold after which agressive mixing is used
+        'strmix': 0.01,  # mixing factor of simple mixing
         'nsteps': 50,  # number of iterations done per KKR calculation
         'aggressive_mix': 5,  # type of aggressive mixing (3: broyden's 1st, 4: broyden's 2nd, 5: generalized anderson)
-        'aggrmix': 0.05,  # mixing factor of aggressive mixing
+        'aggrmix': 0.01,  # mixing factor of aggressive mixing
         'broyden-number': 20,  # number of potentials to 'remember' for Broyden's mixing
         'nsimplemixfirst': 0,  # number of simple mixing step at the beginning of Broyden mixing
         'mag_init': False,  # initialize and converge magnetic calculation
