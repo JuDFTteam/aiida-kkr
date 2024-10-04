@@ -188,19 +188,13 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
             cls.results
         )
 
-    def combine_potentials(self, host_structure, impurity_to_combine, da, db):
+    def combine_imp_info(self, host_structure, impurity_to_combine, da, db):
         from aiida_kkr.tools.tools_STM_scan import get_imp_info_add_position
         import numpy as np  # TO DO: optimize this call, only need append from numpy
         """
         Here we want to combine the impurity information and the host information
         """
-        tip_position = {
-        }  # Since the objects in AiiDA are immutable we have to create a new dictionary and then convert
-        # it to the right AiiDA type
-
-        tip_position['ilayer'] = self.inputs.tip_position['ilayer']
-        tip_position['da'] = da
-        tip_position['db'] = db
+        tip_position = self.get_tip_position_dict(da, db)
         imp_info = self.inputs.imp_info  #(impurity to combine)
 
         combined_imp_info = get_imp_info_add_position(Dict(tip_position), host_structure, imp_info)
@@ -227,23 +221,25 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
         return new_combined_imp_info
 
-    def combine_nodes(self, host_calc, node_to_combine, da, db):
+    def combine_potentials(self, host_calc, node_to_combine, da, db):
         from aiida_kkr.tools.tools_STM_scan import create_combined_potential_node
         """
         Here we create a combined potential node from the host potential (no impurity)
         and from the impurity potential
         """
 
-        # Since the objects in AiiDA are immutable we have to create a new dictionary and then convert
-        # it to the right AiiDA type
+        tip_position = self.get_tip_position_dict(da, db)
+        combined_potential_node = create_combined_potential_node(tip_position, host_calc, node_to_combine)
+        return combined_potential_node
+
+    def get_tip_position_dict(self, da, db):
+        # Since the objects in AiiDA are immutable we have to create a new dictionary
+        # and then convert it to the right AiiDA type
         tip_position = {}
-        # for now we require that the z position remains the same.
         tip_position['ilayer'] = self.inputs.tip_position['ilayer']
         tip_position['da'] = da
         tip_position['db'] = db
-
-        combined_node = create_combined_potential_node(tip_position, host_calc, node_to_combine)
-        return combined_node
+        return tip_position
 
     def start(self):
         """
@@ -344,11 +340,11 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         from aiida_kkr.tools.imp_cluster_tools import pos_exists_already
         from aiida_kkr.tools.tools_STM_scan import get_imp_cls_add, convert_to_imp_cls, offset_clust2
 
-        #if _VERBOSE_:
-        #    from time import time
-        #
-        #    # measure time at start
-        #    t_start = time()
+        if _VERBOSE_:
+            from time import time
+
+            # measure time at start
+            t_start = time()
 
         # Here we create an impurity cluster that has inside all the positions on which the STM will scan
 
@@ -362,9 +358,9 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         # now find all the positions we need to scan
         coeff = self.get_scanning_positions(host_remote)
 
-        #if _VERBOSE_:
-        #    # timing counters
-        #    t_imp_info, t_pot = 0., 0.
+        if _VERBOSE_:
+            # timing counters
+            t_imp_info, t_pot = 0., 0.
 
         _, imp_clust = convert_to_imp_cls(host_structure, impurity_info)
 
@@ -380,52 +376,45 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
         for element in coeff:
 
-            #if _VERBOSE_:
-            #    t0 = time()
+            if _VERBOSE_:
+                t0 = time()
 
             # Check if the position is already in the cluster
-            tmp_pos = {}
-            tmp_pos['ilayer'] = self.inputs.tip_position['ilayer']
-            tmp_pos['da'] = element[0]
-            tmp_pos['db'] = element[1]
-
-            message = f'position to be embedded {tmp_pos}'
-
+            # for this we need to first get the position
+            tmp_pos = self.get_tip_position_dict(element[0], element[1])
             _, tmp_clust = get_imp_cls_add(host_structure, tmp_pos)
-            #clust_offset = offset_clust2(imp_clust, tmp_clust, host_structure, Dict(tmp_pos))
+            clust_offset = offset_clust2(imp_clust, tmp_clust, host_structure, Dict(tmp_pos))
 
-            #if _VERBOSE_:
-            #    t_cluster_offset += time()-t0
+            if _VERBOSE_:
+                t_cluster_offset += time() - t0
 
-            if pos_exists_already(imp_clust, tmp_clust)[0]:
-                message = f'The position {tmp_pos} is already present in the system'
+            if pos_exists_already(imp_clust[:, :3], clust_offset[:, :3])[0]:
+                message = f'INFO: The position {tmp_pos} is already present in the system, skipping it'
                 self.report(message)
                 continue  # If the position exists already skip the embedding
             else:
                 # Aggregation of the impurity potential
-                tmp_imp_info = self.combine_potentials(host_structure, impurity_info_aux, element[0], element[1])
+                tmp_imp_info = self.combine_imp_info(host_structure, impurity_info_aux, element[0], element[1])
                 impurity_info_aux = tmp_imp_info
 
-                message = 'imp info has been embedded'
-                self.report(message)
-
-                #if _VERBOSE_:
-                #    t_imp_info += time() - t0
-                #    t0 = time()
+                if _VERBOSE_:
+                    self.report('imp info has been embedded')
+                    t_imp_info += time() - t0
+                    t0 = time()
 
                 # Aggregation the impurity nodes
-                tmp_imp_pot = self.combine_nodes(host_calc, imp_potential_node_aux, element[0], element[1])
+                tmp_imp_pot = self.combine_potentials(host_calc, imp_potential_node_aux, element[0], element[1])
                 imp_potential_node_aux = tmp_imp_pot
 
-                message = 'imp pot has been embedded'
-                self.report(message)
+                if _VERBOSE_:
+                    self.report('imp potential has been added')
+                    t_pot += time() - t0
 
-                #if _VERBOSE_:
-                #    t_pot += time() - t0
-
-        #if _VERBOSE_:
-        #    # report elapsed time for cluster generation
-        #    self.report(f'time for cluster generation (s): {time()-t_start}, cluster generation={t_cluster_offset}, imp_info={t_imp_info}, pot={t_pot}')
+        if _VERBOSE_:
+            # report elapsed time for cluster generation
+            self.report(
+                f'time for cluster generation (s): {time()-t_start}, cluster generation={t_cluster_offset}, imp_info={t_imp_info}, pot={t_pot}'
+            )
 
         return impurity_info_aux, imp_potential_node_aux
 

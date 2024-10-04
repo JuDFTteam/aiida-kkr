@@ -80,9 +80,9 @@ def get_r_offset(clust1, clust2, host_structure, add_position):
     alat = get_alat_from_bravais(np.array(host_structure.cell), host_structure.pbc[2])
     r_out_of_plane /= alat
 
-    # remove spurious offsets that might be there due to the choice of the unit cell positions
-    r_out_of_plane = np.round(r_out_of_plane, 7)
-    r_out_of_plane[:2] %= 1  # modulo 1 for x and y coordinate
+    # # remove spurious offsets that might be there due to the choice of the unit cell positions
+    # r_out_of_plane = np.round(r_out_of_plane, 7)
+    # r_out_of_plane[:2] %= 1  # modulo 1 for x and y coordinate
 
     # calculate in-plane vector from da, db inputs
     da = add_position.get_dict().get('da', 0)
