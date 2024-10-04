@@ -342,7 +342,6 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
         if _VERBOSE_:
             from time import time
-
             # measure time at start
             t_start = time()
 
@@ -439,6 +438,12 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
                 # TODO: improve the validity check
                 generate_scan_positions = False
 
+                if _VERBOSE_:
+                    if generate_scan_positions:
+                        self.report('The scanning positions have been given by the user')
+                    else:
+                        self.repotr('The scanning positions were automatically generated')
+
         if generate_scan_positions:
 
             # Information of the host structure
@@ -446,11 +451,13 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
             # We now want to iterate over several in-plane positions.
             # These are the number of vectors in which we want to move the STM tip.
-            x = self.inputs.tip_position['nx']
-            y = self.inputs.tip_position['ny']
+            nx = self.inputs.tip_position['nx']
+            ny = self.inputs.tip_position['ny']
 
             # Path creation step. (The the identity operator is present, but will be excluded)
-            unused_pos, used_pos = tools_STM_scan.lattice_generation(x, y, symm_matrices, struc_info['plane_vectors'])
+            unused_pos, used_pos = tools_STM_scan.lattice_generation(
+                symm_matrices, struc_info['plane_vectors'], 0, 0, nx, ny
+            )
 
             # Since the combine tools use the element already in the units of da and db, we use a helper function
             # to have the indices of the linear combination of the used position vectors in the base of the Bravais lattice.
