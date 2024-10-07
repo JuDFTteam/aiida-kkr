@@ -137,7 +137,11 @@ def get_imp_info_add_position(add_position, host_structure, imp_info):
         #raise ValueError('Additional position exists already in impurity cluster.')
     cluster_combined, rimp_rel_combined, _, _ = combine_clusters(clust1, clust2_offset, False, debug=False)
     # combine the zimp arrays
-    zimp_combined = imp_info['Zimp'] + imp_info2['Zimp']
+    zimp1 = imp_info['Zimp']
+    if not isinstance(zimp1, list):
+        # convert to list if necessary
+        zimp1 = [zimp1]
+    zimp_combined = zimp1 + imp_info2['Zimp']
     # now combine the imp info node
     imp_info_combined = orm.Dict({'imp_cls': cluster_combined, 'Zimp': zimp_combined, 'Rimp_rel': rimp_rel_combined})
 

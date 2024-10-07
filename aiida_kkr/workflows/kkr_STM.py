@@ -33,7 +33,7 @@ class kkr_STM_wc(WorkChain):
         :param kkr: (Code), KKR host code for the writing out kkrflex files
         :param kkrimp: (Code), KKR impurity code for the normal state impurity scf and BdG impurity DOS calculation
         :param gf_writeout.params_kkr_overwrite (Dict), overwrite parameters for the GF calculation
-        :param kkr_imp_sub.params_kkr_overwrite (Dict), overwrite parameters for the impurity calculation
+        :param kkr_imp_sub.params_overwrite (Dict), overwrite parameters for the impurity calculation
 
      returns::
 
@@ -499,8 +499,8 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
         # Update the BdG parameters if they are inserted in the workflow
         if 'BdG' in self.inputs:
-            if 'params_kkr_overwrite' in self.inputs.BdG:
-                builder.BdG.params_overwrite = self.inputs.BdG.params_kkr_overwrite  # pylint: disable=no-member
+            if 'params_overwrite' in self.inputs.BdG:
+                builder.BdG.params_overwrite = self.inputs.BdG.params_overwrite  # pylint: disable=no-member
 
         self.ctx.kkrimp_params_dict = Dict(
             dict={
@@ -559,8 +559,8 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
         # print report
         message = f"""INFO: running DOS step for an STM measurement (pk: {calc.pk}) at position (ilayer: {self.inputs.tip_position['ilayer']})"""
-        if 'params_kkr_overwrite' in self.inputs.BdG:
-            if self.inputs.BdG.params_kkr_overwrite:
+        if 'params_overwrite' in self.inputs.BdG:
+            if self.inputs.BdG.params_overwrite:
                 message += f'\nINFO: runnig DOS step (pk: {calc.pk}) BdG is present'
         self.report(message)
 
