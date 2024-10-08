@@ -76,6 +76,12 @@ class VoronoiCalculation(CalcJob):
             required=False,
             help='Use a node that specifies the potential which is used instead of the voronoi output potential'
         )
+        spec.input(
+            'shapefun_overwrite',
+            valid_type=SinglefileData,
+            required=False,
+            help='Use a node that specifies the shapefun which is used instead of the voronoi output'
+        )
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the calculation')
         spec.default_output_node = 'output_parameters'
@@ -192,6 +198,12 @@ class VoronoiCalculation(CalcJob):
                 if (found_parent or has_potfile_overwrite) and file1 == copylist[0]:
                     filename = self._POTENTIAL_IN_OVERWRITE
                 local_copy_list.append((outfolder.uuid, file1, filename))
+
+            # add shapefun to overwrite
+            if 'shapefun_overwrite' in self.inputs:
+                shapefun_overwrite = self.inputs.shapefun_overwrite
+                filename = shapefun_overwrite.filename
+                local_copy_list.append((shapefun_overwrite.uuid, filename, 'shapefun_overwrite'))
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()

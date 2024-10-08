@@ -106,4 +106,3 @@ def get_calc_from_remote(calc_remote):
         raise ValueError('Parent is not unique!')
 
     return parents[0].node
-                               
