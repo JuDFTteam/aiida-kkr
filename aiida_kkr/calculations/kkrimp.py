@@ -23,7 +23,7 @@ import numpy as np
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.10.1'
+__version__ = '0.10.2'
 __contributors__ = (u'Philipp Rüßmann', u'Fabian Bertoldo')
 
 #TODO: implement 'ilayer_center' consistency check
@@ -910,6 +910,9 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
                     )
                 if phi < 0 or phi > 360:
                     raise InputValidationError(f'Error: phi value out of range (0..360): iatom={iatom}, phi={phi}')
+                # convert fix_dir to integer if given as boolean
+                if isinstance(fix_dir, bool):
+                    fix_dir = (1 if fix_dir else 0)
                 # write line
                 kkrflex_angle_file.write(f'   {theta}    {phi}    {fix_dir}\n')
 
