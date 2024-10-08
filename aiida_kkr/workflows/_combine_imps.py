@@ -1024,8 +1024,21 @@ def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_
                 imp1_z = impurity1_output_node.get_incoming(node_class=KkrimpCalculation
                                                             ).first().node.inputs.impurity_info.get_dict()['Zimp']
 
-    imp2_z = impurity2_output_node.get_incoming(node_class=kkr_imp_wc
-                                                ).first().node.inputs.impurity_info.get_dict()['Zimp']
+    try:
+        imp2_z = impurity2_output_node.get_incoming(node_class=kkr_imp_wc
+                                                    ).first().node.inputs.impurity_info.get_dict()['Zimp']
+    except AttributeError:
+        try:
+            impurity2_output_node_combine = impurity2_output_node.get_incoming(node_class=combine_imps_wc).first().node
+            imp2_z = impurity2_output_node_combine.get_outgoing(node_class=kkr_imp_sub_wc
+                                                                ).first().node.inputs.impurity_info.get_dict()['Zimp']
+        except AttributeError:
+            try:
+                imp2_z = impurity2_output_node.get_incoming(node_class=kkr_imp_sub_wc
+                                                            ).first().node.inputs.impurity_info.get_dict()['Zimp']
+            except AttributeError:
+                imp2_z = impurity2_output_node.get_incoming(node_class=KkrimpCalculation
+                                                            ).first().node.inputs.impurity_info.get_dict()['Zimp']
 
     with retrieved.open('out_Jijmatrix') as _f:
         jijdata = np.loadtxt(_f)
