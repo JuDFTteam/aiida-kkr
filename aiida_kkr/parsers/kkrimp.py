@@ -8,7 +8,7 @@ all errors and warnings and show them to the user.
 import tarfile
 import os
 from aiida import __version__ as aiida_core_version
-from aiida.orm import Dict
+from aiida.orm import Dict, CalcJobNode
 from aiida.common.exceptions import InputValidationError, NotExistent
 from aiida.parsers.parser import Parser
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
@@ -21,8 +21,8 @@ from contextlib import ExitStack
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.0'
-__contributors__ = ('Philipp Rüßmann')
+__version__ = '0.6.1'
+__contributors__ = (u'Philipp Rüßmann', u'Raffaele Aliberti')
 
 
 class KkrimpParser(Parser):
@@ -63,6 +63,19 @@ class KkrimpParser(Parser):
 
         file_errors = []
         files = {}
+
+        # Get the node of the parent calculation (useful for the imp calculations)
+        calc = out_folder.get_incoming(node_class=CalcJobNode).first().node
+
+        # figure out if this is a DOS calculation
+        parent_host_calc = calc.inputs.host_Greenfunction_folder.get_incoming(node_class=CalcJobNode).first().node
+        npol = parent_host_calc.inputs.parameters.get_dict().get(
+            'NPOL', 1
+        )  # This parameter discriminates if it is a DOS calc or not
+        doscalc = (npol == 0)
+
+        if debug:
+            print('doscalc = ', doscalc)
 
         # Parse output files of KKRimp calculation
 
@@ -113,7 +126,7 @@ class KkrimpParser(Parser):
 
             # now we can parse the output files
             success, msg_list, out_dict = KkrimpParserFunctions().parse_kkrimp_outputfile(
-                out_dict, named_file_handles, debug=debug, ignore_nan=ignore_nan
+                out_dict, named_file_handles, debug=debug, ignore_nan=ignore_nan, doscalc=doscalc
             )
 
         out_dict['parser_errors'] = msg_list

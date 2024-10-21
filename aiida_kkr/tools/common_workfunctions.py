@@ -336,6 +336,16 @@ def get_inputs_kkrimp(
     return builder
 
 
+def truncate_string(string, max_length):
+    """
+    Truncate the length of a string to max_length-3 entries.
+    The last three characters '...' to indicate the truncation.
+    """
+    if len(string) > max_length:
+        string = string[:max_length - 3] + '...'
+    return string
+
+
 def get_inputs_common(
     calculation,
     code,
@@ -381,7 +391,8 @@ def get_inputs_common(
         inputs.metadata.description = ''
 
     if label:
-        inputs.metadata.label = label
+        # Attention: max label length is 255 characters
+        inputs.metadata.label = truncate_string(label, 255)
     else:
         inputs.metadata.label = ''
 
