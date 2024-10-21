@@ -378,6 +378,11 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
             if _VERBOSE_:
                 t0 = time()
 
+            # Case in which we don't pass any element to embed in the impurity cluster, it
+            # uses the impurity files given in the inputs.
+            if element == []:
+                return impurity_info, imp_potential_node
+
             # Check if the position is already in the cluster
             # for this we need to first get the position
             tmp_pos = self.get_tip_position_dict(element[0], element[1])
