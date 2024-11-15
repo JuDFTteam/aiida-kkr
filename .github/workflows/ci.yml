@@ -12,10 +12,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Set up Python 3.8
+    - name: Set up Python 3.12
       uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: 3.12
 
     - name: Cache python dependencies
       id: cache-pip
@@ -58,10 +58,10 @@ jobs:
         restore-keys: |
           pip-pre-commit-
 
-    - name: Set up Python 3.8
+    - name: Set up Python 3.12
       uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: 3.12
 
     - name: Install python dependencies
       run: |
@@ -87,8 +87,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
-        aiida: [{version: 'aiida-core==2.3.0', name: '2.3.0'}]
+        python-version: ["3.10", "3.11", "3.12"]
+        aiida: [{version: 'aiida-core==2.6.3', name: '2.6.3'}]
         masci-tools: [{version: 'git+https://github.com/JuDFTteam/masci-tools.git@develop', name: '-masci-develop'}]
         allowed-to-fail: [false]
 
