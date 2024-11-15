@@ -8,7 +8,7 @@ from aiida_kkr.tools import neworder_potential_wf
 from aiida_kkr.calculations import VoronoiCalculation
 from aiida_kkr.calculations import KkrCalculation
 from aiida.engine import WorkChain, ToContext, calcfunction
-from aiida.orm import Code, Dict, Int, Float, RemoteData, KpointsData, XyData, StructureData, FolderData
+from aiida.orm import Code, Dict, Int, Float, RemoteData, KpointsData, XyData, StructureData, FolderData, SinglefileData
 from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
 from aiida_kkr.tools import kkrparams, get_anomalous_density_data
 from aiida_kkr.workflows.bs import set_energy_params
@@ -19,7 +19,7 @@ from masci_tools.io.common_functions import get_Ry2eV
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.2.1'
+__version__ = '0.3.0'
 __contributors__ = u'Philipp Rüßmann'
 
 _eV2Ry = 1.0 / get_Ry2eV()
@@ -81,7 +81,7 @@ class kkr_decimation_wc(WorkChain):
             'emax_EF': 3.0,  # EMAX-EF in eV
             'nepts': 96,  # number of points in contour
             'tempr': 100,  # smearing temperature
-            'kmesh': [50, 50, 50]
+            'kmesh': [50, 50, 50],
         },  # k-mesh used in dos calculation
     }
     _options_default = {
@@ -96,9 +96,11 @@ class kkr_decimation_wc(WorkChain):
         'INTERFACE',
         '<NLBASIS>',
         '<RBLEFT>',
-        'ZPERIODL',
         '<NRBASIS>',
         '<RBRIGHT>',
+        '<LFMTWAL>',
+        '<RTMTWAL>',
+        'ZPERIODL',
         'ZPERIODR',  # standard names
         'NLBASIS',
         'RBLEFT',
@@ -140,6 +142,13 @@ class kkr_decimation_wc(WorkChain):
             'Computer options used in the deicmation step (voronoi and deci-out steps run serially but use the walltime given here).'
         )
         spec.input(
+            'options_deci_out',
+            valid_type=Dict,
+            required=False,
+            help=
+            'Computer options used in the deci-out step (createion of decifile, if not provided, this step will run in serial).'
+        )
+        spec.input(
             'remote_data',
             valid_type=RemoteData,
             required=True,
@@ -164,6 +173,24 @@ class kkr_decimation_wc(WorkChain):
             valid_type=Dict,
             required=False,
             help='If given overwrites KKR parameters starting from slab params (can be used to run DOS for instance).'
+        )
+        spec.input(
+            'calc_parameters_decimate',
+            valid_type=Dict,
+            required=False,
+            help='Overwrite calculation parameters in the decimation step'
+        )
+        spec.input(
+            'shapefun_substrate_overwrite',
+            valid_type=SinglefileData,
+            required=False,
+            help='Use a node that specifies the shapefun which is used instead of the voronoi output for the deci-out step'
+        )
+        spec.input(
+            'shapefun_deci_overwrite',
+            valid_type=SinglefileData,
+            required=False,
+            help='Use a node that specifies the shapefun which is used instead of the voronoi output for the decimation step'
         )
 
         # define outputs
@@ -344,6 +371,9 @@ class kkr_decimation_wc(WorkChain):
         self.ctx.params_overwrite = None
         if 'calc_parameters' in self.inputs:
             self.ctx.params_overwrite = self.inputs.calc_parameters
+        self.ctx.params_overwrite_decimate = None
+        if 'calc_parameters_decimate' in self.inputs:
+            self.ctx.params_overwrite_decimate = self.inputs.calc_parameters_decimate
 
         # take care of qdos or dos modes
         qdos_mode = False
@@ -368,8 +398,10 @@ class kkr_decimation_wc(WorkChain):
         alat_slab = self.ctx.slab_calc.outputs.output_parameters['alat_internal']
 
         out = make_decimation_param_nodes(
-            self.ctx.slab_calc.inputs.parameters, Float(alat_slab), self.ctx.struc_decimation, self.ctx.struc_substrate,
-            Int(self.ctx.nkz), self.ctx.params_overwrite
+            self.ctx.slab_calc.inputs.parameters, Float(alat_slab),
+            self.ctx.struc_decimation, self.ctx.struc_substrate,
+            Int(self.ctx.nkz), self.ctx.params_overwrite,
+            self.ctx.params_overwrite_decimate
         )
 
         self.ctx.dsubstrate = out['dsubstrate']
@@ -401,7 +433,14 @@ class kkr_decimation_wc(WorkChain):
         builder.metadata.label = 'auxiliary_voronoi_substrate'  # pylint: disable=no-member
         builder.metadata.options = self.ctx.options  # pylint: disable=no-member
         builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
+
         builder.potential_overwrite = self.ctx.startpot_substrate
+        if 'shapefun_substrate_overwrite' in self.inputs:
+            builder.shapefun_overwrite = self.inputs.shapefun_substrate_overwrite
+            # make sure the shapefun is really used
+            append_text = builder.metadata.options.get('append_text', '')
+            append_text += '\nmv shapefun shapefun_voro; mv shapefun_overwrite shapefun'
+            builder.metadata.options['append_text'] = append_text
 
         # submit voroaux for substrate calculation
         future_substrate = self.submit(builder)
@@ -416,6 +455,12 @@ class kkr_decimation_wc(WorkChain):
         builder.metadata.options = self.ctx.options  # pylint: disable=no-member
         builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
         builder.potential_overwrite = self.ctx.startpot_decimation
+        if 'shapefun_deci_overwrite' in self.inputs:
+            builder.shapefun_overwrite = self.inputs.shapefun_deci_overwrite
+            # make sure the shapefun is really used
+            append_text = builder.metadata.options.get('append_text', '')
+            append_text += '\nmv shapefun shapefun_voro; mv shapefun_overwrite shapefun'
+            builder.metadata.options['append_text'] = append_text
 
         # submit voroaux for substrate calculation
         future_decimation = self.submit(builder)
@@ -434,9 +479,12 @@ class kkr_decimation_wc(WorkChain):
         builder.code = self.inputs.kkr
         builder.parameters = self.ctx.dsubstrate
         builder.metadata.options = self.ctx.options  # pylint: disable=no-member
-
-        # force serial run, otherwise KKRhost code does not work:
+        # force serial run, otherwise KKRhost code does not work
         builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
+        if 'options_deci_out' in self.inputs:
+            # overwrite default (serial) option if given in input
+            builder.metadata.options = self.inputs.options_deci_out.get_dict()
+
         builder.metadata.label = 'deci-out'  # pylint: disable=no-member
         builder.parent_folder = self.ctx.voroaux_substrate.outputs.remote_folder
 
@@ -766,7 +814,10 @@ def _adapt_array_sizes(params_dict, pick_layers):
 
 
 @calcfunction
-def make_decimation_param_nodes(slab_calc_params, slab_alat, struc_deci, struc_substrate, nkz, params_overwrite=None):
+def make_decimation_param_nodes(slab_calc_params, slab_alat, struc_deci,
+                                struc_substrate, nkz, params_overwrite=None,
+                                params_overwrite_decimate=None
+):
     """
     Create parameter nodes for deci-out and decimation steps
     """
@@ -777,6 +828,10 @@ def make_decimation_param_nodes(slab_calc_params, slab_alat, struc_deci, struc_s
 
     dsubstrate = _make_d_substrate(d, params_overwrite, slab_alat, nkz)
     ddeci = _make_d_deci(d, struc_deci, params_overwrite, slab_alat)
+    if params_overwrite_decimate is not None:
+        # overwrite parameters for the decimation step only
+        for k, v in params_overwrite_decimate.items():
+            ddeci[k] = v
 
     # modify array inputs to the right size
     Ndeci = len(struc_deci.sites)
