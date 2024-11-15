@@ -184,13 +184,15 @@ class kkr_decimation_wc(WorkChain):
             'shapefun_substrate_overwrite',
             valid_type=SinglefileData,
             required=False,
-            help='Use a node that specifies the shapefun which is used instead of the voronoi output for the deci-out step'
+            help=
+            'Use a node that specifies the shapefun which is used instead of the voronoi output for the deci-out step'
         )
         spec.input(
             'shapefun_deci_overwrite',
             valid_type=SinglefileData,
             required=False,
-            help='Use a node that specifies the shapefun which is used instead of the voronoi output for the decimation step'
+            help=
+            'Use a node that specifies the shapefun which is used instead of the voronoi output for the decimation step'
         )
 
         # define outputs
@@ -398,10 +400,8 @@ class kkr_decimation_wc(WorkChain):
         alat_slab = self.ctx.slab_calc.outputs.output_parameters['alat_internal']
 
         out = make_decimation_param_nodes(
-            self.ctx.slab_calc.inputs.parameters, Float(alat_slab),
-            self.ctx.struc_decimation, self.ctx.struc_substrate,
-            Int(self.ctx.nkz), self.ctx.params_overwrite,
-            self.ctx.params_overwrite_decimate
+            self.ctx.slab_calc.inputs.parameters, Float(alat_slab), self.ctx.struc_decimation, self.ctx.struc_substrate,
+            Int(self.ctx.nkz), self.ctx.params_overwrite, self.ctx.params_overwrite_decimate
         )
 
         self.ctx.dsubstrate = out['dsubstrate']
@@ -814,9 +814,14 @@ def _adapt_array_sizes(params_dict, pick_layers):
 
 
 @calcfunction
-def make_decimation_param_nodes(slab_calc_params, slab_alat, struc_deci,
-                                struc_substrate, nkz, params_overwrite=None,
-                                params_overwrite_decimate=None
+def make_decimation_param_nodes(
+    slab_calc_params,
+    slab_alat,
+    struc_deci,
+    struc_substrate,
+    nkz,
+    params_overwrite=None,
+    params_overwrite_decimate=None
 ):
     """
     Create parameter nodes for deci-out and decimation steps
