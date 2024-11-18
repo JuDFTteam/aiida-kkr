@@ -438,9 +438,9 @@ class kkr_decimation_wc(WorkChain):
         if 'shapefun_substrate_overwrite' in self.inputs:
             builder.shapefun_overwrite = self.inputs.shapefun_substrate_overwrite
             # make sure the shapefun is really used
-            append_text = builder.metadata.options.get('append_text', '')
+            append_text = builder.metadata.options.get('append_text', '')  # pylint: disable=no-member
             append_text += '\nmv shapefun shapefun_voro; mv shapefun_overwrite shapefun'
-            builder.metadata.options['append_text'] = append_text
+            builder.metadata.options['append_text'] = append_text  # pylint: disable=no-member
 
         # submit voroaux for substrate calculation
         future_substrate = self.submit(builder)
@@ -458,9 +458,9 @@ class kkr_decimation_wc(WorkChain):
         if 'shapefun_deci_overwrite' in self.inputs:
             builder.shapefun_overwrite = self.inputs.shapefun_deci_overwrite
             # make sure the shapefun is really used
-            append_text = builder.metadata.options.get('append_text', '')
+            append_text = builder.metadata.options.get('append_text', '')  # pylint: disable=no-member
             append_text += '\nmv shapefun shapefun_voro; mv shapefun_overwrite shapefun'
-            builder.metadata.options['append_text'] = append_text
+            builder.metadata.options['append_text'] = append_text  # pylint: disable=no-member
 
         # submit voroaux for substrate calculation
         future_decimation = self.submit(builder)
@@ -483,7 +483,7 @@ class kkr_decimation_wc(WorkChain):
         builder.metadata.options['resources'] = {'tot_num_mpiprocs': 1, 'num_machines': 1}  # pylint: disable=no-member
         if 'options_deci_out' in self.inputs:
             # overwrite default (serial) option if given in input
-            builder.metadata.options = self.inputs.options_deci_out.get_dict()
+            builder.metadata.options = self.inputs.options_deci_out.get_dict()  # pylint: disable=no-member
 
         builder.metadata.label = 'deci-out'  # pylint: disable=no-member
         builder.parent_folder = self.ctx.voroaux_substrate.outputs.remote_folder
