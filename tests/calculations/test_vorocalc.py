@@ -3,7 +3,7 @@
 from builtins import object
 import pytest
 import pathlib
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
+# from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 # from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint, absolute_archive_path
 
 # from aiida.tools.pytest_fixtures import *

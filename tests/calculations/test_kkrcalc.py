@@ -5,11 +5,11 @@ import pytest
 from aiida.engine import run, run_get_node
 from ..dbsetup import *
 from ..conftest import kkrhost_local_code, test_dir, data_dir, import_with_migration
-from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint, absolute_archive_path
-from aiida.manage.tests.pytest_fixtures import (
-    aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile, clear_database, clear_database_after_test,
-    clear_database_before_test
-)
+# from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint, absolute_archive_path
+# from aiida.manage.tests.pytest_fixtures import (
+#     aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile, clear_database, clear_database_after_test,
+#     clear_database_before_test
+# )
 
 # some global settings
 eps = 10**-14  # threshold for float comparison equivalence
@@ -54,7 +54,7 @@ class Test_kkr_calculation(object):
         builder.metadata.dry_run = dry_run
         out, node = run_get_node(builder)
 
-    def test_kkr_cached(self, aiida_profile, kkrhost_local_code, run_with_cache):
+    def test_kkr_cached(self, aiida_profile, kkrhost_local_code, enable_archive_cache):
         """
         simple Cu noSOC, FP, lmax2 full example
         """
@@ -85,7 +85,8 @@ class Test_kkr_calculation(object):
         print(kkrhost_local_code)
         print(voro_calc)
         print(builder)
-        out, node = run_with_cache(builder, data_dir=data_dir)
+        with enable_archive_cache(data_dir / 'kkr_cached.aiida'):
+            out, node = run_get_node(builder)
         print((node, out))
         print((node.get_cache_source()))
         assert node.get_cache_source() is not None
@@ -187,7 +188,7 @@ class Test_kkr_calculation(object):
         out = run(builder)
         print(out)
 
-    def test_kkr_increased_lmax(self, clear_database_before_test, kkrhost_local_code, run_with_cache):
+    def test_kkr_increased_lmax(self, clear_database_before_test, kkrhost_local_code, enable_archive_cache):
         """
         run kkr calculation from output of previous calculation but with increased lmax
         (done with auxiliary voronoi calculation which is imported here).
@@ -219,7 +220,8 @@ class Test_kkr_calculation(object):
         builder.parent_folder = voro_with_kkr_input.outputs.remote_folder
 
         # now run or load from cached data
-        out, node = run_with_cache(builder, data_dir=data_dir)
+        with enable_archive_cache(data_dir / 'kkr_increased_lmax.aiida'):
+            out, node = run_get_node(builder)
         print('cache_source:', node.get_hash())
         print('cache_source:', node.get_cache_source())
         print('code objects to hash:', node._get_objects_to_hash())
@@ -252,7 +254,7 @@ class Test_kkr_calculation(object):
         v = input_remote.get_incoming().first().node
         assert 'parent_KKR' in [i.link_label for i in v.get_incoming()]
 
-    def test_kkr_gf_writeout_full_impcls(self, kkrhost_local_code, run_with_cache):
+    def test_kkr_gf_writeout_full_impcls(self, kkrhost_local_code):
         """
         run kkr calculation from output of previous calculation but with increased lmax
         (done with auxiliary voronoi calculation which is imported here).
