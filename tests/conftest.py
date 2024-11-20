@@ -9,14 +9,17 @@ import pathlib
 from aiida import __version__ as aiida_core_version
 from aiida.orm import RemoteData, CalcJobNode
 from aiida.common.hashing import make_hash
-from aiida.manage.tests.pytest_fixtures import aiida_profile, temp_dir
+# from aiida.manage.tests.pytest_fixtures import aiida_profile, temp_dir
+# from aiida.tools.pytest_fixtures import *
 import aiida_kkr
 
-pytest_plugins = [
-    'aiida.manage.tests.pytest_fixtures',
-    'aiida_testing.mock_code',
-    'aiida_testing.export_cache',
-]
+# pytest_plugins = [
+#     'aiida.manage.tests.pytest_fixtures',
+#     'aiida_testing.mock_code',
+#     'aiida_testing.export_cache',
+# ]
+
+pytest_plugins = 'aiida.tools.pytest_fixtures'
 
 # test settings:
 # paths where the tests are located and where the test input data is stored
@@ -25,16 +28,15 @@ data_dir = (test_dir / 'data_dir')  # TODO: get from config?
 
 # fixtures
 
-
-@pytest.fixture(scope='function', autouse=True)
-def clear_database_auto(clear_database):
-    """Automatically clear database in between tests."""
-    pass
+# @pytest.fixture(scope='function', autouse=True)
+# def clear_database_auto(clear_database):
+#     """Automatically clear database in between tests."""
+#     pass
 
 
 # need fixed aiida_localhost to have set_default_mpiprocs_per_machine set to 1
 @pytest.fixture(scope='function')
-def aiida_localhost_serial(temp_dir):  # pylint: disable=redefined-outer-name
+def aiida_localhost_serial(tmp_path):  # pylint: disable=redefined-outer-name
     """Get an AiiDA computer for localhost.
 
     Usage::
@@ -67,7 +69,7 @@ def aiida_localhost_serial(temp_dir):  # pylint: disable=redefined-outer-name
             label=name,
             description='localhost computer set up by test manager',
             hostname=name,
-            workdir=temp_dir,
+            workdir=str(tmp_path),
             transport_type=transport_type,
             scheduler_type=scheduler_type
         )

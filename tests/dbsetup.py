@@ -50,7 +50,7 @@ def prepare_computer(computername, workdir):
 
 
 def prepare_code(codename, codelocation, computername, workdir):
-    """."""
+    """Prepare a code, either create entry in AiiDA DB or load it from DB."""
     # first create or read computer
     comp = prepare_computer(computername, workdir)
     # now decide which code to add
