@@ -3,16 +3,8 @@
 from builtins import object
 import pytest
 import pathlib
-# from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
-# from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint, absolute_archive_path
-
-# from aiida.tools.pytest_fixtures import *
-
 from aiida_test_cache.archive_cache import enable_archive_cache, liberal_hash
 from aiida.engine import run_get_node
-
-# from aiida
-
 from ..dbsetup import *
 from ..conftest import voronoi_local_code, test_dir, data_dir, import_with_migration
 
@@ -83,10 +75,9 @@ def test_voronoi_cached(aiida_profile_clean, voronoi_local_code, enable_archive_
     builder.structure = structure
     # now run calculation or use cached result
     print('data_dir:', data_dir)
-
     with enable_archive_cache(data_dir / 'voronoi_cached.aiida'):
         out, node = run_get_node(builder)
-    # out, node = run_with_cache(builder, data_dir=data_dir)
+
     # check output
     print('out, node:', out, node)
     print('cache_source:', node.get_cache_source())
@@ -134,12 +125,6 @@ def test_voronoi_after_kkr(aiida_profile_clean, voronoi_local_code, enable_archi
     params.set_multiple_values(LMAX=3)
     new_params = Dict(params.get_dict())
 
-    # inputs = {
-    #     'code': voronoi_local_code,
-    #     'metadata.options': options,
-    #     'parameters': new_params,
-    #     'parent_KKR': parent_calc_remote
-    # }
     builder = VoronoiCalculation.get_builder()
     builder.code = voronoi_local_code
     builder.metadata.options = options
