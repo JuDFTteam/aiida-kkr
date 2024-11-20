@@ -48,6 +48,10 @@ If your changes require updates to reference data (checked via the ``pytest-regr
 
     pytest --force-regen workflows/test_bs_wc.py
 
+If any changes require recreating achive files used to cache calculations (created by ``enable_archive_cache`` from the ``aiida_test_cache`` package) rerun the corresponding pytest with the ``--archive-cache-overwrite`` option::
+
+    pytest calculations/test_vorocalc.py -svx --archive-cache-overwrite 
+
 
 
 Automatic linter and coding style checks
