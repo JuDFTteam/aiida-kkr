@@ -13,13 +13,14 @@ from aiida.common.hashing import make_hash
 # from aiida.tools.pytest_fixtures import *
 import aiida_kkr
 
-# pytest_plugins = [
-#     'aiida.manage.tests.pytest_fixtures',
-#     'aiida_testing.mock_code',
-#     'aiida_testing.export_cache',
-# ]
+pytest_plugins = [
+    'aiida.manage.tests.pytest_fixtures',
+    # 'aiida_testing.mock_code',
+    # 'aiida_testing.export_cache',
+]
 
-pytest_plugins = 'aiida.tools.pytest_fixtures'
+# pytest_plugins = 'aiida.tools.pytest_fixtures'
+# pytest_plugins = 'aiida.tools.pytest_fixtures'
 
 # test settings:
 # paths where the tests are located and where the test input data is stored
