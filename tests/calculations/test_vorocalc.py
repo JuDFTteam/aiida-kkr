@@ -3,7 +3,7 @@
 from builtins import object
 import pytest
 import pathlib
-from aiida_test_cache.archive_cache import enable_archive_cache, liberal_hash
+from aiida_test_cache.archive_cache import enable_archive_cache
 from aiida.engine import run_get_node
 from ..dbsetup import *
 from ..conftest import voronoi_local_code, test_dir, data_dir, import_with_migration
