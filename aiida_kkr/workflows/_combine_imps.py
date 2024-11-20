@@ -365,7 +365,7 @@ If given then the writeout step of the host GF is omitted."""
             imp2_impurity_info = self.ctx.imp2.inputs.impurity_info
 
             try:
-                imps_info_in_exact_cluster = out_workflow_info.get_dict()['imps_info_in_exact_cluster']
+                imps_info_in_exact_cluster = out_workflow_info.get_dict()['imps_info_in_exact_cluster']  # pylint: disable=possibly-used-before-assignment
             except KeyError:
                 parent_input_imp1 = parent_combine_wc.inputs.impurity1_output_node  # TODO: rename combine_wc to the parent_combine_wc
                 parent_input_imp2 = parent_combine_wc.inputs.impurity2_output_node
@@ -654,7 +654,7 @@ If given then the writeout step of the host GF is omitted."""
                 print('DEBUG:', self.ctx.imp1, list(self.ctx.imp1.inputs))
             imp1_sub = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node
         if gf_writeout_calc is None:
-            gf_writeout_calc = imp1_sub.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node
+            gf_writeout_calc = imp1_sub.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node  # pylint: disable=possibly-used-before-assignment
         builder.remote_data = gf_writeout_calc.inputs.parent_folder
 
         # set label and description of the calc
@@ -888,10 +888,10 @@ If given then the writeout step of the host GF is omitted."""
         if imp1_has_ldau and imp2_has_ldau:
             # combine LDA+U settings of the two imps
             settings_LDAU_combined = combine_settings_ldau(
-                settings_LDAU1=settings_LDAU1,
-                retrieved1=retrieved1,
-                settings_LDAU2=settings_LDAU2,
-                retrieved2=retrieved2,
+                settings_LDAU1=settings_LDAU1,  # pylint: disable=used-before-assignment
+                retrieved1=retrieved1,  # pylint: disable=used-before-assignment
+                settings_LDAU2=settings_LDAU2,  # pylint: disable=used-before-assignment
+                retrieved2=retrieved2,  # pylint: disable=used-before-assignment
                 kickout_info=self.ctx.kickout_info
             )
         elif imp1_has_ldau:

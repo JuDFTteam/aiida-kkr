@@ -1307,7 +1307,7 @@ class plot_kkr(object):
                 from aiida_kkr.tools import find_parent_structure
                 natoms = get_natyp(find_parent_structure(calcnode))
                 self.dosplot(
-                    d,
+                    d,  # pylint: disable=possibly-used-before-assignment
                     natoms,
                     nofig,
                     all_atoms,
@@ -1536,7 +1536,7 @@ class plot_kkr(object):
             tit_add = ''
             if emin is not None:
                 axvline(emin, color='r', ls='--', label='emin')
-            if ef_Ry is not None and len(ecore_max) > 0:
+            if ef_Ry is not None and len(ecore_max) > 0:  # pylint: disable=possibly-used-before-assignment
                 if abs((ecore_max[0] - ef_Ry) * get_Ry2eV() - emin) < 20:
                     axvline((ecore_max[0] - ef_Ry) * get_Ry2eV(), color='b', ls='--', label='ecore_max')
                 else:
