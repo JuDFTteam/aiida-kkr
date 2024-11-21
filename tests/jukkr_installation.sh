@@ -48,7 +48,7 @@ else
 
     #  build kkrimp code
     echo "build kkrimp"
-    git checkout BdG # use BdG branch to have new ALAT tolerance input
+    git checkout KKRIMP-BdG # use BdG branch to have new ALAT tolerance input
     ./install.py --program=kkrimp --compiler=gfortran --parallelization=serial
     cd build/ && make -j4 && cp kkrflex.exe ../
     cd ../..
