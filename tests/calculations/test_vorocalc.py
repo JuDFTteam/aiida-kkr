@@ -7,6 +7,7 @@ from aiida_test_cache.archive_cache import enable_archive_cache
 from aiida.engine import run_get_node
 from ..dbsetup import *
 from ..conftest import voronoi_local_code, test_dir, data_dir, import_with_migration
+import os
 
 kkr_codename = 'kkrhost'
 
@@ -16,14 +17,14 @@ def test_voronoi_dry_run(aiida_profile, voronoi_local_code):
     """
     simple Cu noSOC, FP, lmax2 full example
     """
-    from aiida.orm import Code, Dict, StructureData
+    from aiida.orm import Code, Dict, StructureData, SinglefileData
     from masci_tools.io.kkr_params import kkrparams
     from aiida_kkr.calculations.voro import VoronoiCalculation
 
     # create StructureData instance for Cu
     alat = 3.61  # lattice constant in Angstroem
-    bravais = [[0.5 * alat, 0.5 * alat, 0], [0.5 * alat, 0, 0.5 * alat], [0, 0.5 * alat,
-                                                                          0.5 * alat]]  # Bravais matrix in Ang. units
+    # Bravais matrix in Ang. units
+    bravais = [[0.5 * alat, 0.5 * alat, 0.0], [0.5 * alat, 0.0, 0.5 * alat], [0.0, 0.5 * alat, 0.5 * alat]]
     Cu = StructureData(cell=bravais)
     Cu.append_atom(position=[0, 0, 0], symbols='Cu')
 
@@ -38,6 +39,7 @@ def test_voronoi_dry_run(aiida_profile, voronoi_local_code):
     builder.metadata.options = options
     builder.parameters = ParaNode
     builder.structure = Cu
+    builder.shapefun_overwrite = SinglefileData(file=os.path.abspath('files/kkr/import_calc_old_style/shapefun'))
     builder.metadata.dry_run = True
     from aiida.engine import run
     run(builder)
