@@ -9,7 +9,7 @@ import tarfile
 import os
 from aiida import __version__ as aiida_core_version
 from aiida.orm import Dict, CalcJobNode
-from aiida.common.exceptions import InputValidationError, NotExistent
+from aiida.common.exceptions import InputValidationError, NotExistent, NotExistentAttributeError
 from aiida.parsers.parser import Parser
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from aiida_kkr.tools.context import open_files_in_context
@@ -21,7 +21,7 @@ from contextlib import ExitStack
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.1'
+__version__ = '0.6.2'
 __contributors__ = (u'Philipp Rüßmann', u'Raffaele Aliberti')
 
 
@@ -42,7 +42,7 @@ class KkrimpParser(Parser):
 
     # pylint: disable=protected-access
     # pylint: disable=unexpected-keyword-arg
-    def parse(self, debug=False, ignore_nan=True, **kwargs):
+    def parse(self, debug=False, ignore_nan=True, doscalc=None, **kwargs):
         """
         Parse output data folder, store results in database.
 
@@ -67,12 +67,12 @@ class KkrimpParser(Parser):
         # Get the node of the parent calculation (useful for the imp calculations)
         calc = out_folder.get_incoming(node_class=CalcJobNode).first().node
 
-        # figure out if this is a DOS calculation
-        parent_host_calc = calc.inputs.host_Greenfunction_folder.get_incoming(node_class=CalcJobNode).first().node
-        npol = parent_host_calc.inputs.parameters.get_dict().get(
-            'NPOL', 1
-        )  # This parameter discriminates if it is a DOS calc or not
-        doscalc = (npol == 0)
+        # figure out if this is a DOS calculation (if not specified in the input already)
+        if doscalc is None:
+            parent_host_calc = calc.inputs.host_Greenfunction_folder.get_incoming(node_class=CalcJobNode).first().node
+            # This parameter discriminates if it is a DOS calc or not
+            npol = parent_host_calc.inputs.parameters.get_dict().get('NPOL', 1)
+            doscalc = (npol == 0)
 
         if debug:
             print('doscalc = ', doscalc)
