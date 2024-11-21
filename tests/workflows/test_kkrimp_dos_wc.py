@@ -3,18 +3,17 @@
 import pytest
 from ..dbsetup import *
 from ..conftest import voronoi_local_code, kkrhost_local_code, data_dir, import_with_migration
-from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
+from aiida.engine import run_get_node
 
 
 @pytest.mark.timeout(300, method='thread')
-def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_local_code, run_with_cache):
+def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_local_code, enable_archive_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
     """
     from numpy import array, loadtxt
     from masci_tools.io.kkr_params import kkrparams
-    from aiida.orm import Code, load_node, Dict, StructureData, load_group
+    from aiida.orm import Code, load_node, Dict, StructureData, load_group, WorkChainNode
     from aiida.orm.querybuilder import QueryBuilder
     from aiida.manage.caching import enable_caching
     from aiida_kkr.tools import neworder_potential_wf
@@ -22,7 +21,7 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     from aiida_kkr.calculations import KkrCalculation
 
     # import precomputed GF host writeout
-    o = import_with_migration('data_dir/kkr_flex_wc-nodes-94b44d25a7af0e584343419207f3a7e1.tar.gz')
+    o = import_with_migration('data_dir/kkrflex_writeout_wc.aiida')
     print('import', o)
     # gf_workflow = load_node('0adfe62d-05aa-4c79-90ca-86b1753612a2')
     gf_workflow = [i for i in load_group(o).nodes if i.label == 'GF_writeout Cu bulk'][0]
@@ -78,10 +77,10 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     builder.host_remote = GF_host_calc.outputs.remote_folder
 
     # now run calculation
-    out, node = run_with_cache(builder, data_dir=data_dir)
+    with enable_archive_cache(data_dir / 'kkrimp_dos.aiida'):
+        out, node = run_get_node(builder)
     print(node)
     print(out)
-    from aiida.orm import WorkChainNode
     for i in node.get_outgoing(node_class=WorkChainNode).all():
         print(i.node, list(i.node.outputs))
 
@@ -95,27 +94,8 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     assert len(out['dos_data_interpol'].get_y()[0][0]) == 20
 
 
-"""
-@pytest.mark.timeout(300, method='thread')
-def test_dos_reuse_gf_writeout(self):
-    pass
-
-
-@pytest.mark.timeout(300, method='thread')
-def test_dos_from_kkrimp_sub(self):
-    pass
-
-
-@pytest.mark.timeout(300, method='thread')
-def test_dos_from_kkrimp_full(self):
-    pass
-"""
-
 #run test manually
 if __name__ == '__main__':
     from aiida import load_profile
     load_profile()
     test_dos_startpot_wc()
-    #test_dos_reuse_gf_writeout()
-    #test_dos_from_kkrimp_sub()
-    #test_dos_from_kkrimp_full()

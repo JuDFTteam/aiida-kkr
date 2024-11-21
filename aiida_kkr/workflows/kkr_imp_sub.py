@@ -851,7 +851,7 @@ class kkr_imp_sub_wc(WorkChain):
 
         # add LDA+U input node if it was set in parent calculation of last kkrimp_remote or from input port
         if self.ctx.settings_LDAU is not None:
-            inputs['settings_LDAU'] = self.ctx.settings_LDAU
+            inputs['settings_LDAU'] = self.ctx.settings_LDAU  # pylint: disable=possibly-used-before-assignment
 
         # set nonco angles if given
         if 'initial_noco_angles' in self.inputs:
@@ -997,7 +997,7 @@ class kkr_imp_sub_wc(WorkChain):
         for name, val in {
             'isteps': isteps,
             'imix': self.ctx.last_mixing_scheme,
-            'mixfac': mixfac,
+            'mixfac': mixfac,  # pylint: disable=possibly-used-before-assignment
             'qbound': qbound,
             'high_sett': self.ctx.kkr_higher_accuracy,
             'first_rms': first_rms,

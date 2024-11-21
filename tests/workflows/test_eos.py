@@ -2,14 +2,12 @@
 
 import pytest
 from ..dbsetup import *
-from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
 from ..conftest import voronoi_local_code, kkrhost_local_code, data_dir
-from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
+from aiida.engine import run_get_node
 
 
 @pytest.mark.timeout(600, method='thread')
-def test_eos_wc_Cu_simple(clear_database_before_test, voronoi_local_code, kkrhost_local_code, run_with_cache):
+def test_eos_wc_Cu_simple(clear_database_before_test, voronoi_local_code, kkrhost_local_code, enable_archive_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow
     """
@@ -67,7 +65,8 @@ def test_eos_wc_Cu_simple(clear_database_before_test, voronoi_local_code, kkrhos
     builder.metadata.description = descr
 
     # now run calculation
-    out, node = run_with_cache(builder, data_dir=data_dir)
+    with enable_archive_cache(data_dir / 'eos_wc_Cu_simple.aiida'):
+        out, node = run_get_node(builder)
 
     # load node of workflow
     print(out)

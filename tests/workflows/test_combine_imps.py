@@ -2,10 +2,9 @@
 
 if __name__ != '__main__':
     import pytest
-    from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
-    from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
     from ..conftest import kkrimp_local_code, kkrhost_local_code, test_dir, data_dir
 from aiida.orm import load_node, Dict, load_group
+from aiida.engine import run_get_node
 from aiida_kkr.workflows import combine_imps_wc
 from ..conftest import import_with_migration
 
@@ -28,7 +27,7 @@ def write_graph(node, label=''):
 
 def get_single_imp_inputs():
     # import single imp calculations
-    group_pk = import_with_migration(test_dir / 'data_dir/kkr_imp_sub_wc-nodes-6227d9003b63b76d1fd41bd5322771b5.tar.gz')
+    group_pk = import_with_migration(test_dir / 'data_dir/kkrimp_sub_wc.aiida')
     if _debug:
         print(group_pk, [i.label for i in load_group(group_pk).nodes])
     for node in load_group(group_pk).nodes:
@@ -74,7 +73,7 @@ def get_builder_basic(label, kkrhost_local_code, kkrimp_local_code):
 
 
 def test_combine_imps(
-    clear_database_before_test, kkrhost_local_code, kkrimp_local_code, run_with_cache, nopytest=False
+    clear_database_before_test, kkrhost_local_code, kkrimp_local_code, enable_archive_cache, nopytest=False
 ):
     """
     test for combine_imps_wc (place two imps next to each other)
@@ -85,10 +84,11 @@ def test_combine_imps(
     # now submit
     print(builder, type(builder))
     if not nopytest:
-        out, node = run_with_cache(builder, data_dir=data_dir)
+        with enable_archive_cache(data_dir / 'combine_imps.aiida'):
+            out, node = run_get_node(builder)
     else:
-        from aiida.engine import run_get_node
         out, node = run_get_node(builder)
+
     print((out, node))
     write_graph(node)
 
@@ -101,7 +101,7 @@ def test_combine_imps(
 
 
 def test_combine_imps_params_kkr_overwrite(
-    clear_database_before_test, kkrhost_local_code, kkrimp_local_code, run_with_cache, nopytest=False
+    clear_database_before_test, kkrhost_local_code, kkrimp_local_code, enable_archive_cache, nopytest=False
 ):
     """
     test for combine_imps_wc overwriting the k-mesh with hte params_kkr_overwrite input to the gf writeout step
@@ -114,9 +114,9 @@ def test_combine_imps_params_kkr_overwrite(
     # now submit
     print(builder, type(builder))
     if not nopytest:
-        out, node = run_with_cache(builder, data_dir=data_dir)
+        with enable_archive_cache(data_dir / 'combine_imps_params_kkr_overwrite.aiida'):
+            out, node = run_get_node(builder)
     else:
-        from aiida.engine import run_get_node
         out, node = run_get_node(builder)
     print((out, node))
     write_graph(node, '_params_kkr_overwrite')
@@ -130,16 +130,14 @@ def test_combine_imps_params_kkr_overwrite(
 
 
 def test_combine_imps_reuse_gf(
-    clear_database_before_test, kkrhost_local_code, kkrimp_local_code, run_with_cache, nopytest=False
+    clear_database_before_test, kkrhost_local_code, kkrimp_local_code, enable_archive_cache, nopytest=False
 ):
     """
     test for combine_imps_wc reusing the host gf from a previous calculation
     """
 
     # import previous combine_imps workflow and reuse the host GF
-    group_pk = import_with_migration(
-        test_dir / 'data_dir/combine_imps_wc-nodes-e4259f310125ab74b05412bf4561dae9.tar.gz'
-    )
+    group_pk = import_with_migration(test_dir / 'data_dir/combine_imps.aiida')
     for node in load_group(group_pk).nodes:
         if node.label == 'test_combine_imps':
             imp_combine_imported = node
@@ -152,9 +150,9 @@ def test_combine_imps_reuse_gf(
     # now submit
     print(builder, type(builder))
     if not nopytest:
-        out, node = run_with_cache(builder, data_dir=data_dir)
+        with enable_archive_cache(data_dir / 'combine_imps_reuse_gf.aiida'):
+            out, node = run_get_node(builder)
     else:
-        from aiida.engine import run_get_node
         out, node = run_get_node(builder)
     print((out, node))
     write_graph(node, '_reuse_gf')

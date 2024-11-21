@@ -2,12 +2,10 @@
 
 import numpy as np
 from aiida.orm import load_node, Dict, load_group, KpointsData
+from aiida.engine import run_get_node
 from aiida_kkr.workflows import kkr_decimation_wc
 from ..conftest import import_with_migration
-from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
 from ..conftest import voronoi_local_code, kkrhost_local_code, test_dir, data_dir, import_with_migration
-from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 
 
 def get_builder(dosmode, kkrhost_local_code, voronoi_local_code):
@@ -46,13 +44,14 @@ def get_builder(dosmode, kkrhost_local_code, voronoi_local_code):
     return builder
 
 
-def test_decimate(clear_database_before_test, kkrhost_local_code, voronoi_local_code, run_with_cache):
+def test_decimate(clear_database_before_test, kkrhost_local_code, voronoi_local_code, enable_archive_cache):
     """
     test for decimation workflow
     """
 
     # run test
-    out, node = run_with_cache(get_builder(False, kkrhost_local_code, voronoi_local_code), data_dir=data_dir)
+    with enable_archive_cache(data_dir / 'decimate.aiida'):
+        out, node = run_get_node(get_builder(False, kkrhost_local_code, voronoi_local_code))
 
     print((out, node))
 
@@ -77,14 +76,15 @@ def test_decimate(clear_database_before_test, kkrhost_local_code, voronoi_local_
 
 
 def test_decimate_dos(
-    clear_database_before_test, kkrhost_local_code, voronoi_local_code, run_with_cache, ndarrays_regression
+    clear_database_before_test, kkrhost_local_code, voronoi_local_code, enable_archive_cache, ndarrays_regression
 ):
     """
     test for decimation workflow
     """
 
     # run test
-    out, node = run_with_cache(get_builder(True, kkrhost_local_code, voronoi_local_code), data_dir=data_dir)
+    with enable_archive_cache(data_dir / 'decimate_dos.aiida'):
+        out, node = run_get_node(get_builder(True, kkrhost_local_code, voronoi_local_code))
 
     print((out, node))
 
@@ -96,7 +96,7 @@ def test_decimate_dos(
 
 
 def test_decimate_bandstruc(
-    clear_database_before_test, kkrhost_local_code, voronoi_local_code, run_with_cache, ndarrays_regression
+    clear_database_before_test, kkrhost_local_code, voronoi_local_code, enable_archive_cache, ndarrays_regression
 ):
     """
     test for decimation workflow
@@ -108,7 +108,8 @@ def test_decimate_bandstruc(
     kpts.set_cell([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]])
     kpts.set_kpoints([[0., 0., 0.], [0., 1., 0.]], cartesian=True)
     builder.kpoints = kpts
-    out, node = run_with_cache(builder, data_dir=data_dir)
+    with enable_archive_cache(data_dir / 'decimate_bandstruc.aiida'):
+        out, node = run_get_node(builder)
 
     print((out, node))
 

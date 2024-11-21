@@ -63,10 +63,19 @@ $ reentry scan -r aiida
 
 # Usage and Documentation
 
-* see http://aiida-kkr.readthedocs.io for user's guide and API reference.
+* see http://aiida-kkr.readthedocs.io for user's and developer's guides and API reference
 * check out http://judft.de and https://jukkr.fz-juelich.de for information of the KKR codes used by the plugin
 
 # Contributing
 
 Thank you for your interest in contributing to aiida-kkr.
 Check out our [contributing guide](CONTRIBUTING.md) for some information.
+
+# Releasing new versions
+
+To create a new release follow these steps:
+- finish your development and merge it into the `develop` branch
+- update documentation
+- update / fix tests
+- bump version numbers (in files `aiida_kkr/__init__.py`, `pyproject.toml`, `.bumpversion.cfg`)
+- merge changes from `develop` back into `master` and create a tag for the new version number (this triggers publication to pypi)

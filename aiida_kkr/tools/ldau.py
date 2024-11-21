@@ -119,9 +119,9 @@ def get_ldaumatrices(retrieved):
                         iphi = ii
                     ii += 1
                 # save matrices to output dict
-                txt_dict_ldaumats['wldau'] = txt[iwldau + 1:iuldau]
-                txt_dict_ldaumats['uldau'] = txt[iuldau + 1:iphi]
-                txt_dict_ldaumats['phi'] = txt[iphi + 1:]
+                txt_dict_ldaumats['wldau'] = txt[iwldau + 1:iuldau]  # pylint: disable=possibly-used-before-assignment
+                txt_dict_ldaumats['uldau'] = txt[iuldau + 1:iphi]  # pylint: disable=possibly-used-before-assignment
+                txt_dict_ldaumats['phi'] = txt[iphi + 1:]  # pylint: disable=possibly-used-before-assignment
 
     return has_ldaupot_file, txt_dict_ldaumats
 
@@ -164,8 +164,8 @@ def get_LDAU_initmatrices_dict(txts_ldaumat1, offset=0):
     # Fill the dictionary with atom-wise information
     for iatom in range(len(iatoms)):
         LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}'] = {}
-        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['wldau'] = wldaumat[iatom]
-        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['uldau'] = uldaumat[iatom]
-        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['phi'] = phimat[iatom]
+        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['wldau'] = wldaumat[iatom]  # pylint: disable=possibly-used-before-assignment
+        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['uldau'] = uldaumat[iatom]  # pylint: disable=used-before-assignment
+        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['phi'] = phimat[iatom]  # pylint: disable=used-before-assignment
 
     return LDAU_initmatrices_dict
