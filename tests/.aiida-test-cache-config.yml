@@ -1,0 +1,3 @@
+archive_cache:
+    ignore:
+        calcjob_inputs: ['code'] #List of link labels of inputs to ignore in the aiida hash

@@ -5,7 +5,7 @@ Developer guide
 Automatic testing
 +++++++++++++++++
 
-AiiDA-KKR comes with a set of tests for its functionality. The tests are run through ``pytest`` and they are defined in ``tests/`` and the sub directories therein. 
+AiiDA-KKR comes with a set of unit and regression tests for its functionality. The tests are run through ``pytest`` and they are defined in ``tests/`` and the sub directories therein. Instead of running the JuKKR codes during the tests, we use `AiiDA's caching features <https://aiida.readthedocs.io/projects/aiida-core/en/stable/topics/provenance/caching.html>`_ via ``enable_archive_cache`` of the ``aiida-test-cache`` `package <https://aiida-testing.readthedocs.io/en/latest/user_guide/archive_cache.html>`_.
 The different tests are organized in the ``tests`` directory in the following structure:
 
 #. ``tests/``: files for common calcfunctions and workfunctions (i.e. not running any calculation of the plugin), tests for the entrypoints, common tools (e.g., ``plot_kkr``)
@@ -32,10 +32,6 @@ The coverage of the tests is controlled via environment variables (see ``-h`` op
 
     RUN_VORONOI=1 RUN_KKRHOST=1 ./run_all.sh
     
-If you use `aiida-core >= v2.0` you should first migrate the input data::
-
-    python migrate_exports.py
-    
 In order to recreate test export files you need real executables instead of the fakes we create above::
 
     cd tests
@@ -47,6 +43,10 @@ In order to recreate test export files you need real executables instead of the 
 If your changes require updates to reference data (checked via the ``pytest-regressions`` package) you should add the ``--force-regen`` option to the pytest run::
 
     pytest --force-regen workflows/test_bs_wc.py
+
+If any changes require recreating achive files used to cache calculations (created by ``enable_archive_cache`` from the ``aiida_test_cache`` package) rerun the corresponding pytest with the ``--archive-cache-overwrite`` option::
+
+    pytest calculations/test_vorocalc.py -svx --archive-cache-overwrite 
 
 
 

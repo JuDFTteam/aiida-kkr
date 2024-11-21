@@ -3,15 +3,13 @@
 import pytest
 from ..dbsetup import *
 if __name__ != '__main__':
-    from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
+    from aiida.engine import run_get_node
     from ..conftest import voronoi_local_code, kkrhost_local_code, test_dir, data_dir, import_with_migration
-    from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
-    from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 
 
 @pytest.mark.timeout(900, method='thread')
 def test_kkrimp_full_wc(
-    clear_database_before_test, voronoi_local_code, kkrhost_local_code, kkrimp_local_code, run_with_cache
+    clear_database_before_test, voronoi_local_code, kkrhost_local_code, kkrimp_local_code, enable_archive_cache
 ):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
@@ -71,16 +69,10 @@ def test_kkrimp_full_wc(
     builder.scf.params_overwrite = Dict({'TOL_ALAT_CHECK': 1e-8})
 
     # now run calculation
-    out, node = run_with_cache(builder, data_dir=data_dir)
+    with enable_archive_cache(data_dir / 'kkrimp_full_wc.aiida'):
+        out, node = run_get_node(builder)
     print(out)
     print(list(node.called))
-    # c = node.called[-1].called[-1]
-    # print(c, c.exit_status, c.exit_message)
-    # print(c.outputs.retrieved.list_object_names())
-    # for fname in ['out_kkrimp', 'config.cfg']:
-    #     with c.outputs.retrieved.open(fname) as _f:
-    #         txt = _f.readlines()
-    #         print(fname, txt)
 
     # check outcome
     n = out['workflow_info']
@@ -101,7 +93,7 @@ def test_kkrimp_full_wc(
 
 # @pytest.mark.timeout(900, method='thread')
 # def test_kkrimp_full_Ag_Cu_onsite(
-#     clear_database_before_test, voronoi_local_code, kkrhost_local_code, kkrimp_local_code, run_with_cache
+#     clear_database_before_test, voronoi_local_code, kkrhost_local_code, kkrimp_local_code, enable_archive_cache
 # ):
 #     """
 #     Simple Ag_Cu (bulk) noSOC, FP, lmax2 example  where impurity cluster contains only the impurity atom
@@ -166,7 +158,8 @@ def test_kkrimp_full_wc(
 #     builder.scf.params_overwrite = Dict({'TOL_ALAT_CHECK': 1e-8})
 
 #     # now run calculation
-#     out, node = run_with_cache(builder, data_dir=data_dir)
+#     with enable_archive_cache(data_dir / 'kkrimp_full_Ag_Cu_onsite.aiida'):
+#         out, node = run_get_node(builder)
 #     print(out)
 
 #     # check outcome

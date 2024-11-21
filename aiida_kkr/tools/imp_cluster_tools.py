@@ -183,7 +183,7 @@ def create_combined_imp_info(
 
     # set zimp in scoef file (not used by the code but makes it easier to read the files / debug)
     if single_single:
-        clust1[0][4] = zimp1
+        clust1[0][4] = zimp1  # pylint: disable=possibly-used-before-assignment
     clust2[0][4] = zimp2
     #if debug:
     #    print('cls1:', clust1)

@@ -81,7 +81,7 @@ class KKRnanoParser(Parser):
                     array = np.genfromtxt(StringIO(keyvalue.replace('D', 'e')), delimiter=' ', dtype=None)  #[0]
 
                 try:
-                    returnlist.append(array.item()[0])
+                    returnlist.append(array.item()[0])  # pylint: disable=possibly-used-before-assignment
                 except TypeError:
                     returnlist.append(array.item())
 

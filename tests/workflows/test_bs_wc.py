@@ -6,15 +6,14 @@ Tests for the bandstructure workflow
 
 import pytest
 from ..dbsetup import *
-from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
+from aiida_test_cache.archive_cache import enable_archive_cache
+from aiida.engine import run_get_node
 from ..conftest import voronoi_local_code, kkrhost_local_code, data_dir
 from ..conftest import import_with_migration
-from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 
 
 @pytest.mark.timeout(240, method='thread')
-def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache, ndarrays_regression):
+def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, enable_archive_cache, ndarrays_regression):
     """
     minimal bandstructure calculation for Cu bulk
     """
@@ -65,7 +64,8 @@ def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, run_with_cache
     builder.remote_data = kkr_calc_remote
 
     # run the calculation using cached data is available
-    out, _ = run_with_cache(builder, data_dir=data_dir)
+    with enable_archive_cache(data_dir / 'bs_wc_Cu.aiida'):
+        out, node = run_get_node(builder)
 
     # check results
     print('check results', out)

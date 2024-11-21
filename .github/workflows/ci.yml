@@ -88,7 +88,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
-        aiida: [{version: 'aiida-core==2.6.3', name: '2.6.3'}]
+        aiida: [{version: 'aiida-core==2.5.2', name: '2.5.2'}]
         masci-tools: [{version: 'git+https://github.com/JuDFTteam/masci-tools.git@develop', name: '-masci-develop'}]
         allowed-to-fail: [false]
 
@@ -137,7 +137,6 @@ jobs:
     - name: Install aiida-kkr
       run: |
         pip install ${{ matrix.aiida.version }} ${{ matrix.masci-tools.version }}
-        pip install git+https://github.com/JuDFTteam/aiida-testing.git@4ddb0e48a8a720e8fca5f8d09576c5aff8c36dbf
         pip install .[testing]
         pip install reentry
         reentry scan

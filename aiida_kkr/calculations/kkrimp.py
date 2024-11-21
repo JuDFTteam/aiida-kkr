@@ -316,6 +316,7 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
             parent_calc = parent_calcs.first().node
         # extract impurity_info
         found_impurity_inputnode = False
+        found_host_parent = False
         if 'impurity_info' in self.inputs:
             imp_info_inputnode = self.inputs.impurity_info
             if not isinstance(imp_info_inputnode, Dict):

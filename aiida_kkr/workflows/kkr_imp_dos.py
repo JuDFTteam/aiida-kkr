@@ -495,7 +495,8 @@ label: {self.ctx.label_wf}
         })
         kkrimp_params = self.ctx.kkrimp_params_dict
         label_imp = 'KKRimp DOS (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {})'.format(
-            gf_writeout_calc.pk, impurity_pot_or_remote.pk,
+            gf_writeout_calc.pk,
+            impurity_pot_or_remote.pk,  # pylint: disable=possibly-used-before-assignment
             imps.get_dict().get('Zimp'),
             imps.get_dict().get('ilayer_center')
         )

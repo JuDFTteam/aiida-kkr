@@ -1,16 +1,13 @@
 #!/usr/bin/env python
 
 import pytest
+from aiida.engine import run_get_node
 from ..dbsetup import *
-from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
 from ..conftest import voronoi_local_code, kkrhost_local_code, test_dir, data_dir, import_with_migration
-from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
-
-from aiida.manage.tests.pytest_fixtures import clear_database_before_test, clear_database, clear_database_after_test
 
 
 @pytest.mark.timeout(500, method='thread')
-def test_kkr_startpot_wc_Cu(clear_database_before_test, voronoi_local_code, kkrhost_local_code, run_with_cache):
+def test_kkr_startpot_wc_Cu(clear_database_before_test, voronoi_local_code, kkrhost_local_code, enable_archive_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow
     """
@@ -60,7 +57,8 @@ def test_kkr_startpot_wc_Cu(clear_database_before_test, voronoi_local_code, kkrh
     builder.options = Dict(options)
     builder.kkr = kkrhost_local_code
 
-    out, node = run_with_cache(builder, data_dir=data_dir)
+    with enable_archive_cache(data_dir / 'kkr_startpot_wc_Cu.aiida'):
+        out, node = run_get_node(builder)
     print('outputs:', node, out)
 
     # check output
@@ -76,8 +74,8 @@ def test_kkr_startpot_wc_Cu(clear_database_before_test, voronoi_local_code, kkrh
     vorocalc = [i for i in node.called_descendants if i.process_label == 'VoronoiCalculation'][0]
     print('hashes of computed voro and kkr calcs', vorocalc.get_hash(), kkrcalc.get_hash())
     print('was cached (voro/kkr)?', vorocalc.get_cache_source(), kkrcalc.get_cache_source())
-    print('caching info calcul.d voro', vorocalc._get_objects_to_hash())
-    print('caching info calcul.d kkr ', kkrcalc._get_objects_to_hash())
+    print('caching info voro', vorocalc._get_objects_to_hash())
+    print('caching info kkr ', kkrcalc._get_objects_to_hash())
 
     # find imported and new calculations
     from aiida_kkr.calculations import VoronoiCalculation, KkrCalculation
@@ -104,7 +102,7 @@ def test_kkr_startpot_wc_Cu(clear_database_before_test, voronoi_local_code, kkrh
 
 
 @pytest.mark.timeout(500, method='thread')
-def test_kkr_startpot_parent_KKR(clear_database_before_test, voronoi_local_code, run_with_cache):
+def test_kkr_startpot_parent_KKR(clear_database_before_test, voronoi_local_code, enable_archive_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow
     """
@@ -152,7 +150,8 @@ def test_kkr_startpot_parent_KKR(clear_database_before_test, voronoi_local_code,
     builder.options = Dict(options)
     builder.parent_KKR = parent_calc_remote
 
-    out, node = run_with_cache(builder, data_dir=data_dir)
+    with enable_archive_cache(data_dir / 'kkr_startpot_parent_KKR.aiida'):
+        out, node = run_get_node(builder)
     print('outputs:', node, out)
 
     # check output
