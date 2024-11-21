@@ -21,7 +21,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.7.0'
+__version__ = '0.7.2'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 
 # activate verbose output, for debugging only
@@ -150,7 +150,7 @@ class kkr_imp_dos_wc(WorkChain):
         )
 
         spec.expose_inputs(kkr_imp_sub_wc, namespace='BdG', include=('params_overwrite'))
-        spec.expose_inputs(kkr_imp_sub_wc, include=('initial_noco_angles'))
+        spec.expose_inputs(kkr_imp_sub_wc, include=('initial_noco_angles', 'rimpshift'))
         spec.expose_inputs(kkr_flex_wc, namespace='gf_writeout', include=('params_kkr_overwrite', 'options'))
 
         # specify the outputs
@@ -158,10 +158,12 @@ class kkr_imp_dos_wc(WorkChain):
         spec.output('last_calc_output_parameters', valid_type=Dict)
         spec.output('last_calc_info', valid_type=Dict)
         spec.output('dos_data', valid_type=XyData)
-        spec.output('dos_data_interpol', valid_type=XyData)
+        spec.output('dos_data_interpol', valid_type=XyData, required=False)
         spec.output('dos_data_lm', valid_type=XyData, required=False)
         spec.output('dos_data_interpol_lm', valid_type=XyData, required=False)
-        spec.output('gf_dos_remote', valid_type=XyData, required=False, help='RemoteData node of the computed host GF.')
+        spec.output(
+            'gf_dos_remote', valid_type=RemoteData, required=False, help='RemoteData node of the computed host GF.'
+        )
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -439,9 +441,9 @@ label: {self.ctx.label_wf}
                 builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
             if 'gf_writeout' in self.inputs:
                 if 'params_kkr_overwrite' in self.inputs.gf_writeout:
-                    builder.params_kkr_overwrite = self.inputs.params_kkr_overwrite
+                    builder.params_kkr_overwrite = self.inputs.gf_writeout.params_kkr_overwrite
                 if 'options' in self.inputs.gf_writeout:
-                    builder.options = self.inputs.options
+                    builder.options = self.inputs.gf_writeout.options
 
             future = self.submit(builder)
 
@@ -469,6 +471,8 @@ label: {self.ctx.label_wf}
             gf_writeout_calc = gf_writeout_remote.get_incoming(node_class=CalcJobNode).first().node
             self.ctx.pk_flexcalc = gf_writeout_calc.pk
 
+        self.ctx.gf_writeout_remote = gf_writeout_remote
+
         options = self.ctx.options_params_dict
         kkrimpcode = self.inputs.kkrimp
         if 'imp_pot_sfd' in self.inputs:
@@ -491,7 +495,8 @@ label: {self.ctx.label_wf}
         })
         kkrimp_params = self.ctx.kkrimp_params_dict
         label_imp = 'KKRimp DOS (GF: {}, imp_pot: {}, Zimp: {}, ilayer_cent: {})'.format(
-            gf_writeout_calc.pk, impurity_pot_or_remote.pk,
+            gf_writeout_calc.pk,
+            impurity_pot_or_remote.pk,  # pylint: disable=possibly-used-before-assignment
             imps.get_dict().get('Zimp'),
             imps.get_dict().get('ilayer_center')
         )
@@ -525,6 +530,8 @@ label: {self.ctx.label_wf}
             builder.params_overwrite = self.inputs.BdG.params_overwrite
         if 'initial_noco_angles' in self.inputs:
             builder.initial_noco_angles = self.inputs.initial_noco_angles
+        if 'rimpshift' in self.inputs:
+            builder.rimpshift = self.inputs.rimpshift
 
         future = self.submit(builder)
 
@@ -592,10 +599,12 @@ label: {self.ctx.label_wf}
 
             if dos_extracted:
                 self.out('dos_data', dosXyDatas['dos_data'])
-                self.out('dos_data_interpol', dosXyDatas['dos_data_interpol'])
+                if 'dos_data_interpol' in dosXyDatas:
+                    self.out('dos_data_interpol', dosXyDatas['dos_data_interpol'])
                 if self.ctx.lmdos:
                     self.out('dos_data_lm', dosXyDatas['dos_data_lm'])
-                    self.out('dos_data_interpol_lm', dosXyDatas['dos_data_interpol_lm'])
+                    if 'dos_data_interpol_lm' in dosXyDatas:
+                        self.out('dos_data_interpol_lm', dosXyDatas['dos_data_interpol_lm'])
 
             message = f'INFO: workflow_info node: {outputnode_t.uuid}'
             print(message)
@@ -604,6 +613,7 @@ label: {self.ctx.label_wf}
             self.out('workflow_info', outputnode_t)
             self.out('last_calc_output_parameters', last_calc_output_params)
             self.out('last_calc_info', last_calc_info)
+            self.out('gf_dos_remote', self.ctx.gf_writeout_remote)
 
             message = 'INFO: created output nodes for KKR imp DOS workflow.'
             print(message)
@@ -730,25 +740,45 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
                 with folder.open(name0 + '.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     tmp = loadtxt(dosfile)
                     dos.append(tmp)
+
                 with folder.open(name0 + '.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     tmp = loadtxt(dosfile)
-                    dos_int.append(tmp)
+                    if len(tmp) > 0:
+                        dos_int.append(tmp)
+
             except:
                 # new file names with 3 digits for atom numbers
                 with folder.open(name0 + '.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     tmp = loadtxt(dosfile)
                     dos.append(tmp)
+
                 with folder.open(name0 + '.interpol.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
-                    tmp = loadtxt(dosfile)
-                    dos_int.append(tmp)
-    dos, dos_int = array(dos), array(dos_int)
+                    try:
+                        tmp = loadtxt(dosfile)
+                    except:
+                        pass
+                    # can happen if there are too few points to interpolate on
+                    if len(tmp) > 0:
+                        dos_int.append(tmp)
+
+    dos = array(dos)
+    if len(dos_int) > 0:
+        dos_int = array(dos_int)
+    else:
+        pass
 
     # convert to eV units
     eVscale = get_Ry2eV()
     dos[:, :, 0] = (dos[:, :, 0] - ef.value) * eVscale
     dos[:, :, 1:] = dos[:, :, 1:] / eVscale
-    dos_int[:, :, 0] = (dos_int[:, :, 0] - ef.value) * eVscale
-    dos_int[:, :, 1:] = dos_int[:, :, 1:] / eVscale
+    if len(dos_int) > 0:
+        try:
+            dos_int[:, :, 0] = (dos_int[:, :, 0] - ef.value) * eVscale
+            dos_int[:, :, 1:] = dos_int[:, :, 1:] / eVscale
+        except:
+            message = 'Not enough data were present in the interpolated dos, due to a lack of energy points to interpolate on'
+    else:
+        pass
 
     # create output nodes
     dosnode = XyData()
@@ -757,12 +787,14 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
     dosnode.set_x(dos[:, :, 0], 'E-EF', 'eV')
 
     name = ['tot', 's', 'p', 'd', 'f', 'g']
+    name = name[:len(dos[0, 0, 1:]) - 1] + ['ns']
+
     if use_lmdos.value:
         name = [
-            'tot', 's', 'p1', 'p2', 'p3', 'd1', 'd2', 'd3', 'd4', 'd5', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'g1',
-            'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9'
+            's', 'p1', 'p2', 'p3', 'd1', 'd2', 'd3', 'd4', 'd5', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'g1', 'g2',
+            'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9'
         ]
-    name = name[:len(dos[0, 0, 1:]) - 1] + ['ns']
+        name = name[:len(dos[0, 0, 1:])]
 
     ylists = [[], [], []]
     for l in range(len(name)):
@@ -772,17 +804,20 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
     dosnode.set_y(ylists[0], ylists[1], ylists[2])
 
     # node for interpolated DOS
-    dosnode2 = XyData()
-    dosnode2.label = 'dos_interpol_data'
-    dosnode2.description = 'Array data containing iterpolated DOS (i.e. dos at finite imaginary part of energy). 3D array with (atoms, energy point, l-channel) dimensions.'
-    dosnode2.set_x(dos_int[:, :, 0], 'E-EF', 'eV')
-    ylists = [[], [], []]
-    for l in range(len(name)):
-        ylists[0].append(dos_int[:, :, 1 + l])
-        ylists[1].append('interpolated dos ' + name[l])
-        ylists[2].append('states/eV')
-    dosnode2.set_y(ylists[0], ylists[1], ylists[2])
+    if len(dos_int) > 0:
+        dosnode2 = XyData()
+        dosnode2.label = 'dos_interpol_data'
+        dosnode2.description = 'Array data containing iterpolated DOS (i.e. dos at finite imaginary part of energy). 3D array with (atoms, energy point, l-channel) dimensions.'
+        dosnode2.set_x(dos_int[:, :, 0], 'E-EF', 'eV')
+        ylists = [[], [], []]
+        for l in range(len(name)):
+            ylists[0].append(dos_int[:, :, 1 + l])
+            ylists[1].append('interpolated dos ' + name[l])
+            ylists[2].append('states/eV')
+        dosnode2.set_y(ylists[0], ylists[1], ylists[2])
 
-    output = {'dos_data': dosnode, 'dos_data_interpol': dosnode2}
+        output = {'dos_data': dosnode, 'dos_data_interpol': dosnode2}
+    else:
+        output = {'dos_data': dosnode}
 
     return output

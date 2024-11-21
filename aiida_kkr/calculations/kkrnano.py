@@ -212,7 +212,7 @@ class KKRnanoCalculation(CalcJob):
 
         else:
             raise InputValidationError(
-                'Either `strucwithpot` or a `parent_folder` has to be provided.\          If necessary remove one of the inputs.'
+                'Either `strucwithpot` or a `parent_folder` has to be provided. If necessary remove one of the inputs.'
             )
 
         print('passed lattice constant=', passed_lattice_const)
@@ -278,7 +278,7 @@ class KKRnanoCalculation(CalcJob):
 
         if noco:
             with tempfolder.open(self._DEFAULT_NOCO_INPUT_FILE, u'w') as nonco_angles_handle:
-                self._write_nonco_angles(nonco_angles_handle, nonco_angles, structure)
+                self._write_nonco_angles(nonco_angles_handle, nonco_angles, structure)  # pylint: disable=possibly-used-before-assignment
 
         # Prepare rbasis.xyz and input.conf from Structure and input parameter data unless convert mode
         if not convert:
@@ -288,7 +288,7 @@ class KKRnanoCalculation(CalcJob):
                 self._write_rbasis(rbasis_handle, structure, passed_lattice_const)
         if write_efermi:
             with tempfolder.open(self._DEFAULT_EFERMI_FILE, u'w') as efermi_file_handle:
-                self._write_efermi_file(efermi_file_handle, fermi)
+                self._write_efermi_file(efermi_file_handle, fermi)  # pylint: disable=used-before-assignment
 
         # Prepare potential and shapefun file from strucwithpot, if necessary
         if use_strucwithpot:

@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 
 import pytest
+from aiida_test_cache.archive_cache import enable_archive_cache
+from aiida.engine import run_get_node
 from ..dbsetup import *
-from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
 from ..conftest import voronoi_local_code, kkrhost_local_code, data_dir, import_with_migration
-from aiida.manage.tests.pytest_fixtures import aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test, clear_database_before_test
 
 
 @pytest.mark.timeout(240, method='thread')
-def test_kkrflex_writeout_wc(clear_database_before_test, kkrhost_local_code, run_with_cache):
+def test_kkrflex_writeout_wc(clear_database_before_test, kkrhost_local_code, enable_archive_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow
     """
@@ -51,7 +50,8 @@ def test_kkrflex_writeout_wc(clear_database_before_test, kkrhost_local_code, run
     builder.impurity_info = imp_info
 
     # now run calculation
-    out, node = run_with_cache(builder, data_dir=data_dir)
+    with enable_archive_cache(data_dir / 'kkrflex_writeout_wc.aiida'):
+        out, node = run_get_node(builder)
     print(out)
 
     n = out['workflow_info']

@@ -16,16 +16,16 @@ jobs:
     timeout-minutes: 30
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v4
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
       with:
-        python-version: 3.8
+        python-version: 3.12
 
     - name: Cache python dependencies
       id: cache-pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: pip-docs-${{ hashFiles('**/setup.json') }}
@@ -53,21 +53,21 @@ jobs:
     timeout-minutes: 30
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Cache python dependencies
       id: cache-pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: pip-pre-commit-${{ hashFiles('**/setup.json') }}
         restore-keys: |
           pip-pre-commit-
 
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v4
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
       with:
-        python-version: 3.8
+        python-version: 3.12
 
     - name: Install python dependencies
       run: |
@@ -93,8 +93,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
-        aiida: [{version: 'aiida-core==2.3.0', name: '2.3.0'}]
+        python-version: ["3.10", "3.11", "3.12"]
+        aiida: [{version: 'aiida-core==2.5.2', name: '2.5.2'}]
         masci-tools: [{version: 'git+https://github.com/JuDFTteam/masci-tools.git@develop', name: '-masci-develop'}]
         allowed-to-fail: [false]
 
@@ -122,10 +122,10 @@ jobs:
           - 5001:22
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -143,7 +143,7 @@ jobs:
     - name: Install aiida-kkr
       run: |
         pip install ${{ matrix.aiida.version }} ${{ matrix.masci-tools.version }}
-        pip install git+https://github.com/JuDFTteam/aiida-testing.git@4ddb0e48a8a720e8fca5f8d09576c5aff8c36dbf
+        pip install git+https://github.com/PhilippRue/aiida-test-cache.git@change_aiida-core_version
         pip install .[testing]
         pip install reentry
         reentry scan
@@ -176,14 +176,14 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python 3.7
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.7
+          python-version: 3.12
       - name: Install flit
         run: |
-          pip install flit~=3.4
+          pip install flit~=3.10
       - name: Build and publish to PyPi
         run: |
           flit publish

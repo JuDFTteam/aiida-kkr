@@ -547,16 +547,16 @@ class kkr_startpot_wc(WorkChain):
                 kkr_para.set_value('RCLUSTZ', self.ctx.r_cls)
                 self.report(f'INFO: setting RCLUSTZ to {self.ctx.r_cls}')
             if 'RMAX' in update_list:
-                kkr_para.set_value('RMAX', rmax_input)
+                kkr_para.set_value('RMAX', rmax_input)  # pylint: disable=possibly-used-before-assignment
                 self.report(f'INFO: setting RMAX to {rmax_input} (needed for DOS check with KKRcode)')
             if 'GMAX' in update_list:
-                kkr_para.set_value('GMAX', gmax_input)
+                kkr_para.set_value('GMAX', gmax_input)  # pylint: disable=possibly-used-before-assignment
                 self.report(f'INFO: setting GMAX to {gmax_input} (needed for DOS check with KKRcode)')
             if 'EMIN' in update_list:
                 kkr_para.set_value('EMIN', emin_new)
                 self.report(f'INFO: setting EMIN to {emin_new} (DOS check showed that EMIN is too high)')
             if 'ef_set' in update_list:
-                kkr_para.set_value('EFSET', self.ctx.ef_set)
+                kkr_para.set_value('EF_SET', self.ctx.ef_set)
                 self.report(f'INFO: setting Fermi level of stating potential to {self.ctx.ef_set}')
 
             updatenode = orm.Dict(dict=kkr_para.get_dict())

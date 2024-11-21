@@ -19,11 +19,11 @@ from masci_tools.io.common_functions import get_Ry2eV
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.3.2'
-__contributors__ = (u'Philipp Rüßmann , Rubel Mozumder')
+__version__ = '0.3.5'
+__contributors__ = (u'Philipp Rüßmann , Rubel Mozumder, David Antognini Silva')
 
 # activate debug writeout
-_debug = False
+_debug = True
 
 
 class combine_imps_wc(WorkChain):
@@ -78,6 +78,7 @@ class combine_imps_wc(WorkChain):
     _workflowversion = __version__
     _wf_default = {
         'jij_run': False,  # Any kind of addition in _wf_default should be updated into the start() as well.
+        'allow_unconverged_inputs': False,  # start calculation only if previous impurity calculations are converged?
     }
 
     @classmethod
@@ -106,7 +107,9 @@ class combine_imps_wc(WorkChain):
 
         # expose these inputs from sub-workflows
         spec.expose_inputs(
-            kkr_imp_sub_wc, namespace='scf', include=('kkrimp', 'options', 'wf_parameters', 'params_overwrite')
+            kkr_imp_sub_wc,
+            namespace='scf',
+            include=('kkrimp', 'options', 'wf_parameters', 'settings_LDAU', 'params_overwrite')
         )
         spec.expose_inputs(
             kkr_flex_wc,
@@ -228,12 +231,21 @@ If given then the writeout step of the host GF is omitted."""
         """
         message = f'INFO: started combine_imps_wc workflow version {self._workflowversion}'
         self.report(message)
-        if 'wf_parameters_overwrite' in self.inputs:
-            self.ctx.wf_parameters_overwrite = self.inputs.wf_parameters_overwrite
 
-        self.ctx.run_options = {'jij_run': False}
-        self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
-        self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
+        self.ctx.run_options = self._wf_default
+        self.ctx.allow_unconverged_inputs = self._wf_default.get('allow_unconverged_inputs', False)
+        if 'wf_parameters_overwrite' in self.inputs:
+            self.ctx.wf_parameters_overwrite = self.inputs.wf_parameters_overwrite.get_dict()
+            self.ctx.allow_unconverged_inputs = self.ctx.wf_parameters_overwrite.get('global', {}).get(
+                'allow_unconverged_inputs', False
+            )
+
+        exit_code, self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
+        if exit_code != 0:
+            return exit_code
+        exit_code, self.ctx.imp2 = self.get_imp_node_from_input(iimp=2)
+        if exit_code != 0:
+            return exit_code
         self.ctx.single_vs_single = True  # It is assumed
 
         # find and compare host structures for the two imps to make sure the impurities are consistent
@@ -276,7 +288,7 @@ If given then the writeout step of the host GF is omitted."""
         imp_1 = self.ctx.imp1
         imp_2 = self.ctx.imp2
         # check for the impurity1 whether from single kkr_imp_wc or not
-        if imp_1.process_class == KkrCalculation:
+        if imp_1.process_class == KkrimpCalculation:
             Zimp_num_1 = imp_1.inputs.impurity_info.get_dict().get('Zimp')
             if isinstance(Zimp_num_1, list):
                 if len(Zimp_num_1) > 1:
@@ -284,20 +296,22 @@ If given then the writeout step of the host GF is omitted."""
 
         elif imp_1.process_class == kkr_imp_sub_wc:
             combine_wc = imp_1.get_incoming(node_class=combine_imps_wc).all()
-            if len(combine_wc) != 0:
+            Zimp_num_1 = imp_1.inputs.impurity_info.get_dict().get('Zimp')
+            if len(Zimp_num_1) > 1:
                 single_imp_1 = False
         elif imp_1.process_class == combine_imps_wc:
             single_imp_1 = False
 
         # check for the impurity2 whether from single kkr_imp_wc or not
-        if imp_2.process_class == KkrCalculation:
+        if imp_2.process_class == KkrimpCalculation:
             Zimp_num_2 = imp_2.inputs.impurity_info.get_dict().get('Zimp')
             if isinstance(Zimp_num_2, list):
                 if len(Zimp_num_2) > 1:
                     single_imp_2 = False
         elif imp_2.process_class == kkr_imp_sub_wc:
             combine_wc = imp_2.get_incoming(node_class=combine_imps_wc).all()
-            if len(combine_wc) != 0:
+            Zimp_num_2 = imp_2.inputs.impurity_info.get_dict().get('Zimp')
+            if len(Zimp_num_2) > 1:
                 single_imp_2 = False
         elif imp_2.process_class == combine_imps_wc:
             single_imp_2 = False
@@ -331,36 +345,38 @@ If given then the writeout step of the host GF is omitted."""
             self.report(
                 f'DEBUG: The is the imps_info_in_exact_cluster dict for single-single imp calc: {imps_info_in_exact_cluster}\n'
             )
-            return imps_info_in_exact_cluster
+            return 0, imps_info_in_exact_cluster
         else:
             imp1_input = self.ctx.imp1
             # This 'if clause' to extract the imps_info_in_exact_cluster from  workflow_info of the input impurity node
             if imp1_input.process_class == combine_imps_wc:
                 parent_combine_wc = imp1_input
-
-
-#                out_workflow_info = parent_combine_wc.get_outgoing(link_label_filter='workflow_info').all()[0].node
+                out_workflow_info = parent_combine_wc.outputs.workflow_info
 
             elif imp1_input.process_class == KkrimpCalculation:
                 kkrimp_sub = imp1_input.get_incoming(node_class=kkr_imp_sub_wc).all()[0].node
                 parent_combine_wc = kkrimp_sub.get_incoming(node_class=combine_imps_wc).all()[0].node
+                out_workflow_info = imp1_input.outputs.output_parameters
 
             elif imp1_input.process_class == kkr_imp_sub_wc:
                 parent_combine_wc = imp1_input.get_incoming(node_class=combine_imps_wc).all()[0].node
-
-            out_workflow_info = parent_combine_wc.outputs.workflow_info
+                out_workflow_info = imp1_input.outputs.workflow_info
 
             imp2_impurity_info = self.ctx.imp2.inputs.impurity_info
 
             try:
-                imps_info_in_exact_cluster = out_workflow_info.get_dict()['imps_info_in_exact_cluster']
+                imps_info_in_exact_cluster = out_workflow_info.get_dict()['imps_info_in_exact_cluster']  # pylint: disable=possibly-used-before-assignment
             except KeyError:
                 parent_input_imp1 = parent_combine_wc.inputs.impurity1_output_node  # TODO: rename combine_wc to the parent_combine_wc
                 parent_input_imp2 = parent_combine_wc.inputs.impurity2_output_node
                 parent_input_offset = parent_combine_wc.inputs.offset_imp2
 
-                parent_imp1_wc_or_calc = self.get_imp_node_from_input(impurity_output_node=parent_input_imp1)
-                parent_imp2_wc_or_calc = self.get_imp_node_from_input(impurity_output_node=parent_input_imp2)
+                exit_code, parent_imp1_wc_or_calc = self.get_imp_node_from_input(impurity_output_node=parent_input_imp1)
+                if exit_code != 0:
+                    return exit_code, None
+                exit_code, parent_imp2_wc_or_calc = self.get_imp_node_from_input(impurity_output_node=parent_input_imp2)
+                if exit_code != 0:
+                    return exit_code, None
 
                 # Here below imps_info_in_exact_cluster is construct from the inputs impurity1_output_node, and impurity2_output_node as the idea was not calculated in the old version attempt of the combine_imps_wc.
 
@@ -379,15 +395,27 @@ If given then the writeout step of the host GF is omitted."""
             imps_info_in_exact_cluster['ilayers'].append(imp2_impurity_info.get_dict()['ilayer_center'])
             # TODO: Delete the below print line as it is for deburging
             self.report(f'DEBUG: The is the imps_info_in_exact_cluster dict: {imps_info_in_exact_cluster}\n')
-            return imps_info_in_exact_cluster
+            return 0, imps_info_in_exact_cluster  # return also exit code
 
     def get_impinfo_from_hostGF(self, imp_calc):
         """
         Extract impurity infor node from the incoming host GF folder
         """
-        GF_input = imp_calc.inputs.host_Greenfunction_folder
+        if 'impurity_info' in imp_calc.inputs:
+            return imp_calc.inputs.impurity_info
+
+        if imp_calc.process_class == KkrimpCalculation:
+            GF_input = imp_calc.inputs.host_Greenfunction_folder
+        elif imp_calc.process_class == kkr_imp_sub_wc:
+            GF_input = imp_calc.inputs.remote_data
+        elif imp_calc.process_class == kkr_imp_wc:
+            GF_input = imp_calc.inputs.remote_data_gf
+        else:
+            raise ValueError('Unable to get impinfo')
+
         parent_calc = GF_input.get_incoming(node_class=CalcJobNode).first().node
         impinfo = parent_calc.inputs.impurity_info
+
         return impinfo
 
     def imps_info_exact_cluster_2imps(self, single_imp1_wc, single_imp2_wc, offset_imp2):
@@ -437,28 +465,26 @@ If given then the writeout step of the host GF is omitted."""
             inc = imp_out.get_incoming(link_label_filter='workflow_info').all()
             if len(inc) != 1:
                 self.report(f'input node of imp {iimp} inconsistent')
-                return self.exit_codes.ERROR_INPUT_NODE_INCONSISTENT  # pylint: disable=maybe-no-member
+                return self.exit_codes.ERROR_INPUT_NODE_INCONSISTENT, None  # pylint: disable=maybe-no-member
             imp = inc[0].node
 
         # consistency checks of input nodes
         # check if input calc was converged etc.
         if not self._check_input_imp(imp):
             self.report(f'something wrong with imp {iimp}: {imp}')
-            return self.exit_codes.ERROR_SOMETHING_WENT_WRONG  # pylint: disable=maybe-no-member
+            return self.exit_codes.ERROR_SOMETHING_WENT_WRONG, None  # pylint: disable=maybe-no-member
 
-        return imp
+        # return exit code and imp calculation
+        return 0, imp
 
     def _check_input_imp(self, imp_calc_or_wf):
         """
-        check if input calculation is a kkr_imp_wc workflow which did converge
+        check if input calculation is of the right process_class and if it did converge
         """
 
-        if imp_calc_or_wf.process_class == KkrimpCalculation:
-            # imp_calc_or_wf can be KkrimpClaculation
-            if not imp_calc_or_wf.outputs.output_parameters['convergence_group']['calculation_converged']:
-                return False
-        else:
-            # imp_calc_or_wf should be kkr_imp_wc or kkr_imp_sub_wc or combine_imps_wc workflow
+        if imp_calc_or_wf.process_class != KkrimpCalculation:
+            # if imp_calc_or_wf is not a KkrimpCalculation
+            # check if imp_calc_or_wf is kkr_imp_wc, kkr_imp_sub_wc or combine_imps_wc workflow
             if not isinstance(imp_calc_or_wf, WorkChainNode):
                 self.report(f'impurity_workflow not a WorkChainNode: {imp_calc_or_wf}')
                 return False
@@ -470,7 +496,12 @@ If given then the writeout step of the host GF is omitted."""
                 self.report(f'impurity_workflow class is wrong: {imp_calc_or_wf}')
                 return False
 
+        if (not self.ctx.allow_unconverged_inputs):
             # calculation should be converged
+            if imp_calc_or_wf.process_class == KkrimpCalculation:
+                if not imp_calc_or_wf.outputs.output_parameters['convergence_group']['calculation_converged']:
+                    self.report(f'impurity calculation not converged: {imp_calc_or_wf}')
+                    return False
             if imp_calc_or_wf.process_class == kkr_imp_wc:
                 if not imp_calc_or_wf.outputs.workflow_info.get_dict().get('converged'):
                     self.report('impurity_workflow not converged')
@@ -494,13 +525,18 @@ If given then the writeout step of the host GF is omitted."""
             if _debug:
                 print('DEBUG:', list(imp1.inputs))
             impinfo1 = self.get_impinfo_from_hostGF(imp1)
+            impinfo2 = self.get_impinfo_from_hostGF(imp2)
             # impinfo1 = imp1.inputs.impurity_info
         else:
             if imp1.process_class == self.__class__:
                 imp1 = imp1.get_outgoing(node_class=kkr_imp_sub_wc).all()[0].node
             impinfo1 = imp1.inputs.impurity_info
             self.report(f'DEBUG: impinfo1 : {impinfo1.get_dict()} .')
-        impinfo2 = self.get_impinfo_from_hostGF(imp2)
+
+            if imp2.process_class == self.__class__:
+                imp2 = imp2.get_outgoing(node_class=kkr_imp_sub_wc).all()[0].node
+            impinfo2 = imp2.inputs.impurity_info
+            self.report(f'DEBUG: impinfo2 : {impinfo2.get_dict()} .')
 
         host_structure = self.ctx.host_structure
         offset_imp2 = self.inputs.offset_imp2
@@ -510,13 +546,17 @@ If given then the writeout step of the host GF is omitted."""
         self.report(f'imp info 1: {impinfo1}')
         self.report(f'imp info 2: {impinfo2}')
 
-        self.ctx.imps_info_in_exact_cluster = self.extract_imps_info_exact_cluster()
+        exit_code, self.ctx.imps_info_in_exact_cluster = self.extract_imps_info_exact_cluster()
+        if exit_code != 0:
+            return exit_code
+
         imps_info_in_exact_cluster = self.ctx.imps_info_in_exact_cluster
         if single_single:
             if offset_imp2.get_dict()['index'] < 0:
                 return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL  # pylint: disable=maybe-no-member
-            if impinfo1['ilayer_center'] == impinfo2['ilayer_center'] and self.inputs.offset_imp2['index'] < 1:
-                return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL  # pylint: disable=maybe-no-member
+            if 'ilayer_center' in impinfo1.get_dict() and 'ilayer_center' in impinfo2.get_dict():
+                if impinfo1['ilayer_center'] == impinfo2['ilayer_center'] and self.inputs.offset_imp2['index'] < 1:
+                    return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL  # pylint: disable=maybe-no-member
         else:
             imp_offset_index = offset_imp2['index']
             imp2_ilayer = impinfo2['ilayer_center']
@@ -526,7 +566,7 @@ If given then the writeout step of the host GF is omitted."""
             ):
                 if (offset, ilayer) == (imp_offset_index, imp2_ilayer):
                     self.report(
-                        f"ERROR: The new impurity is overlaping with the existing impurities. Change the 'ilayer_certer': {ilayer} or 'offset_index'{offset}."
+                        f"ERROR: The new impurity is overlaping with the existing impurities. Change the 'ilayer_center': {ilayer} or 'offset_index'{offset}."
                     )
                     return self.exit_codes.ERROR_SOMETHING_WENT_WRONG  # pylint: disable=no-member
 
@@ -607,14 +647,14 @@ If given then the writeout step of the host GF is omitted."""
             #take gf_writeout directly from input to KkrimpCalculation
             gf_writeout_calc = self.ctx.imp1.inputs.host_Greenfunction_folder.get_incoming(node_class=KkrCalculation
                                                                                            ).first().node
-        if (self.ctx.imp1.process_class == kkr_imp_sub_wc or self.ctx.imp1.process_class == KkrimpCalculation):
+        elif self.ctx.imp1.process_class == kkr_imp_sub_wc:
             imp1_sub = self.ctx.imp1
         else:
             if _debug:
                 print('DEBUG:', self.ctx.imp1, list(self.ctx.imp1.inputs))
             imp1_sub = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node
         if gf_writeout_calc is None:
-            gf_writeout_calc = imp1_sub.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node
+            gf_writeout_calc = imp1_sub.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node  # pylint: disable=possibly-used-before-assignment
         builder.remote_data = gf_writeout_calc.inputs.parent_folder
 
         # set label and description of the calc
@@ -683,7 +723,7 @@ If given then the writeout step of the host GF is omitted."""
         run_options = self.ctx.run_options
         # Update the scf_wf_parameters from the wf_parameters_overwrite
         if 'wf_parameters_overwrite' in self.inputs:
-            wf_parameters_overwrite = self.ctx.wf_parameters_overwrite.get_dict()
+            wf_parameters_overwrite = self.ctx.wf_parameters_overwrite
 
             for key, val in wf_parameters_overwrite.items():
                 # Update the scf_wf_parameters from wf_parameters_overwrite
@@ -746,6 +786,8 @@ If given then the writeout step of the host GF is omitted."""
             builder.options = self.inputs.scf.options
         if 'wf_parameters' in self.inputs.scf:
             builder.wf_parameters = self.inputs.scf.wf_parameters
+        if 'params_overwrite' in self.inputs.scf:
+            builder.params_overwrite = self.inputs.scf.params_overwrite
 
         # take care of LDA+U settings
         add_ldausettings, settings_LDAU_combined = self.get_ldau_combined()
@@ -753,6 +795,9 @@ If given then the writeout step of the host GF is omitted."""
         if add_ldausettings:
             self.report(f'settings_combined: {settings_LDAU_combined.get_dict()}')
             builder.settings_LDAU = settings_LDAU_combined
+        if 'settings_LDAU' in self.inputs.scf:
+            self.report('Overwriting settings_LDAU_combined with provided settings_LDAU inputs')
+            builder.settings_LDAU = self.inputs.scf.settings_LDAU
 
         # now submit workflow
         future = self.submit(builder)
@@ -804,38 +849,60 @@ If given then the writeout step of the host GF is omitted."""
         check if impurity input calculations have LDA+U settings in input and add this here if needed
         """
 
-        imp1_has_ldau = 'settings_LDAU' in self.ctx.imp1.inputs
-        if imp1_has_ldau:
-            settings_LDAU1 = self.ctx.imp1.inputs.settings_LDAU
-            self.report('found LDA+U settings for imp1')
+        if self.ctx.imp1.process_class == KkrimpCalculation or self.ctx.imp1.process_class == kkr_imp_sub_wc:
+            imp1_has_ldau = 'settings_LDAU' in self.ctx.imp1.inputs
+            if imp1_has_ldau:
+                settings_LDAU1 = self.ctx.imp1.inputs.settings_LDAU
+                self.report('found LDA+U settings for imp1')
+                if self.ctx.imp1.process_class == KkrimpCalculation:
+                    retrieved1 = self.ctx.imp1.outputs.retrieved
+                elif self.ctx.imp1.process_class == kkr_imp_sub_wc:
+                    retrieved1 = self.ctx.imp1.get_outgoing(node_class=KkrimpCalculation).first().node.outputs.retrieved
+        elif self.ctx.imp1.process_class == combine_imps_wc:
+            imp1_has_ldau = 'settings_LDAU' in self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node.inputs
+            if imp1_has_ldau:
+                settings_LDAU1 = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node.inputs.settings_LDAU
+                self.report('found LDA+U settings for imp1')
+                retrieved1 = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc
+                                                        ).first().node.get_outgoing(node_class=KkrimpCalculation
+                                                                                    ).first().node.outputs.retrieved
 
-        imp2_has_ldau = 'settings_LDAU' in self.ctx.imp2.inputs
-        if imp2_has_ldau:
-            settings_LDAU2 = self.ctx.imp2.inputs.settings_LDAU
-            self.report('found LDA+U settings for imp1')
+        if self.ctx.imp2.process_class == KkrimpCalculation or self.ctx.imp2.process_class == kkr_imp_sub_wc:
+            imp2_has_ldau = 'settings_LDAU' in self.ctx.imp2.inputs
+            if imp2_has_ldau:
+                settings_LDAU2 = self.ctx.imp2.inputs.settings_LDAU
+                self.report('found LDA+U settings for imp2')
+                if self.ctx.imp2.process_class == KkrimpCalculation:
+                    retrieved2 = self.ctx.imp2.outputs.retrieved
+                elif self.ctx.imp2.process_class == kkr_imp_sub_wc:
+                    retrieved2 = self.ctx.imp2.get_outgoing(node_class=KkrimpCalculation).first().node.outputs.retrieved
+        elif self.ctx.imp2.process_class == combine_imps_wc:
+            imp2_has_ldau = 'settings_LDAU' in self.ctx.imp2.get_outgoing(node_class=kkr_imp_sub_wc).first().node.inputs
+            if imp2_has_ldau:
+                settings_LDAU2 = self.ctx.imp2.get_outgoing(node_class=kkr_imp_sub_wc).first().node.inputs.settings_LDAU
+                self.report('found LDA+U settings for imp2')
+                retrieved2 = self.ctx.imp2.get_outgoing(node_class=kkr_imp_sub_wc
+                                                        ).first().node.get_outgoing(node_class=KkrimpCalculation
+                                                                                    ).first().node.outputs.retrieved
 
         if imp1_has_ldau and imp2_has_ldau:
             # combine LDA+U settings of the two imps
             settings_LDAU_combined = combine_settings_ldau(
-                settings_LDAU1=settings_LDAU1,
-                retrieved1=self.ctx.imp1.outputs.retrieved,
-                settings_LDAU2=settings_LDAU2,
-                retrieved2=self.ctx.imp2.outputs.retrieved,
+                settings_LDAU1=settings_LDAU1,  # pylint: disable=used-before-assignment
+                retrieved1=retrieved1,  # pylint: disable=used-before-assignment
+                settings_LDAU2=settings_LDAU2,  # pylint: disable=used-before-assignment
+                retrieved2=retrieved2,  # pylint: disable=used-before-assignment
                 kickout_info=self.ctx.kickout_info
             )
         elif imp1_has_ldau:
             # use only LDA+U settings of imp 1
             settings_LDAU_combined = combine_settings_ldau(
-                settings_LDAU1=settings_LDAU1,
-                retrieved1=self.ctx.imp1.outputs.retrieved,
-                kickout_info=self.ctx.kickout_info
+                settings_LDAU1=settings_LDAU1, retrieved1=retrieved1, kickout_info=self.ctx.kickout_info
             )
         elif imp2_has_ldau:
             # add offset to atom index for combined LDA+U settings
             settings_LDAU_combined = combine_settings_ldau(
-                settings_LDAU2=settings_LDAU2,
-                retrieved2=self.ctx.imp2.outputs.retrieved,
-                kickout_info=self.ctx.kickout_info
+                settings_LDAU2=settings_LDAU2, retrieved2=retrieved2, kickout_info=self.ctx.kickout_info
             )
         else:
             # return builder unchanged if none of the impurt calculations has LDA+U settings
@@ -940,18 +1007,6 @@ If given then the writeout step of the host GF is omitted."""
 def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_node):
     """parser output of Jij calculation and return as ArrayData node"""
 
-    _FILENAME_TAR = 'output_all.tar.gz'
-
-    if _FILENAME_TAR in retrieved.list_object_names():
-        # get path of tarfile
-        with retrieved.open(_FILENAME_TAR) as tf:
-            tfpath = tf.name
-        # extract file from tarfile of retrieved to tempfolder
-        with tarfile.open(tfpath) as tf:
-            tar_filenames = [ifile.name for ifile in tf.getmembers()]
-            filename = 'out_Jijmatrix'
-            if filename in tar_filenames:
-                tf.extract(filename, tfpath.replace(_FILENAME_TAR, ''))  # extract to tempfolder
     # Collect the zimp for impurity_output_node
     try:
         imp1_z = impurity1_output_node.get_incoming(node_class=kkr_imp_wc
@@ -969,10 +1024,25 @@ def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_
                 imp1_z = impurity1_output_node.get_incoming(node_class=KkrimpCalculation
                                                             ).first().node.inputs.impurity_info.get_dict()['Zimp']
 
-    imp2_z = impurity2_output_node.get_incoming(node_class=kkr_imp_wc
-                                                ).first().node.inputs.impurity_info.get_dict()['Zimp']
+    try:
+        imp2_z = impurity2_output_node.get_incoming(node_class=kkr_imp_wc
+                                                    ).first().node.inputs.impurity_info.get_dict()['Zimp']
+    except AttributeError:
+        try:
+            impurity2_output_node_combine = impurity2_output_node.get_incoming(node_class=combine_imps_wc).first().node
+            imp2_z = impurity2_output_node_combine.get_outgoing(node_class=kkr_imp_sub_wc
+                                                                ).first().node.inputs.impurity_info.get_dict()['Zimp']
+        except AttributeError:
+            try:
+                imp2_z = impurity2_output_node.get_incoming(node_class=kkr_imp_sub_wc
+                                                            ).first().node.inputs.impurity_info.get_dict()['Zimp']
+            except AttributeError:
+                imp2_z = impurity2_output_node.get_incoming(node_class=KkrimpCalculation
+                                                            ).first().node.inputs.impurity_info.get_dict()['Zimp']
 
-    jijdata = np.loadtxt(tfpath.replace(_FILENAME_TAR, '') + 'out_Jijmatrix')
+    with retrieved.open('out_Jijmatrix') as _f:
+        jijdata = np.loadtxt(_f)
+
     impurity_info = impurity_info.get_dict()
     pos = np.array(impurity_info['imp_cls'])
     z = np.array(impurity_info['imp_cls'])[:, 4]

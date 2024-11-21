@@ -8,7 +8,7 @@ from aiida import __version__ as aiida_core_version
 from aiida.orm import Float, Code, CalcJobNode, RemoteData, StructureData, Dict, SinglefileData, FolderData, Bool
 from aiida.engine import WorkChain, ToContext, while_, if_, calcfunction
 from masci_tools.io.kkr_params import kkrparams
-from aiida_kkr.tools import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf
+from aiida_kkr.tools import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf, get_ldaumatrices, get_LDAU_initmatrices_dict
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from numpy import array
 import tarfile, os
@@ -17,8 +17,8 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.10.0'
-__contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann')
+__version__ = '0.10.4'
+__contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann', u'David Antognini Silva')
 
 #TODO: work on return results function
 #TODO: edit inspect_kkrimp function
@@ -66,13 +66,13 @@ class kkr_imp_sub_wc(WorkChain):
 
     _wf_default = {
         'kkr_runmax': 5,  # Maximum number of kkr jobs/starts (defauld iterations per start)
-        'convergence_criterion': 1 * 10**-7,  # Stop if charge denisty is converged below this value
+        'convergence_criterion': 1e-7,  # Stop if charge denisty is converged below this value
         'mixreduce': 0.5,  # reduce mixing factor by this factor if calculaito fails due to too large mixing
-        'threshold_aggressive_mixing': 1 * 10**-2,  # threshold after which agressive mixing is used
-        'strmix': 0.03,  # mixing factor of simple mixing
+        'threshold_aggressive_mixing': 1e-2,  # threshold after which agressive mixing is used
+        'strmix': 0.01,  # mixing factor of simple mixing
         'nsteps': 50,  # number of iterations done per KKR calculation
         'aggressive_mix': 5,  # type of aggressive mixing (3: broyden's 1st, 4: broyden's 2nd, 5: generalized anderson)
-        'aggrmix': 0.05,  # mixing factor of aggressive mixing
+        'aggrmix': 0.01,  # mixing factor of aggressive mixing
         'broyden-number': 20,  # number of potentials to 'remember' for Broyden's mixing
         'nsimplemixfirst': 0,  # number of simple mixing step at the beginning of Broyden mixing
         'mag_init': False,  # initialize and converge magnetic calculation
@@ -118,7 +118,7 @@ class kkr_imp_sub_wc(WorkChain):
         spec.input('remote_data_Efshift', valid_type=RemoteData, required=False)
         spec.input('kkrimp_remote', valid_type=RemoteData, required=False)
         spec.input('impurity_info', valid_type=Dict, required=False)
-        spec.input('options', valid_type=Dict, required=False, default=lambda: Dict(dict=cls._options_default))
+        spec.input('options', valid_type=Dict, required=False)
         spec.input('wf_parameters', valid_type=Dict, required=False, default=lambda: Dict(dict=cls._wf_default))
         spec.input(
             'settings_LDAU', valid_type=Dict, required=False, help='LDA+U settings. See KKRimpCalculation for details.'
@@ -130,7 +130,7 @@ class kkr_imp_sub_wc(WorkChain):
             help='Dict of parameters that are given to the KKRimpCalculation. Overwrites automatically set values!'
         )
 
-        spec.expose_inputs(KkrimpCalculation, include=('initial_noco_angles'))
+        spec.expose_inputs(KkrimpCalculation, include=('initial_noco_angles', 'rimpshift'))
 
         # Here the structure of the workflow is defined
         spec.outline(
@@ -851,11 +851,13 @@ class kkr_imp_sub_wc(WorkChain):
 
         # add LDA+U input node if it was set in parent calculation of last kkrimp_remote or from input port
         if self.ctx.settings_LDAU is not None:
-            inputs['settings_LDAU'] = self.ctx.settings_LDAU
+            inputs['settings_LDAU'] = self.ctx.settings_LDAU  # pylint: disable=possibly-used-before-assignment
 
         # set nonco angles if given
         if 'initial_noco_angles' in self.inputs:
             inputs['initial_noco_angles'] = self.inputs.initial_noco_angles
+        if 'rimpshift' in self.inputs:
+            inputs['rimpshift'] = self.inputs.rimpshift
 
         # run the KKR calculation
         message = 'INFO: doing calculation'
@@ -923,6 +925,15 @@ class kkr_imp_sub_wc(WorkChain):
             # check rms
             self.ctx.rms.append(last_calc_output['convergence_group']['rms'])
             rms_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_all_iterations'])
+            # check rms of LDAU pot (if LDAU is set)
+            try:
+                rms_LDAU = last_calc_output['convergence_group']['rms_LDAU']
+                self.ctx.rms_LDAU = rms_LDAU
+                if rms_LDAU != 0.0:
+                    rms_LDAU_all_iter_last_calc = list(last_calc_output['convergence_group']['rms_LDAU_all_iterations'])
+                    self.ctx.last_rms_LDAU_all = rms_LDAU_all_iter_last_calc
+            except:
+                pass
 
             # add lists of last iterations
             self.ctx.last_rms_all = rms_all_iter_last_calc
@@ -979,7 +990,7 @@ class kkr_imp_sub_wc(WorkChain):
         for name, val in {
             'isteps': isteps,
             'imix': self.ctx.last_mixing_scheme,
-            'mixfac': mixfac,
+            'mixfac': mixfac,  # pylint: disable=possibly-used-before-assignment
             'qbound': qbound,
             'high_sett': self.ctx.kkr_higher_accuracy,
             'first_rms': first_rms,
@@ -1031,6 +1042,11 @@ class kkr_imp_sub_wc(WorkChain):
                 message = 'INFO: convergence check: rms goes up too fast, convergence is not expected'
                 self.report(message)
                 on_track = False
+                if self.ctx.rms_LDAU != 0:
+                    if self.ctx.last_rms_LDAU_all[-1] < self.ctx.last_rms_LDAU_all[0]:
+                        message = 'INFO: convergence check: rms LDAU potential goes down, convergence could still be expected in the next KkrimpCalulation run'
+                        self.report(message)
+                        on_track = True
             elif len(self.ctx.last_rms_all) == 1:
                 message = 'INFO: convergence check: already converged after single iteration'
                 self.report(message)
@@ -1039,6 +1055,11 @@ class kkr_imp_sub_wc(WorkChain):
                 message = 'INFO: convergence check: rms does not shrink fast enough, convergence is not expected'
                 self.report(message)
                 on_track = False
+                if self.ctx.rms_LDAU != 0:
+                    if self.ctx.last_rms_LDAU_all[-1] < self.ctx.last_rms_LDAU_all[0]:
+                        message = 'INFO: convergence check: rms LDAU potential goes down, convergence could still be expected in the next KkrimpCalulation run'
+                        self.report(message)
+                        on_track = True
         elif calc_reached_qbound:
             message = 'INFO: convergence check: calculation reached QBOUND'
             self.report(message)

@@ -9,12 +9,11 @@ from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
 __copyright__ = (u'Copyright (c), 2022, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 __contributors__ = (u'David Antognini Silva, Philipp Rüßmann')
 
 # TODO: add _wf_default parameters and activate get_wf_defaults method
 # TODO: add input interdependencies in the workchain description
-# TODO: add lmdos output node
 
 
 class kkrimp_BdG_wc(WorkChain):
@@ -33,8 +32,8 @@ class kkrimp_BdG_wc(WorkChain):
         :param kkr: (Code), KKR host code for the writing out kkrflex files
         :param kkrimp: (Code), KKR impurity code for the normal state impurity scf and BdG impurity DOS calculation
         :param BdG_settings: (Dict), set BdG parameters
-
-        :param imp_scf.startpot: (SinglefileData), converged impurity potential, skips the impurity scf calculation if provided
+        :param imp_scf.startpot: (SinglefileData), pre-converged impurity potential used to start the impurity scf calculation
+        :param imp_scf.converged_potential: (SinglefileData), converged impurity potential, skips the impurity scf calculation if provided
         :param imp_scf.wf_parameters: (Dict), parameters for the kkr impurity scf
         :param imp_scf.gf_writeout.params_kkr_overwrite: (Dict), set some input parameters of the KKR calculation for the GF writeout step of impurity scf workchain
         :param imp_scf.gf_writeout.options: (Dict), computer settings
@@ -144,16 +143,32 @@ class kkrimp_BdG_wc(WorkChain):
         spec.expose_inputs(
             kkr_imp_wc,
             namespace='imp_scf',
-            include=('startpot', 'wf_parameters', 'gf_writeout', 'scf.params_overwrite', 'scf.initial_noco_angles')
+            include=(
+                'startpot', 'wf_parameters', 'gf_writeout', 'scf.params_overwrite', 'scf.initial_noco_angles',
+                'scf.settings_LDAU'
+            )
         )
         spec.inputs['imp_scf']['gf_writeout']['kkr'].required = False
         spec.input('imp_scf.options', required=False, help='computer options for impurity scf step')
+        spec.input(
+            'imp_scf.converged_potential',
+            valid_type=SinglefileData,
+            required=False,
+            help='Converged impurity potential. Skips impurity scf step.'
+        )
 
         spec.input(
             'imp_scf.remote_data_host',
             valid_type=RemoteData,
             required=False,
             help='Parent folder of previously converged host normal state KkrCalculation'
+        )
+
+        spec.input(
+            'imp_scf.remote_data_gf',
+            valid_type=RemoteData,
+            required=False,
+            help='RemoteData node of precomputed host Green function'
         )
 
         # inputs for impurity BdG scf
@@ -198,12 +213,14 @@ class kkrimp_BdG_wc(WorkChain):
         spec.output('output_parameters', valid_type=Dict, required=False)
         spec.output('dos_data', required=False, valid_type=XyData)
         spec.output('dos_data_interpol', required=False, valid_type=XyData)
+        spec.output('dos_data_lm', required=False, valid_type=XyData)
+        spec.output('dos_data_lm_interpol', required=False, valid_type=XyData)
         spec.output('impurity_potential', valid_type=SinglefileData)
         spec.output('gf_host_BdG', valid_type=RemoteData, required=False)
 
         # Here outlines are being specified
         spec.outline(
-            # For initialiging workflow
+            # For initializing workflow
             cls.start,
             cls.validate_input,
             if_(cls.do_imp_pot_calc)(cls.imp_pot_calc),
@@ -261,9 +278,9 @@ class kkrimp_BdG_wc(WorkChain):
 
     def do_imp_pot_calc(self):
         """
-        run impurity potential calculation only if impurity potential not provided already
+        run impurity potential calculation only if converged impurity potential not provided already
         """
-        if not 'startpot' in self.inputs.imp_scf:
+        if not 'converged_potential' in self.inputs.imp_scf:
             return True
 
     def imp_pot_calc(self):
@@ -277,7 +294,10 @@ class kkrimp_BdG_wc(WorkChain):
         builder.voronoi = self.inputs.voronoi
         builder.kkr = self.inputs.kkr
         builder.kkrimp = self.inputs.kkrimp
-        builder.remote_data_host = self.inputs.imp_scf.remote_data_host
+        if 'remote_data_gf' in self.inputs.imp_scf:
+            builder.remote_data_gf = self.inputs.imp_scf.remote_data_gf
+        else:
+            builder.remote_data_host = self.inputs.imp_scf.remote_data_host
         builder.wf_parameters = self.inputs.imp_scf.wf_parameters
         if 'options' in self.inputs.imp_scf:
             builder.options = self.inputs.imp_scf.options
@@ -297,6 +317,12 @@ class kkrimp_BdG_wc(WorkChain):
 
         if 'params_overwrite' in self.inputs.imp_scf.scf:
             builder.scf.params_overwrite = self.inputs.imp_scf.scf.params_overwrite  # pylint: disable=no-member
+
+        if 'startpot' in self.inputs.imp_scf:
+            builder.startpot = self.inputs.imp_scf.startpot
+
+        if 'settings_LDAU' in self.inputs.imp_scf.scf:
+            builder.scf.settings_LDAU = self.inputs.imp_scf.scf.settings_LDAU  # pylint: disable=no-member
 
         imp_calc = self.submit(builder)
 
@@ -408,8 +434,8 @@ class kkrimp_BdG_wc(WorkChain):
             if not self.inputs.calc_DOS:
                 builder.imp_pot_sfd = self.ctx.last_imp_calc_BdG.outputs.converged_potential
             else:
-                if 'startpot' in self.inputs.imp_scf:
-                    builder.imp_pot_sfd = self.inputs.imp_scf.startpot
+                if 'converged_potential' in self.inputs.imp_scf:
+                    builder.imp_pot_sfd = self.inputs.imp_scf.converged_potential
                 else:
                     builder.imp_pot_sfd = self.ctx.last_imp_calc.outputs.converged_potential
 
@@ -429,7 +455,7 @@ class kkrimp_BdG_wc(WorkChain):
             if 'kkr' in self.inputs.dos.gf_writeout:
                 builder.kkr = self.inputs.dos.gf_writeout.kkr
             if 'params_kkr_overwrite' in self.inputs.dos.gf_writeout:
-                builder.params_kkr_overwrite = self.inputs.dos.gf_writeout.params_kkr_overwrite
+                builder.gf_writeout.params_kkr_overwrite = self.inputs.dos.gf_writeout.params_kkr_overwrite  # pylint: disable=no-member
             if 'host_remote' in self.inputs.dos.gf_writeout:
                 builder.host_remote = self.inputs.dos.gf_writeout.host_remote
             if 'options' in self.inputs.dos.gf_writeout:
@@ -448,9 +474,16 @@ class kkrimp_BdG_wc(WorkChain):
         return the results nodes of the workchain
         """
         if self.inputs.calc_DOS:
-            self.out('dos_data', self.ctx.DOS_node.outputs.dos_data)
-            self.out('dos_data_interpol', self.ctx.DOS_node.outputs.dos_data_interpol)
-        else:
+            if 'dos_data' in self.ctx.DOS_node.outputs.dos_data:
+                self.out('dos_data', self.ctx.DOS_node.outputs.dos_data)
+            if 'dos_data_interpol' in self.ctx.DOS_node.outputs.dos_data_interpol:
+                self.out('dos_data_interpol', self.ctx.DOS_node.outputs.dos_data_interpol)
+            if 'dos_data_lm' in self.ctx.DOS_node.outputs:
+                self.out('dos_data_lm', self.ctx.DOS_node.outputs.dos_data_lm)
+            if 'dos_data_interpol_lm' in self.ctx.DOS_node.outputs:
+                self.out('dos_data_interpol_lm', self.ctx.DOS_node.outputs.dos_data_interpol_lm)
+
+        if self.do_BdG_scf():
             if 'startpot' not in self.inputs.BdG_scf:
                 self.out('workflow_info', self.ctx.last_imp_calc_BdG.outputs.workflow_info)
                 self.out('output_parameters', self.ctx.last_imp_calc_BdG.outputs.last_calc_output_parameters)
@@ -459,7 +492,7 @@ class kkrimp_BdG_wc(WorkChain):
                 else:
                     self.out('gf_host_BdG', self.inputs.BdG_scf.remote_data_gf)
 
-        if 'startpot' not in self.inputs.imp_scf:
+        if 'converged_potential' not in self.inputs.imp_scf:
             self.out('impurity_potential', self.ctx.last_imp_calc.outputs.converged_potential)
         else:
-            self.out('impurity_potential', self.inputs.imp_scf.startpot)
+            self.out('impurity_potential', self.inputs.imp_scf.converged_potential)

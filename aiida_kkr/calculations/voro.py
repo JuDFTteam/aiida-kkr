@@ -76,6 +76,12 @@ class VoronoiCalculation(CalcJob):
             required=False,
             help='Use a node that specifies the potential which is used instead of the voronoi output potential'
         )
+        spec.input(
+            'shapefun_overwrite',
+            valid_type=SinglefileData,
+            required=False,
+            help='Use a node that specifies the shapefun which is used instead of the voronoi output'
+        )
         # define outputs
         spec.output('output_parameters', valid_type=Dict, required=True, help='results of the calculation')
         spec.default_output_node = 'output_parameters'
@@ -101,7 +107,7 @@ class VoronoiCalculation(CalcJob):
         vca_structure = False
         if found_structure:
             # for VCA: check if input structure and parameter node define VCA structure
-            vca_structure = vca_check(structure, parameters)
+            vca_structure = vca_check(structure, parameters)  # pylint: disable=used-before-assignment
 
         code = self.inputs.code
 
@@ -114,7 +120,7 @@ class VoronoiCalculation(CalcJob):
 
         if found_parent:
             # check if parent is either Voronoi or previous KKR calculation
-            overwrite_potential, parent_calc = self._check_valid_parent(parent_calc_folder)
+            overwrite_potential, parent_calc = self._check_valid_parent(parent_calc_folder)  # pylint: disable=possibly-used-before-assignment
 
             #cross check if no structure was given and extract structure from parent
             if found_structure and not vca_structure:
@@ -182,7 +188,7 @@ class VoronoiCalculation(CalcJob):
                 outfolder = parent_calc.outputs.retrieved  # copy from remote folder
                 copylist = [parent_calc.process_class._OUT_POTENTIAL]
             elif has_potfile_overwrite:
-                outfolder = potfile_overwrite  # copy from potential sfd
+                outfolder = potfile_overwrite  # copy from potential sfd  # pylint: disable=possibly-used-before-assignment
                 copylist = [potfile_overwrite.filename]
             else:
                 copylist = []
@@ -191,7 +197,13 @@ class VoronoiCalculation(CalcJob):
                 filename = file1
                 if (found_parent or has_potfile_overwrite) and file1 == copylist[0]:
                     filename = self._POTENTIAL_IN_OVERWRITE
-                local_copy_list.append((outfolder.uuid, file1, filename))
+                local_copy_list.append((outfolder.uuid, file1, filename))  # pylint: disable=possibly-used-before-assignment
+
+            # add shapefun to overwrite
+            if 'shapefun_overwrite' in self.inputs:
+                shapefun_overwrite = self.inputs.shapefun_overwrite
+                filename = shapefun_overwrite.filename
+                local_copy_list.append((shapefun_overwrite.uuid, filename, 'shapefun_overwrite'))
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()

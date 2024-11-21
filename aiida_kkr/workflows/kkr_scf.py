@@ -33,8 +33,8 @@ from aiida_kkr.workflows.dos import kkr_dos_wc
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.11.1'
-__contributors__ = (u'Jens Broeder', u'Philipp Rüßmann')
+__version__ = '0.11.2'
+__contributors__ = (u'Jens Broeder', u'Philipp Rüßmann', u'David Antognini Silva')
 
 eV2Ry = 1.0 / get_Ry2eV()
 
@@ -262,6 +262,12 @@ class kkr_scf_wc(WorkChain):
             Initial non-collinear angles for the magnetic moments of the
             impurities. See KkrCalculation for details.
             """
+        )
+        spec.input(
+            'params_kkr_overwrite',
+            valid_type=orm.Dict,
+            required=False,
+            help='Set some input parameters of the KKR calculation.'
         )
 
         # define output nodes
@@ -1218,7 +1224,14 @@ class kkr_scf_wc(WorkChain):
         description = f'KKR calculation of step {self.ctx.loop_count}, using mixing scheme {self.ctx.last_mixing_scheme}'
         code = self.inputs.kkr
         remote = self.ctx.last_remote
-        params = self.ctx.last_params
+        params = self.ctx.last_params.get_dict()
+
+        # overwrite some parameters of the KKR calculation by hand before setting mandatory keys
+        if 'params_kkr_overwrite' in self.inputs:
+            for key, val in self.inputs.params_kkr_overwrite.get_dict().items():
+                params[key] = val
+                self.report(f'INFO: overwriting KKR parameter: {key} with {val} from params_kkr_overwrite input node')
+
         options = {
             'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
             'resources': self.ctx.resources,
@@ -1233,7 +1246,7 @@ class kkr_scf_wc(WorkChain):
             options,
             label,
             description,
-            parameters=params,
+            parameters=orm.Dict(params),
             serial=(not self.ctx.withmpi),
         )
 
@@ -1885,14 +1898,14 @@ def create_scf_result_node(**kwargs):
     outdict = {}
 
     if has_last_outpara:
-        outputnode = outpara
+        outputnode = outpara  # pylint: disable=possibly-used-before-assignment
         outputnode.label = 'workflow_Results'
         outputnode.description = ('Contains self-consistency results and '
                                   'information of an kkr_scf_wc run.')
         outdict['output_kkr_scf_wc_ParameterResults'] = outputnode
 
     if has_last_calc_out_dict:
-        outputnode = last_calc_out_dict
+        outputnode = last_calc_out_dict  # pylint: disable=used-before-assignment
         outputnode.label = 'last_calc_out'
         outputnode.description = (
             'Contains the Results Parameter node from the output '
@@ -1901,7 +1914,7 @@ def create_scf_result_node(**kwargs):
         outdict['last_calc_out'] = outputnode
 
     if has_last_RemoteData:
-        outputnode = last_RemoteData_dict
+        outputnode = last_RemoteData_dict  # pylint: disable=used-before-assignment
         outputnode.label = 'last_RemoteData'
         outputnode.description = (
             'Contains a link to the latest remote data node '
@@ -1910,7 +1923,7 @@ def create_scf_result_node(**kwargs):
         outdict['last_RemoteData'] = outputnode
 
     if has_last_InputParameters:
-        outputnode = last_InputParameters_dict
+        outputnode = last_InputParameters_dict  # pylint: disable=used-before-assignment
         outputnode.label = 'last_InputParameters'
         outputnode.description = (
             'Contains the latest parameter data node '
@@ -1919,7 +1932,7 @@ def create_scf_result_node(**kwargs):
         outdict['last_InputParameters'] = outputnode
 
     if has_vorostart_output:
-        outputnode = vorostart_output_dict
+        outputnode = vorostart_output_dict  # pylint: disable=used-before-assignment
         outputnode.label = 'results_vorostart'
         outputnode.description = (
             'Contains the results parameter data node '
@@ -1928,14 +1941,14 @@ def create_scf_result_node(**kwargs):
         outdict['results_vorostart'] = outputnode
 
     if has_starting_dos:
-        outputnode = start_dosdata_interpol_dict
+        outputnode = start_dosdata_interpol_dict  # pylint: disable=used-before-assignment
         outputnode.label = 'starting_dosdata_interpol'
         outputnode.description = ('Contains the interpolated DOS data note, computed '
                                   'from the starting portential.')
         outdict['starting_dosdata_interpol'] = outputnode
 
     if has_final_dos:
-        outputnode = final_dosdata_interpol_dict
+        outputnode = final_dosdata_interpol_dict  # pylint: disable=used-before-assignment
         outputnode.label = 'final_dosdata_interpol'
         outputnode.description = ('Contains the interpolated DOS data note, computed '
                                   'from the converged potential.')

@@ -14,15 +14,16 @@ from .kkr import KkrCalculation
 from aiida_kkr.tools.tools_kkrimp import modify_potential, make_scoef, write_scoef_full_imp_cls, get_imp_info_from_parent
 from aiida_kkr.tools.common_workfunctions import get_username
 from aiida_kkr.tools.ldau import get_ldaupot_text
+from aiida_kkr.tools.imp_cluster_tools import get_scoef_single_imp
 from masci_tools.io.common_functions import search_string, get_ef_from_potfile
 import os
 import tarfile
-from numpy import array, array_equal, sqrt, sum, where, loadtxt
+import numpy as np
 
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.9.1'
+__version__ = '0.10.2'
 __contributors__ = (u'Philipp Rüßmann', u'Fabian Bertoldo')
 
 #TODO: implement 'ilayer_center' consistency check
@@ -50,6 +51,7 @@ class KkrimpCalculation(CalcJob):
     _KKRFLEX_ANGLE = u'kkrflex_angle'
     _KKRFLEX_LLYFAC = u'kkrflex_llyfac'
     _KKRFLEX_SOCFAC = u'kkrflex_spinorbitperatom'
+    _KKRFLEX_RIMPSHIFT = u'kkrflex_rimpshift'
 
     # full list of kkrflex files
     _ALL_KKRFLEX_FILES = KkrCalculation._ALL_KKRFLEX_FILES
@@ -147,13 +149,14 @@ class KkrimpCalculation(CalcJob):
             required=False,
             help="""
 Settings for running a LDA+U calculation. The Dict node should be of the form
-    settings_LDAU = Dict(dict={'iatom=0':{
+    settings_LDAU = Dict({'iatom=0':{
         'L': 3,         # l-block which gets U correction (1: p, 2: d, 3: f-electrons)
         'U': 7.,        # U value in eV
         'J': 0.75,      # J value in eV
         'Eref_EF': 0.,  # reference energy in eV relative to the Fermi energy. This is the energy where the projector wavefunctions are calculated (should be close in energy where the states that are shifted lie (e.g. for Eu use the Fermi energy))
     }})
-    Note: you can add multiple entries like the one for iatom==0 in this example. The atom index refers to the corresponding atom in the impurity cluster.
+
+Note: you can add multiple entries like the one for iatom==0 in this example. The atom index refers to the corresponding atom in the impurity cluster.
 """
         )
         spec.input(
@@ -163,12 +166,27 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             help="""
 Initial non-collinear angles for the magnetic moments of the impurities. These values will be written into the `kkrflex_angle` input file of KKRimp.
 The Dict node should be of the form
-    initial_noco_angles = Dict(dict={
+    initial_noco_angles = Dict({
         'theta': [theta_at1, theta_at2, ..., theta_atN], # list theta values in degrees (0..180)
         'phi': [phi_at1, phi_at2, ..., phi_atN],         # list phi values in degrees (0..360)
         'fix_dir': [True, False, ..., True/False],       # list of booleans indicating of the direction of the magentic moment should be fixed or is allowed to be updated (True means keep the direction of the magnetic moment fixed)
     })
-    Note: The length of the theta, phi and fix_dir lists have to be equal to the number of atoms in the impurity cluster.
+
+Note: The length of the theta, phi and fix_dir lists have to be equal to the number of atoms in the impurity cluster.
+"""
+        )
+        spec.input(
+            'rimpshift',
+            valid_type=Dict,
+            required=False,
+            help="""
+Shift for atoms in the impurity cluster used in U-transformation.
+
+The Dict node should be of the form
+    rimpshift = Dict({'shifts': [[0., 0., 0.], ... ]})
+where the shifts are given in atomic units (i.e. the internal KKR units).
+
+Note: The length of the 'shifts' attribute should be an array with three numbers indicating the shift for each atom in the impurity cluster.
 """
         )
 
@@ -221,6 +239,9 @@ The Dict node should be of the form
             self._KKRFLEX_SOCFAC, self._OUT_POTENTIAL, self._OUTPUT_000, self._OUT_TIMING_000,
             self._OUT_ENERGYSP_PER_ATOM, self._OUT_ENERGYTOT_PER_ATOM
         ]
+
+        # maybe create kkrflex_rimpshift file
+        self._write_kkrflex_rimpshift(tempfolder, parameters)
 
         # extract run and test options (these change retrieve list in some cases)
         allopts = self.get_run_test_opts(parameters)
@@ -295,6 +316,7 @@ The Dict node should be of the form
             parent_calc = parent_calcs.first().node
         # extract impurity_info
         found_impurity_inputnode = False
+        found_host_parent = False
         if 'impurity_info' in self.inputs:
             imp_info_inputnode = self.inputs.impurity_info
             if not isinstance(imp_info_inputnode, Dict):
@@ -310,18 +332,29 @@ The Dict node should be of the form
         # case, raise an error
         if found_impurity_inputnode and found_host_parent:
             check_consistency_imp_info = False
-            #TODO: implement also 'ilayer_center' check
             if 'imp_cls' in imp_info_inputnode.get_dict().keys():
-                input_imp_cls_arr = array(imp_info_inputnode.get_dict()['imp_cls'])
-                parent_imp_cls_arr = array(imp_info.get_dict()['imp_cls'])
-                is_identical = array_equal(input_imp_cls_arr[:, 0:4], parent_imp_cls_arr[:, 0:4])
+                input_imp_cls_arr = np.array(imp_info_inputnode.get_dict()['imp_cls'])
+
+                try:
+                    parent_imp_cls_arr = np.array(imp_info.get_dict()['imp_cls'])
+                except:
+                    host_structure, _ = VoronoiCalculation.find_parent_structure(parent_calc)
+                    parent_imp_cls_arr = get_scoef_single_imp(host_structure, imp_info)
+
+                is_identical = np.array_equal(
+                    np.round(input_imp_cls_arr[:, 0:4], 5), np.round(parent_imp_cls_arr[:, 0:4], 5)
+                )
 
                 if is_identical:
                     check_consistency_imp_info = True
                 else:
                     self.report('impurity_info node from input and from previous GF calculation are NOT compatible!.')
+                    self.report(f'impurity_info node from input: {input_imp_cls_arr[:, 0:4]}')
+                    self.report(f'impurity_info node from previous GF calculation: {parent_imp_cls_arr[:, 0:4]}')
 
+            #TODO: implement also 'ilayer_center' check
             elif imp_info_inputnode.get_dict().get('Rcut') == imp_info.get_dict().get('Rcut'):
+
                 check_consistency_imp_info = True
                 try:
                     if (
@@ -534,9 +567,9 @@ The Dict node should be of the form
             n_rows = len(scoeffile.readlines()) - 1
         with tempfolder.open(KkrCalculation._SCOEF, u'r') as scoeffile:
             if n_rows > 1:
-                scoef = loadtxt(scoeffile, skiprows=1)[:, :3]
+                scoef = np.loadtxt(scoeffile, skiprows=1)[:, :3]
             else:
-                scoef = loadtxt(scoeffile, skiprows=1)[:3]
+                scoef = np.loadtxt(scoeffile, skiprows=1)[:3]
 
         # find replaceZimp list from Zimp and Rimp_rel
         imp_info_dict = imp_info.get_dict()
@@ -547,14 +580,14 @@ The Dict node should be of the form
         self.report(f'DEBUG: Rimp_rel_list: {Rimp_rel_list}.')
 
         for iatom in range(len(Zimp_list)):
-            rtmp = array(Rimp_rel_list[iatom])[:3]
+            rtmp = np.array(Rimp_rel_list[iatom])[:3]
             self.report(f'INFO: Rimp_rel {iatom}, {rtmp}')
             if n_rows > 1:
-                diff = sqrt(sum((rtmp - scoef)**2, axis=1))
+                diff = np.sqrt(np.sum((rtmp - scoef)**2, axis=1))
             else:
-                diff = sqrt(sum((rtmp - scoef)**2, axis=0))
+                diff = np.sqrt(np.sum((rtmp - scoef)**2, axis=0))
             Zimp = Zimp_list[iatom]
-            ipos_replace = where(diff == diff.min())[0][0]
+            ipos_replace = np.where(diff == diff.min())[0][0]
             replace_zatom_imp.append([ipos_replace, Zimp])
 
         for (iatom, zimp) in replace_zatom_imp:
@@ -845,7 +878,7 @@ The Dict node should be of the form
 
         # check if calculation is no Jij run
         if parameters.get_value('CALCJIJMAT') is not None and parameters.get_value('CALCJIJMAT') == 1:
-            raise InputValidationError('ERROR: ')
+            raise InputValidationError('ERROR: angles cannot be set if Jij mode is chosen!')
 
         # extract NATOM from atominfo file
         natom = self._get_natom(GFhost_folder)
@@ -878,8 +911,36 @@ The Dict node should be of the form
                     )
                 if phi < 0 or phi > 360:
                     raise InputValidationError(f'Error: phi value out of range (0..360): iatom={iatom}, phi={phi}')
+                # convert fix_dir to integer if given as boolean
+                if isinstance(fix_dir, bool):
+                    fix_dir = (1 if fix_dir else 0)
                 # write line
                 kkrflex_angle_file.write(f'   {theta}    {phi}    {fix_dir}\n')
+
+    def _write_kkrflex_rimpshift(self, tempfolder, parameters):
+        """Create the kkrflex_rimpshift file in tempfolder for U-transformation"""
+
+        if 'rimpshift' in self.inputs:
+            # check if calculation is no Jij run
+            if parameters.get_value('LATTICE_RELAX') is not None and parameters.get_value('LATTICE_RELAX') != 1:
+                raise InputValidationError('ERROR: "LATTICE_RELAX" in the input parameters needs to be set to 1.')
+
+            # extract NATOM from atominfo file
+            natom = self._get_natom(tempfolder)
+
+            # extract values from input node
+            rimpshift = self.inputs.rimpshift['shifts']
+            if len(rimpshift) != natom:
+                raise InputValidationError(
+                    'Error: `shifts` list in `rimpshift` input node needs to have the same length as number of atoms in the impurity cluster!'
+                )
+
+            # now write kkrflex_rimpshift file
+            with tempfolder.open(self._KKRFLEX_RIMPSHIFT, 'w') as kkrflex_rimpshift_file:
+                for iatom in range(natom):
+                    shift = rimpshift[iatom]
+                    # write line
+                    kkrflex_rimpshift_file.write(f'   {shift[0]}    {shift[1]}    {shift[2]}\n')
 
     def _check_key_setting_consistency(self, params_kkrimp, key, val):
         """

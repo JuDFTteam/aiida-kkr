@@ -418,10 +418,12 @@ def find_neighbors(structure, structure_array, i, radius, clust_shape='spherical
         box_1 = int(maxval / structure.cell_lengths[0] + 3)
         box_2 = int(maxval / structure.cell_lengths[1] + 3)
         box_3 = int(maxval / sl3 + 3)
+    else:
+        raise ValueError("clust_shape needs to be either 'sperical' or 'cylindrical'")
     #================================================================================================================
 
     #create array of all the atoms in an expanded system
-    box = max(box_1, box_2, box_3)
+    box = max(box_1, box_2, box_3)  #pylint: disable=possibly-used-before-assignment
     cell = np.array(structure.cell)
     cell[2] = c3
     for j in range(len(x)):
