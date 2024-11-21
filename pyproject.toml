@@ -71,8 +71,7 @@ testing = [
     "pytest-mpl >= 0.10",
     "pytest-timeout >= 1.3.3",
     "pytest-regressions >= 1.0",
-    "MarkupSafe < 3.1.0",
-    "aiida-test-cache @ git+https://github.com/PhilippRue/aiida-test-cache.git@change_aiida-core_version"
+    "MarkupSafe < 3.1.0"
 ]
 docs = [
     "Sphinx >= 1.8.2",
