@@ -212,7 +212,7 @@ class KKRnanoCalculation(CalcJob):
 
         else:
             raise InputValidationError(
-                'Either `strucwithpot` or a `parent_folder` has to be provided.\          If necessary remove one of the inputs.'
+                'Either `strucwithpot` or a `parent_folder` has to be provided. If necessary remove one of the inputs.'
             )
 
         print('passed lattice constant=', passed_lattice_const)
