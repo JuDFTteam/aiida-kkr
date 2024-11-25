@@ -295,7 +295,7 @@ If given then the writeout step of the host GF is omitted."""
                 host_GF = imp_1.inputs.host_Greenfunction_folder
                 host_GF_calc = host_GF.base.links.get_incoming(node_class=CalcJobNode).first().node
                 impurity_info = host_GF_calc.inputs.impurity_info
-                Zimp_num_1 = impurity_info.get_dict().get('Zimp')
+            Zimp_num_1 = impurity_info.get_dict().get('Zimp')
 
             if isinstance(Zimp_num_1, list):
                 if len(Zimp_num_1) > 1:
@@ -317,7 +317,7 @@ If given then the writeout step of the host GF is omitted."""
                 host_GF = imp_2.inputs.host_Greenfunction_folder
                 host_GF_calc = host_GF.base.links.get_incoming(node_class=CalcJobNode).first().node
                 impurity_info = host_GF_calc.inputs.impurity_info
-                Zimp_num_2 = impurity_info.get_dict().get('Zimp')
+            Zimp_num_2 = impurity_info.get_dict().get('Zimp')
 
             if isinstance(Zimp_num_2, list):
                 if len(Zimp_num_2) > 1:
