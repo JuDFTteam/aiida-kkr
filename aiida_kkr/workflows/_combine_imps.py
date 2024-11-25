@@ -19,7 +19,7 @@ from masci_tools.io.common_functions import get_Ry2eV
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.3.5'
+__version__ = '0.3.6'
 __contributors__ = (u'Philipp Rüßmann , Rubel Mozumder, David Antognini Silva')
 
 # activate debug writeout
@@ -289,7 +289,14 @@ If given then the writeout step of the host GF is omitted."""
         imp_2 = self.ctx.imp2
         # check for the impurity1 whether from single kkr_imp_wc or not
         if imp_1.process_class == KkrimpCalculation:
-            Zimp_num_1 = imp_1.inputs.impurity_info.get_dict().get('Zimp')
+            try:
+                impurity_info = imp_1.inputs.impurity_info
+            except:
+                host_GF = imp_1.inputs.host_Greenfunction_folder
+                host_GF_calc = host_GF.base.links.get_incoming(node_class=CalcJobNode).first().node
+                impurity_info = host_GF_calc.inputs.impurity_info
+                Zimp_num_1 = impurity_info.get_dict().get('Zimp')
+
             if isinstance(Zimp_num_1, list):
                 if len(Zimp_num_1) > 1:
                     single_imp_1 = False
@@ -304,7 +311,14 @@ If given then the writeout step of the host GF is omitted."""
 
         # check for the impurity2 whether from single kkr_imp_wc or not
         if imp_2.process_class == KkrimpCalculation:
-            Zimp_num_2 = imp_2.inputs.impurity_info.get_dict().get('Zimp')
+            try:
+                impurity_info = imp_2.inputs.impurity_info
+            except:
+                host_GF = imp_2.inputs.host_Greenfunction_folder
+                host_GF_calc = host_GF.base.links.get_incoming(node_class=CalcJobNode).first().node
+                impurity_info = host_GF_calc.inputs.impurity_info
+                Zimp_num_2 = impurity_info.get_dict().get('Zimp')
+
             if isinstance(Zimp_num_2, list):
                 if len(Zimp_num_2) > 1:
                     single_imp_2 = False
@@ -393,7 +407,7 @@ If given then the writeout step of the host GF is omitted."""
                 imps_info_in_exact_cluster['Zimps'].append(Zimp_2)
 
             imps_info_in_exact_cluster['ilayers'].append(imp2_impurity_info.get_dict()['ilayer_center'])
-            # TODO: Delete the below print line as it is for deburging
+            # TODO: Delete the below print line as it is for debugging
             self.report(f'DEBUG: The is the imps_info_in_exact_cluster dict: {imps_info_in_exact_cluster}\n')
             return 0, imps_info_in_exact_cluster  # return also exit code
 

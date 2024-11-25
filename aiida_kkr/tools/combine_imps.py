@@ -32,10 +32,6 @@ def get_host_structure(impurity_workflow_or_calc):
     extract host structure from impurity
     """
     #TODO extract host parent no from input but take into account calculation of host GF from inside kkrimp full workflow
-    print(
-        f'This is line in the combine impurity tool files at:: /opt/aiida-kkr/aiida_kkr/tools for deburging the line',
-        end=' '
-    )
     print(f'impurity_workflow_or_calc: {impurity_workflow_or_calc}')
     if impurity_workflow_or_calc.process_class == KkrimpCalculation:
         host_parent = impurity_workflow_or_calc.inputs.host_Greenfunction_folder
