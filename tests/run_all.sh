@@ -126,6 +126,7 @@ elif [[ ! -z "$GITHUB_SUITE" ]]; then
 	  ./workflows/test_decimate.py \
 	  ./workflows/test_kkrimp_dos_wc.py \
 	  ./workflows/test_kkrimp_full_wc.py \
+	  ./workflows/test_combine_imps.py \
 	  ./workflows/test_stm.py \
 	  $addopt
   # full list, excludes:
