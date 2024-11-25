@@ -5,17 +5,13 @@ Tests for Jij workflow
 """
 
 import pytest
+from aiida.engine import run_get_node
 from ..dbsetup import *
-from aiida_testing.export_cache._fixtures import run_with_cache, export_cache, load_cache, hash_code_by_entrypoint
-from aiida.manage.tests.pytest_fixtures import (
-    aiida_local_code_factory, aiida_localhost, temp_dir, aiida_profile, clear_database, clear_database_after_test,
-    clear_database_before_test
-)
 from ..conftest import kkrhost_local_code, data_dir, import_with_migration
 
 
 @pytest.mark.timeout(240, method='thread')
-def test_jij(clear_database_before_test, kkrhost_local_code, run_with_cache, ndarrays_regression):
+def test_jij(clear_database_before_test, kkrhost_local_code, enable_archive_cache, ndarrays_regression):
     """
     Jij test with SOC
     """
@@ -57,7 +53,8 @@ def test_jij(clear_database_before_test, kkrhost_local_code, run_with_cache, nda
     })
 
     # run the calculation using cached data is available
-    out, _ = run_with_cache(builder, data_dir=data_dir)
+    with enable_archive_cache(data_dir / 'jij.aiida'):
+        out, node = run_get_node(builder)
 
     # check results
     print('check results', out)
@@ -73,7 +70,7 @@ def test_jij(clear_database_before_test, kkrhost_local_code, run_with_cache, nda
 
 
 @pytest.mark.timeout(240, method='thread')
-def test_jij_soc(clear_database_before_test, kkrhost_local_code, run_with_cache, ndarrays_regression):
+def test_jij_soc(clear_database_before_test, kkrhost_local_code, enable_archive_cache, ndarrays_regression):
     """
     Jij test with SOC
     """
@@ -122,7 +119,8 @@ def test_jij_soc(clear_database_before_test, kkrhost_local_code, run_with_cache,
     })
 
     # run the calculation using cached data is available
-    out, _ = run_with_cache(builder, data_dir=data_dir)
+    with enable_archive_cache(data_dir / 'jij_soc.aiida'):
+        out, node = run_get_node(builder)
 
     # check results
     print('check results', out)

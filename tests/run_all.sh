@@ -121,6 +121,7 @@ elif [[ ! -z "$GITHUB_SUITE" ]]; then
 	  ./workflows/test_dos_wc.py \
 	  ./workflows/test_bs_wc.py \
 	  ./workflows/test_gf_writeout_wc.py \
+	  ./workflows/test_jij_wc.py \
 	  ./workflows/test_eos.py \
 	  ./workflows/test_decimate.py \
 	  ./workflows/test_kkrimp_dos_wc.py \
