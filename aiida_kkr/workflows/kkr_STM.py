@@ -13,7 +13,7 @@ from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
 __copyright__ = (u'Copyright (c), 2024, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.4'
+__version__ = '0.1.5'
 __contributors__ = (u'Raffaele Aliberti', u'David Antognini Silva', u'Philipp Rüßmann')
 _VERBOSE_ = False
 
@@ -72,6 +72,18 @@ class kkr_STM_wc(WorkChain):
     # add defaults of dos_params since they are passed onto that workflow
     _wf_default['dos_params'] = kkr_imp_dos_wc.get_wf_defaults()['dos_params']
 
+    # return default values (helpful for users)
+    @classmethod
+    def get_wf_defaults(cls, silent=False):
+        """Print and return _wf_default dictionary.
+
+        Can be used to easily create set of wf_parameters.
+        returns _wf_default, _options_default
+        """
+        if not silent:
+            print(f'Version of workflow: {cls._wf_version}')
+        return cls._wf_default
+
     @classmethod
     def define(cls, spec):
         """
@@ -119,13 +131,6 @@ class kkr_STM_wc(WorkChain):
             help='Information of the impurity like position in the unit cell, screening cluster, atom type.'
         )
         spec.input(
-            'host_calc',
-            valid_type=RemoteData,
-            required=False,
-            help='The information about the clean host structure is required in order to continue the cluster'
-            'Inside a bigger host structure with empty sites.'
-        )
-        spec.input(
             'host_remote',
             valid_type=RemoteData,
             required=True,
@@ -136,12 +141,6 @@ class kkr_STM_wc(WorkChain):
             valid_type=SinglefileData,
             required=True,
             help='Impurity potential node',
-        )
-        spec.input(
-            'remote_data',
-            valid_type=RemoteData,
-            required=False,
-            help='Remote data from a converged kkr calculation, required for the gf writeout step',
         )
         spec.input(
             'kkrflex_files',
@@ -373,15 +372,15 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
             impurity_info_aux = impurity_info
             imp_potential_node_aux = imp_potential_node
 
+        # Case in which we don't pass any element to embed in the impurity cluster, it
+        # uses the impurity files given in the inputs.
+        if len(coeff) == 0:
+            return impurity_info, imp_potential_node
+
         for element in coeff:
 
             if _VERBOSE_:
                 t0 = time()
-
-            # Case in which we don't pass any element to embed in the impurity cluster, it
-            # uses the impurity files given in the inputs.
-            if element == []:
-                return impurity_info, imp_potential_node
 
             # Check if the position is already in the cluster
             # for this we need to first get the position

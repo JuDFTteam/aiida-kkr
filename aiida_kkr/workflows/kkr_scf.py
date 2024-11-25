@@ -162,7 +162,6 @@ class kkr_scf_wc(WorkChain):
     _options_default.custom_scheduler_commands = ''  # some additional scheduler commands
 
     # intended to guide user interactively in setting up a valid wf_params node
-
     @classmethod
     def get_wf_defaults(cls, silent=False):
         """Print and return _wf_default dictionary.

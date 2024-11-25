@@ -13,7 +13,7 @@ from masci_tools.io.common_functions import get_alat_from_bravais
 __copyright__ = (u'Copyright (c), 2023, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.3'
+__version__ = '0.1.4'
 __contributors__ = (u'Philipp Rüßmann', u'Raffaele Aliberti')
 
 ##############################################################################
@@ -279,12 +279,15 @@ def STM_pathfinder(host_remote):
     py_struc = supp_struc.get_pymatgen()
 
     struc_dict = py_struc.as_dict()
-    # Find the Bravais vectors that are in plane vectors
+    # Find the Bravais vectors that are in-plane vectors (assumes 2D structure)
     plane_vectors = {'plane_vectors': [], 'space_group': ''}
     for vec in struc_dict['lattice']['matrix']:
         # Is this sufficient to find all the in-plane vectors?
-        if vec[2] == 0:
+        if vec[2] == 0 or (struc.pbc[2] and (vec[0] + vec[1]) > 0):
             plane_vectors['plane_vectors'].append(vec[:2])
+    # finally check if setting of plane_vectors worked
+    if 'plane_vectors' not in plane_vectors:
+        raise ValueError('Could not set "plane_vectors" in STM_pathfinder')
 
     # Here we get the symmetry operations that are possible
     symmetry_matrices = SpacegroupAnalyzer(py_struc).get_point_group_operations(cartesian=True)
@@ -493,28 +496,18 @@ def find_linear_combination_coefficients(plane_vectors, vectors):
 
     # Formulate the system of equations Ax = b
     A = np.vstack((plane_vectors[0], plane_vectors[1])).T
-
-    # Solve the system of equations using least squares method
-    data = []
-    for element in vectors:
-        b = element
-        # We use the least square mean error procedure to evaulate the units of da and db
-        # lstsq returns: coeff, residue, rank, and singular value
-        # We only need the coefficient.
-        data.append(np.linalg.lstsq(A, b, rcond=None))
-
+    # inverse of A matrix
+    Ainv = np.matrix(A)**(-1)
     indices = []
-    for element in data:
-        supp = []
-        for elem in element[0]:
-            # Here we round to an integer, this is because of the numerical error
-            # which is present inside the calculation.
-            supp.append(round(elem))
-        indices.append(supp)
+    # loop over flattened list
+    for vec in np.array(vectors).reshape(-1, 2):
+        # get indices from x = A^{-1}.b
+        index = np.array((Ainv * np.matrix(vec).transpose()).transpose()).reshape(2)
+        indices.append(index)
+    # make sure to have integer values
+    indices = np.round(np.array(indices), 0)
 
-    # Before returning the indices, we reorder them first from the lowest to the highest valued
-    # on the x axis and then from the lowest to the highest on the y axis.
-
-    indices = sorted(indices, key=itemgetter(0, 1))
+    isort = indices[:, 0] + indices[:, 1] / (10 * max(indices[:, 0]))
+    indices = indices[isort.argsort()]
 
     return indices
