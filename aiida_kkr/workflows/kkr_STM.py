@@ -13,9 +13,9 @@ from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
 __copyright__ = (u'Copyright (c), 2024, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.1'
+__version__ = '0.1.5'
 __contributors__ = (u'Raffaele Aliberti', u'David Antognini Silva', u'Philipp Rüßmann')
-_VERBOSE_ = True
+_VERBOSE_ = False
 
 
 class kkr_STM_wc(WorkChain):
@@ -33,7 +33,7 @@ class kkr_STM_wc(WorkChain):
         :param kkr: (Code), KKR host code for the writing out kkrflex files
         :param kkrimp: (Code), KKR impurity code for the normal state impurity scf and BdG impurity DOS calculation
         :param gf_writeout.params_kkr_overwrite (Dict), overwrite parameters for the GF calculation
-        :param kkr_imp_sub.params_kkr_overwrite (Dict), overwrite parameters for the impurity calculation
+        :param kkr_imp_sub.params_overwrite (Dict), overwrite parameters for the impurity calculation
 
      returns::
 
@@ -45,8 +45,7 @@ class kkr_STM_wc(WorkChain):
     # TO DO: Add the initialize step.
     # TO DO: Add a better creation of the impurity cluster.
     # TO DO: Add check that between the ilayer and the actual number of layers in the structure.
-    # TO DO: Add to the outputs the calculated imp_info and imp_potential.
-    # TO DO: Add BdG options for the builder run
+    # TO DO: Don't run the clustering step if kkrflexfiles are given: It's redundant and it can lead to errors
 
     _wf_version = __version__
     _wf_label = 'STM_wc'
@@ -72,6 +71,18 @@ class kkr_STM_wc(WorkChain):
     }
     # add defaults of dos_params since they are passed onto that workflow
     _wf_default['dos_params'] = kkr_imp_dos_wc.get_wf_defaults()['dos_params']
+
+    # return default values (helpful for users)
+    @classmethod
+    def get_wf_defaults(cls, silent=False):
+        """Print and return _wf_default dictionary.
+
+        Can be used to easily create set of wf_parameters.
+        returns _wf_default, _options_default
+        """
+        if not silent:
+            print(f'Version of workflow: {cls._wf_version}')
+        return cls._wf_default
 
     @classmethod
     def define(cls, spec):
@@ -120,13 +131,6 @@ class kkr_STM_wc(WorkChain):
             help='Information of the impurity like position in the unit cell, screening cluster, atom type.'
         )
         spec.input(
-            'host_calc',
-            valid_type=RemoteData,
-            required=False,
-            help='The information about the clean host structure is required in order to continue the cluster'
-            'Inside a bigger host structure with empty sites.'
-        )
-        spec.input(
             'host_remote',
             valid_type=RemoteData,
             required=True,
@@ -137,12 +141,6 @@ class kkr_STM_wc(WorkChain):
             valid_type=SinglefileData,
             required=True,
             help='Impurity potential node',
-        )
-        spec.input(
-            'remote_data',
-            valid_type=RemoteData,
-            required=False,
-            help='Remote data from a converged kkr calculation, required for the gf writeout step',
         )
         spec.input(
             'kkrflex_files',
@@ -189,24 +187,21 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
             cls.results
         )
 
-    def combine_potentials(self, host_structure, impurity_to_combine, da, db):
+    def combine_imp_info(self, host_structure, impurity_to_combine, da, db):
         from aiida_kkr.tools.tools_STM_scan import get_imp_info_add_position
         import numpy as np  # TO DO: optimize this call, only need append from numpy
         """
         Here we want to combine the impurity information and the host information
         """
-        tip_position = {}
-
-        tip_position['ilayer'] = self.inputs.tip_position['ilayer']
-        tip_position['da'] = da
-        tip_position['db'] = db
+        tip_position = self.get_tip_position_dict(da, db)
         imp_info = self.inputs.imp_info  #(impurity to combine)
 
         combined_imp_info = get_imp_info_add_position(Dict(tip_position), host_structure, imp_info)
-        # Since the objects in AiiDA are immutable we have to create a new dictionary and then convert
-        # it to the right AiiDA type
 
-        #new_combined_imp_info = {}
+        # If the position already exists we simply return the old dictionary
+        if combined_imp_info is None:
+            return impurity_to_combine
+
         # Add check to see if imp_cls is there
         if 'imp_cls' in impurity_to_combine:
 
@@ -225,23 +220,25 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
         return new_combined_imp_info
 
-    def combine_nodes(self, host_calc, node_to_combine, da, db):
+    def combine_potentials(self, host_calc, node_to_combine, da, db):
         from aiida_kkr.tools.tools_STM_scan import create_combined_potential_node
         """
         Here we create a combined potential node from the host potential (no impurity)
         and from the impurity potential
         """
 
-        # Since the objects in AiiDA are immutable we have to create a new dictionary and then convert
-        # it to the right AiiDA type
+        tip_position = self.get_tip_position_dict(da, db)
+        combined_potential_node = create_combined_potential_node(tip_position, host_calc, node_to_combine)
+        return combined_potential_node
+
+    def get_tip_position_dict(self, da, db):
+        # Since the objects in AiiDA are immutable we have to create a new dictionary
+        # and then convert it to the right AiiDA type
         tip_position = {}
-        # for now we require that the z position remains the same.
         tip_position['ilayer'] = self.inputs.tip_position['ilayer']
         tip_position['da'] = da
         tip_position['db'] = db
-
-        combined_node = create_combined_potential_node(tip_position, host_calc, node_to_combine)
-        return combined_node
+        return tip_position
 
     def start(self):
         """
@@ -309,14 +306,14 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
         if _VERBOSE_:
             message = f"""
-INFO: use the following parameter:
-withmpi: {self.ctx.withmpi}
-Resources: {self.ctx.resources}
-Walltime (s): {self.ctx.max_wallclock_seconds}
-queue name: {self.ctx.queue}
-scheduler command: {self.ctx.custom_scheduler_commands}
-description: {self.ctx.description_wf}
-label: {self.ctx.label_wf}
+                        INFO: use the following parameter:
+                        withmpi: {self.ctx.withmpi}
+                        Resources: {self.ctx.resources}
+                        Walltime (s): {self.ctx.max_wallclock_seconds}
+                        queue name: {self.ctx.queue}
+                        scheduler command: {self.ctx.custom_scheduler_commands}
+                        description: {self.ctx.description_wf}
+                        label: {self.ctx.label_wf}
                       """
             self.report(message)
 
@@ -339,9 +336,11 @@ label: {self.ctx.label_wf}
         used in self-consistency + the additional scanning sites.
         """
         from aiida_kkr.tools import find_parent_structure
+        from aiida_kkr.tools.imp_cluster_tools import pos_exists_already
+        from aiida_kkr.tools.tools_STM_scan import get_imp_cls_add, convert_to_imp_cls, offset_clust2
+
         if _VERBOSE_:
             from time import time
-
             # measure time at start
             t_start = time()
 
@@ -361,29 +360,66 @@ label: {self.ctx.label_wf}
             # timing counters
             t_imp_info, t_pot = 0., 0.
 
+        _, imp_clust = convert_to_imp_cls(host_structure, impurity_info)
+
         # construct impurity potential and imp_info for the impurity cluster + scanning area
+
+        # Check if the impuirty cluster already exists, if so create a new entity that can be modified
+        if 'imp_cls' in impurity_info:
+            impurity_info_aux = impurity_info.clone()
+            imp_potential_node_aux = imp_potential_node.clone()
+        else:  # Otherwise use the one from the inputs
+            impurity_info_aux = impurity_info
+            imp_potential_node_aux = imp_potential_node
+
+        # Case in which we don't pass any element to embed in the impurity cluster, it
+        # uses the impurity files given in the inputs.
+        if len(coeff) == 0:
+            return impurity_info, imp_potential_node
+
         for element in coeff:
+
             if _VERBOSE_:
                 t0 = time()
-            tmp_imp_info = self.combine_potentials(host_structure, impurity_info, element[0], element[1])
-            impurity_info = tmp_imp_info
+
+            # Check if the position is already in the cluster
+            # for this we need to first get the position
+            tmp_pos = self.get_tip_position_dict(element[0], element[1])
+            _, tmp_clust = get_imp_cls_add(host_structure, tmp_pos)
+            clust_offset = offset_clust2(imp_clust, tmp_clust, host_structure, Dict(tmp_pos))
 
             if _VERBOSE_:
-                t_imp_info += time() - t0
-                t0 = time()
+                t_cluster_offset += time() - t0
 
-            # Aggregation the impurity nodes
-            tmp_imp_pot = self.combine_nodes(host_calc, imp_potential_node, element[0], element[1])
-            imp_potential_node = tmp_imp_pot
+            if pos_exists_already(imp_clust[:, :3], clust_offset[:, :3])[0]:
+                message = f'INFO: The position {tmp_pos} is already present in the system, skipping it'
+                self.report(message)
+                continue  # If the position exists already skip the embedding
+            else:
+                # Aggregation of the impurity potential
+                tmp_imp_info = self.combine_imp_info(host_structure, impurity_info_aux, element[0], element[1])
+                impurity_info_aux = tmp_imp_info
 
-            if _VERBOSE_:
-                t_pot += time() - t0
+                if _VERBOSE_:
+                    self.report('imp info has been embedded')
+                    t_imp_info += time() - t0
+                    t0 = time()
+
+                # Aggregation the impurity nodes
+                tmp_imp_pot = self.combine_potentials(host_calc, imp_potential_node_aux, element[0], element[1])
+                imp_potential_node_aux = tmp_imp_pot
+
+                if _VERBOSE_:
+                    self.report('imp potential has been added')
+                    t_pot += time() - t0
 
         if _VERBOSE_:
             # report elapsed time for cluster generation
-            self.report(f'time for cluster generation (s): {time()-t_start}, imp_info={t_imp_info}, pot={t_pot}')
+            self.report(
+                f'time for cluster generation (s): {time()-t_start}, cluster generation={t_cluster_offset}, imp_info={t_imp_info}, pot={t_pot}'
+            )
 
-        return impurity_info, imp_potential_node
+        return impurity_info_aux, imp_potential_node_aux
 
     def get_scanning_positions(self, host_remote):
         """
@@ -395,6 +431,7 @@ label: {self.ctx.label_wf}
         Otherwise we use the 'nx', 'ny' input to define a scanning region where an automated symmetry
         analysis is done to reduce the scanning area to the irreducible part.
         """
+        # TO DO update this tool to get scanning positions even in the presence of more than one impurity
         from aiida_kkr.tools import tools_STM_scan
 
         generate_scan_positions = True
@@ -405,6 +442,12 @@ label: {self.ctx.label_wf}
                 # TODO: improve the validity check
                 generate_scan_positions = False
 
+                if _VERBOSE_:
+                    if generate_scan_positions:
+                        self.report('The scanning positions have been given by the user')
+                    else:
+                        self.repotr('The scanning positions were automatically generated')
+
         if generate_scan_positions:
 
             # Information of the host structure
@@ -412,11 +455,13 @@ label: {self.ctx.label_wf}
 
             # We now want to iterate over several in-plane positions.
             # These are the number of vectors in which we want to move the STM tip.
-            x = self.inputs.tip_position['nx']
-            y = self.inputs.tip_position['ny']
+            nx = self.inputs.tip_position['nx']
+            ny = self.inputs.tip_position['ny']
 
             # Path creation step. (The the identity operator is present, but will be excluded)
-            unused_pos, used_pos = tools_STM_scan.lattice_generation(x, y, symm_matrices, struc_info['plane_vectors'])
+            unused_pos, used_pos = tools_STM_scan.lattice_generation(
+                symm_matrices, struc_info['plane_vectors'], 0, 0, nx, ny
+            )
 
             # Since the combine tools use the element already in the units of da and db, we use a helper function
             # to have the indices of the linear combination of the used position vectors in the base of the Bravais lattice.
@@ -439,7 +484,8 @@ label: {self.ctx.label_wf}
         # Check if the kkrflex files are already given in the outputs
         if 'kkrflex_files' in self.inputs:
             builder.gf_dos_remote = self.inputs.kkrflex_files
-            message = f'Remote host function is given in the outputs from the node: {self.inputs.kkrflex_files}'
+            message = f"""Remote host function is given in the outputs from the node: {self.inputs.kkrflex_files}. Please also make sure of
+                          using the right impurity potentials from the already converged calculation."""
             self.report(message)
         else:
             builder.kkr = self.inputs.kkr  # needed to evaluate the kkr_flex files in the DOS step
@@ -457,8 +503,8 @@ label: {self.ctx.label_wf}
 
         # Update the BdG parameters if they are inserted in the workflow
         if 'BdG' in self.inputs:
-            if 'params_kkr_overwrite' in self.inputs.BdG:
-                builder.BdG.params_overwrite = self.inputs.BdG.params_kkr_overwrite  # pylint: disable=no-member
+            if 'params_overwrite' in self.inputs.BdG:
+                builder.BdG.params_overwrite = self.inputs.BdG.params_overwrite  # pylint: disable=no-member
 
         self.ctx.kkrimp_params_dict = Dict(
             dict={
@@ -489,7 +535,24 @@ label: {self.ctx.label_wf}
         builder.host_remote = self.inputs.host_remote
 
         # Here we create the impurity cluster for the STM scanning tool
+
+        #if 'Rcut' in self.inputs.imp_info.get_dict():
+        #    # If the data doesn't come from a previous calculation we create it
+        #    impurity_info, imp_pot_sfd = self.impurity_cluster_evaluation()
+        #else:
+        #    impurity_info = self.inputs.imp_info
+        #    imp_pot_sfd = self.inputs.imp_potential_node
+
         impurity_info, imp_pot_sfd = self.impurity_cluster_evaluation()
+
+        # With this we make sure that the actual number of angles is the same as the number of embedded impurity
+        if 'initial_noco_angles' in self.inputs:
+            inital_noco_angles_aux = self.inputs.initial_noco_angles.clone()
+            for imp in impurity_info.get_dict()['Zimp']:
+                if imp == 0:
+                    inital_noco_angles_aux.get_dict()['phi'].append(0.0)
+                    inital_noco_angles_aux.get_dict()['theta'].append(0.0)
+                    inital_noco_angles_aux.get_dict()['fix_dir'].append(1)
 
         # impurity info for the workflow
         builder.impurity_info = impurity_info
@@ -500,12 +563,13 @@ label: {self.ctx.label_wf}
 
         # print report
         message = f"""INFO: running DOS step for an STM measurement (pk: {calc.pk}) at position (ilayer: {self.inputs.tip_position['ilayer']})"""
-        if 'params_kkr_overwrite' in self.inputs.BdG:
-            if self.inputs.BdG.params_kkr_overwrite:
+        if 'params_overwrite' in self.inputs.BdG:
+            if self.inputs.BdG.params_overwrite:
                 message += f'\nINFO: runnig DOS step (pk: {calc.pk}) BdG is present'
         self.report(message)
 
         # Save the calculated impurity cluster and impurity info in the context
+
         self.ctx.impurity_info = impurity_info
         self.ctx.imp_pot_sfd = imp_pot_sfd
 

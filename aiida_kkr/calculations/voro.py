@@ -14,7 +14,7 @@ import os
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.5.3'
+__version__ = '0.5.4'
 __contributors__ = ('Jens Broeder', 'Philipp Rüßmann')
 
 
@@ -182,7 +182,8 @@ class VoronoiCalculation(CalcJob):
         # Decide what files to copy
         local_copy_list = []
         if overwrite_potential:
-            # copy the right files #TODO check first if file, exists and throw
+            # copy the right files
+            #TODO check first if file, exists and throw
             # warning, now this will throw an error
             if found_parent and self._is_KkrCalc(parent_calc):
                 outfolder = parent_calc.outputs.retrieved  # copy from remote folder
@@ -199,11 +200,11 @@ class VoronoiCalculation(CalcJob):
                     filename = self._POTENTIAL_IN_OVERWRITE
                 local_copy_list.append((outfolder.uuid, file1, filename))  # pylint: disable=possibly-used-before-assignment
 
-            # add shapefun to overwrite
-            if 'shapefun_overwrite' in self.inputs:
-                shapefun_overwrite = self.inputs.shapefun_overwrite
-                filename = shapefun_overwrite.filename
-                local_copy_list.append((shapefun_overwrite.uuid, filename, 'shapefun_overwrite'))
+        # add shapefun to overwrite
+        if 'shapefun_overwrite' in self.inputs:
+            shapefun_overwrite = self.inputs.shapefun_overwrite
+            filename = shapefun_overwrite.filename
+            local_copy_list.append((shapefun_overwrite.uuid, filename, 'shapefun_overwrite'))
 
         # Prepare CalcInfo to be returned to aiida
         calcinfo = CalcInfo()

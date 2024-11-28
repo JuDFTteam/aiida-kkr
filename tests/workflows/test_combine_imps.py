@@ -5,7 +5,7 @@ if __name__ != '__main__':
     from ..conftest import kkrimp_local_code, kkrhost_local_code, test_dir, data_dir
 from aiida.orm import load_node, Dict, load_group
 from aiida.engine import run_get_node
-from aiida_kkr.workflows import combine_imps_wc
+from aiida_kkr.workflows import combine_imps_wc, kkr_scf_wc
 from ..conftest import import_with_migration
 
 # activate debug mode?
@@ -65,15 +65,29 @@ def get_builder_basic(label, kkrhost_local_code, kkrimp_local_code):
         'custom_scheduler_commands': ''
     }
     builder.scf.options = Dict(options)
-    builder.scf.wf_parameters = Dict({'do_final_cleanup': False})  # this is needed to allow for caching
+
+    scf_settings = kkr_scf_wc.get_wf_defaults(silent=True)[0]
+    scf_settings.kkr_runmax = 1
+    scf_settings.nsteps = 2
+    scf_settings.do_final_cleanup = False  # this is needed to allow for caching
+    builder.scf.wf_parameters = Dict(scf_settings)
+    builder.scf.params_overwrite = Dict({'TOL_ALAT_CHECK': 1e-8})
+
     builder.host_gf.wf_parameters = Dict({'retrieve_kkrflex': True})  # this is needed to allow for caching
+
     builder.host_gf.options = builder.scf.options
+    builder.wf_parameters_overwrite = Dict({'global': {'allow_unconverged_inputs': True}})
 
     return builder
 
 
 def test_combine_imps(
-    clear_database_before_test, kkrhost_local_code, kkrimp_local_code, enable_archive_cache, nopytest=False
+    clear_database_before_test,
+    kkrhost_local_code,
+    kkrimp_local_code,
+    enable_archive_cache,
+    ndarrays_regression,
+    nopytest=False
 ):
     """
     test for combine_imps_wc (place two imps next to each other)
@@ -95,13 +109,18 @@ def test_combine_imps(
     # check outcome
     results = out['workflow_info'].get_dict()
     print(results)
-    assert results['successful']
-    assert results['convergence_reached']
     assert 'remote_data_gf' in out  # make sure GF writeout step was done
+    check_dict = {'rms_per_atom': node.outputs.last_calc_output_parameters['convergence_group']['rms_per_atom']}
+    ndarrays_regression.check(check_dict)
 
 
 def test_combine_imps_params_kkr_overwrite(
-    clear_database_before_test, kkrhost_local_code, kkrimp_local_code, enable_archive_cache, nopytest=False
+    clear_database_before_test,
+    kkrhost_local_code,
+    kkrimp_local_code,
+    enable_archive_cache,
+    ndarrays_regression,
+    nopytest=False
 ):
     """
     test for combine_imps_wc overwriting the k-mesh with hte params_kkr_overwrite input to the gf writeout step
@@ -124,13 +143,18 @@ def test_combine_imps_params_kkr_overwrite(
     # check outcome
     results = out['workflow_info'].get_dict()
     print(results)
-    assert results['successful']
-    assert results['convergence_reached']
     assert 'remote_data_gf' in out  # make sure GF writeout step was done
+    check_dict = {'rms_per_atom': node.outputs.last_calc_output_parameters['convergence_group']['rms_per_atom']}
+    ndarrays_regression.check(check_dict)
 
 
 def test_combine_imps_reuse_gf(
-    clear_database_before_test, kkrhost_local_code, kkrimp_local_code, enable_archive_cache, nopytest=False
+    clear_database_before_test,
+    kkrhost_local_code,
+    kkrimp_local_code,
+    enable_archive_cache,
+    ndarrays_regression,
+    nopytest=False
 ):
     """
     test for combine_imps_wc reusing the host gf from a previous calculation
@@ -160,9 +184,9 @@ def test_combine_imps_reuse_gf(
     # check outcome
     results = out['workflow_info'].get_dict()
     print(results)
-    assert results['successful']
-    assert results['convergence_reached']
     assert 'remote_data_gf' not in out  # make sure GF writeout step was skipped
+    check_dict = {'rms_per_atom': node.outputs.last_calc_output_parameters['convergence_group']['rms_per_atom']}
+    ndarrays_regression.check(check_dict)
 
 
 # run manual:

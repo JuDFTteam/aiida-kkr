@@ -45,15 +45,22 @@ def get_scoef_single_imp(host_structure, impinfo_node):
     :return: scoef array (positions [x,y,z], layer index, distance to first position in imp cluster)
     :type: numpy.array
     """
-    impinfo = impinfo_node.get_dict()
-    Rcut = impinfo.get('Rcut', None)
-    hcut = impinfo.get('hcut', -1.)
-    cylinder_orient = impinfo.get('cylinder_orient', [0., 0., 1.])
-    ilayer_center = impinfo.get('ilayer_center', 0)
+    # check if we can read it from a node extra
+    if 'imp_cls' not in impinfo_node.extras:
+        impinfo = impinfo_node.get_dict()
+        Rcut = impinfo.get('Rcut', None)
+        hcut = impinfo.get('hcut', -1.)
+        cylinder_orient = impinfo.get('cylinder_orient', [0., 0., 1.])
+        ilayer_center = impinfo.get('ilayer_center', 0)
 
-    clust = create_scoef_array(host_structure, Rcut, hcut, cylinder_orient, ilayer_center)
-    # sort after distance
-    clust = clust[(clust[:, -1]).argsort()]
+        clust = create_scoef_array(host_structure, Rcut, hcut, cylinder_orient, ilayer_center)
+        # sort after distance
+        clust = clust[(clust[:, -1]).argsort()]
+
+        # save as extra for second run
+        impinfo_node.set_extra('imp_cls', clust)
+    else:
+        clust = np.array(impinfo_node.extras['imp_cls'])
 
     return clust
 
