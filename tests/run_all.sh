@@ -128,24 +128,8 @@ elif [[ ! -z "$GITHUB_SUITE" ]]; then
 	  ./workflows/test_kkrimp_full_wc.py \
 	  ./workflows/test_combine_imps.py \
 	  ./workflows/test_stm.py \
+	  ./workflows/test_kkrimp_BdG_wc.py \
 	  $addopt
-  # full list, excludes:
-  #  - currently tests for kkrimp_sub, jij and combine_imps are not working
-  #  - tests for imp_BdG and STM are still missing
-  # pytest --cov-report=$repfmt --cov-append --cov=../ -x \
-     #  ./workflows/test_vorostart_wc.py \
-	 #  ./workflows/test_scf_wc_simple.py \
-	 #  ./workflows/test_dos_wc.py \
-	 #  ./workflows/test_bs_wc.py \
-	 #  ./workflows/test_gf_writeout_wc.py \
-	 #  ./workflows/test_jij_wc.py \
-	 #  ./workflows/test_eos.py \
-	 #  ./workflows/test_decimate.py \
-	 #  ./workflows/test_kkrimp_sub_wc.py \
-	 #  ./workflows/test_kkrimp_dos_wc.py \
-	 #  ./workflows/test_kkrimp_full_wc.py \
-	 #  ./workflows/test_combine_imps.py \
-	 #  $addopt
 else
   # tests without running actual calculations
   if [[ -z "$SKIP_NOWORK" ]] && [[ -z "$NO_RMQ" ]]; then

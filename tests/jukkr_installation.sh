@@ -41,6 +41,7 @@ else
 
     # build kkrhost code
     echo "build kkrhost"
+    git checkout BdG # use BdG branch to have code ready for imp-BdG workflow test
     ./install.py --program=kkrhost --compiler=gfortran --parallelization=serial
     cd build/ && make -j4 && cp kkr.x ../
     cd ..
