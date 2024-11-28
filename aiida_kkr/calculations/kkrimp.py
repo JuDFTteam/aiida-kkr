@@ -77,7 +77,9 @@ class KkrimpCalculation(CalcJob):
     _OUT_LMDOS_INTERPOL = u'out_lmdos.interpol.atom=*'
     _OUT_MAGNETICMOMENTS = u'out_magneticmoments'
     _OUT_ORBITALMOMENTS = u'out_orbitalmoments'
-    _LDAUPOT = 'ldaupot'
+    _LDAUPOT = u'ldaupot'
+
+    _TEST_RHO2NS = u'test_rho2ns'
 
     # template.product entry point defined in setup.json
     _default_parser = u'kkr.kkrimpparser'
@@ -787,6 +789,10 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
         # take care of LLYsimple (i.e. Lloyd in host system)
         if 'LLOYD' in runopts:
             runflag = self._use_lloyd(runflag, GFhost_folder, tempfolder)
+        # alternative to Lloyd mode: renormalization factor of energy integration weights
+        if params_host.get_value('WFAC_RENORM') is not None:
+            if params_host.get_value('WFAC_RENORM'):
+                runflag = self._use_lloyd(runflag, GFhost_folder, tempfolder, True)
 
         # now set runflags
         params_kkrimp.set_value('RUNFLAG', runflag)
@@ -824,19 +830,33 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
                 for socscl in socscale:
                     kkrflex_socfac.write(f' {socscl}\n')
 
-    def _use_lloyd(self, runflag, GFhost_folder, tempfolder):
+    def _use_lloyd(self, runflag, GFhost_folder, tempfolder, wfac_renorm=False):
         """Use the LLYsimple version of KKRimp code with the average renormalization factor from the host calculation"""
+
         # add runflag for imp code
         runflag.append('LLYsimple')
-        # also extract renormalization factor and create kkrflex_llyfac file (contains one value only)
-        with GFhost_folder.open('output.000.txt') as f:
-            txt = f.readlines()
+
+        # find renormalization factor
+        if wfac_renorm:
+            # option 1: found wfac_renorm in Kkrhost parent's input parameters
+            with GFhost_folder.open('inputcard') as f:
+                txt = f.readlines()
+            iline = search_string('WFAC_RENORM', txt)
+        else:
+            # option 2: host parent is a Lloyd calculation
+            # extract renormalization factor and create kkrflex_llyfac file (contains one value only)
+            with GFhost_folder.open('output.000.txt') as f:
+                txt = f.readlines()
             iline = search_string('RENORM_LLY: Renormalization factor of total charge', txt)
-            if iline >= 0:
-                llyfac = txt[iline].split()[-1]
-                # now write kkrflex_llyfac to tempfolder where later on config file is also written
-                with tempfolder.open(self._KKRFLEX_LLYFAC, 'w') as f2:
-                    f2.writelines([llyfac])
+
+        if iline >= 0:
+            llyfac = txt[iline].split()[-1]
+        else:
+            raise ValueError('Failed to extract llyfac in KkrimpCalculation')
+
+        # now write kkrflex_llyfac to tempfolder where later on config file is also written
+        with tempfolder.open(self._KKRFLEX_LLYFAC, 'w') as f2:
+            f2.writelines([llyfac])
         return runflag
 
     def _activate_jij_calc(self, runflag, params_kkrimp, GFhost_folder, tempfolder):

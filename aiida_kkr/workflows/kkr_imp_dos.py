@@ -10,6 +10,7 @@ from aiida.plugins import DataFactory
 from aiida.engine import if_, ToContext, WorkChain, calcfunction
 from aiida.common import LinkType
 from aiida.common.folders import SandboxFolder
+from aiida_kkr.tools import truncate_string
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
 from aiida_kkr.workflows.dos import kkr_dos_wc
@@ -508,7 +509,8 @@ label: {self.ctx.label_wf}
         )
 
         builder = kkr_imp_sub_wc.get_builder()
-        builder.metadata.label = label_imp  # pylint: disable=no-member
+        # Attention: label and description must not be loo long (255 characters max)!
+        builder.metadata.label = truncate_string(label_imp, 255)  # pylint: disable=no-member
         builder.metadata.description = description_imp  # pylint: disable=no-member
         builder.kkrimp = kkrimpcode
         builder.options = options
@@ -735,9 +737,10 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
             name0 = 'out_ldos'
             if use_lmdos.value:
                 name0 = 'out_lmdos'
-            try:
+            fname = name0 + '.atom=%0.2i_spin%i.dat' % (iatom, ispin)
+            if fname in folder.list_object_names():
                 # old file names with 2 digits for atom index
-                with folder.open(name0 + '.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                with folder.open(fname) as dosfile:
                     tmp = loadtxt(dosfile)
                     dos.append(tmp)
 
@@ -745,8 +748,7 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
                     tmp = loadtxt(dosfile)
                     if len(tmp) > 0:
                         dos_int.append(tmp)
-
-            except:
+            else:
                 # new file names with 3 digits for atom numbers
                 with folder.open(name0 + '.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     tmp = loadtxt(dosfile)
@@ -756,7 +758,7 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
                     try:
                         tmp = loadtxt(dosfile)
                     except:
-                        pass
+                        tmp = []
                     # can happen if there are too few points to interpolate on
                     if len(tmp) > 0:
                         dos_int.append(tmp)
@@ -804,7 +806,7 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
     dosnode.set_y(ylists[0], ylists[1], ylists[2])
 
     # node for interpolated DOS
-    if len(dos_int) > 0:
+    try:
         dosnode2 = XyData()
         dosnode2.label = 'dos_interpol_data'
         dosnode2.description = 'Array data containing iterpolated DOS (i.e. dos at finite imaginary part of energy). 3D array with (atoms, energy point, l-channel) dimensions.'
@@ -817,7 +819,7 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
         dosnode2.set_y(ylists[0], ylists[1], ylists[2])
 
         output = {'dos_data': dosnode, 'dos_data_interpol': dosnode2}
-    else:
+    except:
         output = {'dos_data': dosnode}
 
     return output

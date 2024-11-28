@@ -9,7 +9,7 @@ from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
 __copyright__ = (u'Copyright (c), 2022, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 __contributors__ = (u'David Antognini Silva, Philipp Rüßmann')
 
 # TODO: add _wf_default parameters and activate get_wf_defaults method
@@ -474,9 +474,9 @@ class kkrimp_BdG_wc(WorkChain):
         return the results nodes of the workchain
         """
         if self.inputs.calc_DOS:
-            if 'dos_data' in self.ctx.DOS_node.outputs.dos_data:
+            if 'dos_data' in self.ctx.DOS_node.outputs:
                 self.out('dos_data', self.ctx.DOS_node.outputs.dos_data)
-            if 'dos_data_interpol' in self.ctx.DOS_node.outputs.dos_data_interpol:
+            if 'dos_data_interpol' in self.ctx.DOS_node.outputs:
                 self.out('dos_data_interpol', self.ctx.DOS_node.outputs.dos_data_interpol)
             if 'dos_data_lm' in self.ctx.DOS_node.outputs:
                 self.out('dos_data_lm', self.ctx.DOS_node.outputs.dos_data_lm)

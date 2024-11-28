@@ -153,6 +153,7 @@ class kkr_flex_wc(WorkChain):
         ####### init #######
         # internal para / control para
         self.ctx.abort = False
+        self.ctx.exit_code = None
 
         # input both wf and options parameters
         options_dict = self.inputs.options.get_dict()
@@ -224,13 +225,13 @@ class kkr_flex_wc(WorkChain):
 
         if not 'impurity_info' in inputs:
             input_ok = False
-            return self.exit_codes.ERROR_INVALID_INPUT_IMP_INFO  # pylint: disable=no-member
+            self.ctx.exit_code = self.exit_codes.ERROR_INVALID_INPUT_IMP_INFO  # pylint: disable=no-member
 
         if 'remote_data' in inputs:
             input_ok = True
         else:
             input_ok = False
-            return self.exit_codes.ERROR_INVALID_REMOTE_DATA  # pylint: disable=no-member
+            self.ctx.exit_code = self.exit_codes.ERROR_INVALID_REMOTE_DATA  # pylint: disable=no-member
 
         # extract correct remote folder of last calculation if input remote_folder node
         # is not from KKRCalculation but kkr_scf_wc workflow
@@ -264,7 +265,7 @@ class kkr_flex_wc(WorkChain):
                          'use the plugin kkr.kkr')
                 self.ctx.errors.append(error)
                 input_ok = False
-                return self.exit_codes.ERROR_INVALID_INPUT_KKR  # pylint: disable=no-member
+                self.ctx.exit_code = self.exit_codes.ERROR_INVALID_INPUT_KKR  # pylint: disable=no-member
 
         # set self.ctx.input_params_KKR
         self.ctx.input_params_KKR = get_parent_paranode(self.inputs.remote_data)
@@ -334,19 +335,20 @@ class kkr_flex_wc(WorkChain):
         self.report(f'INFO: RUNOPT set to: {runopt}')
 
         if 'wf_parameters' in self.inputs:
-            # extract Fermi energy in Ry
-            remote_data_parent = self.inputs.remote_data
-            parent_calc = remote_data_parent.get_incoming(link_label_filter='remote_folder').first().node
-            ef = parent_calc.outputs.output_parameters.get_dict().get('fermi_energy')
-            # check if ef needs to be taken from a voronoi parent
-            if ef is None:
-                objects = parent_calc.outputs.retrieved.list_object_names()
-                fname = VoronoiCalculation._OUT_POTENTIAL_voronoi
-                if fname in objects:
-                    with parent_calc.outputs.retrieved.open(fname) as _f:
-                        ef = get_ef_from_potfile(_f)
-            if ef is None:
-                return self.exit_codes.ERROR_NO_EF_FOUND  # pylint: disable=no-member
+            if self.ctx.dos_run or self.ctx.ef_shift != 0:
+                # extract Fermi energy in Ry
+                remote_data_parent = self.inputs.remote_data
+                parent_calc = remote_data_parent.get_incoming(link_label_filter='remote_folder').first().node
+                ef = parent_calc.outputs.output_parameters.get_dict().get('fermi_energy')
+                # check if ef needs to be taken from a voronoi parent
+                if ef is None:
+                    objects = parent_calc.outputs.retrieved.list_object_names()
+                    fname = VoronoiCalculation._OUT_POTENTIAL_voronoi
+                    if fname in objects:
+                        with parent_calc.outputs.retrieved.open(fname) as _f:
+                            ef = get_ef_from_potfile(_f)
+                if ef is None:
+                    return self.exit_codes.ERROR_NO_EF_FOUND  # pylint: disable=no-member
 
             if self.ctx.dos_run:
                 # possibly remove keys which are overwritten from DOS params
@@ -482,6 +484,9 @@ class kkr_flex_wc(WorkChain):
         This should run through and produce output nodes even if everything failed,
         therefore it only uses results from context.
         """
+
+        if self.ctx.exit_code is not None:
+            return self.ctx.exit_code
 
         # capture error of unsuccessful flexrun
         if not self.ctx.flexrun.is_finished_ok:
