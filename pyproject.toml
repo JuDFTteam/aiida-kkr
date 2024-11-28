@@ -125,3 +125,5 @@ include-package-data = false
 
 [tool.setuptools.packages.find]
 namespaces = false
+include = ["aiida_kkr*"]
+exclude = ["docs*", "tests*"]
