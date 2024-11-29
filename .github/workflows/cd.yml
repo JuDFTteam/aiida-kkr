@@ -186,6 +186,7 @@ jobs:
           pip install flit~=3.10
       - name: Build and publish to PyPi
         run: |
+          rm -rf tests # remove tests from pypi upload to save space
           flit publish
         env:
           FLIT_USERNAME: __token__

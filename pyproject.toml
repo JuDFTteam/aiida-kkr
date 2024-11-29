@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aiida-kkr"
-version = "2.3.0-dev"
+version = "2.3.0-dev2"
 description = "AiiDA plugin for the JuKKR codes"
 classifiers = [
     "License :: OSI Approved :: MIT License",
