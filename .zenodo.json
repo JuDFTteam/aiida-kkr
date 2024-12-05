@@ -1,0 +1,36 @@
+{
+  "creators": [
+    {
+      "name": "Rüßmann, Philipp",
+      "orcid": "0000-0002-6196-2700"
+    },
+    {
+      "name": "Bertoldo, Fabian"
+    },
+    {
+      "name": "Bröder, Jens",
+      "orcid": "0000-0001-7939-226X"
+    },
+    {
+      "name": "Wasmer, Johannes",
+      "orcid": "0000-0001-5113-3119"
+    },
+    {
+      "name": "Mozumder, Rubel"
+    },
+    {
+      "name": "Chico, Jonathan",
+      "orcid": "0000-0001-5034-159X"
+    },
+    {
+      "name": "Blügel, Stefan",
+      "orcid": "0000-0001-9987-4733"
+    }
+  ],
+  "license": {
+    "id": "MIT"
+  },
+  "publication_date": "2024-12-05",
+  "title": "AiiDA-KKR",
+  "version": "2.3.1"
+}
