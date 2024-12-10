@@ -807,38 +807,38 @@ Finally, we run the workflow (for the two cases depicted above)::
     wf_run = submit(kkr_imp_dos_wc, label=label, description=description, kkrimp=kkrimpcode, 
                     kkrcode=kkrcode, options=options, wf_parameters=wf_params) 
 
+
 Equation of states
 ++++++++++++++++++
 
-Workflow: ``aiida_kkr.workflows.eos``
+The ``aiida_kkr.workflows.kkr_eos_wc‎`` workflow runs an equation of states (optimization of the bulk lattice constant from the variation of the total energy),
 
-.. warning:: Not documented yet!
+See tests for a usage example: https://github.com/JuDFTteam/aiida-kkr/blob/develop/tests/workflows/test_eos.py
 
 
-Check KKR parameter convergence
-+++++++++++++++++++++++++++++++
+Combine impurities to a larger impurity cluster
++++++++++++++++++++++++++++++++++++++++++++++++
 
-Workflow: ``aiida_kkr.workflows.check_para_convergence``
+The ``aiida_kkr.workflows.combine_imps_wc`` combines impurities to a larger cluster as discussed in the method paper [R. Mozumbder et al., Phys Rev Materials 8, 104201 (2024)].
 
-.. warning:: Not implemented yet!
+.. note::
+    Please cite the following paper if you use this workflow:
+    Rubel Mozumder, Johannes Wasmer, David Antognini Silva, Stefan Blügel and Philipp Rüßmann, High-throughput magnetic co-doping and design of exchange interactions in topological insulators, Phys. Rev. Materials 8, 104201 (2024). doi: https://doi.org/10.1103/PhysRevMaterials.8.104201
 
-Idea is to run checks after convergence for the following parameters:
-    * RMAX
-    * GMAX
-    * cluster radius
-    * energy contour
-    * kmesh 
-   
+See tests for a usage example: https://github.com/JuDFTteam/aiida-kkr/blob/develop/tests/workflows/test_combine_imps.py
 
-Find magnetic ground state
-++++++++++++++++++++++++++
 
-Workflow: ``aiida_kkr.workflows.check_magnetic_state``
+Impurity BdG calculation
+++++++++++++++++++++++++
 
-.. warning:: Not implemented yet!
+The ``aiida_kkr.workflows.kkrimp_BdG_wc`` workflow allows to do an impurity embedding calculation for a superconducting host material allowing to resolve the YSR states.
 
-The idea is to run a Jij calculation to estimate if the ferromagnetic state is 
-the ground state or not. Then the unit cell could be doubled to compute the 
-antiferromagnetic state. In case of noncollinear magnetism the full Jij tensor 
-should be analyzed.
+See tests for a usage example: https://github.com/JuDFTteam/aiida-kkr/blob/develop/tests/workflows/test_kkrimp_BdG_wc.py
 
+
+STM scan around magnetic impurities
++++++++++++++++++++++++++++++++++++
+
+The ``aiida_kkr.workflows.kkr_STM_wc`` workflow allows to simulate the local DOS around impurities in a large area around an impurity region simulating an STM scan in the Tersoff-Hamann approximation. This allows to resolve, for instance, Friedel oscillations around impurities in the spirit of [Fig. 1, P. Rüßmann, P. Mavropoulos, and S. Blügel, Phys. Status Solidi B, 258, 2000031 (2020). https://doi.org/10.1002/pssb.202000031].
+
+See tests for a usage example: https://github.com/JuDFTteam/aiida-kkr/blob/develop/tests/workflows/test_stm.py
