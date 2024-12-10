@@ -519,7 +519,31 @@ To start the Band Structure calculation the steps:
     # submit calculation
     jij_wf = submit(builder)
 
-    
+
+Semi-infinite calculation (decimation)
+++++++++++++++++++++++++++++++++++++++
+
+This workflow allows to take a calculation for a thicker film and do a decimation calculation allowing to describe a semi-infinite system. This computes a bulk-like continuation from the middle part of the film (therefore it should be a thicker film to start with) and then describes the transition from the bulk to the surface using the principle layer technique.
+
+Inputs:
+    * ``kkr`` (*aiida.orm.Code*): KKRhost code using the ``kkr.kkr` plugin
+    * ``voronoi`` (*aiida.orm.Code*): Voronoi code using the ``kkr.voro` plugin
+    * ``options`` (*aiida.orm.Dict*): Computer options for the calculations
+    * ``remote_data`` (*RemoteData*): RemoteData folder of the thin film calculation to start from
+    * ``wf_parameters`` (*aiida.orm.Dict*): Settings for the workflow
+    * ``calc_parameters`` (*aiida.orm.Dict*): Parameters for the KKR calculations used to overwrite settings from the thin film calculation (optional)
+
+.. note::
+    The ``wf_parameters`` contain the important settings for the workflow including:
+        * ``nkz``: number of k-points in kz direction used for bulk contunation calculation
+        * ``nprinc``: number of layers in one principal layer
+        * ``nplayer``: number of principlal layers in decimation region
+        * ``use_left``: True/False continuation on left (bottom) or right (top)
+
+Example Usage
+-------------
+
+See https://github.com/JuDFTteam/aiida-kkr/blob/develop/tests/workflows/test_decimate.py
 
 KKR impurity self consistency
 +++++++++++++++++++++++++++++
