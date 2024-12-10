@@ -55,6 +55,13 @@ KKRhost Jij calculation
    :private-members:
    :special-members:
    
+KKRhost semi-finite (decimation) calculation
+--------------------------------------------
+.. automodule:: aiida_kkr.workflows._decimation
+   :members:
+   :private-members:
+   :special-members:
+   
    
 KKRimp self-consistency
 -----------------------
@@ -66,6 +73,27 @@ KKRimp self-consistency
 KKRimp complete calculation
 ---------------------------
 .. automodule:: aiida_kkr.workflows.kkr_imp
+   :members:
+   :private-members:
+   :special-members:
+
+KKRimp combine impurities to larger imp. cluster
+------------------------------------------------
+.. automodule:: aiida_kkr.workflows._combine_imps
+   :members:
+   :private-members:
+   :special-members:
+
+STM scan around impurities
+--------------------------
+.. automodule:: aiida_kkr.workflows.kkr_STM
+   :members:
+   :private-members:
+   :special-members:
+
+Impurity embedding + calculation of YSR states in superconductors
+-----------------------------------------------------------------
+.. automodule:: aiida_kkr.workflows.imp_BdG
    :members:
    :private-members:
    :special-members:
