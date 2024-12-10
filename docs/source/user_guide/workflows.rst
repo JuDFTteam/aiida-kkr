@@ -825,6 +825,8 @@ The ``aiida_kkr.workflows.combine_imps_wc`` combines impurities to a larger clus
     Please cite the following paper if you use this workflow:
     Rubel Mozumder, Johannes Wasmer, David Antognini Silva, Stefan Blügel and Philipp Rüßmann, High-throughput magnetic co-doping and design of exchange interactions in topological insulators, Phys. Rev. Materials 8, 104201 (2024). doi: https://doi.org/10.1103/PhysRevMaterials.8.104201
 
+See API documentation for inputs/outputs: https://aiida-kkr.readthedocs.io/en/latest/module_guide/workflows.html#module-aiida_kkr.workflows._combine_imps
+
 See tests for a usage example: https://github.com/JuDFTteam/aiida-kkr/blob/develop/tests/workflows/test_combine_imps.py
 
 
@@ -833,6 +835,8 @@ Impurity BdG calculation
 
 The ``aiida_kkr.workflows.kkrimp_BdG_wc`` workflow allows to do an impurity embedding calculation for a superconducting host material allowing to resolve the YSR states.
 
+See API documentation for inputs/outputs: https://aiida-kkr.readthedocs.io/en/latest/module_guide/workflows.html#aiida_kkr.workflows.imp_BdG.kkrimp_BdG_wc
+
 See tests for a usage example: https://github.com/JuDFTteam/aiida-kkr/blob/develop/tests/workflows/test_kkrimp_BdG_wc.py
 
 
@@ -840,5 +844,7 @@ STM scan around magnetic impurities
 +++++++++++++++++++++++++++++++++++
 
 The ``aiida_kkr.workflows.kkr_STM_wc`` workflow allows to simulate the local DOS around impurities in a large area around an impurity region simulating an STM scan in the Tersoff-Hamann approximation. This allows to resolve, for instance, Friedel oscillations around impurities in the spirit of [Fig. 1, P. Rüßmann, P. Mavropoulos, and S. Blügel, Phys. Status Solidi B, 258, 2000031 (2020). https://doi.org/10.1002/pssb.202000031].
+
+See API documentation for inputs/outputs: https://aiida-kkr.readthedocs.io/en/latest/module_guide/workflows.html#module-aiida_kkr.workflows.kkr_STM
 
 See tests for a usage example: https://github.com/JuDFTteam/aiida-kkr/blob/develop/tests/workflows/test_stm.py
