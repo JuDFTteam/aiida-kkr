@@ -851,6 +851,6 @@ Example Usage
 -------------
 
 See:
-* the STM tutorial notbook: https://github.com/JuDFTteam/aiida-kkr/blob/develop/examples/AiiDA-KKR_STM_Tutorial.ipynb
-* the CI tests: https://github.com/JuDFTteam/aiida-kkr/blob/develop/tests/workflows/test_stm.py
+    * the STM tutorial notbook: https://github.com/JuDFTteam/aiida-kkr/blob/develop/examples/AiiDA-KKR_STM_Tutorial.ipynb
+    * the CI tests: https://github.com/JuDFTteam/aiida-kkr/blob/develop/tests/workflows/test_stm.py
 for a usage examples.
