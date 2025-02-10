@@ -214,7 +214,7 @@ class kkrimp_BdG_wc(WorkChain):
         spec.output('dos_data', required=False, valid_type=XyData)
         spec.output('dos_data_interpol', required=False, valid_type=XyData)
         spec.output('dos_data_lm', required=False, valid_type=XyData)
-        spec.output('dos_data_lm_interpol', required=False, valid_type=XyData)
+        spec.output('dos_data_interpol_lm', required=False, valid_type=XyData)
         spec.output('impurity_potential', valid_type=SinglefileData)
         spec.output('gf_host_BdG', valid_type=RemoteData, required=False)
 
