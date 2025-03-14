@@ -248,7 +248,7 @@ def create_combined_potential_node_cf(add_position, host_calc, imp_potential_nod
     return pot_combined_node
 
 
-#####################################################################
+##############################################################################
 # STM pathfinder
 
 
@@ -336,7 +336,7 @@ def STM_pathfinder_cf(host_structure):
     return struc_info, symm_matrices
 
 
-###################################################################
+##############################################################################
 # lattice generation (function of lattice plot)
 
 
@@ -361,8 +361,8 @@ def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
         """
 
     # Here we create a grid  made of points which are the linear combination of the lattice vectors
-    x_len = xmax * 10
-    y_len = ymax * 10  # maybe there is a way to make this more efficient...
+    x_len = xmax * 2
+    y_len = ymax * 2  # maybe there is a way to make this more efficient...
 
     x_interval = [i for i in range(-x_len, x_len)]
 
@@ -403,7 +403,7 @@ def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
     return points_to_eliminate, points_to_scan
 
 
-###############################################################################################
+##############################################################################
 # lattice plot
 
 
@@ -473,7 +473,7 @@ def lattice_plot(plane_vectors, symm_vec, symm_matrices, grid_length_x, grid_len
     plt.show()
 
 
-##########################################################
+##############################################################################
 # find linear combination coefficients
 
 
@@ -512,7 +512,7 @@ def find_linear_combination_coefficients(plane_vectors, vectors):
 
     return indices
 
-#############################################################################################
+##############################################################################
 # Paser tool for retrieving data from an AiiDA Group of STM calculations
 
 def STM_real_space_parser(group_STM, energy_pos, N0, _DEBUG_=False):
@@ -590,7 +590,7 @@ def STM_real_space_parser(group_STM, energy_pos, N0, _DEBUG_=False):
     
     return all_pos, all_dat_summed_rho, all_dat_summed_mu
 
-###########################################################################################
+##############################################################################
 # Real space plotting function
 def STM_real_space_plot(positions, data, R0=0, R1=10, _DEBUG_=False, **kwargs):
     import matplotlib.pyplot as plt
@@ -668,7 +668,7 @@ def STM_real_space_plot(positions, data, R0=0, R1=10, _DEBUG_=False, **kwargs):
     
     plt.show()
     
-##########################################################################
+##############################################################################
 # Plotting for the FT of the real space image of a STM scanning
 
 def FT_QPI(positions, data, length, R0=10, R1=20, _DEBUG_=False, **kwargs):
@@ -763,4 +763,233 @@ def FT_QPI(positions, data, length, R0=10, R1=20, _DEBUG_=False, **kwargs):
     
     plt.show()
     
-FT_QPI(pos_normal, rho_normal, 65)
+##############################################################################
+# Helper function generating the point group symmetries in the system
+
+def pointgrp(writesymfile=False):
+    import numpy as np
+    
+    
+    """
+    Helper function contining the representation of the point group symmetry matrices as expressed
+    in the KKR code. 
+    """
+
+    rotmat = np.zeros((64, 3, 3))
+    rotname = [""] * 64
+
+    rthree = np.sqrt(3.0) / 2.0
+    half = 0.5
+
+    rotmat[0, 0, 0] = 1.0
+    rotmat[0, 1, 1] = 1.0
+    rotmat[0, 2, 2] = 1.0
+    rotname[0] = 'E'
+    
+    rotmat[1, 0, 1] = 1.0
+    rotmat[1, 1, 2] = -1.0
+    rotmat[1, 2, 0] = -1.0
+    rotname[1] = 'C3alfa'
+
+    rotmat[2, 0, 1] = -1.0
+    rotmat[2, 1, 2] = -1.0
+    rotmat[2, 2, 0] = 1.0
+    rotname[2] = 'C3beta'
+
+    rotmat[3, 0, 1] = -1.0
+    rotmat[3, 1, 2] = 1.0
+    rotmat[3, 2, 0] = -1.0
+    rotname[3] = 'C3gamma'
+
+    rotmat[4, 0, 1] = 1.0
+    rotmat[4, 1, 2] = 1.0
+    rotmat[4, 2, 0] = 1.0
+    rotname[4] = 'C3delta'
+
+    rotmat[5, 0, 2] = -1.0
+    rotmat[5, 1, 0] = 1.0
+    rotmat[5, 2, 1] = -1.0
+    rotname[5] = 'C3alfa-1'
+
+    rotmat[6, 0, 2] = 1.0
+    rotmat[6, 1, 0] = -1.0
+    rotmat[6, 2, 1] = -1.0
+    rotname[6] = 'C3beta-1'
+
+    rotmat[7, 0, 2] = -1.0
+    rotmat[7, 1, 0] = -1.0
+    rotmat[7, 2, 1] = 1.0
+    rotname[7] = 'C3gamma-1'
+
+    rotmat[8, 0, 2] = 1.0
+    rotmat[8, 1, 0] = 1.0
+    rotmat[8, 2, 1] = 1.0
+    rotname[8] = 'C3delta-1'
+
+    rotmat[9, 0, 0] = 1.0
+    rotmat[9, 1, 1] = -1.0
+    rotmat[9, 2, 2] = -1.0
+    rotname[9] = 'C2x'
+
+    rotmat[10, 0, 0] = -1.0
+    rotmat[10, 1, 1] = 1.0
+    rotmat[10, 2, 2] = -1.0
+    rotname[10] = 'C2y'
+
+    rotmat[11, 0, 0] = -1.0
+    rotmat[11, 1, 1] = -1.0
+    rotmat[11, 2, 2] = 1.0
+    rotname[11] = 'C2z'
+
+    rotmat[12, 0, 0] = 1.0
+    rotmat[12, 1, 2] = 1.0
+    rotmat[12, 2, 1] = -1.0
+    rotname[12] = 'C4x'
+
+    rotmat[13, 0, 2] = -1.0
+    rotmat[13, 1, 1] = 1.0
+    rotmat[13, 2, 0] = 1.0
+    rotname[13] = 'C4y'
+
+    rotmat[14, 0, 1] = 1.0
+    rotmat[14, 1, 0] = -1.0
+    rotmat[14, 2, 2] = 1.0
+    rotname[14] = 'C4z'
+
+    rotmat[15, 0, 0] = 1.0
+    rotmat[15, 1, 2] = -1.0
+    rotmat[15, 2, 1] = 1.0
+    rotname[15] = 'C4x-1'
+
+    rotmat[16, 0, 2] = 1.0
+    rotmat[16, 1, 1] = 1.0
+    rotmat[16, 2, 0] = -1.0
+    rotname[16] = 'C4y-1'
+
+    rotmat[17, 0, 1] = -1.0
+    rotmat[17, 1, 0] = 1.0
+    rotmat[17, 2, 2] = 1.0
+    rotname[17] = 'C4z-1'
+
+    rotmat[18, 0, 1] = 1.0
+    rotmat[18, 1, 0] = 1.0
+    rotmat[18, 2, 2] = -1.0
+    rotname[18] = 'C2a'
+
+    rotmat[19, 0, 1] = -1.0
+    rotmat[19, 1, 0] = -1.0
+    rotmat[19, 2, 2] = -1.0
+    rotname[19] = 'C2b'
+
+    rotmat[20, 0, 2] = 1.0
+    rotmat[20, 1, 1] = -1.0
+    rotmat[20, 2, 0] = 1.0
+    rotname[20] = 'C2c'
+
+    rotmat[21, 0, 2] = -1.0
+    rotmat[21, 1, 1] = -1.0
+    rotmat[21, 2, 0] = -1.0
+    rotname[21] = 'C2d'
+
+    rotmat[22, 0, 0] = -1.0
+    rotmat[22, 1, 2] = 1.0
+    rotmat[22, 2, 1] = 1.0
+    rotname[22] = 'C2e'
+
+    rotmat[23, 0, 0] = -1.0
+    rotmat[23, 1, 2] = -1.0
+    rotmat[23, 2, 1] = -1.0
+    rotname[23] = 'C2f'
+
+    for i1 in range(24):
+        rotmat[i1+24] = -rotmat[i1]
+        rotname[i1+24] = 'I' + rotname[i1]
+    
+    matrices = zip(rotname, rotmat)
+    return list(matrices)
+        
+        
+##############################################################################
+# Parser of the symmetry contained in the host calculation
+
+def symmetry_parser(host_calc):
+    
+    """
+    
+    Inputs :: 
+    
+    host_calc : CalcJobNode : Calculation node hosting the structural information regarding the sample
+    
+    Outputs :: 
+    
+    list_vec : list containing the normalized real space vectors constituting the geometry of the structure
+    list_mat : list contining the rotatation matrices representing the symmetry of the system
+    
+    """
+    
+    with host_calc.outputs.retrieved.open('output.0.txt') as _f:
+        read = _f.readlines()
+
+    # Initialize variables to store symmetry information
+    symmetry_operations = []
+    
+    # Flags to identify relevant sections
+    in_symmetry_section = False
+    start_read = False
+    
+    # Process the file line by line
+    for line in read:
+        line = line.strip()  # Remove leading and trailing whitespace
+        if "3D symmetries" in line:
+            # Start reading symmetry section
+            in_symmetry_section = True
+        if in_symmetry_section and line.startswith("------------------------------------------------------------"):
+            start_read = True
+        if in_symmetry_section and start_read and not line.startswith("------------------------------------------------------------"):
+            # Found the line containing symmetry operations
+            symmetry_operations.append(line.split())
+        if in_symmetry_section and start_read and symmetry_operations and line.startswith("------------------------------------------------------------"):
+            break # Exit the loop after every instance of the symmetries have been found
+            
+    sym_ops = [item for sublist in symmetry_operations for item in sublist]
+            
+    lattice_vectors = []
+    
+    in_lattice_section = False
+    start_read = False
+    #        
+    for line in read:
+        line = line.strip()  # Remove leading and trailing whitespace
+        if "normalised (ALAT)" in line:
+            # Start reading symmetry section
+            in_lattice_section = True
+        if in_lattice_section and line.startswith("----------------------                ----------------------"):
+            start_read = True
+        if in_lattice_section and start_read and not line.startswith("----------------------                ----------------------"):
+            # Found the line containing symmetry operations
+            lattice_vectors.append(line.split())
+        if in_lattice_section and start_read and lattice_vectors and line.startswith("----------------------                ----------------------"):
+            break # Exit the loop after every instance of the symmetries have been found
+            
+    # parsing of the data
+    list_vec = []
+    list_mat = []
+            
+    # Retrieve the vectors needed
+    for l_vec in lattice_vectors:
+        x = l_vec[1] ;y = l_vec[2]
+        v.append([float(x), float(y)])
+    
+    # Retrieve the matrix corresponding to the sysymmetry_operations
+    for sym in sym_ops:
+        for mat in sym_mat: 
+            
+            if sym == mat[0]:
+                
+                list_mat.append(mat[1][0:2, 0:2]) #only take the plane rotation
+        
+    # Output the extracted symmetry operations
+    return list_vec, list_mat
+
+
+##############################################################################
