@@ -6,6 +6,7 @@ This module contains helper functions and tools doing STM-like scans around impu
 import numpy as np
 from aiida import orm, engine
 from aiida_kkr.tools import find_parent_structure
+from aiida.orm import CalcJobNode
 from aiida_kkr.tools.combine_imps import get_scoef_single_imp
 from aiida_kkr.tools.imp_cluster_tools import pos_exists_already, combine_clusters
 from masci_tools.io.common_functions import get_alat_from_bravais
@@ -249,80 +250,310 @@ def create_combined_potential_node_cf(add_position, host_calc, imp_potential_nod
 
 
 ##############################################################################
+# Helper function generating the point group symmetries in the system
+
+def pointgrp(writesymfile=False):
+    import numpy as np
+    """
+    Helper function contining the representation of the point group symmetry matrices as expressed
+    in the KKR code. 
+    """
+
+    rotmat = np.zeros((64, 3, 3))
+    rotname = [""] * 64
+
+    rthree = np.sqrt(3.0) / 2.0
+    half = 0.5
+
+    rotmat[0, 0, 0] = 1.0
+    rotmat[0, 1, 1] = 1.0
+    rotmat[0, 2, 2] = 1.0
+    rotname[0] = 'E'
+    
+    rotmat[1, 0, 1] = 1.0
+    rotmat[1, 1, 2] = -1.0
+    rotmat[1, 2, 0] = -1.0
+    rotname[1] = 'C3alfa'
+
+    rotmat[2, 0, 1] = -1.0
+    rotmat[2, 1, 2] = -1.0
+    rotmat[2, 2, 0] = 1.0
+    rotname[2] = 'C3beta'
+
+    rotmat[3, 0, 1] = -1.0
+    rotmat[3, 1, 2] = 1.0
+    rotmat[3, 2, 0] = -1.0
+    rotname[3] = 'C3gamma'
+
+    rotmat[4, 0, 1] = 1.0
+    rotmat[4, 1, 2] = 1.0
+    rotmat[4, 2, 0] = 1.0
+    rotname[4] = 'C3delta'
+
+    rotmat[5, 0, 2] = -1.0
+    rotmat[5, 1, 0] = 1.0
+    rotmat[5, 2, 1] = -1.0
+    rotname[5] = 'C3alfa-1'
+
+    rotmat[6, 0, 2] = 1.0
+    rotmat[6, 1, 0] = -1.0
+    rotmat[6, 2, 1] = -1.0
+    rotname[6] = 'C3beta-1'
+
+    rotmat[7, 0, 2] = -1.0
+    rotmat[7, 1, 0] = -1.0
+    rotmat[7, 2, 1] = 1.0
+    rotname[7] = 'C3gamma-1'
+
+    rotmat[8, 0, 2] = 1.0
+    rotmat[8, 1, 0] = 1.0
+    rotmat[8, 2, 1] = 1.0
+    rotname[8] = 'C3delta-1'
+
+    rotmat[9, 0, 0] = 1.0
+    rotmat[9, 1, 1] = -1.0
+    rotmat[9, 2, 2] = -1.0
+    rotname[9] = 'C2x'
+
+    rotmat[10, 0, 0] = -1.0
+    rotmat[10, 1, 1] = 1.0
+    rotmat[10, 2, 2] = -1.0
+    rotname[10] = 'C2y'
+
+    rotmat[11, 0, 0] = -1.0
+    rotmat[11, 1, 1] = -1.0
+    rotmat[11, 2, 2] = 1.0
+    rotname[11] = 'C2z'
+
+    rotmat[12, 0, 0] = 1.0
+    rotmat[12, 1, 2] = 1.0
+    rotmat[12, 2, 1] = -1.0
+    rotname[12] = 'C4x'
+
+    rotmat[13, 0, 2] = -1.0
+    rotmat[13, 1, 1] = 1.0
+    rotmat[13, 2, 0] = 1.0
+    rotname[13] = 'C4y'
+
+    rotmat[14, 0, 1] = 1.0
+    rotmat[14, 1, 0] = -1.0
+    rotmat[14, 2, 2] = 1.0
+    rotname[14] = 'C4z'
+
+    rotmat[15, 0, 0] = 1.0
+    rotmat[15, 1, 2] = -1.0
+    rotmat[15, 2, 1] = 1.0
+    rotname[15] = 'C4x-1'
+
+    rotmat[16, 0, 2] = 1.0
+    rotmat[16, 1, 1] = 1.0
+    rotmat[16, 2, 0] = -1.0
+    rotname[16] = 'C4y-1'
+
+    rotmat[17, 0, 1] = -1.0
+    rotmat[17, 1, 0] = 1.0
+    rotmat[17, 2, 2] = 1.0
+    rotname[17] = 'C4z-1'
+
+    rotmat[18, 0, 1] = 1.0
+    rotmat[18, 1, 0] = 1.0
+    rotmat[18, 2, 2] = -1.0
+    rotname[18] = 'C2a'
+
+    rotmat[19, 0, 1] = -1.0
+    rotmat[19, 1, 0] = -1.0
+    rotmat[19, 2, 2] = -1.0
+    rotname[19] = 'C2b'
+
+    rotmat[20, 0, 2] = 1.0
+    rotmat[20, 1, 1] = -1.0
+    rotmat[20, 2, 0] = 1.0
+    rotname[20] = 'C2c'
+
+    rotmat[21, 0, 2] = -1.0
+    rotmat[21, 1, 1] = -1.0
+    rotmat[21, 2, 0] = -1.0
+    rotname[21] = 'C2d'
+
+    rotmat[22, 0, 0] = -1.0
+    rotmat[22, 1, 2] = 1.0
+    rotmat[22, 2, 1] = 1.0
+    rotname[22] = 'C2e'
+
+    rotmat[23, 0, 0] = -1.0
+    rotmat[23, 1, 2] = -1.0
+    rotmat[23, 2, 1] = -1.0
+    rotname[23] = 'C2f'
+
+    for i1 in range(24):
+        rotmat[i1+24] = -rotmat[i1]
+        rotname[i1+24] = 'I' + rotname[i1]
+    
+    matrices = zip(rotname, rotmat)
+    return list(matrices)
+
+
+##############################################################################
+# Parser of the symmetry contained in the host calculation
+
+def symmetry_parser(host_calc):
+    
+    """
+    Function used to get the relevant information regarding the symmetries of the sample directly from the claculation 
+    node of the host calculation.
+    
+    Inputs :: 
+    
+    host_calc : CalcJobNode : Calculation node hosting the structural information regarding the sample
+    
+    Outputs :: 
+    
+    list_vec : list containing the normalized real space vectors constituting the geometry of the structure
+    list_mat : list contining the rotatation matrices representing the symmetry of the system
+    """
+    
+    sym_mat = pointgrp()
+    
+    with host_calc.outputs.retrieved.open('output.0.txt') as _f:
+        read = _f.readlines()
+
+    # Initialize variables to store symmetry information
+    symmetry_operations = []
+    
+    # Flags to identify relevant sections
+    in_symmetry_section = False
+    start_read = False
+    
+    # Process the file line by line
+    for line in read:
+        line = line.strip()  # Remove leading and trailing whitespace
+        if "3D symmetries" in line:
+            # Start reading symmetry section
+            in_symmetry_section = True
+        if in_symmetry_section and line.startswith("------------------------------------------------------------"):
+            start_read = True
+        if in_symmetry_section and start_read and not line.startswith("------------------------------------------------------------"):
+            # Found the line containing symmetry operations
+            symmetry_operations.append(line.split())
+        if in_symmetry_section and start_read and symmetry_operations and line.startswith("------------------------------------------------------------"):
+            break # Exit the loop after every instance of the symmetries have been found
+            
+    sym_ops = [item for sublist in symmetry_operations for item in sublist]
+            
+    lattice_vectors = []
+    
+    in_lattice_section = False
+    start_read = False
+    #        
+    for line in read:
+        line = line.strip()  # Remove leading and trailing whitespace
+        if "normalised (ALAT)" in line:
+            # Start reading symmetry section
+            in_lattice_section = True
+        if in_lattice_section and line.startswith("----------------------                ----------------------"):
+            start_read = True
+        if in_lattice_section and start_read and not line.startswith("----------------------                ----------------------"):
+            # Found the line containing symmetry operations
+            lattice_vectors.append(line.split())
+        if in_lattice_section and start_read and lattice_vectors and line.startswith("----------------------                ----------------------"):
+            break # Exit the loop after every instance of the symmetries have been found
+            
+    # parsing of the data
+    list_vec = []
+    list_mat = []
+            
+    # Retrieve the vectors needed
+    for l_vec in lattice_vectors:
+        x = l_vec[1] ;y = l_vec[2]
+        list_vec.append([float(x), float(y)])
+    
+    # Retrieve the matrix corresponding to the sysymmetry_operations
+    for sym in sym_ops:
+        for mat in sym_mat: 
+            
+            if sym == mat[0]:
+                
+                list_mat.append(mat[1][0:2, 0:2]) #only take the plane rotation
+        
+    # Output the extracted symmetry operations
+    return list_vec, list_mat
+
+
+##############################################################################
 # STM pathfinder
 
 
-def STM_pathfinder(host_remote):
-    """
-    Calcfunction that gives back the structural information of the film, and the symmetries of the system
-
-    inputs ::
-
-           host_remote : Remote_data : node containing the remote data of the host material
-
-    return ::
-
-           plane_vectors   : list : list containing the 2 in plane vectors that span the surface.
-           unique_matrices : list : list of matrices, contains the 2x2 matrices that constitue the symmetry operations of the system.
-    """
-
-    from pymatgen.symmetry.analyzer import SpacegroupAnalyzer, SymmOp
-
-    struc = find_parent_structure(host_remote)
-    # clone the structure since it has already been saved in AiiDA and cannot be modified
-    supp_struc = struc.clone()
-
-    # If the structure is not periodic in every direction we force it to be.
-    supp_struc.pbc = (True, True, True)
-
-    # Pymatgen struc
-    py_struc = supp_struc.get_pymatgen()
-
-    struc_dict = py_struc.as_dict()
-    # Find the Bravais vectors that are in-plane vectors (assumes 2D structure)
-    plane_vectors = {'plane_vectors': [], 'space_group': ''}
-    for vec in struc_dict['lattice']['matrix']:
-        # Is this sufficient to find all the in-plane vectors?
-        if vec[2] == 0 or (struc.pbc[2] and (vec[0] + vec[1]) > 0):
-            plane_vectors['plane_vectors'].append(vec[:2])
-    # finally check if setting of plane_vectors worked
-    if 'plane_vectors' not in plane_vectors:
-        raise ValueError('Could not set "plane_vectors" in STM_pathfinder')
-
-    # Here we get the symmetry operations that are possible
-    symmetry_matrices = SpacegroupAnalyzer(py_struc).get_point_group_operations(cartesian=True)
-
-    plane_vectors['space_group'] = SpacegroupAnalyzer(py_struc).get_symmetry_dataset()['number']
-
-    # Here we get the symmetry rotations
-
-    supp_mat = []
-
-    # Get the affine representation of the matrices
-    for symmops in range(len(symmetry_matrices)):
-        supp_mat.append(np.array(SymmOp.as_dict(symmetry_matrices[symmops])['matrix'][:3]))
-
-    # Get only the rotation matrices and correct the numerical error
-    rot_mat = []
-
-    # Take only the matrices for the in-plane rotations
-    for elements in range(len(supp_mat)):
-        rot_mat.append(supp_mat[elements][0:2, 0:2])
-
-    # Sometimes it will happen that some rotation matrices projected to the 2D space will have the same representation.
-    # here we only take the unique ones
-    unique_matrices = []
-    for matrix in rot_mat:
-        if not any(np.array_equal(matrix, m) for m in unique_matrices):
-            unique_matrices.append(matrix)
-
-    # Round off the numerical error
-    for elements in range(len(unique_matrices)):
-        for rows in range(len(unique_matrices[elements])):
-            for cols in range(len(unique_matrices[elements][rows])):
-                unique_matrices[elements][rows][cols] = round(unique_matrices[elements][rows][cols])
-
-    return plane_vectors, unique_matrices
+#def STM_pathfinder(host_remote):
+#    """
+#    Calcfunction that gives back the structural information of the film, and the symmetries of the system
+#
+#    inputs ::
+#
+#           host_remote : Remote_data : node containing the remote data of the host material
+#
+#    return ::
+#
+#           plane_vectors   : list : list containing the 2 in plane vectors that span the surface.
+#           unique_matrices : list : list of matrices, contains the 2x2 matrices that constitue the symmetry operations of the system.
+#    """
+#
+#    from pymatgen.symmetry.analyzer import SpacegroupAnalyzer, SymmOp
+#
+#    struc = find_parent_structure(host_remote)
+#    # clone the structure since it has already been saved in AiiDA and cannot be modified
+#    supp_struc = struc.clone()
+#
+#    # If the structure is not periodic in every direction we force it to be.
+#    supp_struc.pbc = (True, True, True)
+#
+#    # Pymatgen struc
+#    py_struc = supp_struc.get_pymatgen()
+#
+#    struc_dict = py_struc.as_dict()
+#    # Find the Bravais vectors that are in-plane vectors (assumes 2D structure)
+#    plane_vectors = {'plane_vectors': [], 'space_group': ''}
+#    for vec in struc_dict['lattice']['matrix']:
+#        # Is this sufficient to find all the in-plane vectors?
+#        if vec[2] == 0 or (struc.pbc[2] and (vec[0] + vec[1]) > 0):
+#            plane_vectors['plane_vectors'].append(vec[:2])
+#    # finally check if setting of plane_vectors worked
+#    if 'plane_vectors' not in plane_vectors:
+#        raise ValueError('Could not set "plane_vectors" in STM_pathfinder')
+#
+#    # Here we get the symmetry operations that are possible
+#    symmetry_matrices = SpacegroupAnalyzer(py_struc).get_point_group_operations(cartesian=True)
+#
+#    plane_vectors['space_group'] = SpacegroupAnalyzer(py_struc).get_symmetry_dataset()['number']
+#
+#    # Here we get the symmetry rotations
+#
+#    supp_mat = []
+#
+#    # Get the affine representation of the matrices
+#    for symmops in range(len(symmetry_matrices)):
+#        supp_mat.append(np.array(SymmOp.as_dict(symmetry_matrices[symmops])['matrix'][:3]))
+#
+#    # Get only the rotation matrices and correct the numerical error
+#    rot_mat = []
+#
+#    # Take only the matrices for the in-plane rotations
+#    for elements in range(len(supp_mat)):
+#        rot_mat.append(supp_mat[elements][0:2, 0:2])
+#
+#    # Sometimes it will happen that some rotation matrices projected to the 2D space will have the same representation.
+#    # here we only take the unique ones
+#    unique_matrices = []
+#    for matrix in rot_mat:
+#        if not any(np.array_equal(matrix, m) for m in unique_matrices):
+#            unique_matrices.append(matrix)
+#
+#    # Round off the numerical error
+#    for elements in range(len(unique_matrices)):
+#        for rows in range(len(unique_matrices[elements])):
+#            for cols in range(len(unique_matrices[elements][rows])):
+#                unique_matrices[elements][rows][cols] = round(unique_matrices[elements][rows][cols])
+#
+#    return plane_vectors, unique_matrices
 
 
 @engine.calcfunction
@@ -762,234 +993,6 @@ def FT_QPI(positions, data, length, R0=10, R1=20, _DEBUG_=False, **kwargs):
         print(time()-t0)
     
     plt.show()
-    
-##############################################################################
-# Helper function generating the point group symmetries in the system
-
-def pointgrp(writesymfile=False):
-    import numpy as np
-    
-    
-    """
-    Helper function contining the representation of the point group symmetry matrices as expressed
-    in the KKR code. 
-    """
-
-    rotmat = np.zeros((64, 3, 3))
-    rotname = [""] * 64
-
-    rthree = np.sqrt(3.0) / 2.0
-    half = 0.5
-
-    rotmat[0, 0, 0] = 1.0
-    rotmat[0, 1, 1] = 1.0
-    rotmat[0, 2, 2] = 1.0
-    rotname[0] = 'E'
-    
-    rotmat[1, 0, 1] = 1.0
-    rotmat[1, 1, 2] = -1.0
-    rotmat[1, 2, 0] = -1.0
-    rotname[1] = 'C3alfa'
-
-    rotmat[2, 0, 1] = -1.0
-    rotmat[2, 1, 2] = -1.0
-    rotmat[2, 2, 0] = 1.0
-    rotname[2] = 'C3beta'
-
-    rotmat[3, 0, 1] = -1.0
-    rotmat[3, 1, 2] = 1.0
-    rotmat[3, 2, 0] = -1.0
-    rotname[3] = 'C3gamma'
-
-    rotmat[4, 0, 1] = 1.0
-    rotmat[4, 1, 2] = 1.0
-    rotmat[4, 2, 0] = 1.0
-    rotname[4] = 'C3delta'
-
-    rotmat[5, 0, 2] = -1.0
-    rotmat[5, 1, 0] = 1.0
-    rotmat[5, 2, 1] = -1.0
-    rotname[5] = 'C3alfa-1'
-
-    rotmat[6, 0, 2] = 1.0
-    rotmat[6, 1, 0] = -1.0
-    rotmat[6, 2, 1] = -1.0
-    rotname[6] = 'C3beta-1'
-
-    rotmat[7, 0, 2] = -1.0
-    rotmat[7, 1, 0] = -1.0
-    rotmat[7, 2, 1] = 1.0
-    rotname[7] = 'C3gamma-1'
-
-    rotmat[8, 0, 2] = 1.0
-    rotmat[8, 1, 0] = 1.0
-    rotmat[8, 2, 1] = 1.0
-    rotname[8] = 'C3delta-1'
-
-    rotmat[9, 0, 0] = 1.0
-    rotmat[9, 1, 1] = -1.0
-    rotmat[9, 2, 2] = -1.0
-    rotname[9] = 'C2x'
-
-    rotmat[10, 0, 0] = -1.0
-    rotmat[10, 1, 1] = 1.0
-    rotmat[10, 2, 2] = -1.0
-    rotname[10] = 'C2y'
-
-    rotmat[11, 0, 0] = -1.0
-    rotmat[11, 1, 1] = -1.0
-    rotmat[11, 2, 2] = 1.0
-    rotname[11] = 'C2z'
-
-    rotmat[12, 0, 0] = 1.0
-    rotmat[12, 1, 2] = 1.0
-    rotmat[12, 2, 1] = -1.0
-    rotname[12] = 'C4x'
-
-    rotmat[13, 0, 2] = -1.0
-    rotmat[13, 1, 1] = 1.0
-    rotmat[13, 2, 0] = 1.0
-    rotname[13] = 'C4y'
-
-    rotmat[14, 0, 1] = 1.0
-    rotmat[14, 1, 0] = -1.0
-    rotmat[14, 2, 2] = 1.0
-    rotname[14] = 'C4z'
-
-    rotmat[15, 0, 0] = 1.0
-    rotmat[15, 1, 2] = -1.0
-    rotmat[15, 2, 1] = 1.0
-    rotname[15] = 'C4x-1'
-
-    rotmat[16, 0, 2] = 1.0
-    rotmat[16, 1, 1] = 1.0
-    rotmat[16, 2, 0] = -1.0
-    rotname[16] = 'C4y-1'
-
-    rotmat[17, 0, 1] = -1.0
-    rotmat[17, 1, 0] = 1.0
-    rotmat[17, 2, 2] = 1.0
-    rotname[17] = 'C4z-1'
-
-    rotmat[18, 0, 1] = 1.0
-    rotmat[18, 1, 0] = 1.0
-    rotmat[18, 2, 2] = -1.0
-    rotname[18] = 'C2a'
-
-    rotmat[19, 0, 1] = -1.0
-    rotmat[19, 1, 0] = -1.0
-    rotmat[19, 2, 2] = -1.0
-    rotname[19] = 'C2b'
-
-    rotmat[20, 0, 2] = 1.0
-    rotmat[20, 1, 1] = -1.0
-    rotmat[20, 2, 0] = 1.0
-    rotname[20] = 'C2c'
-
-    rotmat[21, 0, 2] = -1.0
-    rotmat[21, 1, 1] = -1.0
-    rotmat[21, 2, 0] = -1.0
-    rotname[21] = 'C2d'
-
-    rotmat[22, 0, 0] = -1.0
-    rotmat[22, 1, 2] = 1.0
-    rotmat[22, 2, 1] = 1.0
-    rotname[22] = 'C2e'
-
-    rotmat[23, 0, 0] = -1.0
-    rotmat[23, 1, 2] = -1.0
-    rotmat[23, 2, 1] = -1.0
-    rotname[23] = 'C2f'
-
-    for i1 in range(24):
-        rotmat[i1+24] = -rotmat[i1]
-        rotname[i1+24] = 'I' + rotname[i1]
-    
-    matrices = zip(rotname, rotmat)
-    return list(matrices)
         
-        
-##############################################################################
-# Parser of the symmetry contained in the host calculation
-
-def symmetry_parser(host_calc):
-    
-    """
-    
-    Inputs :: 
-    
-    host_calc : CalcJobNode : Calculation node hosting the structural information regarding the sample
-    
-    Outputs :: 
-    
-    list_vec : list containing the normalized real space vectors constituting the geometry of the structure
-    list_mat : list contining the rotatation matrices representing the symmetry of the system
-    
-    """
-    
-    with host_calc.outputs.retrieved.open('output.0.txt') as _f:
-        read = _f.readlines()
-
-    # Initialize variables to store symmetry information
-    symmetry_operations = []
-    
-    # Flags to identify relevant sections
-    in_symmetry_section = False
-    start_read = False
-    
-    # Process the file line by line
-    for line in read:
-        line = line.strip()  # Remove leading and trailing whitespace
-        if "3D symmetries" in line:
-            # Start reading symmetry section
-            in_symmetry_section = True
-        if in_symmetry_section and line.startswith("------------------------------------------------------------"):
-            start_read = True
-        if in_symmetry_section and start_read and not line.startswith("------------------------------------------------------------"):
-            # Found the line containing symmetry operations
-            symmetry_operations.append(line.split())
-        if in_symmetry_section and start_read and symmetry_operations and line.startswith("------------------------------------------------------------"):
-            break # Exit the loop after every instance of the symmetries have been found
-            
-    sym_ops = [item for sublist in symmetry_operations for item in sublist]
-            
-    lattice_vectors = []
-    
-    in_lattice_section = False
-    start_read = False
-    #        
-    for line in read:
-        line = line.strip()  # Remove leading and trailing whitespace
-        if "normalised (ALAT)" in line:
-            # Start reading symmetry section
-            in_lattice_section = True
-        if in_lattice_section and line.startswith("----------------------                ----------------------"):
-            start_read = True
-        if in_lattice_section and start_read and not line.startswith("----------------------                ----------------------"):
-            # Found the line containing symmetry operations
-            lattice_vectors.append(line.split())
-        if in_lattice_section and start_read and lattice_vectors and line.startswith("----------------------                ----------------------"):
-            break # Exit the loop after every instance of the symmetries have been found
-            
-    # parsing of the data
-    list_vec = []
-    list_mat = []
-            
-    # Retrieve the vectors needed
-    for l_vec in lattice_vectors:
-        x = l_vec[1] ;y = l_vec[2]
-        v.append([float(x), float(y)])
-    
-    # Retrieve the matrix corresponding to the sysymmetry_operations
-    for sym in sym_ops:
-        for mat in sym_mat: 
-            
-            if sym == mat[0]:
-                
-                list_mat.append(mat[1][0:2, 0:2]) #only take the plane rotation
-        
-    # Output the extracted symmetry operations
-    return list_vec, list_mat
-
 
 ##############################################################################

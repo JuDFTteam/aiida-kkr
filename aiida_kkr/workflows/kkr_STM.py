@@ -354,7 +354,7 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         host_structure = find_parent_structure(host_remote)
 
         # now find all the positions we need to scan
-        coeff = self.get_scanning_positions(host_remote)
+        coeff = self.get_scanning_positions(host_calc)
 
         if _VERBOSE_:
             # timing counters
@@ -421,7 +421,7 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
         return impurity_info_aux, imp_potential_node_aux
 
-    def get_scanning_positions(self, host_remote):
+    def get_scanning_positions(self, host_calc):
         """
         Extract scanning positions either from input 'scan_positions' or from 'nx', 'ny' + symmetry analysis
 
@@ -451,7 +451,7 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         if generate_scan_positions:
 
             # Information of the host structure
-            struc_info, symm_matrices = tools_STM_scan.STM_pathfinder(host_remote)
+            struc_vectors, symm_matrices = tools_STM_scan.symmetry_parser(host_calc)
 
             # We now want to iterate over several in-plane positions.
             # These are the number of vectors in which we want to move the STM tip.
@@ -460,12 +460,12 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
             # Path creation step. (The the identity operator is present, but will be excluded)
             unused_pos, used_pos = tools_STM_scan.lattice_generation(
-                symm_matrices, struc_info['plane_vectors'], 0, 0, nx, ny
+                symm_matrices, struc_vectors, 0, 0, nx, ny
             )
 
             # Since the combine tools use the element already in the units of da and db, we use a helper function
             # to have the indices of the linear combination of the used position vectors in the base of the Bravais lattice.
-            coeff = tools_STM_scan.find_linear_combination_coefficients(struc_info['plane_vectors'], used_pos)
+            coeff = tools_STM_scan.find_linear_combination_coefficients(struc_vectors, used_pos)
 
         return coeff
 
