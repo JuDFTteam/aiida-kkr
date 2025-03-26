@@ -7,14 +7,14 @@ import numpy as np
 from aiida import orm, engine
 from aiida_kkr.tools import find_parent_structure
 from aiida.orm import CalcJobNode
-from aiida_kkr.tools.combine_imps import get_scoef_single_imp
+from aiida_kkr.tools.imp_cluster_tools import get_scoef_single_imp
 from aiida_kkr.tools.imp_cluster_tools import pos_exists_already, combine_clusters
 from masci_tools.io.common_functions import get_alat_from_bravais
 
 __copyright__ = (u'Copyright (c), 2023, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.4'
+__version__ = '0.1.6'
 __contributors__ = (u'Philipp Rüßmann', u'Raffaele Aliberti')
 
 ##############################################################################
@@ -556,15 +556,15 @@ def symmetry_parser(host_calc):
 #    return plane_vectors, unique_matrices
 
 
-@engine.calcfunction
-def STM_pathfinder_cf(host_structure):
-    """
-    Calcfunction that gives back the structural information of the film, and the symmetries of the system
-    """
-
-    struc_info, symm_matrices = STM_pathfinder(host_structure)
-
-    return struc_info, symm_matrices
+#@engine.calcfunction
+#def STM_pathfinder_cf(host_structure):
+#    """
+#    Calcfunction that gives back the structural information of the film, and the symmetries of the system
+#    """
+#
+#    struc_info, symm_matrices = STM_pathfinder(host_structure)
+#
+#    return struc_info, symm_matrices
 
 
 ##############################################################################
@@ -586,51 +586,50 @@ def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
         return ::
 
         points_to_eliminate : list : list of list containing the (x,y) positions to NOT to
-                                     be scanned
-        points_to_scan      : list : list of list containing the (x,y) positions to BE be
-                                     scanned
+                                     be scanned (unsorted)
+        points_to_scan      : list : list of list containing the (x,y) positions to BE
+                                     scanned (unsorted)
         """
-
+    
     # Here we create a grid  made of points which are the linear combination of the lattice vectors
-    x_len = xmax * 2
-    y_len = ymax * 2  # maybe there is a way to make this more efficient...
+    x_len = xmax # 2
+    y_len = ymax # 2  # maybe there is a way to make this more efficient... USE the lattice vectors! check the longest and use it
 
-    x_interval = [i for i in range(-x_len, x_len)]
+    x_interval = [i for i in range(-x_len, x_len+1)]
 
-    y_interval = [i for i in range(-y_len, y_len)]
+    y_interval = [i for i in range(-y_len, y_len+1)]
 
     points_to_scan = []
-
-    # Now we only generate points in the first quadrant and the we use the symmetry analysis
-    # To visualize the other unscanned sites
-
-    for i in x_interval:
-        points_to_scan_col = []
-        for j in y_interval:
-            p = [i * x + j * y for x, y in zip(vec[0], vec[1])]
-            if ((p[0] < 0 or p[0] > xmax) or (p[1] < 0 or p[1] > ymax)) or (p[0] < x_start or p[1] < y_start):
-                continue
-            else:
-                points_to_scan_col.append(p)
-        if len(points_to_scan_col) != 0:
-            points_to_scan.append(points_to_scan_col)
-
-    #print(lattice_points)
+    lattice_points = []
     points_to_eliminate = []
 
-    for i in range(len(points_to_scan)):
-        for j in range(len(points_to_scan[i])):
-            #print(lattice_points[i][j])
-            #if lattice_points[i][j][0] >= 0 and lattice_points[i][j][1] >= 0:
-            for element in rot[1:]:
-                point = np.dot(element, points_to_scan[i][j])
-                #if point[0] >= 0 and point[1] >=0:
-                #    continue
-                #else:
-                points_to_eliminate.append(point)
+    #Generat the lattice point and check if they fit in scanning area that it's wanted
 
-    #print(point_to_eliminate)
+    for i in x_interval:
+        for j in y_interval:
+            p = [i * x + j * y for x, y in zip(vec[0], vec[1])]
+            if p[0] < xmax and p[0] > -xmax and p[1] < ymax and p[1] > -ymax:
+                lattice_points.append(p)
+    
+    # sort the lattice points based on their y value. This is not necessary but makes the visualization nicer
+    lattice_points = sorted(lattice_points, key=lambda y:y[1])
 
+    for points in lattice_points:
+        
+        # First check if only the identity exists, in that case every point need to be scanned. 
+        if len(rot) == 1: 
+            points_to_scan = lattice_points
+        else:
+            for sym in rot[1:]:
+
+                sym_point = np.dot(sym.tolist(), points).tolist() # Generate the symmetrical point
+                
+                if points not in points_to_eliminate and points not in points_to_scan:
+                    points_to_scan.append(points)
+                if sym_point not in points_to_eliminate and sym_point not in points_to_scan:
+                    points_to_eliminate.append(sym_point)
+                
+            
     return points_to_eliminate, points_to_scan
 
 
@@ -638,7 +637,7 @@ def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
 # lattice plot
 
 
-def lattice_plot(plane_vectors, symm_vec, symm_matrices, grid_length_x, grid_length_y):
+def lattice_plot(plane_vectors, symm_vec, symm_matrices, grid_length_x, grid_length_y, **kwargs):
     """
         Helper tool to plot the position that will be scanned in the submission of the
         kkr_STM_wc workchain
@@ -656,6 +655,10 @@ def lattice_plot(plane_vectors, symm_vec, symm_matrices, grid_length_x, grid_len
         None
 
     """
+    
+    cused = kwargs.get('cused', '#FDE725FF')
+    cunused = kwargs.get('cunused', '#33638DFF') 
+    clattice = kwargs.get('clattice', '#3CBB75FF')
 
     #from aiida_kkr.tools.tools_STM_scan import lattice_generation
     import matplotlib.pyplot as plt
@@ -667,10 +670,10 @@ def lattice_plot(plane_vectors, symm_vec, symm_matrices, grid_length_x, grid_len
 
     # Plotting of the points
     for element in unused:
-        plt.scatter(element[0], element[1], marker='s', s=130, c='#33638DFF')
+        plt.scatter(element[0], element[1], marker='s', s=130, c=cunused)
 
     for element in used:
-        plt.scatter(element[0], element[1], marker='D', s=130, c='#FDE725FF')
+        plt.scatter(element[0], element[1], marker='D', s=130, c=cused)
 
     # Plot of the crystal symmetry directions, tag must be activated.
     if symm_vec:
@@ -686,12 +689,12 @@ def lattice_plot(plane_vectors, symm_vec, symm_matrices, grid_length_x, grid_len
 
     # Plot of the Bravais lattice
     for element in plane_vectors:
-        plt.quiver(*origin, element[0], element[1], color='#3CBB75FF', angles='xy', scale_units='xy', scale=1)
+        plt.quiver(*origin, element[0], element[1], color=clattice, angles='xy', scale_units='xy', scale=1)
 
     legend_elements = [
-        Line2D([0], [0], color='#33638DFF', lw=2, label='Unscanned Sites', marker='s'),
-        Line2D([0], [0], color='#FDE725FF', lw=2, label='Scanned Sites', marker='D'),
-        Line2D([0], [0], color='#3CBB75FF', lw=2, label='Bravais lattice'),
+        Line2D([0], [0], color=cunused, lw=2, label='Unscanned Sites', marker='s'),
+        Line2D([0], [0], color=cused, lw=2, label='Scanned Sites', marker='D'),
+        Line2D([0], [0], color=clattice, lw=2, label='Bravais lattice'),
     ]
     plt.legend(handles=legend_elements, bbox_to_anchor=(0.75, -0.15))
 
@@ -721,7 +724,8 @@ def find_linear_combination_coefficients(plane_vectors, vectors):
 
        indices : list : list of list of the form [[int_1, int_1]...[int_n, int_n]]
                         the integers refers to how many times that specific vectors is
-                        present in the linear combination r = int_x * a + int_2 * b
+                        present in the linear combination r = int_x * a + int_2 * b (sorted
+                        list in the end)
 
        """
 
