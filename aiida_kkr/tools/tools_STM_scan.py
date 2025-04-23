@@ -614,12 +614,13 @@ def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
     # sort the lattice points based on their y value. This is not necessary but makes the visualization nicer
     lattice_points = sorted(lattice_points, key=lambda y:y[1])
 
-    for points in lattice_points:
+    
         
-        # First check if only the identity exists, in that case every point need to be scanned. 
-        if len(rot) == 1: 
-            points_to_scan = lattice_points
-        else:
+    # First check if only the identity exists, in that case every point need to be scanned. 
+    if len(rot) == 1: 
+        points_to_scan = lattice_points
+    else:
+        for points in lattice_points:
             for sym in rot[1:]:
 
                 sym_point = np.dot(sym.tolist(), points).tolist() # Generate the symmetrical point
@@ -769,7 +770,7 @@ def STM_real_space_parser(group_STM, energy_pos, N0, _DEBUG_=False):
     # First retrieve the lattice constant of the system. 
     
     try:
-        ret  = group_STMnodes[0].called[0].called[0].called[1].outputs.retrieved
+        ret  = group_STM.nodes[0].called[0].called[0].called[1].outputs.retrieved
     except:
         print('WARNING: error while reading the group, it is possible that no node is contained here')
     
@@ -827,6 +828,7 @@ def STM_real_space_parser(group_STM, energy_pos, N0, _DEBUG_=False):
 
 ##############################################################################
 # Real space plotting function
+
 def STM_real_space_plot(positions, data, R0=0, R1=10, _DEBUG_=False, **kwargs):
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors

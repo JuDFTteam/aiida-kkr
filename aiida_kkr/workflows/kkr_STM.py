@@ -1,4 +1,4 @@
-# Workflow for STM swf_parameterson around a magnetic impurity
+# Workflow for simulating an STM scanning 
 
 from aiida.engine import WorkChain, ToContext, if_, calcfunction
 from aiida.orm import Dict, RemoteData, Code, CalcJobNode, WorkChainNode, Float, Bool, XyData, SinglefileData, List
@@ -13,7 +13,7 @@ from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
 __copyright__ = (u'Copyright (c), 2024, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.5'
+__version__ = '0.1.6'
 __contributors__ = (u'Raffaele Aliberti', u'David Antognini Silva', u'Philipp Rüßmann')
 _VERBOSE_ = False
 
@@ -147,6 +147,12 @@ class kkr_STM_wc(WorkChain):
             valid_type=RemoteData,
             required=False,
             help='with this input we can directly load the gf_dos files without calculating them'
+        )
+        spec.input(
+            'settings_LDAU',
+            valid_type=Dict,
+            required=False,
+            help='Settings for LDA+U run (see KkrimpCalculation for details).'
         )
 
         # Here we expose the inputs for the GF calculations step.
@@ -350,7 +356,7 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         imp_potential_node = self.inputs.imp_potential_node  # for the first step we combine the impurity node from the input
 
         host_remote = self.inputs.host_remote
-        host_calc = host_remote.get_incoming(node_class=CalcJobNode).first().node
+        host_calc = host_remote.base.links.get_incoming(node_class=CalcJobNode).first().node
         host_structure = find_parent_structure(host_remote)
 
         # now find all the positions we need to scan
@@ -503,6 +509,7 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
         # Update the BdG parameters if they are inserted in the workflow
         if 'BdG' in self.inputs:
+            self.report('BdG foun, superconductivity present')
             if 'params_overwrite' in self.inputs.BdG:
                 builder.BdG.params_overwrite = self.inputs.BdG.params_overwrite  # pylint: disable=no-member
 
@@ -520,13 +527,16 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
         # We want to set the energy to the Fermi level
         if 'emin' not in self.ctx.dos_params_dict:
+            self.report('No emin found. The scan will be around the Fermi energy')
             self.ctx.kkrimp_params_dict['dos_params']['emin'] = 0 - 0.005
         if 'emax' not in self.ctx.dos_params_dict:
+            self.report('No emax found. The scan will be around the Fermi energy')
             self.ctx.kkrimp_params_dict['dos_params']['emax'] = 0 + 0.005
 
         # Finally we overwrite the number of energy points to 1
         # This is because we want many epoints around the impurity position
         if 'nepts' not in self.ctx.dos_params_dict:
+            self.report('No number of energy points has been assigned. Default set to 7')
             self.ctx.kkrimp_params_dict['dos_params'][
                 'nepts'] = 7  # Here 7 because of the interpolated files that aren't generated
 
@@ -534,25 +544,21 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         # Host remote files that will be used for the actual plot step.
         builder.host_remote = self.inputs.host_remote
 
-        # Here we create the impurity cluster for the STM scanning tool
-
-        #if 'Rcut' in self.inputs.imp_info.get_dict():
-        #    # If the data doesn't come from a previous calculation we create it
-        #    impurity_info, imp_pot_sfd = self.impurity_cluster_evaluation()
-        #else:
-        #    impurity_info = self.inputs.imp_info
-        #    imp_pot_sfd = self.inputs.imp_potential_node
-
         impurity_info, imp_pot_sfd = self.impurity_cluster_evaluation()
 
         # With this we make sure that the actual number of angles is the same as the number of embedded impurity
         if 'initial_noco_angles' in self.inputs:
+            self.report('Initial non-collinear angles are being set')
             inital_noco_angles_aux = self.inputs.initial_noco_angles.clone()
             for imp in impurity_info.get_dict()['Zimp']:
                 if imp == 0:
                     inital_noco_angles_aux.get_dict()['phi'].append(0.0)
                     inital_noco_angles_aux.get_dict()['theta'].append(0.0)
                     inital_noco_angles_aux.get_dict()['fix_dir'].append(1)
+                    
+        if 'settings_LDAU' in self.inputs:
+            self.report('Add settings_LDAU input node')
+            builder.settings_LDAU = self.inputs.settings_LDAU
 
         # impurity info for the workflow
         builder.impurity_info = impurity_info
