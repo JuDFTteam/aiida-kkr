@@ -216,12 +216,9 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
                     impurity_to_combine[key].append(combined_imp_info[key][-1])
                 else:
                     impurity_to_combine[key] = np.append(impurity_to_combine[key], [combined_imp_info[key][-1]], axis=0)
-
-            # Convert to an AiiDA Dictionary
             new_combined_imp_info = impurity_to_combine
 
         else:
-
             new_combined_imp_info = combined_imp_info
 
         return new_combined_imp_info
@@ -390,6 +387,9 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
             # Check if the position is already in the cluster
             # for this we need to first get the position
+            
+            
+            # TO DO: correct for the offset given by the STM tools 
             tmp_pos = self.get_tip_position_dict(element[0], element[1])
             _, tmp_clust = get_imp_cls_add(host_structure, tmp_pos)
             clust_offset = offset_clust2(imp_clust, tmp_clust, host_structure, Dict(tmp_pos))
@@ -448,11 +448,10 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
                 # TODO: improve the validity check
                 generate_scan_positions = False
 
-                if _VERBOSE_:
-                    if generate_scan_positions:
-                        self.report('The scanning positions have been given by the user')
-                    else:
-                        self.repotr('The scanning positions were automatically generated')
+                if generate_scan_positions:
+                    self.report('The scanning positions have been given by the user')
+                else:
+                    self.report('The scanning positions were automatically generated')
 
         if generate_scan_positions:
 

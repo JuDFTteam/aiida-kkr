@@ -129,7 +129,7 @@ def get_imp_info_add_position(add_position, host_structure, imp_info):
 
     # shift clust2 by offset
     clust2_offset = offset_clust2(clust1, clust2, host_structure, add_position)
-
+   
     # combine cluster information
     pos_exists_in_imp1, _ = pos_exists_already(clust1, clust2)
     if pos_exists_in_imp1:
@@ -573,7 +573,6 @@ def symmetry_parser(host_calc):
 
 def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
     """
-
         inputs ::
 
         x_len  : int  : value to create points between - x and x.
@@ -589,11 +588,18 @@ def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
                                      be scanned (unsorted)
         points_to_scan      : list : list of list containing the (x,y) positions to BE
                                      scanned (unsorted)
-        """
+    """
+    # To Do: Add in plane shift due to to choice of layer
+    
+    #pos1 = np.array(host_structure.sites[ilayer1].position)
+    #pos2 = np.array(host_structure.sites[ilayer2].position)
+    #r_out_of_plane = pos2 - pos1
+    #x_shift = r_out_of_plane[0]
+    #y_shift = r_out_of_plane[1]
     
     # Here we create a grid  made of points which are the linear combination of the lattice vectors
-    x_len = xmax # 2
-    y_len = ymax # 2  # maybe there is a way to make this more efficient... USE the lattice vectors! check the longest and use it
+    x_len = xmax * 2
+    y_len = ymax * 2  # maybe there is a way to make this more efficient... USE the lattice vectors! check the longest and use it
 
     x_interval = [i for i in range(-x_len, x_len+1)]
 
@@ -751,7 +757,90 @@ def find_linear_combination_coefficients(plane_vectors, vectors):
 ##############################################################################
 # Paser tool for retrieving data from an AiiDA Group of STM calculations
 
+
+def STM_density_parser(kkr_calc, _debug_=False):
+    _version_ = 0.1
+    import aiida.orm as orm
+
+    
+    """
+    This function uses a Calculation node and parses the rho.dot files.
+    :param kkr_calc: (KkrimpCalculation); Calculation containing the rho.dat files
+    """
+    
+    def retrieve_files(kkr_calc, retrieve_list):
+        import tempfile
+        import os.path as path
+        
+        remote_folder = kkr_calc.outputs.remote_folder
+        
+        try:
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                for fname in retrieve_list:
+                    remote_folder.getfile(fname, path.join(tmpdirname, fname))
+                retrieved_files = orm.FolderData(tree=tmpdirname)
+            return retrieved_files
+        except:
+            print('Wrong node type or retrievd folder is not present')
+        
+    
+    if _debug_:
+        from time import time
+        t0 = time()
+
+    retrieved = retrieve_files(kkr_calc, orm.List(['rho.dat']))
+    
+    parsed_data = [] # Initialization of the list that will contain the parsed data
+    
+    current_rmesh = None
+    nmesh = natom = nspin = None
+    
+    with retrieved.open('rho.dat', 'r') as file:
+        l = file.readlines()
+    
+    for idx, line in enumerate(l):
+        if line.startswith('       # lmpot'):
+            lmpot, natom, nspin = [int(i) for i in line.split() if i.isdigit()]
+        elif line.startswith('       # rmesh'):
+            nmesh, natom = [int(i) for i in line.split() if i.isdigit()]
+            
+            rmesh = []
+            for i in range(nmesh):
+                data_line = l[idx + 1 + i].strip()
+                if data_line and not data_line.startswith('#'):
+                    rmesh.append(float(data_line.split()[0]))
+            # Collect the radial mesh
+            #rmesh = [float(l[idx + 1 + i].split()[0]) for i in range(nmesh)]
+            #current_rmesh = rmesh
+            
+            if nspin == 1:
+                parsed_data.append([nmesh, natom, rmesh, []])
+            else:
+                parsed_data.append([nmesh, natom, rmesh, [], []])
+                
+        elif line.startswith('# rho_L'):
+            ilm, ispin, iatom = [int(i) for i in line.split() if i.isdigit()]
+            
+            orbital = []
+            for i in range(parsed_data[iatom - 1][0]-1):
+                data_line = l[idx + 1 + i].strip()
+                if data_line and not data_line.startswith('#'):
+                   orbital.append(float(data_line.split()[0]))
+            
+            if ispin == 1:
+                parsed_data[iatom - 1][3].append(orbital)
+            else:
+                parsed_data[iatom - 1][4].append(orbital)
+    
+    if _debug_:
+        print(time()-t0)
+        
+    return parsed_data
+
+# Function for retrieving and parsing the data from calculation
+
 def STM_real_space_parser(group_STM, energy_pos, N0, _DEBUG_=False):
+     _version_ = 0.1
     from masci_tools.util.constants import BOHR_A
     from time import time
     
@@ -785,7 +874,7 @@ def STM_real_space_parser(group_STM, energy_pos, N0, _DEBUG_=False):
             
             # Assuming the numerical value is after 'ALTABASIS', get the next element
             if len(parts) > 1:
-                alat = parts[1]  # The value is immediately attached to the nam. 
+                alat = float(parts[1])  # The value is immediately attached to the nam. 
                 break  # there is only one such parameter, break the loop after is found. 
     
     alat_ang = (alat * BOHR_A)
@@ -909,6 +998,7 @@ def STM_real_space_plot(positions, data, R0=0, R1=10, _DEBUG_=False, **kwargs):
 # Plotting for the FT of the real space image of a STM scanning
 
 def FT_QPI(positions, data, length, R0=10, R1=20, _DEBUG_=False, **kwargs):
+    import matplotlib.pyplot as plt
     import matplotlib.colors as colors 
     from scipy.interpolate import griddata
     import matplotlib.patches as patches
@@ -920,7 +1010,7 @@ def FT_QPI(positions, data, length, R0=10, R1=20, _DEBUG_=False, **kwargs):
     Inputs : 
     
     Inputs:
-    positions (List) : List containing 2 lists having thex and y positions
+    positions (List) : List containing 2 lists having the x and y positions
     data (List) : List containing the actual data to be plotted
     length (int) : Length of the vector to divide the BZ zone
     res_points (int) : number of points to resolve
@@ -1002,3 +1092,26 @@ def FT_QPI(positions, data, length, R0=10, R1=20, _DEBUG_=False, **kwargs):
         
 
 ##############################################################################
+# In plane shift caused by the conversion in imp cluster
+
+def offset_calc(host_structure, impurity_info, tip_position):
+    
+    """ Helper function to calculate the in-plane offset caused by the conversion in imp cluster 
+        This calculates the in-plane shift caused by this and gets back a coefficient that 
+        corresponds to the liner coefficients of the Bravais vectors that produce this shift
+    """
+    
+    ilayer = tip_position['ilayer']
+    
+    _, clust1 = convert_to_imp_cls(host_structure, impurity_info)
+    _, clust2 = get_imp_cls_add(host_structure, Dict(dict={'nx':0, 'ny':0, 'ilayer':ilayer, 'scan_positions':[[0, 0]]}))
+    
+    r_offset = offset_clust2(clust1, clust2, host_structure, Dict(dict={'nx':0, 'ny':0, 'ilayer':ilayer, 'scan_positions':[[0, 0]]}))
+    
+    cell = host_structure.cell
+    offset_coeff = find_linear_combination_coefficients(cell[:2], r_offset)
+    
+    return offset_coeff
+
+
+###############################################################################
