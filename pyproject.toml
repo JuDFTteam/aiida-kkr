@@ -123,6 +123,7 @@ include-package-data = false
 "kkr.jij" = "aiida_kkr.workflows.jijs:kkr_jij_wc"
 "kkr.combine_imp" = "aiida_kkr.workflows._combine_imps:combine_imps_wc"
 "kkr.STM" = "aiida_kkr.workflows.kkr_STM:kkr_STM_wc"
+"kkr.bdg" = "aiida_kkr.workflows.kkr_bdg_wc:kkr_bdg_wc"
 
 [tool.setuptools.packages.find]
 namespaces = false
