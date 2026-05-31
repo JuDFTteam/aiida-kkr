@@ -17,4 +17,4 @@ from ._decimation import kkr_decimation_wc
 from .jijs import kkr_jij_wc
 from .imp_BdG import kkrimp_BdG_wc
 from .kkr_STM import kkr_STM_wc
-from .kkr_bdg_workchain import kkr_bdg_wc
+from .kkr_bdg_wc import kkr_bdg_wc
