@@ -364,7 +364,7 @@ class kkrimp_BdG_wc(WorkChain):
             builder.options = self.inputs.BdG_scf.options
         else:
             if 'options' in self.inputs.imp_scf:
-                builder.options = self.inputs.imp_scf
+                builder.options = self.inputs.imp_scf.options
             else:
                 builder.options = self.inputs.options
 
