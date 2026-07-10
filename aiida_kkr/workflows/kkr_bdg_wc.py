@@ -22,7 +22,13 @@ from masci_tools.io.kkr_params import kkrparams
 __copyright__ = (u'Copyright (c), 2026, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.2.0'
+__version__ = '0.2.1'
+# Changelog:
+#   0.2.1 — semi-circle RCLUSTZ is now cell-aware: inherited from calc_parameters/normal-SCF
+#           params instead of a hardcoded 3.5 default (explicit semi_circle_settings['RCLUSTZ']
+#           still overrides). Prevents oversized screening clusters exceeding NACLSD on
+#           multi-atom cells. See update_params_semi_circle. Also: rank/energy-grid sanity
+#           WARNING in validate_inputs (MPI ranks must divide the semi-circle NPT1 grid).
 __contributors__ = u'Philipp Rüßmann, Mohammad Hemmati'
 
 
@@ -43,6 +49,16 @@ def update_params_semi_circle(params_node, semi_circle_settings):
         except KeyError:
             pass
     settings_dict = semi_circle_settings.get_dict()
+    # Cell-aware RCLUSTZ: if the caller did not explicitly request an RCLUSTZ for the
+    # semi-circle step, inherit the parent (cell-appropriate) value rather than forcing a
+    # bulk-tuned default. A too-large RCLUSTZ builds an oversized screening cluster that can
+    # exceed the KKRhost binary's compiled NACLSD (RCLUSTZ=3.5 on an 8-atom NbSe2 cell built
+    # a 225-atom cluster and aborted [302]).
+    if settings_dict.get('RCLUSTZ') is None:
+        settings_dict.pop('RCLUSTZ', None)
+        parent_rclustz = params_node.get_dict().get('RCLUSTZ')
+        if parent_rclustz is not None:
+            settings_dict['RCLUSTZ'] = parent_rclustz
     unregistered = {k: settings_dict.pop(k) for k in _unregistered_keys if k in settings_dict}
     para.set_multiple_values(**settings_dict)
     result_dict = para.get_dict()
@@ -116,7 +132,9 @@ class kkr_bdg_wc(WorkChain):
             'NPT1': 32,
             'MAX_NUM_KMESH': 4,
             'BZDIVIDE': [100, 100, 100],
-            'RCLUSTZ': 3.5,
+            # RCLUSTZ intentionally omitted: the semi-circle step now INHERITS the parent
+            # (cell-appropriate) RCLUSTZ from calc_parameters/normal SCF (see
+            # update_params_semi_circle). Pass RCLUSTZ in semi_circle_settings to override.
             'NSTEPS': 200,
             'IMIX': 4,
             'DISABLE_CHARGE_NEUTRALITY': True,
@@ -288,7 +306,24 @@ class kkr_bdg_wc(WorkChain):
     def validate_inputs(self):
         test_and_get_codenode(self.inputs.kkr, 'kkr.kkr', use_exceptions=True)
         test_and_get_codenode(self.inputs.kkr_bdg, 'kkr.kkr', use_exceptions=True)
-    
+
+        # Rank / energy-grid sanity (added 2026-07-07).
+        # The semi-circle & BdG steps parallelise over NPT1 energy points, while the normal SCF
+        # (kkr_scf_wc) uses its own (smaller) fine contour. MPI ranks must divide EVERY step's
+        # energy-point count or KKR aborts "No rest ranks allowed". We can only see NPT1 here, so
+        # warn (do not hard-fail, since the normal-step contour is not visible to this workchain).
+        _res = self.ctx.resources or {}
+        _nranks = _res.get('tot_num_mpiprocs') or (
+            (_res.get('num_machines', 1) or 1) * (_res.get('num_mpiprocs_per_machine', 1) or 1))
+        _npt1 = (self.inputs.semi_circle_settings.get_dict().get('NPT1')
+                 if 'semi_circle_settings' in self.inputs else None)
+        if _npt1 and _nranks and (_nranks > _npt1 or _npt1 % _nranks != 0):
+            self.report(
+                f'WARNING: MPI ranks ({_nranks}) do not divide the semi-circle NPT1 ({_npt1}); the '
+                f'BdG steps may abort with "No rest ranks allowed". The normal SCF uses kkr_scf_wc\'s '
+                f'own (smaller) contour, so ranks must be a COMMON divisor of BOTH grids — pick a '
+                f'small divisor (e.g. 8).')
+
         if 'remote_data_semi_circle' in self.inputs:
             self.ctx.current_remote = self.inputs.remote_data_semi_circle
             self.report('INFO: Bypassing normal and semi-circle SCF, starting from remote_data_semi_circle.')
