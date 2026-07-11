@@ -22,8 +22,16 @@ from masci_tools.io.kkr_params import kkrparams
 __copyright__ = (u'Copyright (c), 2026, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.2.1'
+__version__ = '0.2.3'
 # Changelog:
+#   0.2.3 — cell-aware BZDIVIDE: the semi-circle step now inherits the parent (normal-SCF) k-mesh
+#           instead of a hardcoded [100,100,100]. A too-dense mesh overruns the compiled KPOIBZ once
+#           BdG lowers the symmetry (250001 irreducible k-points -> abort). Generalises the 0.2.1
+#           RCLUSTZ inheritance to both cell-tuned keys. See update_params_semi_circle.
+#   0.2.2 — NSPIN-aware spin coupling: the BdG steps now drop DECOUPLE_SPIN_CHEBY whenever
+#           NSPIN=2 (BdG pairing couples spin up/down, so decoupled Chebyshev spin channels are
+#           invalid and the KKRhost BdG solver hard-errors). NSPIN=1 is unaffected. See
+#           update_params_bdg.
 #   0.2.1 — semi-circle RCLUSTZ is now cell-aware: inherited from calc_parameters/normal-SCF
 #           params instead of a hardcoded 3.5 default (explicit semi_circle_settings['RCLUSTZ']
 #           still overrides). Prevents oversized screening clusters exceeding NACLSD on
@@ -49,16 +57,19 @@ def update_params_semi_circle(params_node, semi_circle_settings):
         except KeyError:
             pass
     settings_dict = semi_circle_settings.get_dict()
-    # Cell-aware RCLUSTZ: if the caller did not explicitly request an RCLUSTZ for the
-    # semi-circle step, inherit the parent (cell-appropriate) value rather than forcing a
-    # bulk-tuned default. A too-large RCLUSTZ builds an oversized screening cluster that can
-    # exceed the KKRhost binary's compiled NACLSD (RCLUSTZ=3.5 on an 8-atom NbSe2 cell built
-    # a 225-atom cluster and aborted [302]).
-    if settings_dict.get('RCLUSTZ') is None:
-        settings_dict.pop('RCLUSTZ', None)
-        parent_rclustz = params_node.get_dict().get('RCLUSTZ')
-        if parent_rclustz is not None:
-            settings_dict['RCLUSTZ'] = parent_rclustz
+    # Cell-aware defaults: RCLUSTZ (screening-cluster radius) and BZDIVIDE (k-mesh) tuned for
+    # 1-atom bulk are wrong for multi-atom cells. A too-large RCLUSTZ overruns the compiled
+    # NACLSD (RCLUSTZ=3.5 -> 225-atom cluster, abort [302]); a too-dense BZDIVIDE overruns the
+    # compiled KPOIBZ once BdG lowers the symmetry ([100,100,100] -> 250001 irreducible k-points
+    # at the BdG step, abort [302]). If the caller did not explicitly set them, inherit the parent
+    # (normal-SCF / calc_parameters) cell-appropriate values.
+    parent_dict = params_node.get_dict()
+    for _key in ('RCLUSTZ', 'BZDIVIDE'):
+        if settings_dict.get(_key) is None:
+            settings_dict.pop(_key, None)
+            _pv = parent_dict.get(_key)
+            if _pv is not None:
+                settings_dict[_key] = _pv
     unregistered = {k: settings_dict.pop(k) for k in _unregistered_keys if k in settings_dict}
     para.set_multiple_values(**settings_dict)
     result_dict = para.get_dict()
@@ -90,6 +101,16 @@ def update_params_bdg(params_node, bdg_settings):
 
     # Step 3: BdG settings take precedence over parent
     result_dict.update(bdg_normalized)
+
+    # Step 4 — NSPIN-aware spin coupling: BdG pairing couples spin up/down, so decoupled
+    # Chebyshev spin channels are physically invalid for NSPIN=2 (the KKRhost BdG solver
+    # hard-errors: "BdG formalism for nspin=2 works only with coupled spin channels"). Drop the
+    # decouple option for spin-polarised BdG so KKR uses its coupled default; NSPIN=1 is
+    # unaffected (single channel — decoupling is a harmless no-op, as in the 1-atom Nb probe).
+    nspin = result_dict.get('NSPIN', result_dict.get('<NSPIN>'))
+    if nspin == 2:
+        for _k in ('<DECOUPLE_SPIN_CHEBY>', 'DECOUPLE_SPIN_CHEBY', 'decouple_spin_cheby'):
+            result_dict.pop(_k, None)
 
     return orm.Dict(dict=result_dict)
 # ── WorkChain ─────────────────────────────────────────────────────────────────
@@ -131,10 +152,9 @@ class kkr_bdg_wc(WorkChain):
             'IM_E_CIRC_MIN': 5e-5,
             'NPT1': 32,
             'MAX_NUM_KMESH': 4,
-            'BZDIVIDE': [100, 100, 100],
-            # RCLUSTZ intentionally omitted: the semi-circle step now INHERITS the parent
-            # (cell-appropriate) RCLUSTZ from calc_parameters/normal SCF (see
-            # update_params_semi_circle). Pass RCLUSTZ in semi_circle_settings to override.
+            # RCLUSTZ and BZDIVIDE intentionally omitted: the semi-circle step now INHERITS these
+            # cell-appropriate values from the parent (calc_parameters/normal SCF) — see
+            # update_params_semi_circle. Pass them in semi_circle_settings to override.
             'NSTEPS': 200,
             'IMIX': 4,
             'DISABLE_CHARGE_NEUTRALITY': True,
