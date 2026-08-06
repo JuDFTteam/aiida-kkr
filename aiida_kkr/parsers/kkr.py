@@ -112,8 +112,8 @@ class KkrParser(Parser):
         outfile_2_name = KkrCalculation._OUTPUT_2
         if outfile_2_name not in out_folder.list_object_names():
             if not only_000_present:
-                file_errors.append((1 + self.icrit, f'Critical error! OUTPUT_2 not found {outfile_2_name}'))
-                outfile_2_name = None
+                file_errors.append((2, f'Warning! OUTPUT_2 not found {outfile_2_name}, using OUTPUT_000 instead'))
+                outfile_2_name = outfile_000_name
             else:
                 outfile_2_name = outfile_000_name
         potfile_out_name = KkrCalculation._OUT_POTENTIAL
