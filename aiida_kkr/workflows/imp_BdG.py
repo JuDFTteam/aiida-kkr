@@ -47,6 +47,7 @@ class kkrimp_BdG_wc(WorkChain):
         :param dos.gf_writeout.host_remote: (RemoteData), parent folder of kkrflex writeout step for DOS calculation
         :param dos.gf_writeout.kkr: (Code), KKR code for writing out of kkrflex files for impurity DOS calculation
         :param dos.gf_writeout.options: (Dict), computer settings
+        :param dos.kkrimp_remote: (RemoteData), remote folder of a converged kkrimp calculation
         :param dos.options: (Dict), computer settings
 
     returns::
@@ -188,7 +189,7 @@ class kkrimp_BdG_wc(WorkChain):
         spec.expose_inputs(
             kkr_imp_dos_wc,
             namespace='dos',
-            include=('wf_parameters', 'gf_dos_remote', 'gf_writeout', 'initial_noco_angles')
+            include=('wf_parameters', 'gf_dos_remote', 'gf_writeout', 'initial_noco_angles', 'kkrimp_remote')
         )
 
         spec.input(
@@ -215,7 +216,7 @@ class kkrimp_BdG_wc(WorkChain):
         spec.output('dos_data_interpol', required=False, valid_type=XyData)
         spec.output('dos_data_lm', required=False, valid_type=XyData)
         spec.output('dos_data_interpol_lm', required=False, valid_type=XyData)
-        spec.output('impurity_potential', valid_type=SinglefileData)
+        spec.output('impurity_potential', valid_type=SinglefileData, required=False)
         spec.output('gf_host_BdG', valid_type=RemoteData, required=False)
 
         # Here outlines are being specified
@@ -280,7 +281,9 @@ class kkrimp_BdG_wc(WorkChain):
         """
         run impurity potential calculation only if converged impurity potential not provided already
         """
-        if not 'converged_potential' in self.inputs.imp_scf:
+        if 'converged_potential' in self.inputs.imp_scf or 'kkrimp_remote' in self.inputs.dos:
+            return False
+        else:
             return True
 
     def imp_pot_calc(self):
@@ -434,7 +437,15 @@ class kkrimp_BdG_wc(WorkChain):
             if not self.inputs.calc_DOS:
                 builder.imp_pot_sfd = self.ctx.last_imp_calc_BdG.outputs.converged_potential
             else:
-                if 'converged_potential' in self.inputs.imp_scf:
+                if 'kkrimp_remote' in self.inputs.dos:
+                    builder.kkrimp_remote = self.inputs.dos.kkrimp_remote
+                
+                    if 'converged_potential' in self.inputs.imp_scf:
+                        self.report(
+                            'INFO: Found both kkrimp_remote and converged_potential in inputs. '
+                            'Only kkrimp_remote will be used.'
+                        )
+                elif 'converged_potential' in self.inputs.imp_scf:
                     builder.imp_pot_sfd = self.inputs.imp_scf.converged_potential
                 else:
                     builder.imp_pot_sfd = self.ctx.last_imp_calc.outputs.converged_potential
@@ -492,7 +503,8 @@ class kkrimp_BdG_wc(WorkChain):
                 else:
                     self.out('gf_host_BdG', self.inputs.BdG_scf.remote_data_gf)
 
-        if 'converged_potential' not in self.inputs.imp_scf:
-            self.out('impurity_potential', self.ctx.last_imp_calc.outputs.converged_potential)
-        else:
-            self.out('impurity_potential', self.inputs.imp_scf.converged_potential)
+        if 'kkrimp_remote' not in self.inputs.dos:
+            if 'converged_potential' not in self.inputs.imp_scf:
+                self.out('impurity_potential', self.ctx.last_imp_calc.outputs.converged_potential)
+            else:
+                self.out('impurity_potential', self.inputs.imp_scf.converged_potential)
