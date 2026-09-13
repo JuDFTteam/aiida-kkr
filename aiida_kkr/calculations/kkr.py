@@ -301,6 +301,12 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             'ERROR_NO_SHAPEFUN_FOUND',
             message='Could not find shapefun from voronoi parent',
         )
+        spec.exit_code(
+            304,
+            'ERROR_NONFINITE_OUTPUT',
+            message='KKR output contains non-finite values (NaN/inf), the calculation probably diverged. '
+            'They are replaced by None in output_parameters, see `nonfinite_values`.',
+        )
 
     def prepare_for_submission(self, tempfolder):
         """
