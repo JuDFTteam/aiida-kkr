@@ -22,3 +22,6 @@ def test_parse_kkr_calc(aiida_profile):
     # remove this one error message because it is expected
     err = [i for i in out_dict['parser_errors'] if 'OUTPUT_2' not in i]
     assert err == []
+    # version information must survive parsing, it is the only way to tell which parser produced a node
+    assert out_dict['parser_version'] == parser._ParserVersion
+    assert 'calculation_plugin_version' in out_dict

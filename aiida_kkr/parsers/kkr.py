@@ -148,8 +148,7 @@ class KkrParser(Parser):
                  potfile_out_name, timing_file_name, nonco_out_file_name
              )
 
-            # then parse the output
-            out_dict = {}
+            # then parse the output (into out_dict, which already holds the version information)
             success, msg_list, out_dict = parse_kkr_outputfile(
                 out_dict,
                 outfile,
