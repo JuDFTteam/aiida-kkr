@@ -19,9 +19,9 @@ the merged PR or closed issue it links to. Last updated 2026-09-14.
   Not reviewed as part of the current work.
 
 Merged recently: [#178](https://github.com/JuDFTteam/aiida-kkr/pull/178), non-finite parser output
-gets exit codes 303/304 and `kkr_imp_sub_wc` exit code 134. Its issue
-[#177](https://github.com/JuDFTteam/aiida-kkr/issues/177) closes automatically on the next release
-to `master`. #177 also lists smaller existing problems that #178 did not address.
+gets exit codes 303/304 and `kkr_imp_sub_wc` exit code 134 (issue
+[#177](https://github.com/JuDFTteam/aiida-kkr/issues/177), closed). #177 also lists smaller existing
+problems that #178 did not address.
 
 ## Known CI failures, deferred
 
