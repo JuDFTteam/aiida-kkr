@@ -1,4 +1,4 @@
-# Workflow for simulating an STM scanning 
+# Workflow for simulating an STM scanning
 
 from aiida.engine import WorkChain, ToContext, if_, calcfunction
 from aiida.orm import Dict, RemoteData, Code, CalcJobNode, WorkChainNode, Float, Bool, XyData, SinglefileData, List
@@ -387,9 +387,8 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
 
             # Check if the position is already in the cluster
             # for this we need to first get the position
-            
-            
-            # TO DO: correct for the offset given by the STM tools 
+
+            # TO DO: correct for the offset given by the STM tools
             tmp_pos = self.get_tip_position_dict(element[0], element[1])
             _, tmp_clust = get_imp_cls_add(host_structure, tmp_pos)
             clust_offset = offset_clust2(imp_clust, tmp_clust, host_structure, Dict(tmp_pos))
@@ -464,9 +463,7 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
             ny = self.inputs.tip_position['ny']
 
             # Path creation step. (The the identity operator is present, but will be excluded)
-            unused_pos, used_pos = tools_STM_scan.lattice_generation(
-                symm_matrices, struc_vectors, 0, 0, nx, ny
-            )
+            unused_pos, used_pos = tools_STM_scan.lattice_generation(symm_matrices, struc_vectors, 0, 0, nx, ny)
 
             # Since the combine tools use the element already in the units of da and db, we use a helper function
             # to have the indices of the linear combination of the used position vectors in the base of the Bravais lattice.
@@ -554,7 +551,7 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
                     inital_noco_angles_aux.get_dict()['phi'].append(0.0)
                     inital_noco_angles_aux.get_dict()['theta'].append(0.0)
                     inital_noco_angles_aux.get_dict()['fix_dir'].append(1)
-                    
+
         if 'settings_LDAU' in self.inputs:
             self.report('Add settings_LDAU input node')
             builder.settings_LDAU = self.inputs.settings_LDAU
