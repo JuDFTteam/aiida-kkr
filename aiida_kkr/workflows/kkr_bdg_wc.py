@@ -355,7 +355,7 @@ class kkr_bdg_wc(WorkChain):
             except Exception as e:
                 self.report(f'WARNING: Could not load params from parent semi-circle calc ({e}), '
                             f'falling back to input calc_parameters.')
-    
+
         elif 'remote_data_normal' in self.inputs:
             self.ctx.current_remote = self.inputs.remote_data_normal
             self.report('INFO: Bypassing normal SCF, starting from remote_data_normal.')
@@ -366,7 +366,7 @@ class kkr_bdg_wc(WorkChain):
             except Exception as e:
                 self.report(f'WARNING: Could not load params from parent calc ({e}), '
                             f'falling back to input calc_parameters.')
-    
+
         else:
             if 'structure' not in self.inputs:
                 self.report('ERROR: `structure` is required when starting from scratch.')
@@ -469,7 +469,7 @@ class kkr_bdg_wc(WorkChain):
     def run_bdg_scf(self):
         """
         Submit the final BdG SCF as a raw KkrCalculation.
-    
+
         kkr_scf_wc must NOT be used here: it internally resets NPT1, BZDIVIDE,
         and the energy contour to convergence_setting_fine values, destroying the
         semi-circle contour and causing 'too many ranks' MPI errors.
@@ -487,8 +487,8 @@ class kkr_bdg_wc(WorkChain):
             parameters=new_params,
         )
         return ToContext(bdg_scf=self.submit(KkrCalculation, **inputs))
-    
-    
+
+
     def check_bdg_scf(self):
         """Check final BdG SCF result."""
         if not self.ctx.bdg_scf.is_finished_ok:
@@ -504,7 +504,7 @@ class kkr_bdg_wc(WorkChain):
         last_remote = self.ctx.bdg_scf.outputs.remote_folder
         last_params = self.ctx.bdg_scf.inputs.parameters
         last_output = self.ctx.bdg_scf.outputs.output_parameters
-    
+
         outputnode_dict = {
             'workflow_name': self.__class__.__name__,
             'workflow_version': self._workflowversion,
@@ -519,9 +519,9 @@ class kkr_bdg_wc(WorkChain):
         outputnode = orm.Dict(dict=outputnode_dict)
         outputnode.label = 'kkr_bdg_wc_results'
         outputnode.description = 'Summary of the kkr_bdg_wc workflow.'
-    
+
         result_node = create_out_dict_node(outputnode, last_output_parameters=last_output)
-    
+
         self.out('output_kkr_bdg_wc_ParameterResults', result_node)
         self.out('last_RemoteData', last_remote)
         self.out('last_InputParameters', last_params)

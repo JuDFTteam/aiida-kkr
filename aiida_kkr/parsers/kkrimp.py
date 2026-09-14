@@ -13,6 +13,7 @@ from aiida.common.exceptions import InputValidationError, NotExistent, NotExiste
 from aiida.parsers.parser import Parser
 from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from aiida_kkr.tools.context import open_files_in_context
+from aiida_kkr.tools.dict_util import sanitize_nonfinite, record_nonfinite
 from masci_tools.io.parsers.kkrparser_functions import check_error_category
 from masci_tools.io.parsers.kkrimp_parser_functions import KkrimpParserFunctions
 from pprint import pprint
@@ -21,7 +22,7 @@ from contextlib import ExitStack
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.2'
+__version__ = '0.7.0'
 __contributors__ = (u'Philipp Rüßmann', u'Raffaele Aliberti')
 
 
@@ -142,9 +143,16 @@ class KkrimpParser(Parser):
                 out_dict['parser_warnings'].append(f_err.replace('Error', 'Warning'))
         out_dict['parser_errors'] = msg_list
 
+        # replace non-finite values (NaN, inf) which cannot be stored in the database
+        # this is checked independently of `success` since a diverged calculation can parse without errors
+        nonfinite_paths = sanitize_nonfinite(out_dict)
+        record_nonfinite(out_dict, nonfinite_paths)
+
         # create output node and link
         self.out('output_parameters', Dict(dict=out_dict))
 
+        if nonfinite_paths:
+            return self.exit_codes.ERROR_NONFINITE_OUTPUT
         if not success:
             return self.exit_codes.ERROR_PARSING_KKRIMPCALC
 

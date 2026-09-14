@@ -17,7 +17,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.10.4'
+__version__ = '0.11.0'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann', u'David Antognini Silva')
 
 #TODO: work on return results function
@@ -199,6 +199,11 @@ class kkr_imp_sub_wc(WorkChain):
             133,
             'ERROR_NO_OUTPUT_POT_FROM_LAST_CALC',
             message='ERROR: Last calculation does not have an output potential.'
+        )
+        spec.exit_code(
+            134,
+            'ERROR_LAST_CALC_NONFINITE_OUTPUT',
+            message='ERROR: Last calculation produced non-finite values (NaN/inf), it probably diverged.'
         )
 
         # Define the outputs of the workflow
@@ -880,6 +885,16 @@ class kkr_imp_sub_wc(WorkChain):
         # check calculation state
         if not self.ctx.last_calc.is_finished_ok:
             self.ctx.kkrimp_step_success = False
+            if self.ctx.last_calc.exit_status == KkrimpCalculation.exit_codes.ERROR_NONFINITE_OUTPUT.status:  # pylint: disable=no-member
+                # the calculation diverged: stop with a dedicated exit code instead of retrying,
+                # its output potential must not be reused and the caller decides how to continue
+                try:
+                    nonfinite_values = self.ctx.last_calc.outputs.output_parameters.get_dict()['nonfinite_values']
+                except (AttributeError, KeyError):
+                    nonfinite_values = []
+                message = f'ERROR: last calc produced non-finite values (NaN/inf), e.g. in {nonfinite_values[:5]}'
+                self.report(message)
+                return self.exit_codes.ERROR_LAST_CALC_NONFINITE_OUTPUT  # pylint: disable=no-member
             message = 'ERROR: last calc not finished_ok'
             self.report(message)
             return self.exit_codes.ERROR_LAST_CALC_NOT_FINISHED_OK  # pylint: disable=no-member

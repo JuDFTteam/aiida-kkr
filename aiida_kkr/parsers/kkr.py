@@ -13,12 +13,13 @@ from aiida.common.exceptions import InputValidationError, NotExistent
 from masci_tools.io.parsers.kkrparser_functions import parse_kkr_outputfile, check_error_category
 from masci_tools.io.common_functions import search_string
 from aiida_kkr.tools.context import open_files_in_context
+from aiida_kkr.tools.dict_util import sanitize_nonfinite, record_nonfinite
 from contextlib import ExitStack
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.8.0'
+__version__ = '0.9.0'
 __contributors__ = ('Jens Broeder', u'Philipp Rüßmann')
 
 
@@ -148,8 +149,7 @@ class KkrParser(Parser):
                  potfile_out_name, timing_file_name, nonco_out_file_name
              )
 
-            # then parse the output
-            out_dict = {}
+            # then parse the output (into out_dict, which already holds the version information)
             success, msg_list, out_dict = parse_kkr_outputfile(
                 out_dict,
                 outfile,
@@ -219,8 +219,16 @@ class KkrParser(Parser):
                 out_dict['parser_warnings'].append(f_err.replace('Error', 'Warning'))
         out_dict['parser_errors'] = msg_list
 
+        # replace non-finite values (NaN, inf) which cannot be stored in the database
+        # this is checked independently of `success` since a diverged calculation can parse without errors
+        nonfinite_paths = sanitize_nonfinite(out_dict)
+        record_nonfinite(out_dict, nonfinite_paths)
+
         # create output node and link
         self.out('output_parameters', Dict(dict=out_dict))
+
+        if nonfinite_paths:
+            return self.exit_codes.ERROR_NONFINITE_OUTPUT
 
         if self.icrit != 0 and not success:  # overwrite behavior with KKRimporter
             success = True  # set automatically to True even if only partial output was parsed

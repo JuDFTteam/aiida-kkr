@@ -198,6 +198,12 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
         # define exit codes, also used in parser
         spec.exit_code(301, 'ERROR_NO_RETRIEVED_FOLDER', message='Retrieved folder of KKRimp calculation not found.')
         spec.exit_code(302, 'ERROR_PARSING_KKRIMPCALC', message='KKRimp parser returned an error.')
+        spec.exit_code(
+            303,
+            'ERROR_NONFINITE_OUTPUT',
+            message='KKRimp output contains non-finite values (NaN/inf), the calculation probably diverged. '
+            'They are replaced by None in output_parameters, see `nonfinite_values`.'
+        )
         #TBD
 
     def prepare_for_submission(self, tempfolder):
