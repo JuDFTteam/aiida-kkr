@@ -138,8 +138,6 @@ jobs:
       run: |
         pip install ${{ matrix.aiida.version }} ${{ matrix.masci-tools.version }}
         pip install .[testing]
-        pip install reentry
-        reentry scan
         pip freeze
 
     - name: Migrate AiiDA workflow caches

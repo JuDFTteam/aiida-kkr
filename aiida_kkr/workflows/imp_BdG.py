@@ -439,7 +439,7 @@ class kkrimp_BdG_wc(WorkChain):
             else:
                 if 'kkrimp_remote' in self.inputs.dos:
                     builder.kkrimp_remote = self.inputs.dos.kkrimp_remote
-                
+
                     if 'converged_potential' in self.inputs.imp_scf:
                         self.report(
                             'INFO: Found both kkrimp_remote and converged_potential in inputs. '

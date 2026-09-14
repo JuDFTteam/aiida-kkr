@@ -15,10 +15,10 @@ import pytest
 from unittest.mock import MagicMock
 from plumpy.utils import AttributesFrozendict
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # Group 1 — Spec validation (no DB needed — just class introspection)
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestBdgSpec:
     """Verify that kkr_bdg_wc spec is correctly defined."""
@@ -35,10 +35,10 @@ class TestBdgSpec:
             assert port.required, f"'{name}' should be required"
 
         # Optional inputs
-        for name in ('voronoi', 'structure', 'remote_data_normal',
-                      'remote_data_semi_circle', 'semi_circle_settings',
-                      'bdg_init_settings', 'bdg_settings', 'options',
-                      'wf_parameters'):
+        for name in (
+            'voronoi', 'structure', 'remote_data_normal', 'remote_data_semi_circle', 'semi_circle_settings',
+            'bdg_init_settings', 'bdg_settings', 'options', 'wf_parameters'
+        ):
             port = spec.inputs[name]
             assert not port.required, f"'{name}' should be optional"
 
@@ -54,13 +54,9 @@ class TestBdgSpec:
             Optional ports may have valid_type as a tuple including NoneType."""
             vt = port.valid_type
             if isinstance(vt, tuple):
-                assert expected_type in vt, (
-                    f"Expected {expected_type} in valid_type tuple {vt}"
-                )
+                assert expected_type in vt, (f'Expected {expected_type} in valid_type tuple {vt}')
             else:
-                assert issubclass(vt, expected_type), (
-                    f"Expected subclass of {expected_type}, got {vt}"
-                )
+                assert issubclass(vt, expected_type), (f'Expected subclass of {expected_type}, got {vt}')
 
         # Code inputs (required)
         _check_valid_type(spec.inputs['kkr'], orm.Code)
@@ -108,7 +104,7 @@ class TestBdgSpec:
             assert label in exit_codes, f"Exit code '{label}' not defined"
             assert exit_codes[label].status == expected_status, (
                 f"Exit code '{label}' has status {exit_codes[label].status}, "
-                f"expected {expected_status}"
+                f'expected {expected_status}'
             )
 
     def test_spec_outline_has_all_steps(self):
@@ -117,25 +113,29 @@ class TestBdgSpec:
 
         # Verify the class has all the step methods we expect
         expected_steps = [
-            'start', 'validate_inputs',
-            'should_run_normal_scf', 'run_normal_scf', 'check_normal_scf',
-            'should_run_semi_circle', 'run_semi_circle_scf', 'check_semi_circle_scf',
-            'run_bdg_init', 'check_bdg_init',
-            'run_bdg_scf', 'check_bdg_scf',
+            'start',
+            'validate_inputs',
+            'should_run_normal_scf',
+            'run_normal_scf',
+            'check_normal_scf',
+            'should_run_semi_circle',
+            'run_semi_circle_scf',
+            'check_semi_circle_scf',
+            'run_bdg_init',
+            'check_bdg_init',
+            'run_bdg_scf',
+            'check_bdg_scf',
             'results',
         ]
         for step in expected_steps:
-            assert hasattr(kkr_bdg_wc, step), (
-                f"WorkChain missing step method '{step}'"
-            )
-            assert callable(getattr(kkr_bdg_wc, step)), (
-                f"'{step}' should be callable"
-            )
+            assert hasattr(kkr_bdg_wc, step), (f"WorkChain missing step method '{step}'")
+            assert callable(getattr(kkr_bdg_wc, step)), (f"'{step}' should be callable")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Group 2 — Default settings (no DB needed)
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestBdgDefaults:
     """Verify the default workflow settings are correct."""
@@ -209,6 +209,7 @@ class TestBdgDefaults:
 # Group 3 — Outline & step logic (mock-based, no DB needed)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestBdgOutlineLogic:
     """Test the branching/conditional logic in the workchain steps."""
 
@@ -260,9 +261,7 @@ class TestBdgOutlineLogic:
         """
         wc = self._make_wc_instance()
         # Set inputs backing store with remote_data_semi_circle present
-        wc._parsed_inputs = AttributesFrozendict(
-            {'remote_data_semi_circle': MagicMock()}
-        )
+        wc._parsed_inputs = AttributesFrozendict({'remote_data_semi_circle': MagicMock()})
         assert wc.should_run_semi_circle() is False
 
     def test_validate_inputs_missing_structure_returns_error(self):
@@ -277,15 +276,11 @@ class TestBdgOutlineLogic:
         mock_code.get_input_plugin_name.return_value = 'kkr.kkr'
 
         # Set inputs with kkr/kkr_bdg but no remote_data or structure
-        wc._parsed_inputs = AttributesFrozendict(
-            {'kkr': mock_code, 'kkr_bdg': mock_code}
-        )
+        wc._parsed_inputs = AttributesFrozendict({'kkr': mock_code, 'kkr_bdg': mock_code})
 
         result = wc.validate_inputs()
-        assert result is not None, "validate_inputs should return an exit code"
-        assert result.status == 301, (
-            f"Expected exit code 301 (ERROR_NORMAL_SCF_FAILED), got {result.status}"
-        )
+        assert result is not None, 'validate_inputs should return an exit code'
+        assert result.status == 301, (f'Expected exit code 301 (ERROR_NORMAL_SCF_FAILED), got {result.status}')
 
     def test_check_normal_scf_returns_error_on_failure(self):
         """check_normal_scf should return ERROR_NORMAL_SCF_FAILED when sub-wc fails."""
@@ -371,6 +366,7 @@ class TestBdgOutlineLogic:
 # Group 4 — Calcfunction logic (needs AiiDA profile for Dict node storage)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.usefixtures('aiida_profile')
 class TestBdgCalcfunctions:
     """
@@ -403,32 +399,32 @@ class TestBdgCalcfunctions:
 
         params_node = orm.Dict(dict=parent_dict)
 
-        semi_settings = orm.Dict(dict={
-            'USE_SEMI_CIRCLE_CONTOUR': True,
-            'IM_E_CIRC_MIN': 5e-5,
-            'NPT1': 32,
-            'NSTEPS': 200,
-            'IMIX': 4,
-        })
+        semi_settings = orm.Dict(
+            dict={
+                'USE_SEMI_CIRCLE_CONTOUR': True,
+                'IM_E_CIRC_MIN': 5e-5,
+                'NPT1': 32,
+                'NSTEPS': 200,
+                'IMIX': 4,
+            }
+        )
 
         result = update_params_semi_circle(params_node, semi_settings)
         result_dict = result.get_dict()
 
         # SCF-inherited keys should be gone
         for key in ('STRMIX', 'BRYMIX', 'QBOUND'):
-            assert key not in result_dict or result_dict[key] is None, (
-                f"SCF key '{key}' should have been stripped"
-            )
+            assert key not in result_dict or result_dict[key] is None, (f"SCF key '{key}' should have been stripped")
 
         # TEMPR should be removed
-        assert result_dict.get('TEMPR') is None, "TEMPR should have been removed"
+        assert result_dict.get('TEMPR') is None, 'TEMPR should have been removed'
 
         # Semi-circle settings should be present
         assert result_dict.get('NSTEPS') == 200
         assert result_dict.get('IMIX') == 4
 
         # NPT1 is an unregistered key, should be preserved
-        assert result_dict.get('NPT1') == 32, "Unregistered key NPT1 should be preserved"
+        assert result_dict.get('NPT1') == 32, 'Unregistered key NPT1 should be preserved'
 
     def test_update_params_bdg_preserves_parent_keys(self):
         """
@@ -460,25 +456,21 @@ class TestBdgCalcfunctions:
         result_dict = result.get_dict()
 
         # BdG setting should override NSTEPS
-        assert result_dict['NSTEPS'] == 1, "NSTEPS should be overridden to 1"
+        assert result_dict['NSTEPS'] == 1, 'NSTEPS should be overridden to 1'
 
         # Parent bracket keys should be preserved
-        assert result_dict.get('<USE_SEMI_CIRCLE_CONTOUR>') is True, (
-            "Bracket key <USE_SEMI_CIRCLE_CONTOUR> should be preserved"
-        )
+        assert result_dict.get('<USE_SEMI_CIRCLE_CONTOUR>'
+                               ) is True, ('Bracket key <USE_SEMI_CIRCLE_CONTOUR> should be preserved')
 
         # BZDIVIDE and RUNOPT should survive (dict-level merge)
-        assert result_dict.get('BZDIVIDE') == [100, 100, 100], (
-            "BZDIVIDE should be preserved"
-        )
-        assert result_dict.get('RUNOPT') == ['NEWSOSOL'], (
-            "RUNOPT should be preserved"
-        )
+        assert result_dict.get('BZDIVIDE') == [100, 100, 100], ('BZDIVIDE should be preserved')
+        assert result_dict.get('RUNOPT') == ['NEWSOSOL'], ('RUNOPT should be preserved')
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Group 5 — Entry point (needs installed package)
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestBdgEntryPoint:
     """Verify the kkr.bdg entry point is registered correctly."""
@@ -499,8 +491,6 @@ class TestBdgEntryPoint:
             assert wf is kkr_bdg_wc
         except Exception as e:
             if 'MissingEntryPointError' in type(e).__name__:
-                pytest.skip(
-                    "Entry point 'kkr.bdg' not found — aiida-kkr may need "
-                    "reinstall: pip install -e ."
-                )
+                pytest.skip("Entry point 'kkr.bdg' not found — aiida-kkr may need "
+                            'reinstall: pip install -e .')
             raise

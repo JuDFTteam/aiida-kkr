@@ -73,7 +73,7 @@ testing = [
     "pytest-regressions >= 1.0",
     "MarkupSafe < 3.1.0",
     "aiida-test-cache",
-    "setuptools"
+    "setuptools < 81",  # aiida-test-cache still imports pkg_resources, removed in setuptools 81
 ]
 docs = [
     "Sphinx >= 1.8.2",
