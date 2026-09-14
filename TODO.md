@@ -23,6 +23,21 @@ gets exit codes 303/304 and `kkr_imp_sub_wc` exit code 134 (issue
 [#177](https://github.com/JuDFTteam/aiida-kkr/issues/177), closed). #177 also lists smaller existing
 problems that #178 did not address.
 
+## Known bugs found while fixing #177, not yet addressed
+
+Details in [#177](https://github.com/JuDFTteam/aiida-kkr/issues/177), section "Found along the way".
+
+- [ ] **`kkr_imp_sub_wc.condition()` returns an `ExitCode` from a `while_` predicate.** plumpy
+  only warns and treats it as `True`, so that branch never aborts the workchain.
+- [ ] **`kkr_imp_sub_wc`: `ctx.kkr_step_success` is never set to `False` after the first step.**
+  `update_kkrimp_params` checks it to decide on reducing the mixing factor, but `inspect_kkrimp`
+  sets `ctx.kkrimp_step_success` instead.
+- [ ] **`ignore_nan` default mismatch.** `KkrimpParser.parse` defaults to `True`,
+  `KkrimpParserFunctions.parse_kkrimp_outputfile` in masci-tools to `False`.
+- [ ] **masci-tools requirement is too loose.** The PyPI release masci-tools 0.15.0 rejects the
+  `ignore_nan` and `doscalc` arguments the KKRimp parser passes; only masci-tools `develop` works,
+  while `pyproject.toml` requires `masci-tools >= 0.4.8.dev5`.
+
 ## Known CI failures, deferred
 
 Seen in the CI run of #179, the first run in a while that got past setup.
