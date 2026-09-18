@@ -20,7 +20,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.9.3'
+__version__ = '0.10.0'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -189,6 +189,7 @@ class kkr_imp_wc(WorkChain):
             cls.start,                                                          # initialize workflow
             if_(cls.validate_input)(                                            # validate the input (if true, run_gf_writeout, else skip)
                 cls.run_gf_writeout),                                           # write out the host GF
+            cls.bail_on_error,                                                  # stop here if a step already set an exit code
             if_(cls.has_starting_potential_input)(                              # check if strarting potential exists in input already (otherwise create it)
                 cls.run_voroaux,                                                  # calculate the auxiliary impurity potentials
                 cls.construct_startpot),                                          # construct the host-impurity startpotential
@@ -223,6 +224,12 @@ class kkr_imp_wc(WorkChain):
             145,
             'ERROR_KKRSTARTPOT_WORKFLOW_FAILURE',
             message='ERROR: sub-workflow Kkr_startpot failed (look for failure of voronoi calculation).'
+        )
+        spec.exit_code(
+            146,
+            'ERROR_GF_WRITEOUT_WORKFLOW_FAILURE',
+            message='ERROR: sub-workflow kkr_flex_wc for the host GF writeout failed, '
+            'the impurity startpotential cannot be constructed without it.'
         )
 
         # define the outputs of the workflow
@@ -522,11 +529,19 @@ class kkr_imp_wc(WorkChain):
             self.ctx.startpot_kkrimp = self.inputs.startpot
             self.ctx.create_startpot = False
 
-        if self.ctx.exit_code is not None:
-            # skip creation of starting potential by overwriting with True return value
-            return True
-
         return self.ctx.create_startpot
+
+    def bail_on_error(self):
+        """
+        Stop the workchain as soon as an earlier step has set an exit code.
+
+        Steps record a failure in ctx.exit_code and carry on, which only works if nothing
+        downstream depends on the step that failed. Everything after this point does, so
+        the exit code is returned here rather than at the end of the outline.
+        """
+        if self.ctx.exit_code is not None:
+            self.report(f'ERROR: stopping with exit code {self.ctx.exit_code.status}')
+            return self.ctx.exit_code
 
     def run_voroaux(self):
         """
@@ -660,12 +675,21 @@ class kkr_imp_wc(WorkChain):
         KKR impurity sub workflow
         """
 
+        # Everything below needs the voronoi calculation this sub-workflow was supposed to run,
+        # so stop here instead of falling through into code that assumes it succeeded.
         if not self.ctx.last_voro_calc.is_finished_ok:
             self.report(self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE)  # pylint: disable=no-member
             self.ctx.exit_code = self.exit_codes.ERROR_KKRSTARTPOT_WORKFLOW_FAILURE  # pylint: disable=no-member
+            return self.ctx.exit_code
 
         # collect all nodes necessary to construct the startpotential
         if self.ctx.do_gf_calc:
+            # same again for the GF writeout: without its workflow_info output there is no
+            # host GF to build a startpotential from
+            if not self.ctx.gf_writeout.is_finished_ok:
+                self.report(self.exit_codes.ERROR_GF_WRITEOUT_WORKFLOW_FAILURE)  # pylint: disable=no-member
+                self.ctx.exit_code = self.exit_codes.ERROR_GF_WRITEOUT_WORKFLOW_FAILURE  # pylint: disable=no-member
+                return self.ctx.exit_code
             GF_host_calc_pk = self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc')
             self.report(f'GF_host_calc_pk: {GF_host_calc_pk}')
             GF_host_calc = load_node(GF_host_calc_pk)
