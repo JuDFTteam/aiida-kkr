@@ -2,7 +2,7 @@
 
 Open work on `develop`: pull requests awaiting a decision, and known failures that are
 deferred. Keep this file short; an item that is done is deleted here, and its record lives in
-the merged PR or closed issue it links to. Last updated 2026-09-14.
+the merged PR or closed issue it links to. Last updated 2026-09-18.
 
 ## Open pull requests
 
@@ -22,6 +22,30 @@ Merged recently: [#178](https://github.com/JuDFTteam/aiida-kkr/pull/178), non-fi
 gets exit codes 303/304 and `kkr_imp_sub_wc` exit code 134 (issue
 [#177](https://github.com/JuDFTteam/aiida-kkr/issues/177), closed). #177 also lists smaller existing
 problems that #178 did not address.
+
+## Known bugs, fixed on a branch and awaiting verification
+
+Both are committed and carry a stub regression test. Neither reproduces without a real AiiDA
+profile on a computer with a templated work directory, so both wait on a live check before a
+pull request is opened. Each workflow stamps `workflow_version` into its output node, so a
+verification result records which code actually ran.
+
+- [ ] **[#180](https://github.com/JuDFTteam/aiida-kkr/issues/180) — `kkr_flex_wc` does not
+  substitute `{username}` into the work directory.** On a computer whose `workdir` is a template,
+  the Green's function is written to a directory named literally `{username}` — silently where the
+  parent is writable, or with a misleading `EACCES` where an earlier run already created it. The
+  inner `KkrCalculation` finishes with exit 0 first, so each attempt pays for a full write-out and
+  loses it. Fixed on `fix/gf-writeout-username` by expanding the template from the transport the
+  step already opens; `kkr_flex_wc` 0.5.6 → 0.6.0.
+- [ ] **`kkr_imp_wc` excepts instead of returning an exit code when a sub-workflow fails.**
+  `construct_startpot` recorded a failure in `ctx.exit_code` and carried on into code assuming
+  success, so a failed `kkr_startpot_wc` ended as `excepted` with `ValueError: max() arg is an
+  empty sequence`, and a failed `kkr_flex_wc` with `NotExistentAttributeError` on a missing
+  `workflow_info`. Same fault as #177/#178: an exception escaping where an exit code was already
+  available. Fixed on `fix/kkr-imp-startpot-exit-code`; adds exit code 146, deletes an inverted
+  predicate, `kkr_imp_wc` 0.9.3 → 0.10.0. **Deployment note:** the outline gained a step, so
+  in-flight `kkr_imp_wc` instances cannot be resumed across this upgrade — plumpy persists the
+  outline position as a bare index. Issue still to be filed.
 
 ## Known bugs found while fixing #177, not yet addressed
 
