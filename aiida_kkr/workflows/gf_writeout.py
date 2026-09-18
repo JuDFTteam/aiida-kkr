@@ -15,7 +15,6 @@ from masci_tools.io.common_functions import get_Ry2eV, get_ef_from_potfile
 from aiida.orm import WorkChainNode, RemoteData, StructureData, Dict, FolderData
 from aiida.common.exceptions import InputValidationError
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
-from aiida_kkr.tools.common_workfunctions import get_username
 from aiida_kkr.workflows.dos import kkr_dos_wc
 from aiida_kkr.workflows.bs import set_energy_params
 import os
@@ -23,7 +22,7 @@ import os
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.5.6'
+__version__ = '0.6.0'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 
 # ToDo: add more default values to wf_parameters
@@ -431,17 +430,8 @@ class kkr_flex_wc(WorkChain):
         """
         # skip this if we want to retrieve the data to the file repository
         if not self.ctx.retrieve_kkrflex and self.ctx.flexrun.is_finished_ok:
-            # get name where GF is uploaded to
-            gf_upload_path = KkrimpCalculation._DIRNAME_GF_UPLOAD
-
             # extract computer info
             computer = self.ctx.flexrun.computer
-            # computername = computer.name
-
-            # set upload dir (get the remote username and try 5 times if there was a connection error
-            # remote_user = get_username(computer)
-            workdir = computer.get_workdir()  #.format(username=remote_user)
-            gf_upload_path = os.path.join(workdir, gf_upload_path)
 
             self.report('move kkrflex files to: ' + computer.label)
 
@@ -452,10 +442,16 @@ class kkr_flex_wc(WorkChain):
 
             # extract uuid (used as filename for remote dir)
             uuid_retrieved = self.ctx.flexrun.outputs.retrieved.uuid
-            gf_upload_path = os.path.join(gf_upload_path, uuid_retrieved)
 
             # open connection to computer and upload files
             with computer.get_transport() as connection:
+                # Set the upload dir. The work directory may be a template containing {username},
+                # which only the remote can resolve, so it is expanded here from the connection we
+                # are opening anyway. KkrimpCalculation.get_remote_symlink builds the same path on
+                # the reading side and must stay in step with this.
+                workdir = computer.get_workdir().format(username=connection.whoami())
+                gf_upload_path = os.path.join(workdir, KkrimpCalculation._DIRNAME_GF_UPLOAD, uuid_retrieved)
+
                 if not connection.isdir(gf_upload_path):
                     self.report('move kkrflex_tmat and green to: ' + gf_upload_path)
                     # create directory
