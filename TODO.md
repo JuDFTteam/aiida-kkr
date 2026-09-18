@@ -37,7 +37,8 @@ verification result records which code actually ran.
   inner `KkrCalculation` finishes with exit 0 first, so each attempt pays for a full write-out and
   loses it. Fixed on `fix/gf-writeout-username` by expanding the template from the transport the
   step already opens; `kkr_flex_wc` 0.5.6 → 0.6.0.
-- [ ] **`kkr_imp_wc` excepts instead of returning an exit code when a sub-workflow fails.**
+- [ ] **[#181](https://github.com/JuDFTteam/aiida-kkr/issues/181) — `kkr_imp_wc` excepts instead
+  of returning an exit code when a sub-workflow fails.**
   `construct_startpot` recorded a failure in `ctx.exit_code` and carried on into code assuming
   success, so a failed `kkr_startpot_wc` ended as `excepted` with `ValueError: max() arg is an
   empty sequence`, and a failed `kkr_flex_wc` with `NotExistentAttributeError` on a missing
@@ -45,7 +46,7 @@ verification result records which code actually ran.
   available. Fixed on `fix/kkr-imp-startpot-exit-code`; adds exit code 146, deletes an inverted
   predicate, `kkr_imp_wc` 0.9.3 → 0.10.0. **Deployment note:** the outline gained a step, so
   in-flight `kkr_imp_wc` instances cannot be resumed across this upgrade — plumpy persists the
-  outline position as a bare index. Issue still to be filed.
+  outline position as a bare index.
 
 ## Known bugs found while fixing #177, not yet addressed
 
