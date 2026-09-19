@@ -83,6 +83,19 @@ Details in [#177](https://github.com/JuDFTteam/aiida-kkr/issues/177), section "F
   sets `ctx.kkrimp_step_success` instead.
 - [ ] **`ignore_nan` default mismatch.** `KkrimpParser.parse` defaults to `True`,
   `KkrimpParserFunctions.parse_kkrimp_outputfile` in masci-tools to `False`.
+- [ ] **`Parser.parse_from_node` cannot drive any aiida-kkr parser.** All five parsers declare
+  `def __init__(self, calc)`, a pre-AiiDA-2.x signature. aiida-core instantiates parsers two ways:
+  the daemon uses the positional form `parser_class(self.node)`, which works, while
+  `Parser.parse_from_node` uses the keyword form `cls(node=node)`, which raises
+  `TypeError: __init__() got an unexpected keyword argument 'node'`. So production parsing has
+  never been affected — only the documented re-parse and testing entry point, which is why this
+  survived the 2.x migration unnoticed. (Statements quoted rather than line numbers, which drift
+  between aiida-core versions.) Same fault class as
+  [#180](https://github.com/JuDFTteam/aiida-kkr/issues/180): a pre-2.x signature left behind,
+  invisible because the common path avoids it. Fixing it would let a parser change be validated by
+  replaying real stored calculations instead of archived fixtures — which is also why the #178
+  tests import an archive and hand-build a `CalcJobNode` rather than replaying a node.
+  Found while validating #178 against real stored failures. Not filed upstream.
 - [ ] **masci-tools requirement is too loose.** The PyPI release masci-tools 0.15.0 rejects the
   `ignore_nan` and `doscalc` arguments the KKRimp parser passes; only masci-tools `develop` works,
   while `pyproject.toml` requires `masci-tools >= 0.4.8.dev5`.
