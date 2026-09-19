@@ -36,7 +36,9 @@ verification result records which code actually ran.
   parent is writable, or with a misleading `EACCES` where an earlier run already created it. The
   inner `KkrCalculation` finishes with exit 0 first, so each attempt pays for a full write-out and
   loses it. Fixed on `fix/gf-writeout-username` by expanding the template from the transport the
-  step already opens; `kkr_flex_wc` 0.5.6 → 0.6.0.
+  step already opens; `kkr_flex_wc` 0.5.6 → 0.6.0. **Verified** on a live profile against a real
+  templated computer (`kkr_flex_wc` pk 874604, `retrieve_kkrflex=False`, workflow_version 0.6.0,
+  upload directory created under the real login name). Pull request to open.
 - [ ] **[#181](https://github.com/JuDFTteam/aiida-kkr/issues/181) — `kkr_imp_wc` excepts instead
   of returning an exit code when a sub-workflow fails.**
   `construct_startpot` recorded a failure in `ctx.exit_code` and carried on into code assuming
@@ -47,6 +49,18 @@ verification result records which code actually ran.
   predicate, `kkr_imp_wc` 0.9.3 → 0.10.0. **Deployment note:** the outline gained a step, so
   in-flight `kkr_imp_wc` instances cannot be resumed across this upgrade — plumpy persists the
   outline position as a bare index.
+
+## Known bugs, filed but not yet fixed
+
+- [ ] **[#182](https://github.com/JuDFTteam/aiida-kkr/issues/182) — `find_cluster_radius`: unchecked
+  index, and neighbour distances wrong off-origin.** Two defects two lines apart. It searches a
+  fixed 10 Å radius and then indexes `dist_all[nclsmin - 2]` without checking enough neighbours were
+  found, so it raises `IndexError` on any lattice open enough that the requested cluster does not
+  fit — this blocked all 60 embeddings of one host in a production batch. Separately, it measures
+  `np.linalg.norm(n.coords)`, the neighbour's absolute position rather than its displacement from
+  the central site, which is correct only for a site at the origin; off-origin it counts the central
+  site's own image at distance 0 and returns a radius that is **too small, silently**. Stored radii
+  for multi-site cells may already be affected; an audit is in progress.
 
 ## Known bugs found while fixing #177, not yet addressed
 
