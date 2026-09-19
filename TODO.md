@@ -23,6 +23,13 @@ gets exit codes 303/304 and `kkr_imp_sub_wc` exit code 134 (issue
 [#177](https://github.com/JuDFTteam/aiida-kkr/issues/177), closed). #177 also lists smaller existing
 problems that #178 did not address.
 
+- [ ] **#178 is only half verified against real data.** Exit **304** (KKRhost parser) is confirmed
+  on a live profile: two stored calculations that diverged in 2024 were replayed, parsed to 304 with
+  `nonfinite_values` populated (300 and 139 entries), `parser_version` 0.9.0 read back off the output
+  node, and the output `Dict` **stored successfully** — the store being the operation that used to
+  raise. Exit **303** (KKRimp parser) and `kkr_imp_sub_wc` exit **134** versus the generic 130 have
+  never been run against real data and remain covered only by unit tests.
+
 ## Open fixes of ours, awaiting review
 
 Both are committed and carry a stub regression test. Neither reproduces without a real AiiDA
