@@ -23,7 +23,7 @@ gets exit codes 303/304 and `kkr_imp_sub_wc` exit code 134 (issue
 [#177](https://github.com/JuDFTteam/aiida-kkr/issues/177), closed). #177 also lists smaller existing
 problems that #178 did not address.
 
-## Known bugs, fixed on a branch and awaiting verification
+## Open fixes of ours, awaiting review
 
 Both are committed and carry a stub regression test. Neither reproduces without a real AiiDA
 profile on a computer with a templated work directory, so both wait on a live check before a
@@ -38,7 +38,8 @@ verification result records which code actually ran.
   loses it. Fixed on `fix/gf-writeout-username` by expanding the template from the transport the
   step already opens; `kkr_flex_wc` 0.5.6 → 0.6.0. **Verified** on a live profile against a real
   templated computer (`kkr_flex_wc` pk 874604, `retrieve_kkrflex=False`, workflow_version 0.6.0,
-  upload directory created under the real login name). Pull request to open.
+  upload directory created under the real login name). Pull request
+  [#183](https://github.com/JuDFTteam/aiida-kkr/pull/183) open.
 - [ ] **[#181](https://github.com/JuDFTteam/aiida-kkr/issues/181) — `kkr_imp_wc` excepts instead
   of returning an exit code when a sub-workflow fails.**
   `construct_startpot` recorded a failure in `ctx.exit_code` and carried on into code assuming
@@ -48,7 +49,9 @@ verification result records which code actually ran.
   available. Fixed on `fix/kkr-imp-startpot-exit-code`; adds exit code 146, deletes an inverted
   predicate, `kkr_imp_wc` 0.9.3 → 0.10.0. **Deployment note:** the outline gained a step, so
   in-flight `kkr_imp_wc` instances cannot be resumed across this upgrade — plumpy persists the
-  outline position as a bare index.
+  outline position as a bare index. Pull request
+  [#184](https://github.com/JuDFTteam/aiida-kkr/pull/184) open; no end-to-end live check yet, since
+  deploying it where the failure reproduces would destroy 59 in-flight workchains.
 
 ## Known bugs, filed but not yet fixed
 
