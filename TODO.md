@@ -60,7 +60,7 @@ verification result records which code actually ran.
   `np.linalg.norm(n.coords)`, the neighbour's absolute position rather than its displacement from
   the central site, which is correct only for a site at the origin; off-origin it counts the central
   site's own image at distance 0 and returns a radius that is **too small, silently**. Stored radii
-  for multi-site cells may already be affected; an audit is in progress.
+  for multi-site cells may already be affected; how many is not known and no count is scheduled.
 
 ## Known bugs found while fixing #177, not yet addressed
 
