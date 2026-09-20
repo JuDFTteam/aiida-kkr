@@ -6,15 +6,22 @@ the merged PR or closed issue it links to. Last updated 2026-09-20.
 
 ## Open pull requests
 
-- [ ] **[#179](https://github.com/JuDFTteam/aiida-kkr/pull/179) — Fix CI: test setup and unparsable `tools_STM_scan.py`.**
-  Removes `reentry` from the CI test job, pins `setuptools < 81` for tests (for `aiida-test-cache`),
-  and fixes the syntax error and undefined names in `aiida_kkr/tools/tools_STM_scan.py` plus
-  pre-commit formatting of the STM and BdG files. With it, CI reaches the tests again, but is still red
-  because of the known failures below. Needs rebasing onto `develop` after #178: it touches the same
-  files as #178's pre-commit.ci formatting commit.
+- [ ] **[#179](https://github.com/JuDFTteam/aiida-kkr/pull/179) — Fix CI setup: `reentry`, unparsable
+  `tools_STM_scan.py`, and the flynt crash on pre-commit.ci.** Rebuilt on `develop` (`c47af80`) on
+  2026-09-20, so the earlier rebase conflict with #178's formatting commit is gone. Removes
+  `reentry` / `reentry scan` from the test job in **both** `ci.yml` and `cd.yml` (it is aiida-core 1.x
+  machinery and now dies on `ModuleNotFoundError: No module named 'pkg_resources'`), pins
+  `setuptools < 81` for tests because `aiida-test-cache` 0.0.1 imports `pkg_resources`, fixes the
+  over-indented `_version_ = 0.1` that makes `tools_STM_scan.py` untokenizable plus the undefined
+  names pylint then exposes, and bumps the flynt hook from 1.0.1 to 1.0.6. The flynt bump is what
+  fixes pre-commit.ci: its runner image is on Python 3.14, where `ast.Str` was removed, and flynt
+  1.0.1 touches `ast.Str` at import. The in-repo `pre-commit` job never saw this because it runs
+  Python 3.12. With #179, `pre-commit`, `pre-commit.ci` and `docs` go green and the `tests` legs
+  reach the suite; the `tests` legs stay red on the known failures below, which the follow-up PR
+  handles together with the aiida-core bump.
 - [ ] **[#175](https://github.com/JuDFTteam/aiida-kkr/pull/175) — pre-commit.ci autoupdate** (bot, since 2025-08).
-  Among other bumps it moves flynt from 1.0.1 to 1.0.6, which fixes the pre-commit.ci crash
-  `module 'ast' has no attribute 'Str'`.
+  Its flynt 1.0.1 → 1.0.6 bump is now carried by #179 instead, so #175 is no longer on the critical
+  path; it still bumps every other hook and should be rebased or closed once #179 lands.
 - [ ] **[#115](https://github.com/JuDFTteam/aiida-kkr/pull/115) — Implement base restart functionality** (open since 2022-12).
   Not reviewed as part of the current work.
 
@@ -93,5 +100,5 @@ Seen in the CI run of #179, the first run in a while that got past setup.
   This test could not run before #179, because the module did not import. STM is maintained by its
   contributors: first check whether an unmerged STM or BdG branch (including forks) already fixes
   this, together with the syntax error #179 repairs.
-- [ ] **pre-commit.ci** still fails on flynt 1.0.1 (fixed by #175), and it still reports the
-  local `pylint` hook although that hook is listed under `ci: skip`.
+- [ ] **pre-commit.ci** reports the local `pylint` hook as skipped even though that hook is listed
+  under `ci: skip`; cosmetic. Its flynt 1.0.1 crash is fixed by #179.
