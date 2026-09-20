@@ -88,7 +88,12 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
-        aiida: [{version: 'aiida-core~=2.9.2', name: '2.9'}]
+        # TEMPORARY DIAGNOSTIC -- restore 'aiida-core~=2.9.2' / name '2.9' before merge.
+        # The archives in tests/data_dir/ were recorded under aiida-core 2.5.2 (their
+        # metadata.json says so). Running the workflow pass on that same version, with -x
+        # still off, says whether the 16 archive-cache failures are caused by the bump or
+        # were already there. Only this line differs from run 4.
+        aiida: [{version: 'aiida-core==2.5.2', name: '2.5.2'}]
         masci-tools: [{version: 'git+https://github.com/JuDFTteam/masci-tools.git@develop', name: '-masci-develop'}]
         allowed-to-fail: [false]
 
