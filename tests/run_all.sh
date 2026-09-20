@@ -123,8 +123,12 @@ elif [[ ! -z "$GITHUB_SUITE" ]]; then
   # only use list of currently working tests
   # -x stays on this pass on purpose: these tests are slow and share cached state, so
   # there is little to learn from the ones after the first failure.
+  #
+  # TEMPORARY DIAGNOSTIC -- restore the `-x` below before this branch merges. With -x the
+  # pass stops at test_vorostart_wc.py, so the archive-cache miss found there hides whether
+  # the other twelve whitelisted tests hit the same problem. One run without it sizes that.
 
-  pytest --cov-report=$repfmt --cov-append --cov=../ -x \
+  pytest --cov-report=$repfmt --cov-append --cov=../ \
       ./workflows/test_vorostart_wc.py \
 	  ./workflows/test_scf_wc_simple.py \
 	  ./workflows/test_dos_wc.py \
