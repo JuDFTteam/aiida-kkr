@@ -144,3 +144,6 @@ publish_to_pypi.sh
 secrets.tar.gz
 run_bdg_test.py
 test_bdg_compare.py
+
+# editor and workspace config, not part of the package
+.obsidian/
