@@ -533,14 +533,24 @@ class kkr_imp_wc(WorkChain):
 
     def bail_on_error(self):
         """
-        Stop the workchain as soon as an earlier step has set an exit code.
+        Stop the workchain as soon as an earlier step has failed.
 
         Steps record a failure in ctx.exit_code and carry on, which only works if nothing
         downstream depends on the step that failed. Everything after this point does, so
         the exit code is returned here rather than at the end of the outline.
+
+        The GF writeout is checked here rather than in construct_startpot because that step
+        is skipped when a startpot is given in the input, while run_kkrimp_scf reads the GF
+        writeout's outputs either way.
         """
         if self.ctx.exit_code is not None:
             self.report(f'ERROR: stopping with exit code {self.ctx.exit_code.status}')
+            return self.ctx.exit_code
+
+        # ctx.do_gf_calc is only unset when validate_input bailed, which sets ctx.exit_code above
+        if self.ctx.do_gf_calc and not self.ctx.gf_writeout.is_finished_ok:
+            self.report(self.exit_codes.ERROR_GF_WRITEOUT_WORKFLOW_FAILURE)  # pylint: disable=no-member
+            self.ctx.exit_code = self.exit_codes.ERROR_GF_WRITEOUT_WORKFLOW_FAILURE  # pylint: disable=no-member
             return self.ctx.exit_code
 
     def run_voroaux(self):
@@ -683,13 +693,8 @@ class kkr_imp_wc(WorkChain):
             return self.ctx.exit_code
 
         # collect all nodes necessary to construct the startpotential
+        # (a failed GF writeout has already stopped the workchain in bail_on_error)
         if self.ctx.do_gf_calc:
-            # same again for the GF writeout: without its workflow_info output there is no
-            # host GF to build a startpotential from
-            if not self.ctx.gf_writeout.is_finished_ok:
-                self.report(self.exit_codes.ERROR_GF_WRITEOUT_WORKFLOW_FAILURE)  # pylint: disable=no-member
-                self.ctx.exit_code = self.exit_codes.ERROR_GF_WRITEOUT_WORKFLOW_FAILURE  # pylint: disable=no-member
-                return self.ctx.exit_code
             GF_host_calc_pk = self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc')
             self.report(f'GF_host_calc_pk: {GF_host_calc_pk}')
             GF_host_calc = load_node(GF_host_calc_pk)

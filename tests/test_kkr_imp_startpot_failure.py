@@ -12,6 +12,11 @@ from types import SimpleNamespace
 from aiida_kkr.workflows.kkr_imp import kkr_imp_wc
 
 
+class _Inputs(dict):
+    """Stands in for an AiiDA input namespace: both `'x' in inputs` and `inputs.x` work."""
+    __getattr__ = dict.__getitem__
+
+
 def _outgoing_stub(nodes):
     """Stand-in for the result of Node.get_outgoing(...)."""
     return SimpleNamespace(all=lambda: nodes)
@@ -32,7 +37,7 @@ def _workchain_stub(voro_finished_ok=True, gf_finished_ok=True, do_gf_calc=True,
             last_voro_calc=last_voro_calc,
             gf_writeout=gf_writeout,
         ),
-        inputs={},  # only ever probed with `'startpot' in self.inputs`
+        inputs=_Inputs(),
         exit_codes=kkr_imp_wc.exit_codes,
         report=lambda message: None,
     )
@@ -54,18 +59,42 @@ def test_construct_startpot_returns_145_when_voronoi_failed():
     assert stub.ctx.exit_code.status == 145
 
 
-def test_construct_startpot_returns_146_when_gf_writeout_failed():
+def test_bail_on_error_returns_146_when_gf_writeout_failed():
     """A failed kkr_flex_wc ends the workchain with 146 instead of raising.
 
     The stub's gf_writeout carries no outputs attribute, so reaching for
-    `.outputs.workflow_info` raises AttributeError here, standing in for the
-    NotExistentAttributeError the real workchain raised on a missing workflow_info output.
+    `.outputs.workflow_info` or `.outputs.GF_host_remote` would raise AttributeError,
+    standing in for the NotExistentAttributeError the real workchain raised on a missing
+    output.
     """
     stub = _workchain_stub(gf_finished_ok=False)
-    result = kkr_imp_wc.construct_startpot(stub)
+    result = kkr_imp_wc.bail_on_error(stub)
 
     assert result.status == 146
     assert stub.ctx.exit_code.status == 146
+
+
+def test_gf_writeout_failure_is_caught_even_when_startpot_is_given():
+    """The GF check must not live in construct_startpot, which a supplied startpot skips.
+
+    With `startpot` in the inputs, has_starting_potential_input returns False and the whole
+    if_ block -- including construct_startpot -- is skipped. But run_kkrimp_scf still reads
+    self.ctx.gf_writeout.outputs.GF_host_remote whenever do_gf_calc is set, so a failed GF
+    writeout would raise there. bail_on_error runs before that branch either way.
+    """
+    stub = _workchain_stub(gf_finished_ok=False)
+    stub.inputs = _Inputs(startpot=object())
+
+    assert kkr_imp_wc.has_starting_potential_input(stub) is False
+    assert kkr_imp_wc.bail_on_error(stub).status == 146
+
+
+def test_bail_on_error_ignores_gf_writeout_when_it_did_not_run():
+    """With do_gf_calc False there is no gf_writeout in the context to check."""
+    stub = _workchain_stub(do_gf_calc=False)
+    del stub.ctx.gf_writeout
+
+    assert kkr_imp_wc.bail_on_error(stub) is None
 
 
 def test_bail_on_error_returns_a_stored_exit_code():
@@ -96,7 +125,9 @@ def test_has_starting_potential_input_ignores_a_stored_exit_code():
 # run test manually
 if __name__ == '__main__':
     test_construct_startpot_returns_145_when_voronoi_failed()
-    test_construct_startpot_returns_146_when_gf_writeout_failed()
+    test_bail_on_error_returns_146_when_gf_writeout_failed()
+    test_gf_writeout_failure_is_caught_even_when_startpot_is_given()
+    test_bail_on_error_ignores_gf_writeout_when_it_did_not_run()
     test_bail_on_error_returns_a_stored_exit_code()
     test_bail_on_error_is_transparent_on_the_happy_path()
     test_has_starting_potential_input_ignores_a_stored_exit_code()
