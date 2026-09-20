@@ -22,7 +22,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: pip-docs-${{ hashFiles('**/setup.json') }}
+        key: pip-docs-${{ hashFiles('pyproject.toml') }}
         restore-keys: |
           pip-docs-
 
@@ -54,7 +54,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: pip-pre-commit-${{ hashFiles('**/setup.json') }}
+        key: pip-pre-commit-${{ hashFiles('pyproject.toml') }}
         restore-keys: |
           pip-pre-commit-
 
@@ -88,7 +88,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
-        aiida: [{version: 'aiida-core==2.5.2', name: '2.5.2'}]
+        aiida: [{version: 'aiida-core~=2.9.2', name: '2.9'}]
         masci-tools: [{version: 'git+https://github.com/JuDFTteam/masci-tools.git@develop', name: '-masci-develop'}]
         allowed-to-fail: [false]
 
@@ -107,7 +107,8 @@ jobs:
         ports:
           - 5432:5432
       rabbitmq:
-        image: rabbitmq:latest
+        # aiida-core's own CI pins this; `rabbitmq:latest` is 4.x, which aiida-core 2.x does not support
+        image: rabbitmq:3.8.14-management
         ports:
           - 5672:5672
       slurm:
@@ -137,11 +138,14 @@ jobs:
     - name: Install aiida-kkr
       run: |
         pip install ${{ matrix.aiida.version }} ${{ matrix.masci-tools.version }}
+        # The PyPI release of aiida-test-cache (0.0.1) pins aiida-core < 2.6 and imports
+        # pkg_resources. Its git main branch, never released, supports aiida-core < 3 and does
+        # not. Installed before `.[testing]` so pip sees the requirement as already satisfied.
+        pip install "aiida-test-cache @ git+https://github.com/aiidateam/aiida-test-cache.git@main"
         pip install .[testing]
         pip freeze
 
     - name: Migrate AiiDA workflow caches
-      if: matrix.aiida.name != '1.6.8'
       run: |
         cd ./tests/
         python migrate_exports.py

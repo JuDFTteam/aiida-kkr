@@ -6,13 +6,13 @@ build-backend = "setuptools.build_meta"
 name = "aiida-kkr"
 version = "2.3.1"
 description = "AiiDA plugin for the JuKKR codes"
+requires-python = ">=3.10"
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Development Status :: 4 - Beta",
     "Environment :: Plugins",
     "Intended Audience :: Science/Research",
@@ -72,8 +72,9 @@ testing = [
     "pytest-timeout >= 1.3.3",
     "pytest-regressions >= 1.0",
     "MarkupSafe < 3.1.0",
+    # The PyPI release 0.0.1 pins aiida-core < 2.6 and imports pkg_resources; CI installs the
+    # git main branch over it, which supports aiida-core < 3 and has no pkg_resources import.
     "aiida-test-cache",
-    "setuptools < 81",  # aiida-test-cache still imports pkg_resources, removed in setuptools 81
 ]
 docs = [
     "Sphinx >= 1.8.2",
