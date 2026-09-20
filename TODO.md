@@ -20,6 +20,23 @@ the merged PR or closed issue it links to. Last updated 2026-09-20.
 - [ ] **[#115](https://github.com/JuDFTteam/aiida-kkr/pull/115) — Implement base restart functionality** (open since 2022-12).
   Not reviewed as part of the current work.
 
+## Release and branch layout
+
+- [ ] **Rename `master` to `main`, bring it up to date, and cut a release that reaches PyPI.**
+  The default branch was switched to `develop` on 2026-09-20; `master` still exists, holds zero
+  commits that `develop` does not, and its tip is the 2024-12-05 release. Steps, in order: rename
+  `master` to `main` on GitHub (which keeps redirects for old links and retargets any open pull
+  request), merge `develop` into `main` — a fast-forward, since nothing diverged — bump the version
+  in `aiida_kkr/__init__.py`, `pyproject.toml` and `.bumpversion.cfg`, then tag `vX.Y.Z`. The tag is
+  what publishes: `cd.yml` fires on `v*` and uploads to PyPI only if the tests pass. Then **check
+  the upload actually arrived**, rather than assuming a green workflow means a release.
+  Two edits travel with it: [README.md](README.md) line 81 names `master` in the release steps, and
+  `2.3.1` has been the version since before the last release, so the next number is a decision
+  (2.4.0 is the honest one — `find_cluster_radius` returns different radii now, see the entry
+  below). **Why it matters beyond tidiness:** the [#182](https://github.com/JuDFTteam/aiida-kkr/issues/182)
+  fix is on `develop` only, so anyone installing from PyPI still gets the version that crashes on
+  open lattices and mis-sizes clusters on off-origin structures.
+
 ## Known bugs and limitations, not yet fixed
 
 - [ ] **Cluster radii computed by aiida-kkr >= 1.1.12 may be too small where a structure has no
