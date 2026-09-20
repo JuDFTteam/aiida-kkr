@@ -348,7 +348,7 @@ class KKRnanoCalculation(CalcJob):
 
         if type(value) == str or type(value) == int:
             content = f'{key} = {value}'
-        elif type(value) == float or type(value) == np.float_:
+        elif type(value) == float or type(value) == np.float64:
             content = f"{key} = {str.replace(str(value), 'e', 'D')}"
         elif type(value) == np.ndarray:
             content = f'{key} = {self._array2string(value)}'

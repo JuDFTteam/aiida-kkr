@@ -6,6 +6,14 @@ the merged PR or closed issue it links to. Last updated 2026-09-20.
 
 ## Open pull requests
 
+- [ ] **[#186](https://github.com/JuDFTteam/aiida-kkr/pull/186) — Make the `tests` legs green.**
+  Stacked on #179. Decouples the two pytest passes in `run_all.sh` (the unit pass used to abort the
+  script, so the workflow pass never ran), pins `matplotlib < 3.11` instead of regenerating the
+  plot baselines, `xfail`s `test_stm.py` for [#185](https://github.com/JuDFTteam/aiida-kkr/issues/185),
+  fixes `np.float_` in `kkrnano.py` (removed in NumPy 2.0, so KKRnano input files could not be
+  written at all), and imports `get_format` from `aiida.tools.archive.abstract`. Expected result:
+  92 passed in the unit pass, 19 passed and 1 xfailed in the workflow pass, per leg. **The
+  aiida-core 2.9 bump is deliberately not in it** — see the deferred item below.
 - [ ] **[#179](https://github.com/JuDFTteam/aiida-kkr/pull/179) — Fix CI setup: `reentry`, unparsable
   `tools_STM_scan.py`, and the flynt crash on pre-commit.ci.** Rebuilt on `develop` (`c47af80`) on
   2026-09-20, so the earlier rebase conflict with #178's formatting commit is gone. Removes
@@ -88,17 +96,33 @@ Details in [#177](https://github.com/JuDFTteam/aiida-kkr/issues/177), section "F
 
 ## Known CI failures, deferred
 
-Seen in the CI run of #179, the first run in a while that got past setup.
-
-- [ ] **Plot baseline images are stale.** On Python 3.11 and 3.12 (matplotlib 3.11.2), the seven
-  image comparisons in `tests/test_plot_kkr.py` fail against `tests/files/baseline_images/`
-  (last updated 2022-11). On 3.10 (matplotlib 3.10.9) they pass. Decide whether to regenerate the
-  baselines or pin matplotlib for tests. Because `run_all.sh` stops at the first failure, the
-  workflow tests do not run on 3.11 and 3.12.
-- [ ] **`workflows/test_stm.py` fails.** `IndexError: list index out of range` in
-  `tools_STM_scan.lattice_generation` (line 623), called from `kkr_STM.get_scanning_positions`.
-  This test could not run before #179, because the module did not import. STM is maintained by its
-  contributors: first check whether an unmerged STM or BdG branch (including forks) already fixes
-  this, together with the syntax error #179 repairs.
+- [ ] **aiida-core cannot move past 2.5.x until the test archives are re-exported.** Measured
+  2026-09-20 across four CI runs: on aiida-core 2.9.2 with `aiida-test-cache@main`, 16 of the 20
+  whitelisted workflow tests fail; on aiida-core 2.5.2 with the PyPI `aiida-test-cache` 0.0.1, 19
+  of 20 pass. Identical on Python 3.10, 3.11 and 3.12. The failures are archive-cache misses —
+  `kkr.voro` calculations hit the cache 18/18 while `kkr.kkr` calculations miss 6/6 — which fall
+  through to the zero-byte fake `kkr.x` and surface as `KeyError` on a workflow output. The
+  archives in `tests/data_dir/` are already at the current `export_version` (`main_0001`) and
+  `tests/migrate_exports.py` migrates them every run, so this is **not** a schema-migration
+  problem; their `metadata.json` records `aiida_version 2.5.2`, and they need re-**exporting**
+  under the new aiida-core, which is the follow-up PR. Two constraints travel with this: PyPI
+  `aiida-test-cache` 0.0.1 pins `aiida-core < 2.6` and needs `setuptools < 81` for
+  `pkg_resources`, while `aiida-test-cache@main` needs aiida-core >= 2.6 despite declaring
+  `>= 2.1` (it calls `NodeCaching.compute_hash`, added in 2.6).
+- [ ] **[#185](https://github.com/JuDFTteam/aiida-kkr/issues/185) — `workflows/test_stm.py` is
+  `xfail`ed.** `IndexError: list index out of range` in
+  `tools_STM_scan.lattice_generation`, from `kkr_STM.get_scanning_positions`. The failing
+  expression is the bounds test `p[0] < xmax and … p[1] < ymax`, where
+  `p = [i * x + j * y for x, y in zip(vec[0], vec[1])]` is shorter than 2 when the plane vectors
+  are not what the code assumes. `feature/kkr-bdg-workflow` carries the identical line, so no
+  unmerged branch fixes it. Same failure class as [#182](https://github.com/JuDFTteam/aiida-kkr/issues/182)
+  (`find_cluster_radius`): unchecked geometry indexing in `aiida_kkr/tools`. STM is maintained by
+  its contributors. Marked `strict=False` so an upstream fix does not turn the suite red.
 - [ ] **pre-commit.ci** reports the local `pylint` hook as skipped even though that hook is listed
-  under `ci: skip`; cosmetic. Its flynt 1.0.1 crash is fixed by #179.
+  under `ci: skip`; cosmetic.
+
+Resolved 2026-09-20: the stale plot baselines. They were not stale — `tests/files/baseline_images/`
+still matches matplotlib 3.10.9 exactly for five of eight comparisons and within tolerance for the
+rest. Only matplotlib 3.11 disagrees, by RMS 6.5-18 against tolerances of 2-8, and matplotlib 3.11
+requires Python >= 3.11 so the 3.10 leg cannot use it anyway. Pinned `matplotlib < 3.11` in the
+`testing` extra instead of regenerating.

@@ -110,10 +110,19 @@ if [[ ! -z "$RUN_ALL" ]]; then
   # now workflow tests
   pytest --cov-report=$repfmt --cov=../ --cov-append --ignore=jukkr workflows/ $addopt
 elif [[ ! -z "$GITHUB_SUITE" ]]; then
+  # Run both passes, then exit non-zero if either failed, rather than letting the
+  # `set -e` above abort the script on the first one. When the unit pass aborted the
+  # script the workflow pass never ran at all, which is how the stale matplotlib
+  # baselines hid every workflow result on Python 3.11 and 3.12 behind what looked
+  # like a single failure. rc ends up holding the last failing pass's code, not the
+  # highest one; any non-zero is equally red, so that is good enough.
+  rc=0
   if [[ -z "$SKIP_NOWORK" ]]; then
-    pytest --cov-report=$repfmt --cov=../ --cov-report xml:coverage.xml --ignore=workflows --ignore=jukkr --mpl -p no:warnings $addopt
+    pytest --cov-report=$repfmt --cov=../ --cov-report xml:coverage.xml --ignore=workflows --ignore=jukkr --mpl -p no:warnings $addopt || rc=$?
   fi
   # only use list of currently working tests
+  # -x stays on this pass on purpose: these tests are slow and share cached state, so
+  # there is little to learn from the ones after the first failure.
 
   pytest --cov-report=$repfmt --cov-append --cov=../ -x \
       ./workflows/test_vorostart_wc.py \
@@ -129,7 +138,9 @@ elif [[ ! -z "$GITHUB_SUITE" ]]; then
 	  ./workflows/test_combine_imps.py \
 	  ./workflows/test_stm.py \
 	  ./workflows/test_kkrimp_BdG_wc.py \
-	  $addopt
+	  $addopt || rc=$?
+
+  exit $rc
 else
   # tests without running actual calculations
   if [[ -z "$SKIP_NOWORK" ]] && [[ -z "$NO_RMQ" ]]; then
