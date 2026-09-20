@@ -6,6 +6,17 @@ the merged PR or closed issue it links to. Last updated 2026-09-20.
 
 ## Open pull requests
 
+- [ ] **[#187](https://github.com/JuDFTteam/aiida-kkr/pull/187) — `find_cluster_radius`: grow the
+  search radius, and measure distances from the site.** Fixes both defects of
+  [#182](https://github.com/JuDFTteam/aiida-kkr/issues/182). The search radius grows until every
+  site has enough neighbours and raises a `ValueError` naming `natom_in_cls_min`, the radius
+  searched and the cluster size found, where it used to index past the end of the neighbour list
+  and raise `IndexError`; distances use pymatgen's `nn_distance`, measured from the central site,
+  instead of `np.linalg.norm(n.coords)`, the neighbour's absolute position. `Rclsmax` changes
+  meaning from maximum to starting radius. Also guards `nclsmin < 2`, which indexed `[-1]` and
+  returned the largest distance in the search sphere. Three tests added, two of them failing
+  before the fix.
+
 - [ ] **[#186](https://github.com/JuDFTteam/aiida-kkr/pull/186) — Make the `tests` legs green.**
   Stacked on #179. Decouples the two pytest passes in `run_all.sh` (the unit pass used to abort the
   script, so the workflow pass never ran), pins `matplotlib < 3.11` instead of regenerating the
@@ -56,28 +67,20 @@ problems that #178 did not address.
 
 ## Known bugs, filed but not yet fixed
 
-- [ ] **[#182](https://github.com/JuDFTteam/aiida-kkr/issues/182) — `find_cluster_radius`: unchecked
-  index, and neighbour distances wrong off-origin.** Fixed on branch `fix/find-cluster-radius-182`
-  (`3afab6f`, off `develop` `0553bc1`); not yet pushed, no PR open. The search radius now grows
-  until every site has enough neighbours and raises a `ValueError` naming `natom_in_cls_min`, the
-  radius searched and the cluster size found, where it used to index past the end of the neighbour
-  list and raise `IndexError`; neighbour distances now use pymatgen's `nn_distance`, measured from
-  the central site, instead of `np.linalg.norm(n.coords)`, which is the neighbour's absolute
-  position and is only the same thing for a site at the origin. `Rclsmax` changes meaning from
-  maximum to starting radius. Also guards `nclsmin < 2`, which indexed `[-1]` and returned the
-  largest distance in the search sphere. Two regression tests, both failing before the fix.
-- [ ] **The exposure #182 left open is measured, and it is zero — but only for one database.**
-  Read-only census of a live production profile, 2026-09-20: of 10364 stored `kkr_startpot_wc`
-  runs, the 4093 completed runs on off-origin structures all ran under aiida-kkr 1.1.11 (2021),
-  which predates the buggy rewrite (2022-08-19, first released in v1.1.12) and computed the radius
-  with the correct supercell form that survives today as `find_cluster_radius_old`. The 25 runs
-  under aiida-kkr 2.x are all single-site-at-origin, where the defect is inert, and 9883 runs
-  passed an explicit `RCLUSTZ` that overrode the computed value anyway. Defect 1 did bite: 60
-  workchains excepted on 2026-09-14 with the `IndexError`. **Two corrections to the issue text**,
-  to be posted with the PR: the wrong radius is more often too *large* (median ratio 1.022 over 120
-  sampled off-origin structures, too small in 11 of 120, by ~5% in delivered cluster size), and the
-  exposure is no longer unbounded — though this covers one database only, and any database on
-  aiida-kkr >= 1.1.12 with off-origin structures and no explicit `RCLUSTZ` is still exposed.
+- [ ] **The exposure [#182](https://github.com/JuDFTteam/aiida-kkr/issues/182) left open is
+  measured, and it is zero — but for one database only.** Read-only census of a live production
+  profile, 2026-09-20, posted as a comment on the issue: of 10364 stored `kkr_startpot_wc` runs,
+  the 4093 completed runs on off-origin structures all ran under aiida-kkr 1.1.11 (2021), which
+  predates the buggy rewrite (2022-08-19, first released in v1.1.12) and used the correct
+  supercell form that survives today as `find_cluster_radius_old`; the 25 runs under aiida-kkr 2.x
+  are all single-site-at-origin, where the defect is inert; and 9883 runs passed an explicit
+  `RCLUSTZ` that overrode the computed value anyway. Defect 1 did bite: 60 workchains excepted on
+  2026-09-14 with the `IndexError`. **Still exposed:** any database on aiida-kkr >= 1.1.12 with
+  off-origin structures where `voro_start` computed the radius itself (`natom_in_cls_min > 0` and
+  no `RCLUSTZ` in `calc_parameters`). The census also corrected the issue text twice — the wrong
+  radius is more often too *large* (median ratio 1.022 over 120 sampled structures, too small in
+  11 of them), and the spurious `0.0` is the other site at the origin, not the central site's own
+  image, which `get_all_neighbors` excludes.
 
 ## Known bugs found while fixing #177, not yet addressed
 
