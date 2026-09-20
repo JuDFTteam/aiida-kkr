@@ -81,6 +81,9 @@ testing = [
     # The PyPI release 0.0.1 pins aiida-core < 2.6 and imports pkg_resources; CI installs the
     # git main branch over it, which supports aiida-core < 3 and has no pkg_resources import.
     "aiida-test-cache",
+    # TEMPORARY DIAGNOSTIC -- remove again before merge. PyPI aiida-test-cache 0.0.1 imports
+    # pkg_resources, dropped from setuptools 81.
+    "setuptools < 81",
 ]
 docs = [
     "Sphinx >= 1.8.2",

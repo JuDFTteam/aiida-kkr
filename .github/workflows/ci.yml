@@ -143,10 +143,8 @@ jobs:
     - name: Install aiida-kkr
       run: |
         pip install ${{ matrix.aiida.version }} ${{ matrix.masci-tools.version }}
-        # The PyPI release of aiida-test-cache (0.0.1) pins aiida-core < 2.6 and imports
-        # pkg_resources. Its git main branch, never released, supports aiida-core < 3 and does
-        # not. Installed before `.[testing]` so pip sees the requirement as already satisfied.
-        pip install "aiida-test-cache @ git+https://github.com/aiidateam/aiida-test-cache.git@main"
+        # TEMPORARY DIAGNOSTIC -- restore this line before merge. Left out so that the PyPI
+        # aiida-test-cache 0.0.1 is installed via .[testing], reproducing the pre-bump setup.
         pip install .[testing]
         pip freeze
 
