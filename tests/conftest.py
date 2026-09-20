@@ -304,7 +304,12 @@ def import_with_migration(archive_path):
     except ImportError:
         # This is the case for aiida >= 2.0.0
         from click import echo
-        from aiida.tools.archive import import_archive, get_format
+        from aiida.tools.archive import import_archive
+        # get_format lives in .abstract and is only re-exported from the package up to
+        # aiida-core 2.5; 2.6+ dropped it from __init__. Importing it from .abstract works
+        # on both. It is reached only on the migration path, but the import is unconditional,
+        # so getting it wrong fails every test that touches an archive.
+        from aiida.tools.archive.abstract import get_format
         from aiida.common.exceptions import IncompatibleStorageSchema
 
         import_kwargs = {'group': None}
