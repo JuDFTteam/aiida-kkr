@@ -101,7 +101,8 @@ Details in [#177](https://github.com/JuDFTteam/aiida-kkr/issues/177), section "F
   `aiida-test-cache` 0.0.1 pins `aiida-core < 2.6` and needs `setuptools < 81` for
   `pkg_resources`, while `aiida-test-cache@main` needs aiida-core >= 2.6 despite declaring
   `>= 2.1` (it calls `NodeCaching.compute_hash`, added in 2.6).
-- [ ] **`workflows/test_stm.py` is `xfail`ed.** `IndexError: list index out of range` in
+- [ ] **[#185](https://github.com/JuDFTteam/aiida-kkr/issues/185) — `workflows/test_stm.py` is
+  `xfail`ed.** `IndexError: list index out of range` in
   `tools_STM_scan.lattice_generation`, from `kkr_STM.get_scanning_positions`. The failing
   expression is the bounds test `p[0] < xmax and … p[1] < ymax`, where
   `p = [i * x + j * y for x, y in zip(vec[0], vec[1])]` is shorter than 2 when the plane vectors
