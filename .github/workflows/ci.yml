@@ -187,3 +187,93 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: ./tests/coverage.xml
         fail_ci_if_error: true
+
+  # TEMPORARY -- delete before this branch is merged.
+  #
+  # Regenerates the pytest-mpl baselines in tests/files/baseline_images/, which were last
+  # updated in 2022-11 and no longer match matplotlib 3.11.x. They have to be generated on
+  # the CI platform: font rasterization on macOS differs enough that locally generated
+  # images are useless here.
+  #
+  # This is a push-triggered job gated on the branch name rather than a workflow_dispatch
+  # one, because GitHub only offers workflow_dispatch for workflows that already carry the
+  # trigger on the default branch, and master's ci.yml does not.
+  #
+  # It generates on all three matrix legs, not just 3.12, so the three sets can be compared
+  # against each other before any of them is committed -- that answers "can one baseline set
+  # serve all three legs?" in this run instead of in the next CI cycle.
+  regenerate-mpl-baselines:
+
+    if: github.ref == 'refs/heads/fix/ci-aiida-2.9'
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    services:
+      postgres:
+        image: postgres:10
+        env:
+          POSTGRES_DB: test_baselines
+          POSTGRES_PASSWORD: ''
+          POSTGRES_HOST_AUTH_METHOD: trust
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      rabbitmq:
+        image: rabbitmq:3.8.14-management
+        ports:
+          - 5672:5672
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install system dependencies
+      run: |
+        sudo apt update
+        sudo apt install postgresql graphviz
+
+    - name: Upgrade pip and setuptools
+      run: |
+        pip install --upgrade pip setuptools wheel
+        pip --version
+
+    - name: Install aiida-kkr
+      run: |
+        pip install aiida-core~=2.9.2 git+https://github.com/JuDFTteam/masci-tools.git@develop
+        pip install "aiida-test-cache @ git+https://github.com/aiidateam/aiida-test-cache.git@main"
+        pip install .[testing]
+        pip freeze
+
+    - name: Migrate AiiDA workflow caches
+      run: |
+        cd ./tests/
+        python migrate_exports.py
+
+    - name: Generate baselines
+      run: |
+        cd tests/
+        export AIIDA_PATH='.'
+        mkdir -p '.aiida/access/test_profile'
+        python -c "import matplotlib; print('matplotlib', matplotlib.__version__)"
+        pytest test_plot_kkr.py --mpl-generate-path=files/baseline_images -p no:warnings
+
+    - name: Upload generated baselines
+      uses: actions/upload-artifact@v4
+      with:
+        name: baseline-images-py${{ matrix.python-version }}
+        path: tests/files/baseline_images/
+        if-no-files-found: error
