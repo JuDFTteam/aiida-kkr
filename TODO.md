@@ -6,6 +6,14 @@ the merged PR or closed issue it links to. Last updated 2026-09-20.
 
 ## Open pull requests
 
+- [ ] **[#186](https://github.com/JuDFTteam/aiida-kkr/pull/186) — Make the `tests` legs green.**
+  Stacked on #179. Decouples the two pytest passes in `run_all.sh` (the unit pass used to abort the
+  script, so the workflow pass never ran), pins `matplotlib < 3.11` instead of regenerating the
+  plot baselines, `xfail`s `test_stm.py` for [#185](https://github.com/JuDFTteam/aiida-kkr/issues/185),
+  fixes `np.float_` in `kkrnano.py` (removed in NumPy 2.0, so KKRnano input files could not be
+  written at all), and imports `get_format` from `aiida.tools.archive.abstract`. Expected result:
+  92 passed in the unit pass, 19 passed and 1 xfailed in the workflow pass, per leg. **The
+  aiida-core 2.9 bump is deliberately not in it** — see the deferred item below.
 - [ ] **[#179](https://github.com/JuDFTteam/aiida-kkr/pull/179) — Fix CI setup: `reentry`, unparsable
   `tools_STM_scan.py`, and the flynt crash on pre-commit.ci.** Rebuilt on `develop` (`c47af80`) on
   2026-09-20, so the earlier rebase conflict with #178's formatting commit is gone. Removes
