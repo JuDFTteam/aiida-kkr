@@ -67,11 +67,16 @@ def find_cluster_radius(structure, nclsmin=15, Rclsmax=10.):
 
     :param structure: input structure
     :param nclsmin: required minimal cluster size
-    :param Rclsmax: max radius used in screening for cluster size
+    :param Rclsmax: radius the screening for the cluster size starts from. It is grown
+        automatically if it does not contain nclsmin atoms around every site.
 
     :return R0: cluster radius in Ang. units
     :return Ncls_all: cluster sizes, list with the lenth of the sites
     """
+
+    # below 2 the index into the sorted neighbor distances would wrap around to the end
+    if nclsmin < 2:
+        raise ValueError(f'nclsmin has to be at least 2, got {nclsmin}')
 
     # create auxiliary structure (makes sure this also works with 2D structures)
     saux = StructureData(cell=structure.cell)
@@ -80,11 +85,28 @@ def find_cluster_radius(structure, nclsmin=15, Rclsmax=10.):
         saux.append_atom(position=site.position, symbols=kind.symbols, weights=kind.weights)
     ps = saux.get_pymatgen()
 
+    # collect the neighbors of every site, growing the search radius until it holds
+    # enough of them everywhere (a cluster of nclsmin atoms needs nclsmin-1 neighbors)
+    rcut = max(Rclsmax, np.linalg.norm(structure.cell, axis=1).max())
+    rcut_max = rcut * 1.5**4
+    while True:
+        neighbors_all = ps.get_all_neighbors(rcut)
+        ncls_min_found = 1 + min(len(neighbors) for neighbors in neighbors_all)
+        if ncls_min_found >= nclsmin:
+            break
+        if rcut >= rcut_max:
+            raise ValueError(
+                f'Could not find {nclsmin} atoms per cluster within a radius of {rcut:.2f} Ang '
+                f'(smallest cluster found there has {ncls_min_found} atoms)'
+            )
+        rcut *= 1.5
+
     # find cluster radius that has at least the minimal number of atoms
     R0 = -1.
-    neighbors_all = ps.get_all_neighbors(max(Rclsmax, np.linalg.norm(structure.cell, axis=1).max()))
     for neighbors in neighbors_all:
-        dist_all = np.sort([np.linalg.norm(n.coords) for n in neighbors])
+        # nn_distance is the distance from the site the neighbors belong to; n.coords is
+        # an absolute position and only agrees with it for a site sitting at the origin
+        dist_all = np.sort([n.nn_distance for n in neighbors])
         # -2 because we take the (nclsmin-1)-th position
         # in the array (position at (0,0,0) is added automatically)
         R0 = max(R0, dist_all[nclsmin - 2])

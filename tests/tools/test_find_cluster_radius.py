@@ -46,3 +46,67 @@ def test_find_cluster_radius():
     r0, ncls = find_cluster_radius(get_test_struc(), 15)
     assert np.round(r0, 3) == 1.225
     assert ncls[0] == 19
+
+
+def get_test_struc_open():
+    """
+    Open bcc lattice, a = 5.028 Ang, single site at the origin.
+
+    Its 79-atom cluster does not fit into the 10 Ang default search radius.
+    """
+    alat = 5.028
+    s = StructureData(
+        cell=[[-alat / 2, alat / 2, alat / 2], [alat / 2, -alat / 2, alat / 2], [alat / 2, alat / 2, -alat / 2]]
+    )
+    s.append_atom(position=[0, 0, 0], symbols='Fe')
+    return s
+
+
+def get_test_struc_two_site(shift=(0., 0., 0.)):
+    """
+    Two-site cubic cell, a = 4 Ang, Cu at the origin and Au at the body center.
+
+    `shift` translates both sites by the same vector, which moves them away from the
+    origin without changing the physics.
+    """
+    shift = np.array(shift, dtype=float)
+    s = StructureData(cell=[[4., 0., 0.], [0., 4., 0.], [0., 0., 4.]])
+    s.append_atom(position=list(shift), symbols='Cu')
+    s.append_atom(position=list(shift + 2.), symbols='Au')
+    return s
+
+
+def test_find_cluster_radius_grows_search_radius():
+    """
+    The search radius has to grow when the requested cluster does not fit into it.
+
+    This lattice has only 58 neighbors within the 10 Ang default, so asking for 79 atoms
+    used to index past the end of the neighbor list (issue #182).
+    """
+    r0, ncls = find_cluster_radius(get_test_struc_open(), 79)
+    assert 10. < r0 < 12.
+    assert min(ncls) >= 79
+
+
+def test_find_cluster_radius_off_origin():
+    """
+    Neighbor distances are measured from the central site, not from the origin.
+
+    Two consequences of measuring from the origin, on the same two-site cell: the answer
+    changed when all sites were translated, and the returned radius held fewer atoms than
+    were asked for (issue #182).
+    """
+    r0_origin = find_cluster_radius(get_test_struc_two_site(), 15)[0]
+    r0_shifted = find_cluster_radius(get_test_struc_two_site(shift=(1., 0., 0.)), 15)[0]
+    assert np.round(r0_origin, 5) == np.round(r0_shifted, 5) == 4.
+
+    ncls = find_cluster_radius(get_test_struc_two_site(shift=(1., 0., 0.)), 18)[1]
+    assert min(ncls) >= 18
+
+
+def test_find_cluster_radius_nclsmin_too_small():
+    """
+    A cluster of less than two atoms has no neighbor distance to return.
+    """
+    with pytest.raises(ValueError):
+        find_cluster_radius(get_test_struc(), 1)
