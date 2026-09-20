@@ -252,6 +252,7 @@ def create_combined_potential_node_cf(add_position, host_calc, imp_potential_nod
 ##############################################################################
 # Helper function generating the point group symmetries in the system
 
+
 def pointgrp(writesymfile=False):
     import numpy as np
     """
@@ -260,7 +261,7 @@ def pointgrp(writesymfile=False):
     """
 
     rotmat = np.zeros((64, 3, 3))
-    rotname = [""] * 64
+    rotname = [''] * 64
 
     rthree = np.sqrt(3.0) / 2.0
     half = 0.5
@@ -386,8 +387,8 @@ def pointgrp(writesymfile=False):
     rotname[23] = 'C2f'
 
     for i1 in range(24):
-        rotmat[i1+24] = -rotmat[i1]
-        rotname[i1+24] = 'I' + rotname[i1]
+        rotmat[i1 + 24] = -rotmat[i1]
+        rotname[i1 + 24] = 'I' + rotname[i1]
 
     matrices = zip(rotname, rotmat)
     return list(matrices)
@@ -396,8 +397,8 @@ def pointgrp(writesymfile=False):
 ##############################################################################
 # Parser of the symmetry contained in the host calculation
 
-def symmetry_parser(host_calc):
 
+def symmetry_parser(host_calc):
     """
     Function used to get the relevant information regarding the symmetries of the sample directly from the claculation
     node of the host calculation.
@@ -427,16 +428,20 @@ def symmetry_parser(host_calc):
     # Process the file line by line
     for line in read:
         line = line.strip()  # Remove leading and trailing whitespace
-        if "3D symmetries" in line:
+        if '3D symmetries' in line:
             # Start reading symmetry section
             in_symmetry_section = True
-        if in_symmetry_section and line.startswith("------------------------------------------------------------"):
+        if in_symmetry_section and line.startswith('------------------------------------------------------------'):
             start_read = True
-        if in_symmetry_section and start_read and not line.startswith("------------------------------------------------------------"):
+        if in_symmetry_section and start_read and not line.startswith(
+            '------------------------------------------------------------'
+        ):
             # Found the line containing symmetry operations
             symmetry_operations.append(line.split())
-        if in_symmetry_section and start_read and symmetry_operations and line.startswith("------------------------------------------------------------"):
-            break # Exit the loop after every instance of the symmetries have been found
+        if in_symmetry_section and start_read and symmetry_operations and line.startswith(
+            '------------------------------------------------------------'
+        ):
+            break  # Exit the loop after every instance of the symmetries have been found
 
     sym_ops = [item for sublist in symmetry_operations for item in sublist]
 
@@ -447,16 +452,20 @@ def symmetry_parser(host_calc):
     #
     for line in read:
         line = line.strip()  # Remove leading and trailing whitespace
-        if "normalised (ALAT)" in line:
+        if 'normalised (ALAT)' in line:
             # Start reading symmetry section
             in_lattice_section = True
-        if in_lattice_section and line.startswith("----------------------                ----------------------"):
+        if in_lattice_section and line.startswith('----------------------                ----------------------'):
             start_read = True
-        if in_lattice_section and start_read and not line.startswith("----------------------                ----------------------"):
+        if in_lattice_section and start_read and not line.startswith(
+            '----------------------                ----------------------'
+        ):
             # Found the line containing symmetry operations
             lattice_vectors.append(line.split())
-        if in_lattice_section and start_read and lattice_vectors and line.startswith("----------------------                ----------------------"):
-            break # Exit the loop after every instance of the symmetries have been found
+        if in_lattice_section and start_read and lattice_vectors and line.startswith(
+            '----------------------                ----------------------'
+        ):
+            break  # Exit the loop after every instance of the symmetries have been found
 
     # parsing of the data
     list_vec = []
@@ -464,7 +473,8 @@ def symmetry_parser(host_calc):
 
     # Retrieve the vectors needed
     for l_vec in lattice_vectors:
-        x = l_vec[1] ;y = l_vec[2]
+        x = l_vec[1]
+        y = l_vec[2]
         list_vec.append([float(x), float(y)])
 
     # Retrieve the matrix corresponding to the sysymmetry_operations
@@ -473,7 +483,7 @@ def symmetry_parser(host_calc):
 
             if sym == mat[0]:
 
-                list_mat.append(mat[1][0:2, 0:2]) #only take the plane rotation
+                list_mat.append(mat[1][0:2, 0:2])  #only take the plane rotation
 
     # Output the extracted symmetry operations
     return list_vec, list_mat
@@ -481,7 +491,6 @@ def symmetry_parser(host_calc):
 
 ##############################################################################
 # STM pathfinder
-
 
 #def STM_pathfinder(host_remote):
 #    """
@@ -555,7 +564,6 @@ def symmetry_parser(host_calc):
 #
 #    return plane_vectors, unique_matrices
 
-
 #@engine.calcfunction
 #def STM_pathfinder_cf(host_structure):
 #    """
@@ -565,7 +573,6 @@ def symmetry_parser(host_calc):
 #    struc_info, symm_matrices = STM_pathfinder(host_structure)
 #
 #    return struc_info, symm_matrices
-
 
 ##############################################################################
 # lattice generation (function of lattice plot)
@@ -601,9 +608,9 @@ def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
     x_len = xmax * 2
     y_len = ymax * 2  # maybe there is a way to make this more efficient... USE the lattice vectors! check the longest and use it
 
-    x_interval = [i for i in range(-x_len, x_len+1)]
+    x_interval = [i for i in range(-x_len, x_len + 1)]
 
-    y_interval = [i for i in range(-y_len, y_len+1)]
+    y_interval = [i for i in range(-y_len, y_len + 1)]
 
     points_to_scan = []
     lattice_points = []
@@ -618,9 +625,7 @@ def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
                 lattice_points.append(p)
 
     # sort the lattice points based on their y value. This is not necessary but makes the visualization nicer
-    lattice_points = sorted(lattice_points, key=lambda y:y[1])
-
-
+    lattice_points = sorted(lattice_points, key=lambda y: y[1])
 
     # First check if only the identity exists, in that case every point need to be scanned.
     if len(rot) == 1:
@@ -629,13 +634,12 @@ def lattice_generation(rot, vec, x_start, y_start, xmax, ymax):
         for points in lattice_points:
             for sym in rot[1:]:
 
-                sym_point = np.dot(sym.tolist(), points).tolist() # Generate the symmetrical point
+                sym_point = np.dot(sym.tolist(), points).tolist()  # Generate the symmetrical point
 
                 if points not in points_to_eliminate and points not in points_to_scan:
                     points_to_scan.append(points)
                 if sym_point not in points_to_eliminate and sym_point not in points_to_scan:
                     points_to_eliminate.append(sym_point)
-
 
     return points_to_eliminate, points_to_scan
 
@@ -754,6 +758,7 @@ def find_linear_combination_coefficients(plane_vectors, vectors):
 
     return indices
 
+
 ##############################################################################
 # Paser tool for retrieving data from an AiiDA Group of STM calculations
 
@@ -761,8 +766,6 @@ def find_linear_combination_coefficients(plane_vectors, vectors):
 def STM_density_parser(kkr_calc, _debug_=False):
     _version_ = 0.1
     import aiida.orm as orm
-
-
     """
     This function uses a Calculation node and parses the rho.dot files.
     :param kkr_calc: (KkrimpCalculation); Calculation containing the rho.dat files
@@ -783,14 +786,13 @@ def STM_density_parser(kkr_calc, _debug_=False):
         except:
             print('Wrong node type or retrievd folder is not present')
 
-
     if _debug_:
         from time import time
         t0 = time()
 
     retrieved = retrieve_files(kkr_calc, orm.List(['rho.dat']))
 
-    parsed_data = [] # Initialization of the list that will contain the parsed data
+    parsed_data = []  # Initialization of the list that will contain the parsed data
 
     current_rmesh = None
     nmesh = natom = nspin = None
@@ -822,10 +824,10 @@ def STM_density_parser(kkr_calc, _debug_=False):
             ilm, ispin, iatom = [int(i) for i in line.split() if i.isdigit()]
 
             orbital = []
-            for i in range(parsed_data[iatom - 1][0]-1):
+            for i in range(parsed_data[iatom - 1][0] - 1):
                 data_line = l[idx + 1 + i].strip()
                 if data_line and not data_line.startswith('#'):
-                   orbital.append(float(data_line.split()[0]))
+                    orbital.append(float(data_line.split()[0]))
 
             if ispin == 1:
                 parsed_data[iatom - 1][3].append(orbital)
@@ -833,17 +835,19 @@ def STM_density_parser(kkr_calc, _debug_=False):
                 parsed_data[iatom - 1][4].append(orbital)
 
     if _debug_:
-        print(time()-t0)
+        print(time() - t0)
 
     return parsed_data
 
+
 # Function for retrieving and parsing the data from calculation
 
+
 def STM_real_space_parser(group_STM, energy_pos, N0, _DEBUG_=False):
-     _version_ = 0.1
+    _version_ = 0.1
     from masci_tools.util.constants import BOHR_A
     from time import time
-
+    from tqdm import tqdm
     """
     Function for parsing the data from a group of calculations for the STM
     This function returns three lists: a position list, containing two lists: one for the x and one for the y positions
@@ -859,10 +863,9 @@ def STM_real_space_parser(group_STM, energy_pos, N0, _DEBUG_=False):
     # First retrieve the lattice constant of the system.
 
     try:
-        ret  = group_STM.nodes[0].called[0].called[0].called[1].outputs.retrieved
+        ret = group_STM.nodes[0].called[0].called[0].called[1].outputs.retrieved
     except:
         print('WARNING: error while reading the group, it is possible that no node is contained here')
-
 
     with ret.open('inputcard') as _f:
         read = _f.readlines()
@@ -880,7 +883,7 @@ def STM_real_space_parser(group_STM, energy_pos, N0, _DEBUG_=False):
     alat_ang = (alat * BOHR_A)
 
     if _DEBUG_:
-        t0 = time() # Show time only in debugging procedure.
+        t0 = time()  # Show time only in debugging procedure.
 
     # Create the lists containing the positions and the values of the collected data.
     all_pos = [[], []]
@@ -888,41 +891,42 @@ def STM_real_space_parser(group_STM, energy_pos, N0, _DEBUG_=False):
     all_dat_summed_mu = []
     for node in tqdm(group_STM.nodes):
 
-        with node.called[0].called[0].called[1].outputs.retrieved.open("kkrflex_atominfo") as _f:
-            pos = np.loadtxt(_f, skiprows=3) * alat_ang # Retrieve the positions of the atoms in the impurity cluster.
+        with node.called[0].called[0].called[1].outputs.retrieved.open('kkrflex_atominfo') as _f:
+            pos = np.loadtxt(_f, skiprows=3) * alat_ang  # Retrieve the positions of the atoms in the impurity cluster.
 
         try:
             dat = node.outputs.STM_dos_data_lmdos.get_y()[0][1]
         except:
             continue
 
-        for i in [-1,1]:
-            for j in [-1,1]:
+        for i in [-1, 1]:
+            for j in [-1, 1]:
 
-                all_pos[0] += list(i*pos[N0:,0])
-                all_pos[1] += list(j*pos[N0:,1])
-                all_dat_summed_rho += list(abs((dat[::2, energy_pos]+dat[1::2, energy_pos])[N0:])) #Both spin channels are considered here
-                all_dat_summed_mu  += list(abs((dat[::2, energy_pos]-dat[1::2, energy_pos])[N0:]))
-
+                all_pos[0] += list(i * pos[N0:, 0])
+                all_pos[1] += list(j * pos[N0:, 1])
+                all_dat_summed_rho += list(
+                    abs((dat[::2, energy_pos] + dat[1::2, energy_pos])[N0:])
+                )  #Both spin channels are considered here
+                all_dat_summed_mu += list(abs((dat[::2, energy_pos] - dat[1::2, energy_pos])[N0:]))
 
     all_pos = np.array(all_pos)
     all_dat_summed_rho = np.array(all_dat_summed_rho)
-    all_dat_summed_mu= np.array(all_dat_summed_mu)
-
+    all_dat_summed_mu = np.array(all_dat_summed_mu)
 
     if _DEBUG_:
-        print(time()-t0)
+        print(time() - t0)
 
     return all_pos, all_dat_summed_rho, all_dat_summed_mu
 
+
 ##############################################################################
 # Real space plotting function
+
 
 def STM_real_space_plot(positions, data, R0=0, R1=10, _DEBUG_=False, **kwargs):
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
     from time import time
-
     """
     Function for the real space plotting of the system
 
@@ -952,50 +956,60 @@ def STM_real_space_plot(positions, data, R0=0, R1=10, _DEBUG_=False, **kwargs):
     s1 = kwargs.get('s1', 105)
     lw = kwargs.get('lw', 0)
     cmap = kwargs.get('cmap', 'seismic')
-    label = kwargs.get('label' , '$\Delta n$ (states/ev)')
-    markers = kwargs.get('markers', 'h')
+    label = kwargs.get('label', '$\Delta n$ (states/ev)')
+    marker = kwargs.get('marker', 'h')
     linthresh = kwargs.get('linthresh', 0.05)
     figsize = kwargs.get('figsize', 10)
     fontsize = kwargs.get('fontsize', 20)
     fontsize_label = kwargs.get('fontsize_label', 25)
 
-
     if _DEBUG_:
         t0 = time()
 
     all_dat_aux = data
-    all_dat = data[np.sqrt(positions[0]**2+positions[1]**2)>R1]
+    all_dat = data[np.sqrt(positions[0]**2 + positions[1]**2) > R1]
 
-    all_dat_aux[np.sqrt(positions[0]**2+all_pospositions[1]**2)<R0] = np.NaN # Set to NaN those values that we don't want to see.
-    plt.figure(figsize=(figsize,figsize))
-    plt.scatter(positions[0], positions[1], c=all_dat_aux-np.nanmean(all_dat), cmap=cmap
-                           , s=s, norm=colors.SymLogNorm(linthresh=linthresh), lw=lw, marker=marker)
+    all_dat_aux[np.sqrt(positions[0]**2 + positions[1]**2) < R0
+                ] = np.NaN  # Set to NaN those values that we don't want to see.
+    plt.figure(figsize=(figsize, figsize))
+    plt.scatter(
+        positions[0],
+        positions[1],
+        c=all_dat_aux - np.nanmean(all_dat),
+        cmap=cmap,
+        s=s,
+        norm=colors.SymLogNorm(linthresh),
+        lw=lw,
+        marker=marker
+    )
 
     cl = plt.gci().get_clim()
     cl = max(abs(cl[0]), cl[1])
     plt.clim(-cl, cl)
 
-    cbar = plt.colorbar(orientation='vertical', aspect = 25, shrink = 1, pad=0.01)
+    cbar = plt.colorbar(orientation='vertical', aspect=25, shrink=1, pad=0.01)
     for t in cbar.ax.get_yticklabels():
-         t.set_fontsize(20)
-    cbar.set_label(label = label, fontsize=fontsize)
+        t.set_fontsize(20)
+    cbar.set_label(label=label, fontsize=fontsize)
 
     nan_mask = np.isnan(all_dat_aux)
     nan_positions = np.argwhere(nan_mask)
 
     for ps in nan_positions:
-            x, y = all_pos[0][ps[0]], all_pos[1][ps[0]]  # Get the x, y position of NaN
-            plt.scatter(x, y, marker=marker, s = s1, color ='k')
-    plt.xlabel('x ($\AA$)', fontsize = fontsize_label)
-    plt.ylabel('y ($\AA$)', fontsize = fontsize_label)
+        x, y = positions[0][ps[0]], positions[1][ps[0]]  # Get the x, y position of NaN
+        plt.scatter(x, y, marker=marker, s=s1, color='k')
+    plt.xlabel('x ($\AA$)', fontsize=fontsize_label)
+    plt.ylabel('y ($\AA$)', fontsize=fontsize_label)
 
     if _DEBUG_:
-        print(time()-t0)
+        print(time() - t0)
 
     plt.show()
 
+
 ##############################################################################
 # Plotting for the FT of the real space image of a STM scanning
+
 
 def FT_QPI(positions, data, length, R0=10, R1=20, _DEBUG_=False, **kwargs):
     import matplotlib.pyplot as plt
@@ -1003,7 +1017,6 @@ def FT_QPI(positions, data, length, R0=10, R1=20, _DEBUG_=False, **kwargs):
     from scipy.interpolate import griddata
     import matplotlib.patches as patches
     from time import time
-
     """
     Function for the plotting of the Fourier transformed image of the real space STM imgage
 
@@ -1038,17 +1051,17 @@ def FT_QPI(positions, data, length, R0=10, R1=20, _DEBUG_=False, **kwargs):
 
     xlim = kwargs.get('xlim', 2)
     ylim = kwargs.get('ylim', 2)
-    cmap = kwargs.get('cmap','viridis')
-    method = kwargs.get('method','cubic')
+    cmap = kwargs.get('cmap', 'viridis')
+    method = kwargs.get('method', 'cubic')
     figsize = kwargs.get('figsize', 10)
-    fontsize = kwargs.get('fontsize',25)
-    res_points = kwargs.get('res_points',100)
-    tick_begin = kwargs.get('tick_begin',4)
-    tick_spacing = kwargs.get('tick_spacing',0.25)
-    interpolation = kwargs.get('interpolation','quadric')
+    fontsize = kwargs.get('fontsize', 25)
+    res_points = kwargs.get('res_points', 100)
+    tick_begin = kwargs.get('tick_begin', 4)
+    tick_spacing = kwargs.get('tick_spacing', 0.25)
+    interpolation = kwargs.get('interpolation', 'quadric')
 
     # Generate the full set of points using the symmetry of the system before doing the interpolation
-    grid_x, grid_y = np.mgrid[-length:length:(res_points*1j), -length:length:(res_points*1j)]
+    grid_x, grid_y = np.mgrid[-length:length:(res_points * 1j), -length:length:(res_points * 1j)]
 
     # Use the position points, and then convert them to a 2D array
     aux_pos = positions.copy()
@@ -1057,36 +1070,37 @@ def FT_QPI(positions, data, length, R0=10, R1=20, _DEBUG_=False, **kwargs):
     #Reduce the dimensionality of the data sample
     aux_data = data.copy()
 
-    background_mean = np.nanmean(aux_data[np.sqrt(aux_pos[0]**2+aux_pos[1]**2)>=R1])
+    background_mean = np.nanmean(aux_data[np.sqrt(aux_pos[0]**2 + aux_pos[1]**2) >= R1])
 
     mean = np.mean(aux_data)
-    norm_data = aux_data-background_mean
+    norm_data = aux_data - background_mean
 
-    norm_data[np.sqrt(aux_pos[0]**2+aux_pos[1]**2)<=R0] = 0
+    norm_data[np.sqrt(aux_pos[0]**2 + aux_pos[1]**2) <= R0] = 0
 
     #Fourier transform of the data
     grid_z = griddata(p, norm_data, (grid_x, grid_y), method=method)
     ft = np.fft.fftshift(np.fft.fft2(grid_z))
 
     # resolution for the first BZ
-    plt.figure(figsize=(figsize,figsize))
-    k_res = (np.pi/length)*res_points
-    plt.imshow(np.abs(ft), extent=(-k_res, k_res, -k_res, k_res), cmap=cmap, interpolation=interpolation)#norm=colors.SymLogNorm(linthresh=0.00000001))
-    plt.xlabel('$k_{x} (\AA^{-1})$',fontsize=fontsize)
-    plt.ylabel('$k_{y} (\AA^{-1})$',fontsize=fontsize)
-
+    plt.figure(figsize=(figsize, figsize))
+    k_res = (np.pi / length) * res_points
+    plt.imshow(
+        np.abs(ft), extent=(-k_res, k_res, -k_res, k_res), cmap=cmap, interpolation=interpolation
+    )  #norm=colors.SymLogNorm(linthresh=0.00000001))
+    plt.xlabel('$k_{x} (\AA^{-1})$', fontsize=fontsize)
+    plt.ylabel('$k_{y} (\AA^{-1})$', fontsize=fontsize)
 
     # Adjust padding for better visualization
     plt.gca().tick_params(axis='both', which='major', pad=10)
-    plt.xticks(np.arange(-tick_begin, tick_begin+0.5, tick_spacing))
-    plt.yticks(np.arange(-tick_begin, tick_begin+0.5, tick_spacing))
+    plt.xticks(np.arange(-tick_begin, tick_begin + 0.5, tick_spacing))
+    plt.yticks(np.arange(-tick_begin, tick_begin + 0.5, tick_spacing))
 
     plt.xlim(-xlim, xlim)
     plt.ylim(-ylim, ylim)
-    plt.colorbar(orientation='vertical', aspect = 25, shrink = 0.8, pad=0.01, label = 'Intensity')
+    plt.colorbar(orientation='vertical', aspect=25, shrink=0.8, pad=0.01, label='Intensity')
 
     if _DEBUG_:
-        print(time()-t0)
+        print(time() - t0)
 
     plt.show()
 
@@ -1094,8 +1108,8 @@ def FT_QPI(positions, data, length, R0=10, R1=20, _DEBUG_=False, **kwargs):
 ##############################################################################
 # In plane shift caused by the conversion in imp cluster
 
-def offset_calc(host_structure, impurity_info, tip_position):
 
+def offset_calc(host_structure, impurity_info, tip_position):
     """ Helper function to calculate the in-plane offset caused by the conversion in imp cluster
         This calculates the in-plane shift caused by this and gets back a coefficient that
         corresponds to the liner coefficients of the Bravais vectors that produce this shift
@@ -1104,9 +1118,23 @@ def offset_calc(host_structure, impurity_info, tip_position):
     ilayer = tip_position['ilayer']
 
     _, clust1 = convert_to_imp_cls(host_structure, impurity_info)
-    _, clust2 = get_imp_cls_add(host_structure, Dict(dict={'nx':0, 'ny':0, 'ilayer':ilayer, 'scan_positions':[[0, 0]]}))
+    _, clust2 = get_imp_cls_add(
+        host_structure, orm.Dict(dict={
+            'nx': 0,
+            'ny': 0,
+            'ilayer': ilayer,
+            'scan_positions': [[0, 0]]
+        })
+    )
 
-    r_offset = offset_clust2(clust1, clust2, host_structure, Dict(dict={'nx':0, 'ny':0, 'ilayer':ilayer, 'scan_positions':[[0, 0]]}))
+    r_offset = offset_clust2(
+        clust1, clust2, host_structure, orm.Dict(dict={
+            'nx': 0,
+            'ny': 0,
+            'ilayer': ilayer,
+            'scan_positions': [[0, 0]]
+        })
+    )
 
     cell = host_structure.cell
     offset_coeff = find_linear_combination_coefficients(cell[:2], r_offset)

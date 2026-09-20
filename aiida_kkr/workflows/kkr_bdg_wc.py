@@ -39,8 +39,8 @@ __version__ = '0.2.3'
 #           WARNING in validate_inputs (MPI ranks must divide the semi-circle NPT1 grid).
 __contributors__ = u'Philipp Rüßmann, Mohammad Hemmati'
 
-
 # ── Helper calcfunctions (maintain provenance) ────────────────────────────────
+
 
 @calcfunction
 def update_params_semi_circle(params_node, semi_circle_settings):
@@ -48,8 +48,7 @@ def update_params_semi_circle(params_node, semi_circle_settings):
     # Strip SCF-specific keys inherited from kkr_scf_wc convergence loop.
     # The tutorial never sets these — KKR uses its own internal defaults.
     _scf_inherited_keys = ['STRMIX', 'BRYMIX', 'QBOUND', 'HFIELD', 'LINIPOL']
-    clean_dict = {k: v for k, v in params_node.get_dict().items()
-                  if v is not None and k not in _scf_inherited_keys}
+    clean_dict = {k: v for k, v in params_node.get_dict().items() if v is not None and k not in _scf_inherited_keys}
     para = kkrparams(**clean_dict)
     for k in ['TEMPR', 'NPT2', 'NPT3', 'NPOL']:
         try:
@@ -75,6 +74,7 @@ def update_params_semi_circle(params_node, semi_circle_settings):
     result_dict = para.get_dict()
     result_dict.update(unregistered)
     return orm.Dict(dict=result_dict)
+
 
 @calcfunction
 def update_params_bdg(params_node, bdg_settings):
@@ -113,7 +113,10 @@ def update_params_bdg(params_node, bdg_settings):
             result_dict.pop(_k, None)
 
     return orm.Dict(dict=result_dict)
+
+
 # ── WorkChain ─────────────────────────────────────────────────────────────────
+
 
 class kkr_bdg_wc(WorkChain):
     """
@@ -167,12 +170,12 @@ class kkr_bdg_wc(WorkChain):
         },
         # BdG one-shot init defaults
         'bdg_init': {
-            'NSTEPS':              1,
-            'use_BdG':             True,
-            'Delta_BdG':           5e-4,
-            'use_e_symm_BdG':      True,
-            'at_scale_BdG':        [1.0],           # must match number of atoms
-            'RUNOPT':              ['NEWSOSOL'],
+            'NSTEPS': 1,
+            'use_BdG': True,
+            'Delta_BdG': 5e-4,
+            'use_e_symm_BdG': True,
+            'at_scale_BdG': [1.0],  # must match number of atoms
+            'RUNOPT': ['NEWSOSOL'],
             'DECOUPLE_SPIN_CHEBY': True,
         },
         # BdG SCF defaults
@@ -193,7 +196,9 @@ class kkr_bdg_wc(WorkChain):
 
     _options_default = {
         'queue_name': '',
-        'resources': {'num_machines': 1},
+        'resources': {
+            'num_machines': 1
+        },
         'max_wallclock_seconds': 60 * 60 * 4,
         'withmpi': True,
         'custom_scheduler_commands': '',
@@ -217,50 +222,107 @@ class kkr_bdg_wc(WorkChain):
         super(kkr_bdg_wc, cls).define(spec)
 
         # Codes
-        spec.input('kkr', valid_type=orm.Code, required=True,
-                   help='KKRhost code for the normal-state and semi-circle contour steps.')
-        spec.input('kkr_bdg', valid_type=orm.Code, required=True,
-                   help='KKRhost BdG code for the superconducting solver.')
-        spec.input('voronoi', valid_type=orm.Code, required=False,
-                   help='Voronoi code (required only when starting from scratch).')
+        spec.input(
+            'kkr',
+            valid_type=orm.Code,
+            required=True,
+            help='KKRhost code for the normal-state and semi-circle contour steps.'
+        )
+        spec.input(
+            'kkr_bdg', valid_type=orm.Code, required=True, help='KKRhost BdG code for the superconducting solver.'
+        )
+        spec.input(
+            'voronoi',
+            valid_type=orm.Code,
+            required=False,
+            help='Voronoi code (required only when starting from scratch).'
+        )
 
         # Optional bypass inputs
-        spec.input('remote_data_normal', valid_type=orm.RemoteData, required=False,
-                   help='Converged RemoteData of the normal-state SCF (skips normal SCF step).')
-        spec.input('remote_data_semi_circle', valid_type=orm.RemoteData, required=False,
-                   help='Converged RemoteData of the semi-circle SCF (skips normal + semi-circle steps).')
+        spec.input(
+            'remote_data_normal',
+            valid_type=orm.RemoteData,
+            required=False,
+            help='Converged RemoteData of the normal-state SCF (skips normal SCF step).'
+        )
+        spec.input(
+            'remote_data_semi_circle',
+            valid_type=orm.RemoteData,
+            required=False,
+            help='Converged RemoteData of the semi-circle SCF (skips normal + semi-circle steps).'
+        )
 
         # Structure and parameters
-        spec.input('structure', valid_type=orm.StructureData, required=False,
-                   help='Crystal structure (required only when starting from scratch).')
-        spec.input('calc_parameters', valid_type=orm.Dict, required=True,
-                   help='Initial KKR parameters (LMAX, NSPIN, RMAX, GMAX, …).')
+        spec.input(
+            'structure',
+            valid_type=orm.StructureData,
+            required=False,
+            help='Crystal structure (required only when starting from scratch).'
+        )
+        spec.input(
+            'calc_parameters',
+            valid_type=orm.Dict,
+            required=True,
+            help='Initial KKR parameters (LMAX, NSPIN, RMAX, GMAX, …).'
+        )
 
         # Settings dicts
-        spec.input('semi_circle_settings', valid_type=orm.Dict, required=False,
-                   default=lambda: orm.Dict(dict=cls._wf_default['semi_circle']),
-                   help='Parameters injected for the semi-circle contour step.')
-        spec.input('bdg_init_settings', valid_type=orm.Dict, required=False,
-                   default=lambda: orm.Dict(dict=cls._wf_default['bdg_init']),
-                   help='Parameters for the one-shot BdG initialisation (NSTEPS=1).')
-        spec.input('bdg_settings', valid_type=orm.Dict, required=False,
-                   default=lambda: orm.Dict(dict=cls._wf_default['bdg_scf']),
-                   help='Parameters for the final BdG SCF convergence loop.')
+        spec.input(
+            'semi_circle_settings',
+            valid_type=orm.Dict,
+            required=False,
+            default=lambda: orm.Dict(dict=cls._wf_default['semi_circle']),
+            help='Parameters injected for the semi-circle contour step.'
+        )
+        spec.input(
+            'bdg_init_settings',
+            valid_type=orm.Dict,
+            required=False,
+            default=lambda: orm.Dict(dict=cls._wf_default['bdg_init']),
+            help='Parameters for the one-shot BdG initialisation (NSTEPS=1).'
+        )
+        spec.input(
+            'bdg_settings',
+            valid_type=orm.Dict,
+            required=False,
+            default=lambda: orm.Dict(dict=cls._wf_default['bdg_scf']),
+            help='Parameters for the final BdG SCF convergence loop.'
+        )
 
         # Computer/workflow options
-        spec.input('options', valid_type=orm.Dict, required=False,
-                   default=lambda: orm.Dict(dict=cls._options_default),
-                   help='Computer options (queue, wallclock, resources, …).')
-        spec.input('wf_parameters', valid_type=orm.Dict, required=False,
-                   help='Workflow parameters forwarded to kkr_scf_wc sub-workflows.')
+        spec.input(
+            'options',
+            valid_type=orm.Dict,
+            required=False,
+            default=lambda: orm.Dict(dict=cls._options_default),
+            help='Computer options (queue, wallclock, resources, …).'
+        )
+        spec.input(
+            'wf_parameters',
+            valid_type=orm.Dict,
+            required=False,
+            help='Workflow parameters forwarded to kkr_scf_wc sub-workflows.'
+        )
 
         # Outputs
-        spec.output('output_kkr_bdg_wc_ParameterResults', valid_type=orm.Dict, required=True,
-                    help='Summary dictionary of the BdG workflow.')
-        spec.output('last_RemoteData', valid_type=orm.RemoteData, required=True,
-                    help='Remote folder of the final converged BdG calculation.')
-        spec.output('last_InputParameters', valid_type=orm.Dict, required=True,
-                    help='Input parameters used in the final BdG calculation.')
+        spec.output(
+            'output_kkr_bdg_wc_ParameterResults',
+            valid_type=orm.Dict,
+            required=True,
+            help='Summary dictionary of the BdG workflow.'
+        )
+        spec.output(
+            'last_RemoteData',
+            valid_type=orm.RemoteData,
+            required=True,
+            help='Remote folder of the final converged BdG calculation.'
+        )
+        spec.output(
+            'last_InputParameters',
+            valid_type=orm.Dict,
+            required=True,
+            help='Input parameters used in the final BdG calculation.'
+        )
 
         # Outline
         spec.outline(
@@ -282,14 +344,10 @@ class kkr_bdg_wc(WorkChain):
         )
 
         # Exit codes
-        spec.exit_code(301, 'ERROR_NORMAL_SCF_FAILED',
-                       message='The normal-state KKR SCF step failed.')
-        spec.exit_code(302, 'ERROR_SEMI_CIRCLE_SCF_FAILED',
-                       message='The semi-circle contour SCF step failed.')
-        spec.exit_code(303, 'ERROR_BDG_INIT_FAILED',
-                       message='The BdG one-shot initialisation failed.')
-        spec.exit_code(304, 'ERROR_BDG_SCF_FAILED',
-                       message='The final BdG SCF step failed.')
+        spec.exit_code(301, 'ERROR_NORMAL_SCF_FAILED', message='The normal-state KKR SCF step failed.')
+        spec.exit_code(302, 'ERROR_SEMI_CIRCLE_SCF_FAILED', message='The semi-circle contour SCF step failed.')
+        spec.exit_code(303, 'ERROR_BDG_INIT_FAILED', message='The BdG one-shot initialisation failed.')
+        spec.exit_code(304, 'ERROR_BDG_SCF_FAILED', message='The final BdG SCF step failed.')
 
     # ── Workflow steps ────────────────────────────────────────────────────────
 
@@ -307,9 +365,13 @@ class kkr_bdg_wc(WorkChain):
             options_dict = self._options_default
         self.ctx.withmpi = options_dict.get('withmpi', self._options_default['withmpi'])
         self.ctx.resources = options_dict.get('resources', self._options_default['resources'])
-        self.ctx.max_wallclock_seconds = options_dict.get('max_wallclock_seconds', self._options_default['max_wallclock_seconds'])
+        self.ctx.max_wallclock_seconds = options_dict.get(
+            'max_wallclock_seconds', self._options_default['max_wallclock_seconds']
+        )
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
-        self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', self._options_default['custom_scheduler_commands'])
+        self.ctx.custom_scheduler_commands = options_dict.get(
+            'custom_scheduler_commands', self._options_default['custom_scheduler_commands']
+        )
         self.ctx.description_wf = self.inputs.get('description', self._wf_description)
         self.ctx.label_wf = self.inputs.get('label', self._wf_label)
 
@@ -333,16 +395,18 @@ class kkr_bdg_wc(WorkChain):
         # energy-point count or KKR aborts "No rest ranks allowed". We can only see NPT1 here, so
         # warn (do not hard-fail, since the normal-step contour is not visible to this workchain).
         _res = self.ctx.resources or {}
-        _nranks = _res.get('tot_num_mpiprocs') or (
-            (_res.get('num_machines', 1) or 1) * (_res.get('num_mpiprocs_per_machine', 1) or 1))
-        _npt1 = (self.inputs.semi_circle_settings.get_dict().get('NPT1')
-                 if 'semi_circle_settings' in self.inputs else None)
+        _nranks = _res.get('tot_num_mpiprocs') or ((_res.get('num_machines', 1) or 1) *
+                                                   (_res.get('num_mpiprocs_per_machine', 1) or 1))
+        _npt1 = (
+            self.inputs.semi_circle_settings.get_dict().get('NPT1') if 'semi_circle_settings' in self.inputs else None
+        )
         if _npt1 and _nranks and (_nranks > _npt1 or _npt1 % _nranks != 0):
             self.report(
                 f'WARNING: MPI ranks ({_nranks}) do not divide the semi-circle NPT1 ({_npt1}); the '
                 f'BdG steps may abort with "No rest ranks allowed". The normal SCF uses kkr_scf_wc\'s '
                 f'own (smaller) contour, so ranks must be a COMMON divisor of BOTH grids — pick a '
-                f'small divisor (e.g. 8).')
+                f'small divisor (e.g. 8).'
+            )
 
         if 'remote_data_semi_circle' in self.inputs:
             self.ctx.current_remote = self.inputs.remote_data_semi_circle
@@ -353,8 +417,10 @@ class kkr_bdg_wc(WorkChain):
                 self.ctx.current_params = parent_calc.inputs.parameters
                 self.report('INFO: Loaded calc_parameters from parent semi-circle KKR calculation.')
             except Exception as e:
-                self.report(f'WARNING: Could not load params from parent semi-circle calc ({e}), '
-                            f'falling back to input calc_parameters.')
+                self.report(
+                    f'WARNING: Could not load params from parent semi-circle calc ({e}), '
+                    f'falling back to input calc_parameters.'
+                )
 
         elif 'remote_data_normal' in self.inputs:
             self.ctx.current_remote = self.inputs.remote_data_normal
@@ -364,8 +430,10 @@ class kkr_bdg_wc(WorkChain):
                 self.ctx.current_params = parent_calc.inputs.parameters
                 self.report('INFO: Loaded calc_parameters from parent KKR calculation.')
             except Exception as e:
-                self.report(f'WARNING: Could not load params from parent calc ({e}), '
-                            f'falling back to input calc_parameters.')
+                self.report(
+                    f'WARNING: Could not load params from parent calc ({e}), '
+                    f'falling back to input calc_parameters.'
+                )
 
         else:
             if 'structure' not in self.inputs:
@@ -414,8 +482,7 @@ class kkr_bdg_wc(WorkChain):
         becomes 7, causing 'too many ranks' MPI errors with 32 processes).
         """
         self.report('INFO: Submitting semi-circle contour KKR SCF (raw KkrCalculation).')
-        new_params = update_params_semi_circle(self.ctx.current_params,
-                                               self.inputs.semi_circle_settings)
+        new_params = update_params_semi_circle(self.ctx.current_params, self.inputs.semi_circle_settings)
         options_dict = self.inputs.options.get_dict() if 'options' in self.inputs else {}
         inputs = get_inputs_kkr(
             code=self.inputs.kkr,
@@ -487,7 +554,6 @@ class kkr_bdg_wc(WorkChain):
             parameters=new_params,
         )
         return ToContext(bdg_scf=self.submit(KkrCalculation, **inputs))
-
 
     def check_bdg_scf(self):
         """Check final BdG SCF result."""

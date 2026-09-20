@@ -54,9 +54,9 @@ class TestBdgSpec:
             Optional ports may have valid_type as a tuple including NoneType."""
             vt = port.valid_type
             if isinstance(vt, tuple):
-                assert expected_type in vt, (f"Expected {expected_type} in valid_type tuple {vt}")
+                assert expected_type in vt, (f'Expected {expected_type} in valid_type tuple {vt}')
             else:
-                assert issubclass(vt, expected_type), (f"Expected subclass of {expected_type}, got {vt}")
+                assert issubclass(vt, expected_type), (f'Expected subclass of {expected_type}, got {vt}')
 
         # Code inputs (required)
         _check_valid_type(spec.inputs['kkr'], orm.Code)
@@ -104,7 +104,7 @@ class TestBdgSpec:
             assert label in exit_codes, f"Exit code '{label}' not defined"
             assert exit_codes[label].status == expected_status, (
                 f"Exit code '{label}' has status {exit_codes[label].status}, "
-                f"expected {expected_status}"
+                f'expected {expected_status}'
             )
 
     def test_spec_outline_has_all_steps(self):
@@ -280,7 +280,7 @@ class TestBdgOutlineLogic:
 
         result = wc.validate_inputs()
         assert result is not None, 'validate_inputs should return an exit code'
-        assert result.status == 301, (f"Expected exit code 301 (ERROR_NORMAL_SCF_FAILED), got {result.status}")
+        assert result.status == 301, (f'Expected exit code 301 (ERROR_NORMAL_SCF_FAILED), got {result.status}')
 
     def test_check_normal_scf_returns_error_on_failure(self):
         """check_normal_scf should return ERROR_NORMAL_SCF_FAILED when sub-wc fails."""
