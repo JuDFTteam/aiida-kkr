@@ -72,6 +72,12 @@ testing = [
     "pytest-timeout >= 1.3.3",
     "pytest-regressions >= 1.0",
     "MarkupSafe < 3.1.0",
+    # Keeps the pytest-mpl baselines in tests/files/baseline_images/ valid. matplotlib 3.11
+    # renders these plots far enough from 3.10 (RMS 6.5-18 across the eight comparisons) that
+    # no tolerance both passes 3.11 and still catches a real regression, and matplotlib 3.11
+    # requires Python >= 3.11, so the 3.10 leg cannot use it at all. See the 2026-09-20 CI
+    # campaign for the measurements.
+    "matplotlib < 3.11",
     # The PyPI release 0.0.1 pins aiida-core < 2.6 and imports pkg_resources; CI installs the
     # git main branch over it, which supports aiida-core < 3 and has no pkg_resources import.
     "aiida-test-cache",

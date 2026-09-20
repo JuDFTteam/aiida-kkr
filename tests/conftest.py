@@ -13,6 +13,19 @@ from aiida.common.hashing import make_hash
 # from aiida.tools.pytest_fixtures import *
 import aiida_kkr
 
+# aiida-test-cache's archive_cache/_utils.py does `from aiida.tools.archive import
+# get_format` on every call to import_with_migrate, but aiida-core 2.6 dropped that name
+# from the package's __init__ (the function still exists at .abstract.get_format). Putting
+# it back on the module makes the third-party call resolve, since `from X import Y` looks
+# the attribute up at call time.
+# ponytail: shim for an upstream bug; delete once aiida-test-cache imports it from
+# .abstract itself. Upstream: https://github.com/aiidateam/aiida-test-cache
+import aiida.tools.archive as _aiida_archive
+
+if not hasattr(_aiida_archive, 'get_format'):
+    from aiida.tools.archive.abstract import get_format as _get_format
+    _aiida_archive.get_format = _get_format
+
 pytest_plugins = [
     'aiida.manage.tests.pytest_fixtures',
     # 'aiida_testing.mock_code',
