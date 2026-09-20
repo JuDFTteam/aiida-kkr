@@ -93,8 +93,9 @@ Seen in the CI run of #179, the first run in a while that got past setup.
 - [ ] **Plot baseline images are stale.** On Python 3.11 and 3.12 (matplotlib 3.11.2), the seven
   image comparisons in `tests/test_plot_kkr.py` fail against `tests/files/baseline_images/`
   (last updated 2022-11). On 3.10 (matplotlib 3.10.9) they pass. Decide whether to regenerate the
-  baselines or pin matplotlib for tests. Because `run_all.sh` stops at the first failure, the
-  workflow tests do not run on 3.11 and 3.12.
+  baselines or pin matplotlib for tests. This used to also hide the workflow pass on 3.11 and
+  3.12, because `run_all.sh` let the unit pass abort the whole script; the two passes are now
+  decoupled, so the workflow results show up alongside these failures rather than behind them.
 - [ ] **`workflows/test_stm.py` fails.** `IndexError: list index out of range` in
   `tools_STM_scan.lattice_generation` (line 623), called from `kkr_STM.get_scanning_positions`.
   This test could not run before #179, because the module did not import. STM is maintained by its
