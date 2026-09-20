@@ -24,7 +24,7 @@ __copyright__ = (
     'IAS-1/PGI-1, Germany. All rights reserved.'
 )
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.13.3'
+__version__ = '0.14.0'
 __contributors__ = u'Philipp Rüßmann'
 
 eV2Ry = 1.0 / get_Ry2eV()
