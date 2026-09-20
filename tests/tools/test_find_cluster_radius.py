@@ -110,3 +110,25 @@ def test_find_cluster_radius_nclsmin_too_small():
     """
     with pytest.raises(ValueError):
         find_cluster_radius(get_test_struc(), 1)
+
+
+def test_find_cluster_radius_exactly_enough_neighbors():
+    """
+    A starting radius holding exactly the needed neighbors is used as it is.
+
+    One neighbor short of that, the radius has to grow rather than index past the end of
+    the list. The old code got the first case right only by accident, by reading the last
+    element of the array.
+    """
+    s = get_test_struc()
+    # this radius holds exactly 18 neighbors of this cell, i.e. a cluster of 19 atoms
+    r18 = 1.2247449
+    assert len(s.get_pymatgen().get_all_neighbors(r18)[0]) == 18
+
+    r0, ncls = find_cluster_radius(s, 19, Rclsmax=r18)
+    assert np.round(r0, 6) == 1.224745
+    assert ncls[0] == 19
+
+    r0, ncls = find_cluster_radius(s, 20, Rclsmax=r18)
+    assert r0 > r18
+    assert ncls[0] >= 20
