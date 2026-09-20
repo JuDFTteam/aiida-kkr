@@ -490,6 +490,11 @@ class kkr_startpot_wc(WorkChain):
         default_values = kkrparams.get_KKRcalc_parameter_defaults()[0]
         if 'RCLUSTZ' in set_vals:
             rcls_input = params.get_dict()['RCLUSTZ']
+            # whichever of the two radii is larger wins, so an RCLUSTZ given in
+            # calc_parameters is silently discarded whenever the radius computed from
+            # natom_in_cls_min comes out larger. Note also that giving RCLUSTZ does not
+            # keep find_cluster_radius from running: it is only read instead of the
+            # computed value when natom_in_cls_min <= 0 (see find_cluster_radius_alat).
             # set r_cls by default or from input in first iteration
             if self.ctx.r_cls < rcls_input and first_iter:
                 self.ctx.r_cls = rcls_input
