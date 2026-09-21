@@ -82,7 +82,7 @@ testing = [
     # constraints go away together when the archives are re-exported and aiida-core moves to
     # 2.9; until then this pins the whole test stack to aiida-core 2.5.x.
     "aiida-test-cache",
-    "setuptools < 81",  # aiida-test-cache 0.0.1 imports pkg_resources, dropped in setuptools 81
+    "setuptools < 85",  # aiida-test-cache 0.0.1 imports pkg_resources, dropped in setuptools 81
 ]
 docs = [
     "Sphinx >= 1.8.2",
