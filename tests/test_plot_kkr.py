@@ -58,6 +58,24 @@ class Test_plot_kkr(object):
                    noshow=True)
         return gcf()
 
+    def test_plot_kkrimp_grouped(self):
+        """A list of impurity nodes must share two panels instead of stacking a twin axis
+        per node, which gave N+1 overlapping y-axes for N nodes (issue #189).
+
+        No image comparison here on purpose: the property under test is the number of
+        axes, which an assertion states directly and a baseline PNG only implies.
+        """
+        import_with_migration('files/export_kkrimp_full.tar.gz')
+        # two distinct KkrimpCalculation nodes
+        basic_test(['81a7c87a-bddb-4ea0-9ce6-31b725ea02e2', 'ad1a1a45-b62f-429c-bb6f-32bf79698904'],
+                   strucplot=False,
+                   nolegend=True,
+                   noshow=True)
+        assert len(gcf().axes) == 2
+        # the kkr_imp_wc case from the issue (the archive holds only one such node)
+        basic_test(['2e33652c-1c8c-4dd8-a175-7e743c8a69d3'] * 2, strucplot=False, nolegend=True, noshow=True)
+        assert len(gcf().axes) == 2
+
     @pytest.mark.mpl_image_compare(baseline_dir='files/baseline_images/', filename='eos.png', remove_text=True)
     def test_plot_eos_wc(self):
         basic_test('1419fe6f-cdff-4fb8-b1c1-d8d2c06e33f4', strucplot=False, nolegend=True, noshow=True)

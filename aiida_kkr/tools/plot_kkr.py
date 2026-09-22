@@ -16,6 +16,15 @@ __license__ = 'MIT license, see LICENSE.txt file'
 __version__ = '0.7.2'
 __contributors__ = ('Philipp Rüßmann')
 
+# node groups that `plot_group` draws as two stacked panels (rms on top, second quantity
+# below) instead of as a single axes pair. Needed because the single-axes path calls
+# `twinx()` unconditionally, and on the second node it twins the *previous* node's twin: a
+# list of N nodes ends up with N+1 y-axes in one figure, drawing their tick labels and
+# titles on top of each other (issue #189). Every name here must reach `rmsplot` through a
+# function that passes `only` on: `plot_kkr_calc`/`plot_kkr_scf` for the host side,
+# `make_kkrimp_rmsplot` for the impurity side.
+_TWO_PANEL_GROUPS = ['kkr', 'scf', 'imp', 'impsub', 'kkrimp', 'combine_imps']
+
 
 def get_datetime_from_str(calc, verbose=False):
     """
@@ -472,7 +481,7 @@ class plot_kkr(object):
         if 'nolegend' in list(kwargs.keys()):
             nolegend = kwargs.pop('nolegend')
         # open a single new figure for each plot here
-        if groupname in ['kkr', 'scf']:
+        if groupname in _TWO_PANEL_GROUPS:
             figure()
         for node in nodeslist:
             node = get_node(node)
@@ -480,7 +489,7 @@ class plot_kkr(object):
             # open new figure for each plot in these groups
             if groupname in ['eos', 'dos', 'startpot']:
                 figure()
-            if groupname in ['kkr', 'scf']:
+            if groupname in _TWO_PANEL_GROUPS:
                 subplot(2, 1, 1)
                 self.plot_kkr_single_node(node, only='rms', label=f'pk= {node.pk}', **kwargs)
                 xlabel('')  # remove overlapping x label in upper plot
@@ -1216,7 +1225,8 @@ class plot_kkr(object):
                     figure()
                 if subplots is not None:
                     subplot(subplots[0], subplots[1], subplots[2])
-                if rms_goal is not None:
+                # the rms goal belongs on the rms axes only, not on the spin-moment panel
+                if rms_goal is not None and only != 'neutr':
                     axhline(rms_goal, color='grey', ls='--')
                 self.rmsplot(
                     rms,

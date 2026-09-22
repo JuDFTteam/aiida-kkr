@@ -2,20 +2,19 @@
 
 Open work on `develop`: pull requests awaiting a decision, and known failures that are
 deferred. Keep this file short; an item that is done is deleted here, and its record lives in
-the merged PR or closed issue it links to. Last updated 2026-09-20.
+the merged PR or closed issue it links to. Last updated 2026-09-22.
 
 ## Open pull requests
 
-- [ ] **[#187](https://github.com/JuDFTteam/aiida-kkr/pull/187) — `find_cluster_radius`: grow the
-  search radius, and measure distances from the site.** Fixes both defects of
-  [#182](https://github.com/JuDFTteam/aiida-kkr/issues/182). The search radius grows until every
-  site has enough neighbours and raises a `ValueError` naming `natom_in_cls_min`, the radius
-  searched and the cluster size found, where it used to index past the end of the neighbour list
-  and raise `IndexError`; distances use pymatgen's `nn_distance`, measured from the central site,
-  instead of `np.linalg.norm(n.coords)`, the neighbour's absolute position. `Rclsmax` changes
-  meaning from maximum to starting radius. Also guards `nclsmin < 2`, which indexed `[-1]` and
-  returned the largest distance in the search sphere. Three tests added, two of them failing
-  before the fix.
+- [ ] **[#191](https://github.com/JuDFTteam/aiida-kkr/pull/191) — `plot_kkr`: give impurity
+  groups the two-panel path.** Fixes [#189](https://github.com/JuDFTteam/aiida-kkr/issues/189).
+  `plot_group` gave the shared-axes treatment only to the `kkr` and `scf` node groups; every
+  other group fell through to the path that calls `twinx()` per node, so a list of N impurity
+  nodes produced N+1 stacked y-axes with overlapping tick labels and titles. The four impurity
+  group names — `imp`, `impsub`, `kkrimp`, `combine_imps` — join the two that already worked, in
+  a new `_TWO_PANEL_GROUPS` constant, and the rms goal line is kept off the spin-moment panel.
+  One test asserting the axis count rather than comparing a baseline image. Verified live on
+  three `kkr_imp_wc` nodes: 4 axes before, 2 after.
 
 - [ ] **[#115](https://github.com/JuDFTteam/aiida-kkr/pull/115) — Implement base restart functionality** (open since 2022-12).
   Not reviewed as part of the current work.
