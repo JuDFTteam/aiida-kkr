@@ -17,7 +17,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.11.0'
+__version__ = '0.11.1'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann', u'David Antognini Silva')
 
 #TODO: work on return results function
@@ -226,6 +226,9 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.exit_code = None
         # flags used internally to check whether the individual steps were successful
         self.ctx.kkr_converged = False
+        # kkr_converged only means "reached this calculation's QBOUND", which is threshold_aggressive_mixing
+        # for simple mixing; this one means QBOUND was convergence_criterion
+        self.ctx.kkr_converged_to_criterion = False
         self.ctx.kkrimp_step_success = False
         self.ctx.kkr_higher_accuracy = False
         # links to previous calculations
@@ -420,8 +423,9 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.loop_count += 1
 
         # check if previous calculation reached convergence criterion
+        # (a simple-mixing restart can reach its looser QBOUND after higher accuracy was switched on)
         if self.ctx.kkr_converged:
-            if not self.ctx.kkr_higher_accuracy:
+            if not (self.ctx.kkr_higher_accuracy and self.ctx.kkr_converged_to_criterion):
                 do_kkr_step = do_kkr_step & True
             else:
                 stopreason = 'KKR converged'
@@ -931,6 +935,7 @@ class kkr_imp_sub_wc(WorkChain):
         if self.ctx.kkrimp_step_success and found_last_calc_output:
             # The convergence group is not created if the impurity calculation is a dos calculation
 
+            self.ctx.kkr_converged_to_criterion = self._reached_convergence_criterion(last_calc_output)
             if 'doscalc' in last_calc_output['convergence_group']:
                 self.ctx.kkr_converged = True
             else:
@@ -957,8 +962,11 @@ class kkr_imp_sub_wc(WorkChain):
                     self.ctx.rms_all_steps += rms_all_iter_last_calc
         else:
             self.ctx.kkr_converged = False
+            self.ctx.kkr_converged_to_criterion = False
 
         message = f'INFO: kkr_converged: {self.ctx.kkr_converged}'
+        self.report(message)
+        message = f'INFO: kkr_converged_to_criterion: {self.ctx.kkr_converged_to_criterion}'
         self.report(message)
         message = f'INFO: rms: {self.ctx.rms}'
         self.report(message)
@@ -997,10 +1005,7 @@ class kkr_imp_sub_wc(WorkChain):
         elif self.ctx.last_mixing_scheme > 2:
             mixfac = self.ctx.aggrmix
 
-        if self.ctx.kkr_higher_accuracy:
-            qbound = self.ctx.convergence_criterion
-        else:
-            qbound = self.ctx.threshold_aggressive_mixing
+        qbound = self._last_calc_qbound()
 
         # store some values in self.ctx.KKR_steps_stats
         for name, val in {
@@ -1020,6 +1025,24 @@ class kkr_imp_sub_wc(WorkChain):
 
         message = 'INFO: done inspecting kkrimp results step'
         self.report(message)
+
+    def _last_calc_qbound(self):
+        """QBOUND the last KKRimp calculation actually ran with (None if not set)"""
+        return self.ctx.last_calc.inputs.parameters.get_dict().get('QBOUND')
+
+    def _reached_convergence_criterion(self, last_calc_output):
+        """
+        True if the last calculation converged below convergence_criterion (or was a dos calculation).
+        KKRimp's calculation_converged only says that the calculation's own QBOUND was reached.
+        """
+        convergence_group = last_calc_output['convergence_group']
+        if 'doscalc' in convergence_group:
+            return True
+        qbound = self._last_calc_qbound()
+        return bool(
+            convergence_group['calculation_converged'] and qbound is not None and
+            qbound <= self.ctx.convergence_criterion
+        )
 
     def convergence_on_track(self):
         """
@@ -1159,7 +1182,7 @@ class kkr_imp_sub_wc(WorkChain):
         outputnode_dict['convergence_value'] = last_rms
         outputnode_dict['convergence_values_all_steps'] = array(self.ctx.rms_all_steps)
         outputnode_dict['convergence_values_last_step'] = array(self.ctx.last_rms_all)
-        outputnode_dict['convergence_reached'] = self.ctx.kkr_converged
+        outputnode_dict['convergence_reached'] = self.ctx.kkr_converged_to_criterion
         outputnode_dict['kkr_step_success'] = self.ctx.kkrimp_step_success
         outputnode_dict['used_higher_accuracy'] = self.ctx.kkr_higher_accuracy
 
