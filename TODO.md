@@ -55,11 +55,6 @@ the merged PR or closed issue it links to. Last updated 2026-09-22.
 
 Details in [#177](https://github.com/JuDFTteam/aiida-kkr/issues/177), section "Found along the way".
 
-- [ ] **`kkr_imp_sub_wc.condition()` returns an `ExitCode` from a `while_` predicate.** plumpy
-  only warns and treats it as `True`, so that branch never aborts the workchain.
-- [ ] **`kkr_imp_sub_wc`: `ctx.kkr_step_success` is never set to `False` after the first step.**
-  `update_kkrimp_params` checks it to decide on reducing the mixing factor, but `inspect_kkrimp`
-  sets `ctx.kkrimp_step_success` instead.
 - [ ] **`ignore_nan` default mismatch.** `KkrimpParser.parse` defaults to `True`,
   `KkrimpParserFunctions.parse_kkrimp_outputfile` in masci-tools to `False`.
 - [ ] **`Parser.parse_from_node` cannot drive any aiida-kkr parser.** All five parsers declare
