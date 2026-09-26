@@ -2,9 +2,15 @@
 
 Open work on `develop`: pull requests awaiting a decision, and known failures that are
 deferred. Keep this file short; an item that is done is deleted here, and its record lives in
-the merged PR or closed issue it links to. Last updated 2026-09-22.
+the merged PR or closed issue it links to. Last updated 2026-09-26.
 
 ## Open pull requests
+
+- [ ] **[#193](https://github.com/JuDFTteam/aiida-kkr/pull/193) — `kkr_imp_sub_wc`: drop an
+  unreachable check, read the step flag `inspect_kkrimp` sets.** Dead-code cleanup, no behaviour
+  change: the not-`finished_ok` branch in `condition()` could never run, because `inspect_kkrimp`
+  aborts first, and `ctx.kkr_step_success` was only ever `True` while `inspect_kkrimp` sets
+  `ctx.kkrimp_step_success`. Closes two items found while fixing #177.
 
 - [ ] **[#191](https://github.com/JuDFTteam/aiida-kkr/pull/191) — `plot_kkr`: give impurity
   groups the two-panel path.** Fixes [#189](https://github.com/JuDFTteam/aiida-kkr/issues/189).
