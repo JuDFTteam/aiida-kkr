@@ -37,17 +37,18 @@ the merged PR or closed issue it links to. Last updated 2026-09-27.
   computed one. One production database was counted on 2026-09-20 and has none, because every
   off-origin run there predates the rewrite — census in the issue comment. Any other database on
   aiida-kkr >= 1.1.12 needs its own count.
-- [ ] **[#195](https://github.com/JuDFTteam/aiida-kkr/issues/195) — KKRimp leaves non-spherical channels below `QBOUND` out of `out_potential`, so the
-  simple-mixing step hands a truncated potential to the Anderson (`IMIX 5`) step.** It runs at
-  `QBOUND = threshold_aggressive_mixing`, and KKRimp also zeroes channels below `POT_NS_CUTOFF`
-  (default 0.1 × `QBOUND`) in memory. From a converged start potential this costs 16–23 Anderson
-  iterations instead of 1–2 (19 of 20 Cu embeddings, vimp-prediction pilot). Stop-gap on branch
-  `feature/kkrimp-pass-input-pot` (PR to follow): after a simple-mixing step that converged in one
-  iteration, hand on its input potential. Switch `pass_input_pot_after_quick_simple_mixing`,
-  default on. Root fix in progress elsewhere: a KKRimp/KKRhost key `POT_NS_WRITE_CUTOFF` (jukkr,
-  local), and masci-tools `kkrparams` support for it and `POT_NS_CUTOFF` (merged in
-  [masci-tools#255](https://github.com/JuDFTteam/masci-tools/pull/255)). aiida-kkr can then
-  set both keys on the simple-mixing step. `kkr_scf_wc` has the same structure; not measured.
+- [ ] **[#195](https://github.com/JuDFTteam/aiida-kkr/issues/195) — the simple-mixing step hands a
+  truncated potential to the Anderson (`IMIX 5`) step.** KKRimp leaves non-spherical channels below
+  `QBOUND` out of `out_potential`, and it zeroes those below `POT_NS_CUTOFF` (default 0.1 ×
+  `QBOUND`) in memory. The simple-mixing step runs at `QBOUND = threshold_aggressive_mixing`, so from
+  a converged start potential the Anderson step needs 16–23 iterations instead of 1–2 (19 of 20 Cu
+  embeddings, vimp-prediction pilot). Stop-gap [#196](https://github.com/JuDFTteam/aiida-kkr/pull/196),
+  live-checked (Mn:Cu oracle replay: 1 + 1 iterations instead of 1 + 18): after a simple-mixing step
+  that converged in one iteration, hand on its input potential; switch `pass_input_pot_after_quick_simple_mixing`, default
+  on. Root fix: the key `POT_NS_WRITE_CUTOFF`, merged in jukkr `develop` (kkr/jukkr!35), with
+  `kkrparams` support in masci-tools#255. Once a KKRimp built from it is in use, aiida-kkr sets
+  `POT_NS_CUTOFF = POT_NS_WRITE_CUTOFF = 0.1 × convergence_criterion` on the simple-mixing step
+  (not written yet). `kkr_scf_wc` has the same structure; not measured.
 - [ ] **`kkr_imp_sub_wc` falls back to simple mixing on every parameter update.**
   `update_kkrimp_params` reads the previous `IMIX` from a freshly created `kkrparams`, which is
   always `None`, so any update that is not an explicit switch (for example a reduced mixing factor
