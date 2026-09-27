@@ -82,11 +82,11 @@ Details in [#177](https://github.com/JuDFTteam/aiida-kkr/issues/177), section "F
 
 ## Known CI failures, deferred
 
-- [ ] **CI pins masci-tools to `c90e5815`, the `develop` commit before masci-tools#255, until the
+- [ ] **[#198](https://github.com/JuDFTteam/aiida-kkr/issues/198) — CI pins masci-tools to `c90e5815`, the `develop` commit before masci-tools#255, until the
   test archives are re-exported.** #255 added three `kkrparams` keys. `get_dict()` returns every key,
   unset ones as `None`, so every parameter `Dict` the tests build changes its hash and misses the
   archive cache. That fell through to the fake `kkr.x` in 5 tests. The re-export below lifts the pin too.
-- [ ] **aiida-core cannot move past 2.5.x until the test archives are re-exported.** Measured
+- [ ] **[#198](https://github.com/JuDFTteam/aiida-kkr/issues/198) — aiida-core cannot move past 2.5.x until the test archives are re-exported.** Measured
   2026-09-20 across four CI runs: on aiida-core 2.9.2 with `aiida-test-cache@main`, 16 of the 20
   whitelisted workflow tests fail; on aiida-core 2.5.2 with the PyPI `aiida-test-cache` 0.0.1, 19
   of 20 pass. Identical on Python 3.10, 3.11 and 3.12. The failures are archive-cache misses —
