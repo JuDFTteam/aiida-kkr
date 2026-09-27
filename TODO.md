@@ -38,15 +38,15 @@ the merged PR or closed issue it links to. Last updated 2026-09-27.
   off-origin run there predates the rewrite — census in the issue comment. Any other database on
   aiida-kkr >= 1.1.12 needs its own count.
 - [ ] **[#192](https://github.com/JuDFTteam/aiida-kkr/issues/192) — `kkr_imp_sub_wc` reports
-  `convergence_reached: True` at the simple-mixing `QBOUND`.**
-  Fix on branch `fix/kkr-imp-sub-false-convergence`; PR to follow.
-  KKRimp's `calculation_converged` only means "reached this calculation's `QBOUND`", which is the
-  loose `threshold_aggressive_mixing` for simple mixing. When an Anderson (`IMIX 5`) calculation
-  ended unconverged, the next simple-mixing step converged in one iteration and `condition()` took
-  that as success. The fix requires the calculation's own `QBOUND` <= `convergence_criterion`;
-  workflow version 0.11.0 -> 0.11.1. Found in the single-impurity-database project: 65 of 8 170
-  stored "converged" embeddings are affected, 26 with a final rms above 1e-3. Waiting for its live
-  test on iffaiida (replaying the false success of workchain 879793, plus one normal case) before the PR.
+  `convergence_reached: True` at the simple-mixing `QBOUND`.** Fix in
+  [#199](https://github.com/JuDFTteam/aiida-kkr/pull/199), live-tested: the Fe:K replay of the
+  stored false convergence (run 879793) now continues and converges for real, and the Al:Cu
+  regression reproduces its stored run. KKRimp's `calculation_converged` only means "reached this
+  calculation's `QBOUND`", which is the loose `threshold_aggressive_mixing` for simple mixing, so a
+  simple-mixing step after an unconverged Anderson (`IMIX 5`) step ended the run. The fix requires the calculation's own `QBOUND` to be at
+  most `convergence_criterion`; workflow version 0.11.0 -> 0.11.1. In the single-impurity-database
+  project, 65 of 8 170 stored "converged" embeddings are affected, 26 of them with a final rms above
+  1e-3; their stored potentials are also truncated at the loose `QBOUND` (#195).
 - [ ] **`kkr_imp_sub_wc` falls back to simple mixing on every parameter update.**
   `update_kkrimp_params` reads the previous `IMIX` from a freshly created `kkrparams`, which is
   always `None`, so any update that is not an explicit switch (for example a reduced mixing factor
