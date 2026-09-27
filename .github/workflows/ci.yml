@@ -93,7 +93,10 @@ jobs:
         # 2.6+ breaks the aiida-test-cache replay those workflow tests depend on: measured
         # 2026-09-20, 16 of 20 workflow tests fail on 2.9.2 against 19 of 20 passing here.
         aiida: [{version: 'aiida-core==2.5.2', name: '2.5.2'}]
-        masci-tools: [{version: 'git+https://github.com/JuDFTteam/masci-tools.git@develop', name: '-masci-develop'}]
+        # pinned to masci-tools develop just before JuDFTteam/masci-tools#255: its new kkrparams keys enter every
+        # kkrparams.get_dict() as None, which changes the parameter Dict hashes and misses the test archive caches.
+        # Unpin when the archives in tests/data_dir/ are re-exported.
+        masci-tools: [{version: 'git+https://github.com/JuDFTteam/masci-tools.git@c90e581521fac05bb9f1242ca2b666407d02105f', name: '-masci-develop'}]
         allowed-to-fail: [false]
 
     services:
