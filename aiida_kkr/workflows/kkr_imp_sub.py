@@ -226,7 +226,7 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.exit_code = None
         # flags used internally to check whether the individual steps were successful
         self.ctx.kkr_converged = False
-        self.ctx.kkr_step_success = False
+        self.ctx.kkrimp_step_success = False
         self.ctx.kkr_higher_accuracy = False
         # links to previous calculations
         self.ctx.last_calc = None
@@ -430,12 +430,6 @@ class kkr_imp_sub_wc(WorkChain):
         else:
             do_kkr_step = do_kkr_step & True
 
-        # check if previous calculation was successful
-        if self.ctx.loop_count > 1 and not self.ctx.last_calc.is_finished_ok:
-            message = 'ERROR: last calc not finished_ok'
-            self.report(message)
-            return self.exit_codes.ERROR_SUB_FAILURE  # pylint: disable=no-member
-
         # next check only needed if another iteration should be done after validating convergence etc. (previous checks)
         if do_kkr_step:
             # check if maximal number of iterations has been reached
@@ -467,7 +461,7 @@ class kkr_imp_sub_wc(WorkChain):
         # only do something other than simple mixing after first kkr run
         if self.ctx.loop_count != 1:
             # first determine if previous step was successful (otherwise try to find some rms value and decrease mixing to try again)
-            if not self.ctx.kkr_step_success:
+            if not self.ctx.kkrimp_step_success:
                 decrease_mixing_fac = True
                 message = 'INFO: last KKR calculation failed. Trying decreasing mixfac'
                 self.report(message)
@@ -529,7 +523,7 @@ class kkr_imp_sub_wc(WorkChain):
 #                        self.report("INFO: rms low enough, switch to higher accuracy settings")
         else:
             initial_settings = True
-            self.ctx.kkr_step_success = True
+            self.ctx.kkrimp_step_success = True
 
         if self.ctx.loop_count > 1:
             last_rms = self.ctx.last_rms_all[-1]
@@ -979,9 +973,9 @@ class kkr_imp_sub_wc(WorkChain):
 
         # store some statistics used to print table in the end of the report
         tmplist = self.ctx.KKR_steps_stats.get('success', [])
-        message = f'INFO: append kkr_step_success {tmplist}, {self.ctx.kkr_step_success}'
+        message = f'INFO: append kkrimp_step_success {tmplist}, {self.ctx.kkrimp_step_success}'
         self.report(message)
-        tmplist.append(self.ctx.kkr_step_success)
+        tmplist.append(self.ctx.kkrimp_step_success)
         self.ctx.KKR_steps_stats['success'] = tmplist
         try:
             isteps = self.ctx.last_calc.outputs.output_parameters.get_dict(
@@ -1166,7 +1160,7 @@ class kkr_imp_sub_wc(WorkChain):
         outputnode_dict['convergence_values_all_steps'] = array(self.ctx.rms_all_steps)
         outputnode_dict['convergence_values_last_step'] = array(self.ctx.last_rms_all)
         outputnode_dict['convergence_reached'] = self.ctx.kkr_converged
-        outputnode_dict['kkr_step_success'] = self.ctx.kkr_step_success
+        outputnode_dict['kkr_step_success'] = self.ctx.kkrimp_step_success
         outputnode_dict['used_higher_accuracy'] = self.ctx.kkr_higher_accuracy
 
         # report the status
