@@ -20,7 +20,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.10.0'
+__version__ = '0.10.1'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 #TODO: generalize workflow to multiple impurities
 #TODO: add additional checks for the input
@@ -348,6 +348,9 @@ class kkr_imp_wc(WorkChain):
         self.ctx.hfield = wf_dict.get('hfield', self._wf_default['hfield'])
         self.ctx.init_pos = wf_dict.get('init_pos', self._wf_default['init_pos'])
         self.ctx.accuracy_params = wf_dict.get('accuracy_params', self._wf_default['accuracy_params'])
+        self.ctx.pass_input_pot = wf_dict.get(
+            'pass_input_pot_after_quick_simple_mixing', self._wf_default['pass_input_pot_after_quick_simple_mixing']
+        )
         # set up new parameter dict to pass to kkrimp subworkflow later
         self.ctx.kkrimp_params_dict = Dict({
             'nsteps': self.ctx.nsteps,
@@ -363,6 +366,7 @@ class kkr_imp_wc(WorkChain):
             'hfield': self.ctx.hfield,
             'init_pos': self.ctx.init_pos,
             'accuracy_params': self.ctx.accuracy_params,
+            'pass_input_pot_after_quick_simple_mixing': self.ctx.pass_input_pot,
         })
 
         # retrieve option for kkrlfex files

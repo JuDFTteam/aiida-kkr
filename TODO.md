@@ -37,21 +37,22 @@ the merged PR or closed issue it links to. Last updated 2026-09-27.
   computed one. One production database was counted on 2026-09-20 and has none, because every
   off-origin run there predates the rewrite — census in the issue comment. Any other database on
   aiida-kkr >= 1.1.12 needs its own count.
-- [ ] **[#192](https://github.com/JuDFTteam/aiida-kkr/issues/192) — `kkr_imp_sub_wc` reports
-  `convergence_reached: True` at the simple-mixing `QBOUND`.** Fix in
-  [#199](https://github.com/JuDFTteam/aiida-kkr/pull/199), live-tested: the Fe:K replay of the
-  stored false convergence (run 879793) now continues and converges for real, and the Al:Cu
-  regression reproduces its stored run. KKRimp's `calculation_converged` only means "reached this
-  calculation's `QBOUND`", which is the loose `threshold_aggressive_mixing` for simple mixing, so a
-  simple-mixing step after an unconverged Anderson (`IMIX 5`) step ended the run. The fix requires the calculation's own `QBOUND` to be at
-  most `convergence_criterion`; workflow version 0.11.0 -> 0.11.1. In the single-impurity-database
-  project, 65 of 8 170 stored "converged" embeddings are affected, 26 of them with a final rms above
-  1e-3; their stored potentials are also truncated at the loose `QBOUND` (#195).
+- [ ] **[#195](https://github.com/JuDFTteam/aiida-kkr/issues/195) — KKRimp leaves non-spherical channels below `QBOUND` out of `out_potential`, so the
+  simple-mixing step hands a truncated potential to the Anderson (`IMIX 5`) step.** It runs at
+  `QBOUND = threshold_aggressive_mixing`, and KKRimp also zeroes channels below `POT_NS_CUTOFF`
+  (default 0.1 × `QBOUND`) in memory. From a converged start potential this costs 16–23 Anderson
+  iterations instead of 1–2 (19 of 20 Cu embeddings, vimp-prediction pilot). Stop-gap on branch
+  `feature/kkrimp-pass-input-pot` (PR to follow): after a simple-mixing step that converged in one
+  iteration, hand on its input potential. Switch `pass_input_pot_after_quick_simple_mixing`,
+  default on. Root fix in progress elsewhere: a KKRimp/KKRhost key `POT_NS_WRITE_CUTOFF` (jukkr,
+  local), and masci-tools `kkrparams` support for it and `POT_NS_CUTOFF` (merged in
+  [masci-tools#255](https://github.com/JuDFTteam/masci-tools/pull/255)). aiida-kkr can then
+  set both keys on the simple-mixing step. `kkr_scf_wc` has the same structure; not measured.
 - [ ] **`kkr_imp_sub_wc` falls back to simple mixing on every parameter update.**
   `update_kkrimp_params` reads the previous `IMIX` from a freshly created `kkrparams`, which is
   always `None`, so any update that is not an explicit switch (for example a reduced mixing factor
   after an unconverged Anderson step) restarts with `IMIX 0`. This is the restart path the false
-  convergence above rides on. Found while tracing it; not fixed.
+  convergence of #192 (fixed in #199) rode on. Found while tracing it; not fixed.
 - [ ] **`kkr_imp_sub_wc`: a calculation that reaches `QBOUND` in one iteration is never a restart
   anchor.** After an unconverged step that is not on track, `update_kkrimp_params` restarts from the
   latest earlier calculation whose last rms is below its first; with one iteration they are equal.

@@ -17,7 +17,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.11.1'
+__version__ = '0.12.0'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann', u'David Antognini Silva')
 
 #TODO: work on return results function
@@ -75,6 +75,10 @@ class kkr_imp_sub_wc(WorkChain):
         'aggrmix': 0.01,  # mixing factor of aggressive mixing
         'broyden-number': 20,  # number of potentials to 'remember' for Broyden's mixing
         'nsimplemixfirst': 0,  # number of simple mixing step at the beginning of Broyden mixing
+        # KKRimp leaves non-spherical channels below QBOUND out of out_potential, and simple mixing runs at the
+        # loose QBOUND=threshold_aggressive_mixing: if such a step converged in one iteration, hand its (untruncated)
+        # input potential to the next calculation instead of its out_potential
+        'pass_input_pot_after_quick_simple_mixing': True,
         'mag_init': False,  # initialize and converge magnetic calculation
         'hfield': [0.02, 5],  # Ry                     # external magnetic field used in initialization step
         'init_pos': None,  # position in unit cell where magnetic field is applied [default (None) means apply to all]
@@ -290,6 +294,10 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.nsteps = wf_dict.get('nsteps', self._wf_default['nsteps'])
         self.ctx.broyden_num = wf_dict.get('broyden-number', self._wf_default['broyden-number'])
         self.ctx.nsimplemixfirst = wf_dict.get('nsimplemixfirst', self._wf_default['nsimplemixfirst'])
+        self.ctx.pass_input_pot = wf_dict.get(
+            'pass_input_pot_after_quick_simple_mixing', self._wf_default['pass_input_pot_after_quick_simple_mixing']
+        )
+        self.ctx.input_pot_passed_on = []  # pks of calculations whose input potential was handed on
         self.ctx.mesh_params = wf_dict.get('accuracy_params', {})
 
         # initial magnetization
@@ -901,6 +909,7 @@ class kkr_imp_sub_wc(WorkChain):
         self.report(message)
 
         # get potential from last calculation
+        pot_before = self.ctx.last_pot
         try:
             retrieved_folder = self.ctx.kkr.outputs.retrieved
             imp_pot_sfd = extract_imp_pot_sfd(retrieved_folder)
@@ -973,6 +982,20 @@ class kkr_imp_sub_wc(WorkChain):
         message = f'INFO: last_rms_all: {self.ctx.last_rms_all}'
         self.report(message)
 
+        if self.ctx.pass_input_pot and found_last_calc_output and self._quick_simple_mixing(last_calc_output):
+            if 'impurity_potential' in self.ctx.last_calc.inputs:
+                input_pot = self.ctx.last_calc.inputs.impurity_potential
+            else:
+                input_pot = pot_before  # out_potential of the calculation this one was restarted from
+            if input_pot is not None:
+                self.ctx.last_pot = input_pot
+                self.ctx.last_remote = None  # its out_potential is the truncated one
+                self.ctx.input_pot_passed_on.append(self.ctx.last_calc.pk)
+                self.report(
+                    'INFO: simple mixing converged in one iteration; handing on its input potential '
+                    f'(pk {input_pot.pk}) instead of its out_potential, which lacks channels below QBOUND'
+                )
+
         # turn off initial magnetization once one step was successful (update_kkr_params) used in
         if self.ctx.mag_init and self.convergence_on_track():  # and self.ctx.kkrimp_step_success:
             self.ctx.mag_init_step_success = True
@@ -1042,6 +1065,17 @@ class kkr_imp_sub_wc(WorkChain):
         return bool(
             convergence_group['calculation_converged'] and qbound is not None and
             qbound <= self.ctx.convergence_criterion
+        )
+
+    def _quick_simple_mixing(self, last_calc_output):
+        """True if the last calculation used simple mixing without a magnetic field and reached QBOUND in one iteration"""
+        params = self.ctx.last_calc.inputs.parameters.get_dict()
+        hfield = params.get('HFIELD')
+        convergence_group = last_calc_output['convergence_group']
+        return bool(
+            not params.get('IMIX') and  # None or 0
+            not (hfield and hfield[0]) and  # the output of an HFIELD step carries the initial moment
+            convergence_group.get('calculation_converged') and convergence_group.get('number_of_iterations') == 1
         )
 
     def convergence_on_track(self):
@@ -1185,6 +1219,7 @@ class kkr_imp_sub_wc(WorkChain):
         outputnode_dict['convergence_reached'] = self.ctx.kkr_converged_to_criterion
         outputnode_dict['kkr_step_success'] = self.ctx.kkrimp_step_success
         outputnode_dict['used_higher_accuracy'] = self.ctx.kkr_higher_accuracy
+        outputnode_dict['input_pot_passed_on_for_calcs'] = self.ctx.input_pot_passed_on
 
         # report the status
         if self.ctx.successful:
