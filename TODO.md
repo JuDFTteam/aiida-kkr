@@ -2,25 +2,9 @@
 
 Open work on `develop`: pull requests awaiting a decision, and known failures that are
 deferred. Keep this file short; an item that is done is deleted here, and its record lives in
-the merged PR or closed issue it links to. Last updated 2026-09-26.
+the merged PR or closed issue it links to. Last updated 2026-09-27.
 
 ## Open pull requests
-
-- [ ] **[#193](https://github.com/JuDFTteam/aiida-kkr/pull/193) — `kkr_imp_sub_wc`: drop an
-  unreachable check, read the step flag `inspect_kkrimp` sets.** Dead-code cleanup, no behaviour
-  change: the not-`finished_ok` branch in `condition()` could never run, because `inspect_kkrimp`
-  aborts first, and `ctx.kkr_step_success` was only ever `True` while `inspect_kkrimp` sets
-  `ctx.kkrimp_step_success`. Closes two items found while fixing #177.
-
-- [ ] **[#191](https://github.com/JuDFTteam/aiida-kkr/pull/191) — `plot_kkr`: give impurity
-  groups the two-panel path.** Fixes [#189](https://github.com/JuDFTteam/aiida-kkr/issues/189).
-  `plot_group` gave the shared-axes treatment only to the `kkr` and `scf` node groups; every
-  other group fell through to the path that calls `twinx()` per node, so a list of N impurity
-  nodes produced N+1 stacked y-axes with overlapping tick labels and titles. The four impurity
-  group names — `imp`, `impsub`, `kkrimp`, `combine_imps` — join the two that already worked, in
-  a new `_TWO_PANEL_GROUPS` constant, and the rms goal line is kept off the spin-moment panel.
-  One test asserting the axis count rather than comparing a baseline image. Verified live on
-  three `kkr_imp_wc` nodes: 4 axes before, 2 after.
 
 - [ ] **[#115](https://github.com/JuDFTteam/aiida-kkr/pull/115) — Implement base restart functionality** (open since 2022-12).
   Not reviewed as part of the current work.
@@ -53,6 +37,27 @@ the merged PR or closed issue it links to. Last updated 2026-09-26.
   computed one. One production database was counted on 2026-09-20 and has none, because every
   off-origin run there predates the rewrite — census in the issue comment. Any other database on
   aiida-kkr >= 1.1.12 needs its own count.
+- [ ] **[#192](https://github.com/JuDFTteam/aiida-kkr/issues/192) — `kkr_imp_sub_wc` reports
+  `convergence_reached: True` at the simple-mixing `QBOUND`.** Fix in
+  [#199](https://github.com/JuDFTteam/aiida-kkr/pull/199), live-tested: the Fe:K replay of the
+  stored false convergence (run 879793) now continues and converges for real, and the Al:Cu
+  regression reproduces its stored run. KKRimp's `calculation_converged` only means "reached this
+  calculation's `QBOUND`", which is the loose `threshold_aggressive_mixing` for simple mixing, so a
+  simple-mixing step after an unconverged Anderson (`IMIX 5`) step ended the run. The fix requires the calculation's own `QBOUND` to be at
+  most `convergence_criterion`; workflow version 0.11.0 -> 0.11.1. In the single-impurity-database
+  project, 65 of 8 170 stored "converged" embeddings are affected, 26 of them with a final rms above
+  1e-3; their stored potentials are also truncated at the loose `QBOUND` (#195).
+- [ ] **`kkr_imp_sub_wc` falls back to simple mixing on every parameter update.**
+  `update_kkrimp_params` reads the previous `IMIX` from a freshly created `kkrparams`, which is
+  always `None`, so any update that is not an explicit switch (for example a reduced mixing factor
+  after an unconverged Anderson step) restarts with `IMIX 0`. This is the restart path the false
+  convergence above rides on. Found while tracing it; not fixed.
+- [ ] **`kkr_imp_sub_wc`: a calculation that reaches `QBOUND` in one iteration is never a restart
+  anchor.** After an unconverged step that is not on track, `update_kkrimp_params` restarts from the
+  latest earlier calculation whose last rms is below its first; with one iteration they are equal.
+  With a high `threshold_aggressive_mixing` the first calculation always takes one iteration, so an
+  Anderson (`IMIX 5`) step whose rms rises ends the workchain with exit 127 instead of retrying.
+  Seen in workchain 881846 (Fe:Cu, threshold 1e3) while testing #192. Not fixed.
 - [ ] **In-flight `kkr_imp_wc` cannot be resumed across the
   [#184](https://github.com/JuDFTteam/aiida-kkr/pull/184) upgrade**, because plumpy persists the
   outline position as a bare index. Processes must be allowed to finish or be restarted.
