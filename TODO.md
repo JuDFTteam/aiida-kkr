@@ -2,7 +2,7 @@
 
 Open work on `develop`: pull requests awaiting a decision, and known failures that are
 deferred. Keep this file short; an item that is done is deleted here, and its record lives in
-the merged PR or closed issue it links to. Last updated 2026-09-27.
+the merged PR or closed issue it links to. Last updated 2026-09-28.
 
 ## Open pull requests
 
@@ -47,21 +47,6 @@ the merged PR or closed issue it links to. Last updated 2026-09-27.
   most `convergence_criterion`; workflow version 0.11.0 -> 0.11.1. In the single-impurity-database
   project, 65 of 8 170 stored "converged" embeddings are affected, 26 of them with a final rms above
   1e-3; their stored potentials are also truncated at the loose `QBOUND` (#195).
-- [ ] **[#195](https://github.com/JuDFTteam/aiida-kkr/issues/195) — the simple-mixing step hands a
-  truncated potential to the Anderson (`IMIX 5`) step.** KKRimp leaves non-spherical channels below
-  `QBOUND` out of `out_potential`, and it zeroes those below `POT_NS_CUTOFF` (default 0.1 ×
-  `QBOUND`) in memory. The simple-mixing step runs at `QBOUND = threshold_aggressive_mixing`, so from
-  a converged start potential the Anderson step needs 16–23 iterations instead of 1–2 (19 of 20 Cu
-  embeddings, vimp-prediction pilot). Root fix: the KKRimp key `POT_NS_WRITE_CUTOFF` (kkr/jukkr!35,
-  jukkr `develop` `56597657`), with `kkrparams` support in masci-tools#255. Fix in
-  [#200](https://github.com/JuDFTteam/aiida-kkr/pull/200), live-tested: the opt-in wf parameter
-  `pot_ns_cutoff_factor_simple_mixing` (e.g. 0.1) sets both keys to factor × `convergence_criterion`
-  on the simple-mixing calculations. With the new binary and
-  factor 0.1, Mn:Cu takes 1 + 1 iterations instead of 1 + 18, and Al:Cu from a Voronoi start 142
-  instead of 166; both reach the same solutions. Default off, because
-  KKRimp 3.5 reads `POT_NS_CUTOFF`, and PyPI masci-tools 0.15.0 and the pinned CI lack the new key;
-  turn it on once both are past that. The stop-gap for older binaries (#196, hand on the input
-  potential) was closed unmerged. `kkr_scf_wc` has the same structure; not measured.
 - [ ] **`kkr_imp_sub_wc` falls back to simple mixing on every parameter update.**
   `update_kkrimp_params` reads the previous `IMIX` from a freshly created `kkrparams`, which is
   always `None`, so any update that is not an explicit switch (for example a reduced mixing factor
@@ -106,6 +91,11 @@ Details in [#177](https://github.com/JuDFTteam/aiida-kkr/issues/177), section "F
   test archives are re-exported.** #255 added three `kkrparams` keys. `get_dict()` returns every key,
   unset ones as `None`, so every parameter `Dict` the tests build changes its hash and misses the
   archive cache. That fell through to the fake `kkr.x` in 5 tests. The re-export below lifts the pin too.
+- [ ] **[#198](https://github.com/JuDFTteam/aiida-kkr/issues/198) — switch
+  `pot_ns_cutoff_factor_simple_mixing` (#200) on by default (0.1) together with the re-export.**
+  Production uses the fixed KKRimp (kkr/jukkr!35), whose `POT_NS_WRITE_CUTOFF` still defaults to the
+  lossy `QBOUND`. The new keys change every impurity test's parameter hash, and the switch needs a
+  masci-tools release that has them (>= 0.15.1) as the minimum requirement.
 - [ ] **[#198](https://github.com/JuDFTteam/aiida-kkr/issues/198) — aiida-core cannot move past 2.5.x until the test archives are re-exported.** Measured
   2026-09-20 across four CI runs: on aiida-core 2.9.2 with `aiida-test-cache@main`, 16 of the 20
   whitelisted workflow tests fail; on aiida-core 2.5.2 with the PyPI `aiida-test-cache` 0.0.1, 19
