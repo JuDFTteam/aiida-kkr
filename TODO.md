@@ -53,11 +53,12 @@ the merged PR or closed issue it links to. Last updated 2026-09-27.
   `QBOUND`) in memory. The simple-mixing step runs at `QBOUND = threshold_aggressive_mixing`, so from
   a converged start potential the Anderson step needs 16–23 iterations instead of 1–2 (19 of 20 Cu
   embeddings, vimp-prediction pilot). Root fix: the KKRimp key `POT_NS_WRITE_CUTOFF` (kkr/jukkr!35,
-  jukkr `develop` `56597657`), with `kkrparams` support in masci-tools#255. Fix on branch
-  `feature/kkrimp-pot-ns-cutoffs`, PR to follow: the opt-in wf parameter
+  jukkr `develop` `56597657`), with `kkrparams` support in masci-tools#255. Fix in
+  [#200](https://github.com/JuDFTteam/aiida-kkr/pull/200), live-tested: the opt-in wf parameter
   `pot_ns_cutoff_factor_simple_mixing` (e.g. 0.1) sets both keys to factor × `convergence_criterion`
-  on the simple-mixing calculations. Live evidence with
-  the new binary and 1e-8: 1 + 1 iterations instead of 1 + 18, same solution. Default off, because
+  on the simple-mixing calculations. With the new binary and
+  factor 0.1, Mn:Cu takes 1 + 1 iterations instead of 1 + 18, and Al:Cu from a Voronoi start 142
+  instead of 166; both reach the same solutions. Default off, because
   KKRimp 3.5 reads `POT_NS_CUTOFF`, and PyPI masci-tools 0.15.0 and the pinned CI lack the new key;
   turn it on once both are past that. The stop-gap for older binaries (#196, hand on the input
   potential) was closed unmerged. `kkr_scf_wc` has the same structure; not measured.
