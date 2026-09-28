@@ -46,7 +46,8 @@ class kkr_imp_sub_wc(WorkChain):
 
     wf_parameters['pot_ns_cutoff_factor_simple_mixing'] (default None, off): if set, the simple-mixing calculations get
     POT_NS_CUTOFF = POT_NS_WRITE_CUTOFF = factor * convergence_criterion (suggested factor 0.1), so that they neither
-    zero nor drop non-spherical channels at their loose QBOUND; the Anderson/Broyden calculations keep KKRimp's defaults.
+    zero nor drop non-spherical channels at their loose QBOUND; the Anderson/Broyden calculations get KKRimp's defaults
+    (0.1*QBOUND, QBOUND) explicitly, since a restart from a remote folder would otherwise inherit the simple-mixing values.
     POT_NS_WRITE_CUTOFF needs a KKRimp built from jukkr develop >= 56597657; older binaries ignore it, but they do read
     POT_NS_CUTOFF, so on them the setting changes the in-memory cut only. Needs masci-tools >= 4d0ce153. Values given
     for these keys in params_overwrite win, on every calculation.
@@ -690,9 +691,10 @@ class kkr_imp_sub_wc(WorkChain):
             # add convergence settings
             if self.ctx.loop_count == 1 or self.ctx.last_mixing_scheme == 0:
                 new_params['QBOUND'] = self.ctx.threshold_aggressive_mixing
-                new_params.update(self._pot_ns_cutoffs_simple_mixing())
+                new_params.update(self._pot_ns_cutoffs(simple_mixing=True))
             else:
                 new_params['QBOUND'] = self.ctx.convergence_criterion
+                new_params.update(self._pot_ns_cutoffs(simple_mixing=False))
 
             # initial magnetization
             if initial_settings and self.ctx.mag_init:
@@ -1050,12 +1052,21 @@ class kkr_imp_sub_wc(WorkChain):
         message = 'INFO: done inspecting kkrimp results step'
         self.report(message)
 
-    def _pot_ns_cutoffs_simple_mixing(self):
-        """KKRimp keys that keep the simple-mixing step from cutting non-spherical channels at its loose QBOUND"""
+    def _pot_ns_cutoffs(self, simple_mixing):
+        """
+        POT_NS_CUTOFF and POT_NS_WRITE_CUTOFF for the next calculation if pot_ns_cutoff_factor_simple_mixing is set:
+        factor*convergence_criterion for simple mixing, KKRimp's defaults (0.1*QBOUND, QBOUND) otherwise. The defaults
+        are set explicitly because a calculation restarted from a remote folder inherits its parent's parameters.
+        """
         if self.ctx.pot_ns_cutoff_factor is None:
             return {}
-        cutoff = self.ctx.pot_ns_cutoff_factor * self.ctx.convergence_criterion
-        return {'POT_NS_CUTOFF': cutoff, 'POT_NS_WRITE_CUTOFF': cutoff}
+        if simple_mixing:
+            cutoff = self.ctx.pot_ns_cutoff_factor * self.ctx.convergence_criterion
+            return {'POT_NS_CUTOFF': cutoff, 'POT_NS_WRITE_CUTOFF': cutoff}
+        return {
+            'POT_NS_CUTOFF': 0.1 * self.ctx.convergence_criterion,
+            'POT_NS_WRITE_CUTOFF': self.ctx.convergence_criterion
+        }
 
     def _last_calc_qbound(self):
         """QBOUND the last KKRimp calculation actually ran with (None if not set)"""
