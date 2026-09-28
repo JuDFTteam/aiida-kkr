@@ -17,7 +17,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.11.1'
+__version__ = '0.12.0'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann', u'David Antognini Silva')
 
 #TODO: work on return results function
@@ -43,6 +43,14 @@ class kkr_imp_sub_wc(WorkChain):
     :param kkrimp_remote: (RemoteData), remote folder of a previous kkrimp calculation
     :param impurity_info: (Dict), Parameter node with information
                           about the impurity cluster
+
+    wf_parameters['pot_ns_cutoff_factor_simple_mixing'] (default None, off): if set, the simple-mixing calculations get
+    POT_NS_CUTOFF = POT_NS_WRITE_CUTOFF = factor * convergence_criterion (suggested factor 0.1), so that they neither
+    zero nor drop non-spherical channels at their loose QBOUND; the Anderson/Broyden calculations get KKRimp's defaults
+    (0.1*QBOUND, QBOUND) explicitly, since a restart from a remote folder would otherwise inherit the simple-mixing values.
+    POT_NS_WRITE_CUTOFF needs a KKRimp built from jukkr develop >= 56597657; older binaries ignore it, but they do read
+    POT_NS_CUTOFF, so on them the setting changes the in-memory cut only. Needs masci-tools >= 4d0ce153. Values given
+    for these keys in params_overwrite win, on every calculation.
 
     :return workflow_info: (Dict), Information of workflow results
                                    like success, last result node, list with
@@ -75,6 +83,9 @@ class kkr_imp_sub_wc(WorkChain):
         'aggrmix': 0.01,  # mixing factor of aggressive mixing
         'broyden-number': 20,  # number of potentials to 'remember' for Broyden's mixing
         'nsimplemixfirst': 0,  # number of simple mixing step at the beginning of Broyden mixing
+        # None (off) or a factor (suggested 0.1): the simple-mixing calculations get
+        # POT_NS_CUTOFF = POT_NS_WRITE_CUTOFF = factor * convergence_criterion, see the class docstring
+        'pot_ns_cutoff_factor_simple_mixing': None,
         'mag_init': False,  # initialize and converge magnetic calculation
         'hfield': [0.02, 5],  # Ry                     # external magnetic field used in initialization step
         'init_pos': None,  # position in unit cell where magnetic field is applied [default (None) means apply to all]
@@ -290,6 +301,19 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.nsteps = wf_dict.get('nsteps', self._wf_default['nsteps'])
         self.ctx.broyden_num = wf_dict.get('broyden-number', self._wf_default['broyden-number'])
         self.ctx.nsimplemixfirst = wf_dict.get('nsimplemixfirst', self._wf_default['nsimplemixfirst'])
+        self.ctx.pot_ns_cutoff_factor = wf_dict.get(
+            'pot_ns_cutoff_factor_simple_mixing', self._wf_default['pot_ns_cutoff_factor_simple_mixing']
+        )
+        if self.ctx.pot_ns_cutoff_factor is not None:
+            if 'POT_NS_WRITE_CUTOFF' not in kkrparams(params_type='kkrimp').get_dict():
+                raise ValueError(
+                    'pot_ns_cutoff_factor_simple_mixing needs masci-tools with the POT_NS_WRITE_CUTOFF key (>= 4d0ce153)'
+                )
+            self.report(
+                'INFO: simple-mixing calculations get POT_NS_CUTOFF = POT_NS_WRITE_CUTOFF = '
+                f'{self.ctx.pot_ns_cutoff_factor * self.ctx.convergence_criterion} '
+                '(KKRimp builds older than jukkr develop 56597657 ignore POT_NS_WRITE_CUTOFF)'
+            )
         self.ctx.mesh_params = wf_dict.get('accuracy_params', {})
 
         # initial magnetization
@@ -667,8 +691,10 @@ class kkr_imp_sub_wc(WorkChain):
             # add convergence settings
             if self.ctx.loop_count == 1 or self.ctx.last_mixing_scheme == 0:
                 new_params['QBOUND'] = self.ctx.threshold_aggressive_mixing
+                new_params.update(self._pot_ns_cutoffs(simple_mixing=True))
             else:
                 new_params['QBOUND'] = self.ctx.convergence_criterion
+                new_params.update(self._pot_ns_cutoffs(simple_mixing=False))
 
             # initial magnetization
             if initial_settings and self.ctx.mag_init:
@@ -1025,6 +1051,22 @@ class kkr_imp_sub_wc(WorkChain):
 
         message = 'INFO: done inspecting kkrimp results step'
         self.report(message)
+
+    def _pot_ns_cutoffs(self, simple_mixing):
+        """
+        POT_NS_CUTOFF and POT_NS_WRITE_CUTOFF for the next calculation if pot_ns_cutoff_factor_simple_mixing is set:
+        factor*convergence_criterion for simple mixing, KKRimp's defaults (0.1*QBOUND, QBOUND) otherwise. The defaults
+        are set explicitly because a calculation restarted from a remote folder inherits its parent's parameters.
+        """
+        if self.ctx.pot_ns_cutoff_factor is None:
+            return {}
+        if simple_mixing:
+            cutoff = self.ctx.pot_ns_cutoff_factor * self.ctx.convergence_criterion
+            return {'POT_NS_CUTOFF': cutoff, 'POT_NS_WRITE_CUTOFF': cutoff}
+        return {
+            'POT_NS_CUTOFF': 0.1 * self.ctx.convergence_criterion,
+            'POT_NS_WRITE_CUTOFF': self.ctx.convergence_criterion
+        }
 
     def _last_calc_qbound(self):
         """QBOUND the last KKRimp calculation actually ran with (None if not set)"""
