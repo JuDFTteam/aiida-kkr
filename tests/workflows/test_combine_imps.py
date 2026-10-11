@@ -216,9 +216,7 @@ def test_get_ldau_combined_kkr_imp_wc_inputs(monkeypatch, imp1_ldau):
     combined = SimpleNamespace(uuid='uuid_combined', get_dict=dict)
     monkeypatch.setattr(combine_imps_module, 'combine_settings_ldau', lambda **kwargs: calls.append(kwargs) or combined)
     fake_self = SimpleNamespace(
-        ctx=SimpleNamespace(
-            imp1=_fake_kkr_imp_wc(imp1_ldau), imp2=_fake_kkr_imp_wc(), kickout_info='kickout_info'
-        ),
+        ctx=SimpleNamespace(imp1=_fake_kkr_imp_wc(imp1_ldau), imp2=_fake_kkr_imp_wc(), kickout_info='kickout_info'),
         report=print,
     )
 
