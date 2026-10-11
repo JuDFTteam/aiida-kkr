@@ -2,7 +2,7 @@
 
 Open work on `develop`: pull requests awaiting a decision, and known failures that are
 deferred. Keep this file short; an item that is done is deleted here, and its record lives in
-the merged PR or closed issue it links to. Last updated 2026-09-28.
+the merged PR or closed issue it links to. Last updated 2026-10-11.
 
 ## Open pull requests
 
@@ -37,6 +37,10 @@ the merged PR or closed issue it links to. Last updated 2026-09-28.
   computed one. One production database was counted on 2026-09-20 and has none, because every
   off-origin run there predates the rewrite — census in the issue comment. Any other database on
   aiida-kkr >= 1.1.12 needs its own count.
+- [ ] **[#202](https://github.com/JuDFTteam/aiida-kkr/issues/202) — `combine_imps_wc` crashed in `get_ldau_combined`
+  when an impurity input was a `kkr_imp_wc`** (`UnboundLocalError`, seen in workchain 888540 on
+  iffaiida). Fixed on branch `fix/combine-imps-kkr-imp-wc-ldau`, unit-tested; not yet deployed
+  on iffaiida (`/opt/aiida-kkr`), so the crash persists there until the daemon restarts on the fix.
 - [ ] **[#192](https://github.com/JuDFTteam/aiida-kkr/issues/192) — `kkr_imp_sub_wc` reports
   `convergence_reached: True` at the simple-mixing `QBOUND`.** Fix in
   [#199](https://github.com/JuDFTteam/aiida-kkr/pull/199), live-tested: the Fe:K replay of the
