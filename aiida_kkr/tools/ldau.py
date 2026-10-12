@@ -165,7 +165,7 @@ def get_LDAU_initmatrices_dict(txts_ldaumat1, offset=0):
     for iatom in range(len(iatoms)):
         LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}'] = {}
         LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['wldau'] = wldaumat[iatom]  # pylint: disable=possibly-used-before-assignment
-        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['uldau'] = uldaumat[iatom]  # pylint: disable=possibly-used-before-assignment
-        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['phi'] = phimat[iatom]  # pylint: disable=possibly-used-before-assignment
+        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['uldau'] = uldaumat[iatom]  # pylint: disable=used-before-assignment,possibly-used-before-assignment
+        LDAU_initmatrices_dict[f'iatom={int(iatoms[iatom])-1+offset}']['phi'] = phimat[iatom]  # pylint: disable=used-before-assignment,possibly-used-before-assignment
 
     return LDAU_initmatrices_dict

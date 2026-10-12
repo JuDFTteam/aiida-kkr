@@ -288,7 +288,7 @@ class KKRnanoCalculation(CalcJob):
                 self._write_rbasis(rbasis_handle, structure, passed_lattice_const)
         if write_efermi:
             with tempfolder.open(self._DEFAULT_EFERMI_FILE, u'w') as efermi_file_handle:
-                self._write_efermi_file(efermi_file_handle, fermi)  # pylint: disable=possibly-used-before-assignment
+                self._write_efermi_file(efermi_file_handle, fermi)  # pylint: disable=used-before-assignment,possibly-used-before-assignment
 
         # Prepare potential and shapefun file from strucwithpot, if necessary
         if use_strucwithpot:

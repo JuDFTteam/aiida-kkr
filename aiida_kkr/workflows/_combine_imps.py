@@ -902,10 +902,10 @@ If given then the writeout step of the host GF is omitted."""
         if imp1_has_ldau and imp2_has_ldau:
             # combine LDA+U settings of the two imps
             settings_LDAU_combined = combine_settings_ldau(
-                settings_LDAU1=settings_LDAU1,  # pylint: disable=possibly-used-before-assignment
-                retrieved1=retrieved1,  # pylint: disable=possibly-used-before-assignment
-                settings_LDAU2=settings_LDAU2,  # pylint: disable=possibly-used-before-assignment
-                retrieved2=retrieved2,  # pylint: disable=possibly-used-before-assignment
+                settings_LDAU1=settings_LDAU1,  # pylint: disable=used-before-assignment,possibly-used-before-assignment
+                retrieved1=retrieved1,  # pylint: disable=used-before-assignment,possibly-used-before-assignment
+                settings_LDAU2=settings_LDAU2,  # pylint: disable=used-before-assignment,possibly-used-before-assignment
+                retrieved2=retrieved2,  # pylint: disable=used-before-assignment,possibly-used-before-assignment
                 kickout_info=self.ctx.kickout_info
             )
         elif imp1_has_ldau:

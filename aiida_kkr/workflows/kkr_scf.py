@@ -1904,7 +1904,7 @@ def create_scf_result_node(**kwargs):
         outdict['output_kkr_scf_wc_ParameterResults'] = outputnode
 
     if has_last_calc_out_dict:
-        outputnode = last_calc_out_dict  # pylint: disable=possibly-used-before-assignment
+        outputnode = last_calc_out_dict  # pylint: disable=used-before-assignment,possibly-used-before-assignment
         outputnode.label = 'last_calc_out'
         outputnode.description = (
             'Contains the Results Parameter node from the output '
@@ -1913,7 +1913,7 @@ def create_scf_result_node(**kwargs):
         outdict['last_calc_out'] = outputnode
 
     if has_last_RemoteData:
-        outputnode = last_RemoteData_dict  # pylint: disable=possibly-used-before-assignment
+        outputnode = last_RemoteData_dict  # pylint: disable=used-before-assignment,possibly-used-before-assignment
         outputnode.label = 'last_RemoteData'
         outputnode.description = (
             'Contains a link to the latest remote data node '
@@ -1922,7 +1922,7 @@ def create_scf_result_node(**kwargs):
         outdict['last_RemoteData'] = outputnode
 
     if has_last_InputParameters:
-        outputnode = last_InputParameters_dict  # pylint: disable=possibly-used-before-assignment
+        outputnode = last_InputParameters_dict  # pylint: disable=used-before-assignment,possibly-used-before-assignment
         outputnode.label = 'last_InputParameters'
         outputnode.description = (
             'Contains the latest parameter data node '
@@ -1931,7 +1931,7 @@ def create_scf_result_node(**kwargs):
         outdict['last_InputParameters'] = outputnode
 
     if has_vorostart_output:
-        outputnode = vorostart_output_dict  # pylint: disable=possibly-used-before-assignment
+        outputnode = vorostart_output_dict  # pylint: disable=used-before-assignment,possibly-used-before-assignment
         outputnode.label = 'results_vorostart'
         outputnode.description = (
             'Contains the results parameter data node '
@@ -1940,14 +1940,14 @@ def create_scf_result_node(**kwargs):
         outdict['results_vorostart'] = outputnode
 
     if has_starting_dos:
-        outputnode = start_dosdata_interpol_dict  # pylint: disable=possibly-used-before-assignment
+        outputnode = start_dosdata_interpol_dict  # pylint: disable=used-before-assignment,possibly-used-before-assignment
         outputnode.label = 'starting_dosdata_interpol'
         outputnode.description = ('Contains the interpolated DOS data note, computed '
                                   'from the starting portential.')
         outdict['starting_dosdata_interpol'] = outputnode
 
     if has_final_dos:
-        outputnode = final_dosdata_interpol_dict  # pylint: disable=possibly-used-before-assignment
+        outputnode = final_dosdata_interpol_dict  # pylint: disable=used-before-assignment,possibly-used-before-assignment
         outputnode.label = 'final_dosdata_interpol'
         outputnode.description = ('Contains the interpolated DOS data note, computed '
                                   'from the converged potential.')
