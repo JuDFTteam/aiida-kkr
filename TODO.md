@@ -39,8 +39,9 @@ the merged PR or closed issue it links to. Last updated 2026-10-11.
   aiida-kkr >= 1.1.12 needs its own count.
 - [ ] **[#202](https://github.com/JuDFTteam/aiida-kkr/issues/202) — `combine_imps_wc` crashed in `get_ldau_combined`
   when an impurity input was a `kkr_imp_wc`** (`UnboundLocalError`, seen in workchain 888540 on
-  iffaiida). Fixed on branch `fix/combine-imps-kkr-imp-wc-ldau`, unit-tested; not yet deployed
-  on iffaiida (`/opt/aiida-kkr`), so the crash persists there until the daemon restarts on the fix.
+  iffaiida). Fixed on `develop` by [#203](https://github.com/JuDFTteam/aiida-kkr/pull/203), unit-tested;
+  not yet deployed on iffaiida (`/opt/aiida-kkr`), so the crash persists there until the daemon
+  restarts on the fix. Delete this entry once deployed.
 - [ ] **[#192](https://github.com/JuDFTteam/aiida-kkr/issues/192) — `kkr_imp_sub_wc` reports
   `convergence_reached: True` at the simple-mixing `QBOUND`.** Fix in
   [#199](https://github.com/JuDFTteam/aiida-kkr/pull/199), live-tested: the Fe:K replay of the
