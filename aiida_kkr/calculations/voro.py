@@ -107,7 +107,7 @@ class VoronoiCalculation(CalcJob):
         vca_structure = False
         if found_structure:
             # for VCA: check if input structure and parameter node define VCA structure
-            vca_structure = vca_check(structure, parameters)  # pylint: disable=used-before-assignment
+            vca_structure = vca_check(structure, parameters)  # pylint: disable=used-before-assignment,possibly-used-before-assignment
 
         code = self.inputs.code
 
