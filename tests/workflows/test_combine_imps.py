@@ -189,6 +189,50 @@ def test_combine_imps_reuse_gf(
     ndarrays_regression.check(check_dict)
 
 
+def _fake_kkr_imp_wc(settings_LDAU=None):
+    """stand-in for a kkr_imp_wc node: kkr_imp_wc -> kkr_imp_sub_wc -> KkrimpCalculation"""
+    from types import SimpleNamespace
+    from aiida.common import AttributeDict
+    from aiida_kkr.workflows import kkr_imp_wc, kkr_imp_sub_wc
+
+    def outgoing(node):
+        return lambda node_class: SimpleNamespace(first=lambda: SimpleNamespace(node=node))
+
+    calc = SimpleNamespace(outputs=SimpleNamespace(retrieved='retrieved_of_kkrimp_calc'))
+    inputs = AttributeDict({'settings_LDAU': settings_LDAU} if settings_LDAU is not None else {})
+    sub = SimpleNamespace(process_class=kkr_imp_sub_wc, inputs=inputs, get_outgoing=outgoing(calc))
+    return SimpleNamespace(process_class=kkr_imp_wc, get_outgoing=outgoing(sub))
+
+
+@pytest.mark.parametrize('imp1_ldau', [None, 'settings_LDAU_of_imp1'])
+def test_get_ldau_combined_kkr_imp_wc_inputs(monkeypatch, imp1_ldau):
+    """
+    get_ldau_combined must handle kkr_imp_wc impurity inputs (crashed with UnboundLocalError before)
+    """
+    from types import SimpleNamespace
+    import aiida_kkr.workflows._combine_imps as combine_imps_module
+
+    calls = []
+    combined = SimpleNamespace(uuid='uuid_combined', get_dict=dict)
+    monkeypatch.setattr(combine_imps_module, 'combine_settings_ldau', lambda **kwargs: calls.append(kwargs) or combined)
+    fake_self = SimpleNamespace(
+        ctx=SimpleNamespace(imp1=_fake_kkr_imp_wc(imp1_ldau), imp2=_fake_kkr_imp_wc(), kickout_info='kickout_info'),
+        report=print,
+    )
+
+    add_ldau, settings = combine_imps_wc.get_ldau_combined(fake_self)
+
+    if imp1_ldau is None:
+        assert (add_ldau, settings, calls) == (False, {}, [])
+    else:
+        assert (add_ldau, settings) == (True, combined)
+        assert calls == [{
+            'settings_LDAU1': imp1_ldau,
+            'retrieved1': 'retrieved_of_kkrimp_calc',
+            'kickout_info': 'kickout_info'
+        }]
+
+
 # run manual:
 if __name__ == '__main__':
     from aiida import load_profile

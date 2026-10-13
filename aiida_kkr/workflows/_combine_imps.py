@@ -863,6 +863,9 @@ If given then the writeout step of the host GF is omitted."""
         check if impurity input calculations have LDA+U settings in input and add this here if needed
         """
 
+        # unknown input types count as "no LDA+U" instead of leaving the flags unbound
+        imp1_has_ldau = imp2_has_ldau = False
+
         if self.ctx.imp1.process_class == KkrimpCalculation or self.ctx.imp1.process_class == kkr_imp_sub_wc:
             imp1_has_ldau = 'settings_LDAU' in self.ctx.imp1.inputs
             if imp1_has_ldau:
@@ -872,7 +875,7 @@ If given then the writeout step of the host GF is omitted."""
                     retrieved1 = self.ctx.imp1.outputs.retrieved
                 elif self.ctx.imp1.process_class == kkr_imp_sub_wc:
                     retrieved1 = self.ctx.imp1.get_outgoing(node_class=KkrimpCalculation).first().node.outputs.retrieved
-        elif self.ctx.imp1.process_class == combine_imps_wc:
+        elif self.ctx.imp1.process_class in (combine_imps_wc, kkr_imp_wc):
             imp1_has_ldau = 'settings_LDAU' in self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node.inputs
             if imp1_has_ldau:
                 settings_LDAU1 = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node.inputs.settings_LDAU
@@ -890,7 +893,7 @@ If given then the writeout step of the host GF is omitted."""
                     retrieved2 = self.ctx.imp2.outputs.retrieved
                 elif self.ctx.imp2.process_class == kkr_imp_sub_wc:
                     retrieved2 = self.ctx.imp2.get_outgoing(node_class=KkrimpCalculation).first().node.outputs.retrieved
-        elif self.ctx.imp2.process_class == combine_imps_wc:
+        elif self.ctx.imp2.process_class in (combine_imps_wc, kkr_imp_wc):
             imp2_has_ldau = 'settings_LDAU' in self.ctx.imp2.get_outgoing(node_class=kkr_imp_sub_wc).first().node.inputs
             if imp2_has_ldau:
                 settings_LDAU2 = self.ctx.imp2.get_outgoing(node_class=kkr_imp_sub_wc).first().node.inputs.settings_LDAU
