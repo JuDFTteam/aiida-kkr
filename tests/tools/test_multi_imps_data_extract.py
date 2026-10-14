@@ -26,12 +26,11 @@ import pytest
 import os
 import pandas as pd
 from aiida.orm import load_node
-from aiida.manage.tests.pytest_fixtures import clear_database_after_test, clear_database_before_test
 from aiida_kkr.tools.multi_imps_data_extract import MultiImpuritiesData
 from ..conftest import import_with_migration
 
 
-def test_multi_imp_to_data_frame(clear_database_before_test, clear_database_after_test):
+def test_multi_imp_to_data_frame(aiida_profile_clean):
     """ Test Pandas DataFrame.
 
     Data is being tested under the validating node

@@ -9,7 +9,7 @@ if __name__ != '__main__':
 
 @pytest.mark.timeout(900, method='thread')
 def test_kkrimp_full_wc(
-    clear_database_before_test, voronoi_local_code, kkrhost_local_code, kkrimp_local_code, enable_archive_cache
+    aiida_profile_clean, voronoi_local_code, kkrhost_local_code, kkrimp_local_code, enable_archive_cache
 ):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
@@ -93,7 +93,7 @@ def test_kkrimp_full_wc(
 
 @pytest.mark.timeout(900, method='thread')
 def test_kkrimp_full_Ag_Cu_onsite(
-    clear_database_before_test, voronoi_local_code, kkrhost_local_code, kkrimp_local_code, enable_archive_cache
+    aiida_profile_clean, voronoi_local_code, kkrhost_local_code, kkrimp_local_code, enable_archive_cache
 ):
     """
     Simple Ag_Cu (bulk) noSOC, FP, lmax2 example with Lloyd where impurity cluster contains only the impurity atom

@@ -404,16 +404,17 @@ class kkr_imp_sub_wc(WorkChain):
             # check if LDA+U settings should be set kkrimp parent calculation
             if 'settings_LDAU' not in inputs:
                 # check if kkrimp parent calculation has LDA+U input
-                parent_kkrimp_calc = kkrimp_remote.get_incoming(node_class=CalcJobNode).first().node
+                parent_kkrimp_calc = kkrimp_remote.base.links.get_incoming(node_class=CalcJobNode).first().node
                 if 'settings_LDAU' in parent_kkrimp_calc.inputs:
                     self.ctx.settings_LDAU = parent_kkrimp_calc.inputs.settings_LDAU
 
         # check if input remote_data node is fine
         if 'remote_data' in inputs:
-            if len(inputs.remote_data.get_incoming(link_label_filter='remote_folder').all()) < 1:
+            if len(inputs.remote_data.base.links.get_incoming(link_label_filter='remote_folder').all()) < 1:
                 self.ctx.exit_code = self.exit_codes.ERROR_NO_CALC_FOUND_FOR_REMOTE_DATA  # pylint: disable=maybe-no-member
             else:
-                if not inputs.remote_data.get_incoming(link_label_filter='remote_folder').first().node.is_finished_ok:
+                if not inputs.remote_data.base.links.get_incoming(link_label_filter='remote_folder'
+                                                                  ).first().node.is_finished_ok:
                     self.ctx.exit_code = self.exit_codes.ERROR_REMOTE_DATA_CALC_UNSUCCESFUL  # pylint: disable=maybe-no-member
 
         # set starting potential
@@ -557,7 +558,7 @@ class kkr_imp_sub_wc(WorkChain):
             last_rms = self.ctx.last_rms_all[-1]
 
         # extract values from host calculation
-        host_GF_calc = self.inputs.remote_data.get_incoming(node_class=CalcJobNode).first().node
+        host_GF_calc = self.inputs.remote_data.base.links.get_incoming(node_class=CalcJobNode).first().node
         host_GF_outparams = host_GF_calc.outputs.output_parameters.get_dict()
         host_GF_inparams = host_GF_calc.inputs.parameters.get_dict()
         nspin = host_GF_outparams.get('nspin')
@@ -784,8 +785,8 @@ class kkr_imp_sub_wc(WorkChain):
         if last_remote is None:
             # make sure no core states are in energy contour
             # extract emin from output of GF host calculation
-            GF_out_params = host_GF.get_incoming(link_label_filter='remote_folder'
-                                                 ).first().node.outputs.output_parameters
+            GF_out_params = host_GF.base.links.get_incoming(link_label_filter='remote_folder'
+                                                            ).first().node.outputs.output_parameters
             emin = GF_out_params.get_dict().get('energy_contour_group').get('emin')
             # then use this value to get rid of all core states that are lower than emin (return the same input potential if no states have been removed
             imp_pot = kick_out_corestates_wf(imp_pot, Float(emin))
@@ -892,9 +893,9 @@ class kkr_imp_sub_wc(WorkChain):
         message = 'INFO: doing calculation'
         self.report(message)
         kkrimp_run = self.submit(KkrimpCalculation, **inputs)
-        print('caching_info KKRimpCalc:', kkrimp_run.get_cache_source())
-        print('hash: ', kkrimp_run.get_hash())
-        print('_get_objects_to_hash: ', kkrimp_run._get_objects_to_hash())
+        print('caching_info KKRimpCalc:', kkrimp_run.base.caching.get_cache_source())
+        print('hash: ', kkrimp_run.base.caching.get_hash())
+        print('_get_objects_to_hash: ', kkrimp_run.base.caching._get_objects_to_hash())
 
         return ToContext(kkr=kkrimp_run, last_calc=kkrimp_run)
 
@@ -1328,27 +1329,27 @@ def extract_imp_pot_sfd(retrieved_folder):
     """
     # take output potential file either from tarfile or directy from output folder
 
-    if KkrimpCalculation._FILENAME_TAR in retrieved_folder.list_object_names():
+    if KkrimpCalculation._FILENAME_TAR in retrieved_folder.base.repository.list_object_names():
         print('take potfile from tar file of retrieved')
         # take potfile after extracting tar file
         # get full filename
-        with retrieved_folder.open(KkrimpCalculation._FILENAME_TAR) as tar_file:
+        with retrieved_folder.base.repository.open(KkrimpCalculation._FILENAME_TAR) as tar_file:
             tarfilename = tar_file.name
         print('tarfile name:', tarfilename)
         # open tarfile and extract potfile
         with tarfile.open(tarfilename) as tar_file:
             print('extract potfile:', KkrimpCalculation._OUT_POTENTIAL)
             tar_file.extract(KkrimpCalculation._OUT_POTENTIAL, os.path.dirname(tarfilename))
-            with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
+            with retrieved_folder.base.repository.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
                 print('get potfile sfd:', pot_file)
                 imp_pot_sfd = SinglefileData(file=pot_file)
 
         # delete extracted potfile again
         print('delete potfile from outfile:', KkrimpCalculation._OUT_POTENTIAL)
-        retrieved_folder.delete_object(KkrimpCalculation._OUT_POTENTIAL, force=True)
+        retrieved_folder.base.repository.delete_object(KkrimpCalculation._OUT_POTENTIAL)
     else:
         # take potfile directly from output
-        with retrieved_folder.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
+        with retrieved_folder.base.repository.open(KkrimpCalculation._OUT_POTENTIAL, 'rb') as pot_file:
             imp_pot_sfd = SinglefileData(file=pot_file)
 
     return imp_pot_sfd

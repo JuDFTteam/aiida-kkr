@@ -66,7 +66,7 @@ class KkrParser(Parser):
             return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
 
         # check what is inside the folder
-        list_of_files = out_folder.list_object_names()
+        list_of_files = out_folder.base.repository.list_object_names()
 
         # we need at least the output file name as defined in calcs.py
         if KkrCalculation._DEFAULT_OUTPUT_FILE not in list_of_files:
@@ -78,7 +78,7 @@ class KkrParser(Parser):
         # determine whether or not everything should be parsed or not (e.g. qdos option)
         skip_mode = False
         only_000_present = False
-        with out_folder.open(KkrCalculation._INPUT_FILE_NAME) as file:
+        with out_folder.base.repository.open(KkrCalculation._INPUT_FILE_NAME) as file:
             txt = file.readlines()
             itmp = search_string('RUNOPT', txt)
             if itmp >= 0:
@@ -93,7 +93,7 @@ class KkrParser(Parser):
 
         # Parse output files of KKR calculation
         outfile_name = KkrCalculation._DEFAULT_OUTPUT_FILE
-        if outfile_name not in out_folder.list_object_names():
+        if outfile_name not in out_folder.base.repository.list_object_names():
             file_errors.append((1 + self.icrit, msg))
             outfile_name = None
 
@@ -103,30 +103,30 @@ class KkrParser(Parser):
         # 2: warning, is inspected and checked for consistency with read-in
         #    out_dict values (e.g. nspin, newsosol, ...)
         outfile_0init_name = KkrCalculation._OUTPUT_0_INIT
-        if outfile_0init_name not in out_folder.list_object_names():
+        if outfile_0init_name not in out_folder.base.repository.list_object_names():
             file_errors.append((1 + self.icrit, f'Critical error! OUTPUT_0_INIT not found {outfile_0init_name}'))
             outfile_0init_name = None
         outfile_000_name = KkrCalculation._OUTPUT_000
-        if outfile_000_name not in out_folder.list_object_names():
+        if outfile_000_name not in out_folder.base.repository.list_object_names():
             file_errors.append((1 + self.icrit, f'Critical error! OUTPUT_000 not found {outfile_000_name}'))
             outfile_000_name = None
         outfile_2_name = KkrCalculation._OUTPUT_2
-        if outfile_2_name not in out_folder.list_object_names():
+        if outfile_2_name not in out_folder.base.repository.list_object_names():
             if not only_000_present:
                 file_errors.append((2, f'Warning! OUTPUT_2 not found {outfile_2_name}, using OUTPUT_000 instead'))
                 outfile_2_name = outfile_000_name
             else:
                 outfile_2_name = outfile_000_name
         potfile_out_name = KkrCalculation._OUT_POTENTIAL
-        if potfile_out_name not in out_folder.list_object_names():
+        if potfile_out_name not in out_folder.base.repository.list_object_names():
             file_errors.append((1 + self.icrit, f'Critical error! OUT_POTENTIAL not found {potfile_out_name}'))
             potfile_out_name = None
         timing_file_name = KkrCalculation._OUT_TIMING_000
-        if timing_file_name not in out_folder.list_object_names():
+        if timing_file_name not in out_folder.base.repository.list_object_names():
             file_errors.append((1 + self.icrit, f'Critical error! OUT_TIMING_000  not found {timing_file_name}'))
             timing_file_name = None
         nonco_out_file_name = KkrCalculation._NONCO_ANGLES_OUT
-        if nonco_out_file_name not in out_folder.list_object_names():
+        if nonco_out_file_name not in out_folder.base.repository.list_object_names():
             file_errors.append((2, f'Error! NONCO_ANGLES_OUT not found {nonco_out_file_name}'))
             nonco_out_file_name = None
 

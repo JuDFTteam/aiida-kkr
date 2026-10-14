@@ -31,12 +31,18 @@ def prepare_computer(computername, workdir):
     if len(all_computers) > 0:
         for icomp in range(len(all_computers)):
             c = all_computers[icomp].get('computer').get('*')
-            if c.get_name() == computername:
+            if c.label == computername:
                 computer_found_in_db = True
                 comp = c
     # if it is not there create a new one
     if not computer_found_in_db:
-        comp = Computer(computername, 'test computer', transport_type='local', scheduler_type='direct', workdir=workdir)
+        comp = Computer(
+            label=computername,
+            description='test computer',
+            transport_type='core.local',
+            scheduler_type='core.direct',
+            workdir=workdir
+        )
         comp.set_default_mpiprocs_per_machine(4)
         comp.store()
         print('computer stored now cofigure')

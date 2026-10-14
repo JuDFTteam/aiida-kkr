@@ -252,7 +252,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             input_ok = False
             return self.exit_codes.ERROR_NO_INPUT_REMOTE_DATA  # pylint: disable=no-member
         input_remote = self.inputs.remote_data
-        parents = input_remote.get_incoming(node_class=CalcJobNode)
+        parents = input_remote.base.links.get_incoming(node_class=CalcJobNode)
         nparents = len(parents.all_link_labels())
 
         if nparents != 1:
@@ -393,7 +393,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         if self.ctx.struc_is_alloy:
             if econt_new.get('kmesh', None) is None:
                 econt_new['kmesh'] = [1, 1, 1]  # overwrite kmesh since the kpoints are used from the input
-        kkr_calc = self.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node
+        kkr_calc = self.inputs.remote_data.base.links.get_incoming(node_class=KkrCalculation).first().node
         ef = kkr_calc.outputs.output_parameters.get_dict()['fermi_energy']  # unit in Ry
         self.ctx.fermi_energy = ef  ## in Ry unit
 
@@ -458,7 +458,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             self.report('used nonco angles from input to workflow')
         else:
             # extract from the parent calculation
-            parent_calc = remote.get_incoming(node_class=KkrCalculation).first().node
+            parent_calc = remote.base.links.get_incoming(node_class=KkrCalculation).first().node
             if 'initial_noco_angles' in parent_calc.inputs:
                 noco_angles = extract_noco_angles(
                     fix_dir_threshold=Float(1e-6),  # make small enough
@@ -485,7 +485,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         Collect results, parse BS_calc output and link output nodes to workflow node
         """
 
-        caching_info = f'INFO: cache_source of BS calc node: {self.ctx.BS_run.get_cache_source}'
+        caching_info = f'INFO: cache_source of BS calc node: {self.ctx.BS_run.base.caching.get_cache_source()}'
         self.report(caching_info)
 
         if not self.ctx.BS_run.is_finished_ok:
@@ -613,15 +613,15 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
     # conversion factor from Ry to eV
     eVscale = get_Ry2eV()
 
-    retrieved_list = retrieved_folder.list_object_names()
+    retrieved_list = retrieved_folder.base.repository.list_object_names()
     qdos_file_list = [i for i in retrieved_list if 'qdos.' in i]
     q_vec_file = 'qvec.dat'
 
-    with retrieved_folder.open(q_vec_file) as file_opened:
+    with retrieved_folder.base.repository.open(q_vec_file) as file_opened:
         q_vec = np.loadtxt(file_opened, skiprows=1)
 
     for icount, fname in enumerate(qdos_file_list):
-        with retrieved_folder.open(fname) as _f:
+        with retrieved_folder.base.repository.open(fname) as _f:
             loaded_file = np.loadtxt(_f)
             if icount == 0:
                 total_qdos = loaded_file
@@ -651,6 +651,6 @@ def parse_BS_data(retrieved_folder, fermi_level, kpoints):
     array.set_array('energy_points', eng_points)
     if kpoints.labels is not None:
         klbl_dict = dict(kpoints.labels)  # Special k-points
-        array.extras['k-labels'] = klbl_dict
+        array.base.extras.set('k-labels', klbl_dict)
 
     return {'BS_Data': array}

@@ -244,7 +244,7 @@ class VoronoiCalculation(CalcJob):
         overwrite_pot = False
 
         # extract parent calculation
-        parent_calcs = parent_calc_folder.get_incoming(node_class=CalcJobNode)
+        parent_calcs = parent_calc_folder.base.links.get_incoming(node_class=CalcJobNode)
         n_parents = len(parent_calcs.all_link_labels())
         if n_parents != 1:
             raise UniquenessError(
@@ -268,7 +268,7 @@ class VoronoiCalculation(CalcJob):
         is_KKR = False
         if calc.process_type == 'aiida.calculations:kkr.kkr':
             retrieved_node = calc.get_retrieved_node()
-            if 'out_potential' in retrieved_node.list_object_names():
+            if 'out_potential' in retrieved_node.base.repository.list_object_names():
                 is_KKR = True
 
         return is_KKR

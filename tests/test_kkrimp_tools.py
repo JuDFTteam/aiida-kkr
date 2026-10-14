@@ -6,7 +6,6 @@
 from builtins import object
 from aiida_kkr.tools.tools_kkrimp import modify_potential
 from masci_tools.io.common_functions import open_general
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
 
 
 class Test_modify_potential(object):

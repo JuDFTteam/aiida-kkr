@@ -7,7 +7,7 @@ from aiida.engine import run_get_node
 
 
 @pytest.mark.timeout(1200, method='thread')
-def test_kkrimp_sub_wc(clear_database_before_test, kkrimp_local_code, enable_archive_cache):
+def test_kkrimp_sub_wc(aiida_profile_clean, kkrimp_local_code, enable_archive_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
     """
@@ -43,7 +43,7 @@ def test_kkrimp_sub_wc(clear_database_before_test, kkrimp_local_code, enable_arc
     GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6')
 
     # now create a SingleFileData node containing the impurity starting potential
-    with GF_host_calc.outputs.retrieved.open('scoef') as _f:
+    with GF_host_calc.outputs.retrieved.base.repository.open('scoef') as _f:
         neworder_pot1 = [int(i) for i in loadtxt(_f, skiprows=1)[:, 3] - 1]
     settings_dict = {'pot1': 'out_potential', 'out_pot': 'potential_imp', 'neworder': neworder_pot1}
     settings = Dict(settings_dict)

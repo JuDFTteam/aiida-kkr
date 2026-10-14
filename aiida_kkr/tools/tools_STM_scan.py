@@ -175,10 +175,10 @@ def extract_host_potential(add_position, host_calc):
     ilayer = add_position['ilayer']
 
     # get host calculation from remote
-    #host_calc = host_remote.get_incoming(node_class=orm.CalcJobNode).first().node
+    #host_calc = host_remote.base.links.get_incoming(node_class=orm.CalcJobNode).first().node
 
     # read potential from host's retrieved node
-    with host_calc.outputs.retrieved.open('out_potential') as _f:
+    with host_calc.outputs.retrieved.base.repository.open('out_potential') as _f:
         pot_txt = _f.readlines()
     iline_startpot = np.array([i for i, l in enumerate(pot_txt) if 'exc:' in l])
 
@@ -201,13 +201,13 @@ def add_host_potential_to_imp(add_position, host_calc, imp_potential_node):
     """
     # get add potential from host
     potname = f'host_pot:{add_position["ilayer"]}'
-    if potname in imp_potential_node.extras:
+    if potname in imp_potential_node.base.extras.keys():
         # reuse existing host position if we have found it previously
-        pot_add = imp_potential_node.extras[potname]
+        pot_add = imp_potential_node.base.extras.get(potname)
     else:
         # get host postition and store as extra
         pot_add = extract_host_potential(add_position, host_calc)
-        imp_potential_node.set_extra(potname, pot_add)
+        imp_potential_node.base.extras.set(potname, pot_add)
 
     # get impurity potential and convert to list
     pot_imp = imp_potential_node.get_content().split('\n')
@@ -415,7 +415,7 @@ def symmetry_parser(host_calc):
 
     sym_mat = pointgrp()
 
-    with host_calc.outputs.retrieved.open('output.0.txt') as _f:
+    with host_calc.outputs.retrieved.base.repository.open('output.0.txt') as _f:
         read = _f.readlines()
 
     # Initialize variables to store symmetry information
@@ -797,7 +797,7 @@ def STM_density_parser(kkr_calc, _debug_=False):
     current_rmesh = None
     nmesh = natom = nspin = None
 
-    with retrieved.open('rho.dat', 'r') as file:
+    with retrieved.base.repository.open('rho.dat', 'r') as file:
         l = file.readlines()
 
     for idx, line in enumerate(l):
@@ -867,7 +867,7 @@ def STM_real_space_parser(group_STM, energy_pos, N0, _DEBUG_=False):
     except:
         print('WARNING: error while reading the group, it is possible that no node is contained here')
 
-    with ret.open('inputcard') as _f:
+    with ret.base.repository.open('inputcard') as _f:
         read = _f.readlines()
 
     for line in read:
@@ -891,7 +891,7 @@ def STM_real_space_parser(group_STM, energy_pos, N0, _DEBUG_=False):
     all_dat_summed_mu = []
     for node in tqdm(group_STM.nodes):
 
-        with node.called[0].called[0].called[1].outputs.retrieved.open('kkrflex_atominfo') as _f:
+        with node.called[0].called[0].called[1].outputs.retrieved.base.repository.open('kkrflex_atominfo') as _f:
             pos = np.loadtxt(_f, skiprows=3) * alat_ang  # Retrieve the positions of the atoms in the impurity cluster.
 
         try:

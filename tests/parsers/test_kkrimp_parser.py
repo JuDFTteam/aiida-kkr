@@ -19,7 +19,7 @@ def test_parse_kkrimp_calc(aiida_profile):
     ][0]
     print(kkrimp_calc, kkrimp_calc.label)
 
-    print(kkrimp_calc.outputs.retrieved.list_object_names())
+    print(kkrimp_calc.outputs.retrieved.base.repository.list_object_names())
     parser = KkrimpParser(kkrimp_calc)
     out = parser.parse(debug=False)
     print(out)

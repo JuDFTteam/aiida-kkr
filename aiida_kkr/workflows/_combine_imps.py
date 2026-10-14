@@ -302,7 +302,7 @@ If given then the writeout step of the host GF is omitted."""
                     single_imp_1 = False
 
         elif imp_1.process_class == kkr_imp_sub_wc:
-            combine_wc = imp_1.get_incoming(node_class=combine_imps_wc).all()
+            combine_wc = imp_1.base.links.get_incoming(node_class=combine_imps_wc).all()
             Zimp_num_1 = imp_1.inputs.impurity_info.get_dict().get('Zimp')
             if len(Zimp_num_1) > 1:
                 single_imp_1 = False
@@ -323,7 +323,7 @@ If given then the writeout step of the host GF is omitted."""
                 if len(Zimp_num_2) > 1:
                     single_imp_2 = False
         elif imp_2.process_class == kkr_imp_sub_wc:
-            combine_wc = imp_2.get_incoming(node_class=combine_imps_wc).all()
+            combine_wc = imp_2.base.links.get_incoming(node_class=combine_imps_wc).all()
             Zimp_num_2 = imp_2.inputs.impurity_info.get_dict().get('Zimp')
             if len(Zimp_num_2) > 1:
                 single_imp_2 = False
@@ -368,12 +368,12 @@ If given then the writeout step of the host GF is omitted."""
                 out_workflow_info = parent_combine_wc.outputs.workflow_info
 
             elif imp1_input.process_class == KkrimpCalculation:
-                kkrimp_sub = imp1_input.get_incoming(node_class=kkr_imp_sub_wc).all()[0].node
-                parent_combine_wc = kkrimp_sub.get_incoming(node_class=combine_imps_wc).all()[0].node
+                kkrimp_sub = imp1_input.base.links.get_incoming(node_class=kkr_imp_sub_wc).all()[0].node
+                parent_combine_wc = kkrimp_sub.base.links.get_incoming(node_class=combine_imps_wc).all()[0].node
                 out_workflow_info = imp1_input.outputs.output_parameters
 
             elif imp1_input.process_class == kkr_imp_sub_wc:
-                parent_combine_wc = imp1_input.get_incoming(node_class=combine_imps_wc).all()[0].node
+                parent_combine_wc = imp1_input.base.links.get_incoming(node_class=combine_imps_wc).all()[0].node
                 out_workflow_info = imp1_input.outputs.workflow_info
 
             imp2_impurity_info = self.ctx.imp2.inputs.impurity_info
@@ -427,7 +427,7 @@ If given then the writeout step of the host GF is omitted."""
         else:
             raise ValueError('Unable to get impinfo')
 
-        parent_calc = GF_input.get_incoming(node_class=CalcJobNode).first().node
+        parent_calc = GF_input.base.links.get_incoming(node_class=CalcJobNode).first().node
         impinfo = parent_calc.inputs.impurity_info
 
         return impinfo
@@ -472,11 +472,11 @@ If given then the writeout step of the host GF is omitted."""
         else:
             imp_out = impurity_output_node
 
-        kkrimpcalc_parents = imp_out.get_incoming(node_class=KkrimpCalculation).all()
+        kkrimpcalc_parents = imp_out.base.links.get_incoming(node_class=KkrimpCalculation).all()
         if len(kkrimpcalc_parents) > 0:
             imp = kkrimpcalc_parents[0].node
         else:
-            inc = imp_out.get_incoming(link_label_filter='workflow_info').all()
+            inc = imp_out.base.links.get_incoming(link_label_filter='workflow_info').all()
             if len(inc) != 1:
                 self.report(f'input node of imp {iimp} inconsistent')
                 return self.exit_codes.ERROR_INPUT_NODE_INCONSISTENT, None  # pylint: disable=maybe-no-member
@@ -543,12 +543,12 @@ If given then the writeout step of the host GF is omitted."""
             # impinfo1 = imp1.inputs.impurity_info
         else:
             if imp1.process_class == self.__class__:
-                imp1 = imp1.get_outgoing(node_class=kkr_imp_sub_wc).all()[0].node
+                imp1 = imp1.base.links.get_outgoing(node_class=kkr_imp_sub_wc).all()[0].node
             impinfo1 = imp1.inputs.impurity_info
             self.report(f'DEBUG: impinfo1 : {impinfo1.get_dict()} .')
 
             if imp2.process_class == self.__class__:
-                imp2 = imp2.get_outgoing(node_class=kkr_imp_sub_wc).all()[0].node
+                imp2 = imp2.base.links.get_outgoing(node_class=kkr_imp_sub_wc).all()[0].node
             impinfo2 = imp2.inputs.impurity_info
             self.report(f'DEBUG: impinfo2 : {impinfo2.get_dict()} .')
 
@@ -659,16 +659,18 @@ If given then the writeout step of the host GF is omitted."""
         gf_writeout_calc = None
         if self.ctx.imp1.process_class == KkrimpCalculation:
             #take gf_writeout directly from input to KkrimpCalculation
-            gf_writeout_calc = self.ctx.imp1.inputs.host_Greenfunction_folder.get_incoming(node_class=KkrCalculation
-                                                                                           ).first().node
+            gf_writeout_calc = self.ctx.imp1.inputs.host_Greenfunction_folder.base.links.get_incoming(
+                node_class=KkrCalculation
+            ).first().node
         elif self.ctx.imp1.process_class == kkr_imp_sub_wc:
             imp1_sub = self.ctx.imp1
         else:
             if _debug:
                 print('DEBUG:', self.ctx.imp1, list(self.ctx.imp1.inputs))
-            imp1_sub = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node
+            imp1_sub = self.ctx.imp1.base.links.get_outgoing(node_class=kkr_imp_sub_wc).first().node
         if gf_writeout_calc is None:
-            gf_writeout_calc = imp1_sub.inputs.remote_data.get_incoming(node_class=KkrCalculation).first().node  # pylint: disable=possibly-used-before-assignment
+            gf_remote = imp1_sub.inputs.remote_data  # pylint: disable=possibly-used-before-assignment
+            gf_writeout_calc = gf_remote.base.links.get_incoming(node_class=KkrCalculation).first().node
         builder.remote_data = gf_writeout_calc.inputs.parent_folder
 
         # set label and description of the calc
@@ -874,15 +876,18 @@ If given then the writeout step of the host GF is omitted."""
                 if self.ctx.imp1.process_class == KkrimpCalculation:
                     retrieved1 = self.ctx.imp1.outputs.retrieved
                 elif self.ctx.imp1.process_class == kkr_imp_sub_wc:
-                    retrieved1 = self.ctx.imp1.get_outgoing(node_class=KkrimpCalculation).first().node.outputs.retrieved
+                    retrieved1 = self.ctx.imp1.base.links.get_outgoing(node_class=KkrimpCalculation
+                                                                       ).first().node.outputs.retrieved
         elif self.ctx.imp1.process_class in (combine_imps_wc, kkr_imp_wc):
-            imp1_has_ldau = 'settings_LDAU' in self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node.inputs
+            imp1_has_ldau = 'settings_LDAU' in self.ctx.imp1.base.links.get_outgoing(node_class=kkr_imp_sub_wc
+                                                                                     ).first().node.inputs
             if imp1_has_ldau:
-                settings_LDAU1 = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc).first().node.inputs.settings_LDAU
+                settings_LDAU1 = self.ctx.imp1.base.links.get_outgoing(node_class=kkr_imp_sub_wc
+                                                                       ).first().node.inputs.settings_LDAU
                 self.report('found LDA+U settings for imp1')
-                retrieved1 = self.ctx.imp1.get_outgoing(node_class=kkr_imp_sub_wc
-                                                        ).first().node.get_outgoing(node_class=KkrimpCalculation
-                                                                                    ).first().node.outputs.retrieved
+                retrieved1 = self.ctx.imp1.base.links.get_outgoing(
+                    node_class=kkr_imp_sub_wc
+                ).first().node.base.links.get_outgoing(node_class=KkrimpCalculation).first().node.outputs.retrieved
 
         if self.ctx.imp2.process_class == KkrimpCalculation or self.ctx.imp2.process_class == kkr_imp_sub_wc:
             imp2_has_ldau = 'settings_LDAU' in self.ctx.imp2.inputs
@@ -892,15 +897,18 @@ If given then the writeout step of the host GF is omitted."""
                 if self.ctx.imp2.process_class == KkrimpCalculation:
                     retrieved2 = self.ctx.imp2.outputs.retrieved
                 elif self.ctx.imp2.process_class == kkr_imp_sub_wc:
-                    retrieved2 = self.ctx.imp2.get_outgoing(node_class=KkrimpCalculation).first().node.outputs.retrieved
+                    retrieved2 = self.ctx.imp2.base.links.get_outgoing(node_class=KkrimpCalculation
+                                                                       ).first().node.outputs.retrieved
         elif self.ctx.imp2.process_class in (combine_imps_wc, kkr_imp_wc):
-            imp2_has_ldau = 'settings_LDAU' in self.ctx.imp2.get_outgoing(node_class=kkr_imp_sub_wc).first().node.inputs
+            imp2_has_ldau = 'settings_LDAU' in self.ctx.imp2.base.links.get_outgoing(node_class=kkr_imp_sub_wc
+                                                                                     ).first().node.inputs
             if imp2_has_ldau:
-                settings_LDAU2 = self.ctx.imp2.get_outgoing(node_class=kkr_imp_sub_wc).first().node.inputs.settings_LDAU
+                settings_LDAU2 = self.ctx.imp2.base.links.get_outgoing(node_class=kkr_imp_sub_wc
+                                                                       ).first().node.inputs.settings_LDAU
                 self.report('found LDA+U settings for imp2')
-                retrieved2 = self.ctx.imp2.get_outgoing(node_class=kkr_imp_sub_wc
-                                                        ).first().node.get_outgoing(node_class=KkrimpCalculation
-                                                                                    ).first().node.outputs.retrieved
+                retrieved2 = self.ctx.imp2.base.links.get_outgoing(
+                    node_class=kkr_imp_sub_wc
+                ).first().node.base.links.get_outgoing(node_class=KkrimpCalculation).first().node.outputs.retrieved
 
         if imp1_has_ldau and imp2_has_ldau:
             # combine LDA+U settings of the two imps
@@ -1026,38 +1034,46 @@ def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_
 
     # Collect the zimp for impurity_output_node
     try:
-        imp1_z = impurity1_output_node.get_incoming(node_class=kkr_imp_wc
-                                                    ).first().node.inputs.impurity_info.get_dict()['Zimp']
+        imp1_z = impurity1_output_node.base.links.get_incoming(node_class=kkr_imp_wc
+                                                               ).first().node.inputs.impurity_info.get_dict()['Zimp']
     except AttributeError:
         try:
-            impurity1_output_node_combine = impurity1_output_node.get_incoming(node_class=combine_imps_wc).first().node
-            imp1_z = impurity1_output_node_combine.get_outgoing(node_class=kkr_imp_sub_wc
-                                                                ).first().node.inputs.impurity_info.get_dict()['Zimp']
+            impurity1_output_node_combine = impurity1_output_node.base.links.get_incoming(node_class=combine_imps_wc
+                                                                                          ).first().node
+            imp1_z = impurity1_output_node_combine.base.links.get_outgoing(
+                node_class=kkr_imp_sub_wc
+            ).first().node.inputs.impurity_info.get_dict()['Zimp']
         except AttributeError:
             try:
-                imp1_z = impurity1_output_node.get_incoming(node_class=kkr_imp_sub_wc
-                                                            ).first().node.inputs.impurity_info.get_dict()['Zimp']
+                imp1_z = impurity1_output_node.base.links.get_incoming(
+                    node_class=kkr_imp_sub_wc
+                ).first().node.inputs.impurity_info.get_dict()['Zimp']
             except AttributeError:
-                imp1_z = impurity1_output_node.get_incoming(node_class=KkrimpCalculation
-                                                            ).first().node.inputs.impurity_info.get_dict()['Zimp']
+                imp1_z = impurity1_output_node.base.links.get_incoming(
+                    node_class=KkrimpCalculation
+                ).first().node.inputs.impurity_info.get_dict()['Zimp']
 
     try:
-        imp2_z = impurity2_output_node.get_incoming(node_class=kkr_imp_wc
-                                                    ).first().node.inputs.impurity_info.get_dict()['Zimp']
+        imp2_z = impurity2_output_node.base.links.get_incoming(node_class=kkr_imp_wc
+                                                               ).first().node.inputs.impurity_info.get_dict()['Zimp']
     except AttributeError:
         try:
-            impurity2_output_node_combine = impurity2_output_node.get_incoming(node_class=combine_imps_wc).first().node
-            imp2_z = impurity2_output_node_combine.get_outgoing(node_class=kkr_imp_sub_wc
-                                                                ).first().node.inputs.impurity_info.get_dict()['Zimp']
+            impurity2_output_node_combine = impurity2_output_node.base.links.get_incoming(node_class=combine_imps_wc
+                                                                                          ).first().node
+            imp2_z = impurity2_output_node_combine.base.links.get_outgoing(
+                node_class=kkr_imp_sub_wc
+            ).first().node.inputs.impurity_info.get_dict()['Zimp']
         except AttributeError:
             try:
-                imp2_z = impurity2_output_node.get_incoming(node_class=kkr_imp_sub_wc
-                                                            ).first().node.inputs.impurity_info.get_dict()['Zimp']
+                imp2_z = impurity2_output_node.base.links.get_incoming(
+                    node_class=kkr_imp_sub_wc
+                ).first().node.inputs.impurity_info.get_dict()['Zimp']
             except AttributeError:
-                imp2_z = impurity2_output_node.get_incoming(node_class=KkrimpCalculation
-                                                            ).first().node.inputs.impurity_info.get_dict()['Zimp']
+                imp2_z = impurity2_output_node.base.links.get_incoming(
+                    node_class=KkrimpCalculation
+                ).first().node.inputs.impurity_info.get_dict()['Zimp']
 
-    with retrieved.open('out_Jijmatrix') as _f:
+    with retrieved.base.repository.open('out_Jijmatrix') as _f:
         jijdata = np.loadtxt(_f)
 
     impurity_info = impurity_info.get_dict()

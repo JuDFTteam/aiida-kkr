@@ -9,7 +9,7 @@ from ..conftest import import_with_migration, data_dir
 
 
 @pytest.mark.timeout(240, method='thread')
-def test_dos_wc_Cu(clear_database_before_test, kkrhost_local_code, enable_archive_cache):
+def test_dos_wc_Cu(aiida_profile_clean, kkrhost_local_code, enable_archive_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow
     """
@@ -73,7 +73,8 @@ def test_dos_wc_Cu(clear_database_before_test, kkrhost_local_code, enable_archiv
 
     # check outcome
     print('check outputs', node.exit_status, out)
-    print(node.get_outgoing(node_class=KkrCalculation).first().node.outputs.retrieved.list_object_names())
+    dos_calc = node.base.links.get_outgoing(node_class=KkrCalculation).first().node
+    print(dos_calc.outputs.retrieved.base.repository.list_object_names())
     n = out['results_wf']
     n = n.get_dict()
     assert n.get('successful')

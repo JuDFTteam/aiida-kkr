@@ -444,8 +444,8 @@ class kkr_imp_wc(WorkChain):
                 return False
         elif 'remote_data_gf' in inputs:
             remote_data_gf_node = load_node(inputs.remote_data_gf.pk)
-            pk_kkrflex_writeoutcalc = remote_data_gf_node.get_incoming(link_label_filter=u'remote_folder'
-                                                                       ).first().node.pk
+            pk_kkrflex_writeoutcalc = remote_data_gf_node.base.links.get_incoming(link_label_filter=u'remote_folder'
+                                                                                  ).first().node.pk
             self.report(
                 'INFO: found remote_data node (pid: {}) from previous KKRFLEX calculation (pid: {}) in input. '
                 'Skip GF writeout step and start workflow by auxiliary voronoi calculations.'.format(
@@ -578,16 +578,16 @@ class kkr_imp_wc(WorkChain):
                 'INFO: get converged host remote from GF_host_calc and graph to extract structure for Voronoi calculation'
             )
             remote_data_gf_node = load_node(self.inputs.remote_data_gf.pk)
-            GF_host_calc = remote_data_gf_node.get_incoming(link_label_filter=u'remote_folder').first().node
+            GF_host_calc = remote_data_gf_node.base.links.get_incoming(link_label_filter=u'remote_folder').first().node
             converged_host_remote = GF_host_calc.inputs.parent_folder
 
         # find host structure
         structure_host, voro_calc = VoronoiCalculation.find_parent_structure(converged_host_remote)
 
         # get previous kkr parameters following remote_folder->calc->parameters links
-        prev_kkrparams = converged_host_remote.get_incoming(link_label_filter='remote_folder'
-                                                            ).first().node.get_incoming(link_label_filter='parameters'
-                                                                                        ).first().node
+        prev_kkrparams = converged_host_remote.base.links.get_incoming(
+            link_label_filter='remote_folder'
+        ).first().node.base.links.get_incoming(link_label_filter='parameters').first().node
         calc_params = prev_kkrparams
 
         # set Fermi level for auxiliary impurity potential correctly (extract from EF that is used in impurity calc)
@@ -683,7 +683,7 @@ class kkr_imp_wc(WorkChain):
             parent_remote = load_node(self.inputs.remote_data_gf.pk)
 
         # now extract output parameters
-        parent_calc = parent_remote.get_incoming(link_label_filter='remote_folder').first().node
+        parent_calc = parent_remote.base.links.get_incoming(link_label_filter='remote_folder').first().node
         output_params = parent_calc.outputs.output_parameters.get_dict()
 
         # get fermi energy in Ry from output of KkrCalculation and return result
@@ -714,29 +714,29 @@ class kkr_imp_wc(WorkChain):
             converged_host_remote = self.inputs.remote_data_host
         else:
             remote_data_gf_node = load_node(self.inputs.remote_data_gf.pk)
-            GF_host_calc = remote_data_gf_node.get_incoming(link_label_filter=u'remote_folder').first().node
+            GF_host_calc = remote_data_gf_node.base.links.get_incoming(link_label_filter=u'remote_folder').first().node
             self.report(f'GF_host_calc_pk: {GF_host_calc.pk}')
             # follow parent_folder link up to get remote folder
-            converged_host_remote = GF_host_calc.get_incoming(link_label_filter='parent_folder').first().node
+            converged_host_remote = GF_host_calc.base.links.get_incoming(link_label_filter='parent_folder').first().node
 
         # get remote folder of last voronoi calculation (i.e. the one from where we take the starting potential)
         print(self.ctx.last_voro_calc)
-        all_nodes = self.ctx.last_voro_calc.get_outgoing(node_class=CalcJobNode).all()
+        all_nodes = self.ctx.last_voro_calc.base.links.get_outgoing(node_class=CalcJobNode).all()
         print(all_nodes)
         pk_last_voronoi = max([i.node.pk for i in all_nodes])
         print(pk_last_voronoi)
         voro_calc_remote = load_node(pk_last_voronoi).outputs.remote_folder
         print(voro_calc_remote)
 
-        print(load_node(pk_last_voronoi).outputs.retrieved.list_object_names())
+        print(load_node(pk_last_voronoi).outputs.retrieved.base.repository.list_object_names())
         print(GF_host_calc)
-        print(GF_host_calc.outputs.retrieved.list_object_names())
+        print(GF_host_calc.outputs.retrieved.base.repository.list_object_names())
 
         # check wether or not calculation was taked from cached node
-        caching_info = f'INFO: cache_source of GF_host_calc node: {GF_host_calc.get_cache_source()}'
+        caching_info = f'INFO: cache_source of GF_host_calc node: {GF_host_calc.base.caching.get_cache_source()}'
         print(caching_info)
         self.report(caching_info)
-        caching_info = f'INFO: cache_source of voronoi node: {load_node(pk_last_voronoi).get_cache_source()}'
+        caching_info = f'INFO: cache_source of voronoi node: {load_node(pk_last_voronoi).base.caching.get_cache_source()}'
         print(caching_info)
         self.report(caching_info)
 
@@ -755,10 +755,10 @@ class kkr_imp_wc(WorkChain):
         else:
             replacelist_pot2 = [[0, 2 * ilayer_cent], [1, 2 * ilayer_cent + 1]]
         try:
-            with GF_host_calc.outputs.retrieved.open('scoef') as _f:
+            with GF_host_calc.outputs.retrieved.base.repository.open('scoef') as _f:
                 neworder_pot1 = [int(i) for i in np.loadtxt(_f, skiprows=1)[:, 3] - 1]
         except:
-            with GF_host_calc.outputs.retrieved.open('scoef') as _f:
+            with GF_host_calc.outputs.retrieved.base.repository.open('scoef') as _f:
                 neworder_pot1 = [int(np.loadtxt(_f, skiprows=1)[3] - 1)]
 
         settings_label = f'startpot_KKRimp for imp_info node {imp_info.pk}'

@@ -306,10 +306,10 @@ def _check_parent_calc_type(parent_folder):
     check if parent folder was a host GF writeout calculation
     """
     from aiida_kkr.calculations import KkrCalculation
-    calc = parent_folder.get_incoming(node_class=KkrCalculation).first()
+    calc = parent_folder.base.links.get_incoming(node_class=KkrCalculation).first()
     calc = calc.node
     ret = calc.outputs.retrieved
-    return 'kkrflex_green' in ret.list_object_names()
+    return 'kkrflex_green' in ret.base.repository.list_object_names()
 
 
 @click.command('kkrimpscf')

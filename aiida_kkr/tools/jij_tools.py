@@ -27,11 +27,11 @@ def get_jijs_shells(jij_calc, verbose=False):
 
     # read the jij.atom files
     jijs_shells_all = []
-    for jijfile in [i for i in jij_calc.outputs.retrieved.list_object_names() if 'Jij' in i]:
+    for jijfile in [i for i in jij_calc.outputs.retrieved.base.repository.list_object_names() if 'Jij' in i]:
         i_index = int(jijfile.split('.atom')[1])
         if verbose:
             print('load jij.atom', i_index)
-        with jij_calc.outputs.retrieved.open(jijfile) as f:
+        with jij_calc.outputs.retrieved.base.repository.open(jijfile) as f:
             try:
                 tmp = np.loadtxt(f)
             except:
@@ -224,19 +224,19 @@ def get_jij_structure(structure, jijs_expanded, jij_calc):
                     )
 
     # add spin moments extra (used by spirit plugin)
-    calc_conv = jij_calc.inputs.parent_folder.get_incoming(node_class=KkrCalculation).first().node
+    calc_conv = jij_calc.inputs.parent_folder.base.links.get_incoming(node_class=KkrCalculation).first().node
     mu_s_all = calc_conv.outputs.output_parameters['magnetism_group']['spin_moment_per_atom']
     mu_s = []
     for ij in mappings:
         mu_s.append(mu_s_all[ij[1]])
-    struc_jij_sites.set_extra('spin_moments', mu_s)
+    struc_jij_sites.base.extras.set('spin_moments', mu_s)
 
     return struc_jij_sites, mappings_back, mu_s
 
 
 def get_shells(jij_calc, verbose=False):
     # read the shells information that is needed to map to the complete list of pairs
-    with jij_calc.outputs.retrieved.open('shells.dat') as f:
+    with jij_calc.outputs.retrieved.base.repository.open('shells.dat') as f:
         txt = f.readlines()
     nshell = int(txt.pop(0).split()[0])
     naez = len(find_parent_structure(jij_calc).sites)
@@ -276,7 +276,7 @@ def parse_jij_calc_data(
     verbose = verbose.value
 
     # extract kkrCalculation from retreived child
-    jij_calc = jij_calc_retrieved.get_incoming(node_class=KkrCalculation).first().node
+    jij_calc = jij_calc_retrieved.base.links.get_incoming(node_class=KkrCalculation).first().node
     if verbose:
         print('jij(z) calculation:', jij_calc.uuid)
 
@@ -300,7 +300,7 @@ def parse_jij_calc_data(
     # read jij.atom files if a calculation in x and y are given in the input
     dmimode_x, dmimode_y = False, False
     if dmimode and jij_calc_x_retrieved is not None:
-        jij_calc_x = jij_calc_x_retrieved.get_incoming(node_class=KkrCalculation).first().node
+        jij_calc_x = jij_calc_x_retrieved.base.links.get_incoming(node_class=KkrCalculation).first().node
         if verbose:
             print('jij(x) calculation:', jij_calc_x.uuid)
         jijs_shells_x, dmimode_x = get_jijs_shells(jij_calc_x)
@@ -309,7 +309,7 @@ def parse_jij_calc_data(
         if not dmimode_x:
             raise ValueError('jij_calc_x is not a DMI calculation (i.e. used old solver)')
     if dmimode and jij_calc_y_retrieved is not None:
-        jij_calc_y = jij_calc_y_retrieved.get_incoming(node_class=KkrCalculation).first().node
+        jij_calc_y = jij_calc_y_retrieved.base.links.get_incoming(node_class=KkrCalculation).first().node
         if verbose:
             print('jij(y) calculation:', jij_calc_y.uuid)
         jijs_shells_y, dmimode_y = get_jijs_shells(jij_calc_y)
@@ -372,7 +372,7 @@ def parse_jij_calc_data(
     jij_data.set_array('Jij_expanded', jijs_expanded)
     jij_data.set_array('positions_expanded', positions_expanded)
     # add description to extras
-    jij_data.extras['array_descriptions'] = {
+    array_descriptions = {
         #         'Jij_shells': """Jij output in the shells that KKR found.
         #     The format differs for the type of calculation:
         #     - isotropic exchange constants only (old solver). The columns refer to:
@@ -394,11 +394,12 @@ def parse_jij_calc_data(
         'i, j, da, db, dc, Jij (meV) [, Dij vector (x, y, z in meV), full Jij tensor (xx, xy, xz, yx, yy, yz, zx, zy, zz in meV)]',
         'positions_expanded': 'x, y, z (Ang.) positions of all pairs in Jij_expanded',
     }
+    jij_data.base.extras.set('array_descriptions', array_descriptions)
 
     # add extras to generated structure for quick access
-    struc_jij_sites.extras['mappings_ij'] = mappings_back
-    struc_jij_sites.extras['uuid_struc_orig'] = structure.uuid
-    struc_jij_sites.extras['uuid_jij_data'] = jij_data.uuid
+    struc_jij_sites.base.extras.set('mappings_ij', mappings_back)
+    struc_jij_sites.base.extras.set('uuid_struc_orig', structure.uuid)
+    struc_jij_sites.base.extras.set('uuid_jij_data', jij_data.uuid)
 
     # return dict (link_label: node)
     return {'jij_data': jij_data, 'structure_jij_sites': struc_jij_sites}
@@ -426,12 +427,12 @@ def parse_jij_calc(jij_calc, jij_calc_x=None, jij_calc_y=None, verbose=False):
     if jij_calc_y is not None and not jij_calc_y.is_finished_ok:
         raise ValueError('Jij (y) calculation not finished ok (yet)!')
 
-    if 'parsed_jij_data' in jij_calc.extras:
+    if 'parsed_jij_data' in jij_calc.base.extras.keys():
         # load from extras
         if verbose:
             print('found parsed jij data, load it now')
-        jij_data_uuid = jij_calc.extras['parsed_jij_data']['jij_data_uuid']
-        struc_jij_sites_uuid = jij_calc.extras['parsed_jij_data']['struc_jij_sites_uuid']
+        jij_data_uuid = jij_calc.base.extras.get('parsed_jij_data')['jij_data_uuid']
+        struc_jij_sites_uuid = jij_calc.base.extras.get('parsed_jij_data')['struc_jij_sites_uuid']
         jij_data = load_node(jij_data_uuid)
         structure_jij_sites = load_node(struc_jij_sites_uuid)
     else:
@@ -453,7 +454,7 @@ def parse_jij_calc(jij_calc, jij_calc_x=None, jij_calc_y=None, verbose=False):
         # then save as extra to be able to load it in the next run
         if verbose:
             print('finished parsing jij data, save it as extra now')
-        jij_calc.set_extra(
+        jij_calc.base.extras.set(
             'parsed_jij_data', {
                 'jij_data_uuid': jij_data.uuid,
                 'struc_jij_sites_uuid': structure_jij_sites.uuid
@@ -482,7 +483,7 @@ def load_or_submit_cpa_jijcalcs(
     """Load or submit Jij calculation for CPA"""
 
     scf_remote = scf_cpa_wf.outputs.last_RemoteData
-    last_calc = scf_remote.get_incoming(node_class=KkrCalculation).first().node
+    last_calc = scf_remote.base.links.get_incoming(node_class=KkrCalculation).first().node
 
     builder = last_calc.get_builder_restart()
     builder.parent_folder = scf_remote

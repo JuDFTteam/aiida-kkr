@@ -32,9 +32,9 @@ def create_fcc_cu(a_lat=lambda: orm.Float(3.6142)) -> orm.StructureData:
     sg = ase.spacegroup.get_spacegroup(structure.get_ase())
 
     # Storing the formula as an extra so that it can easily be found
-    structure.set_extra('formula', structure.get_formula(mode='count'))
+    structure.base.extras.set('formula', structure.get_formula(mode='count'))
     # Storing the spacegroup number so that it can be easily found
-    structure.set_extra('space_group_number', sg.no)
+    structure.base.extras.set('space_group_number', sg.no)
 
     return structure
 

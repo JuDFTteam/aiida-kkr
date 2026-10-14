@@ -431,7 +431,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
     def _get_parent_calc(self, parent_calc_folder):
         """Get the parent calculation from the remote folder that is given as input"""
 
-        parent_calcs = parent_calc_folder.get_incoming(node_class=CalcJobNode)
+        parent_calcs = parent_calc_folder.base.links.get_incoming(node_class=CalcJobNode)
 
         # check if parent is unique
         n_parents = len(parent_calcs.all_link_labels())
@@ -650,17 +650,17 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             copylist = [parent_calc.process_class._SHAPEFUN]
             # copy either overwrite potential or voronoi output potential
             # (voronoi caclualtion retreives only one of the two)
-            if parent_calc.process_class._POTENTIAL_IN_OVERWRITE in outfolder.list_object_names():
+            if parent_calc.process_class._POTENTIAL_IN_OVERWRITE in outfolder.base.repository.list_object_names():
                 copylist.append(parent_calc.process_class._POTENTIAL_IN_OVERWRITE)
             else:
                 copylist.append(parent_calc.process_class._OUT_POTENTIAL_voronoi)
         else:  #  (if parent_calc.process_class == KkrImporterCalculation:)
             #change copylist in case the calculation starts from an imported calculation
-            if self._OUT_POTENTIAL in outfolder.list_object_names():
+            if self._OUT_POTENTIAL in outfolder.base.repository.list_object_names():
                 copylist.append(self._OUT_POTENTIAL)
             else:
                 copylist.append(self._POTENTIAL)
-            if self._SHAPEFUN in outfolder.list_object_names():
+            if self._SHAPEFUN in outfolder.base.repository.list_object_names():
                 copylist.append(self._SHAPEFUN)
 
         # create local_copy_list from copylist and change some names automatically
@@ -911,7 +911,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         if not has_potfile or len(txt) == 0:
             # this is the case when we take the potential from an existing folder
             potcopy_info = [i for i in local_copy_list if i[2] == self._POTENTIAL][0]
-            with load_node(potcopy_info[0]).open(potcopy_info[1]) as potfile:
+            with load_node(potcopy_info[0]).base.repository.open(potcopy_info[1]) as potfile:
                 # remove previous output potential from copy list
                 local_copy_list.remove(potcopy_info)
                 # read potential
@@ -958,7 +958,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         # run kick_out_corestates routine to remove core states that lie above emin
         potcopy_info = [i for i in local_copy_list if i[2] == self._POTENTIAL][0]
         with tempfolder.open(self._POTENTIAL, 'w') as potfile_out:
-            with load_node(potcopy_info[0]).open(potcopy_info[1]) as potfile_in:
+            with load_node(potcopy_info[0]).base.repository.open(potcopy_info[1]) as potfile_in:
                 num_deleted = kick_out_corestates(potfile_in, potfile_out, emin)
 
         # remove changed potential from local copy list (already in tempfolder without overlapping core states)
@@ -1129,7 +1129,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
 
         # check if deciout parent calculation was proper deci-out calculation
         deciout_parent = self.inputs.deciout_parent
-        parent_calcs = deciout_parent.get_incoming(node_class=CalcJobNode)
+        parent_calcs = deciout_parent.base.links.get_incoming(node_class=CalcJobNode)
         n_parents = len(parent_calcs.all_link_labels())
         if n_parents != 1:
             raise UniquenessError(
@@ -1140,7 +1140,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             # TODO change to exit code
         parent_calc = parent_calcs.first().node
         deciout_retrieved = parent_calc.outputs.retrieved
-        if self._DECIFILE not in deciout_retrieved.list_object_names():
+        if self._DECIFILE not in deciout_retrieved.base.repository.list_object_names():
             raise InputValidationError('Error: deciout_parent does not contain decifile!')
 
         # add 'DECIMATE' flag, decifile and NSTEPS=1
@@ -1157,7 +1157,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         parameters = _update_params(parameters, change_values)
 
         # now write kkrflex_angle file
-        with deciout_retrieved.open(self._DECIFILE, 'r') as decifile_handle:
+        with deciout_retrieved.base.repository.open(self._DECIFILE, 'r') as decifile_handle:
             decifile_txt = decifile_handle.readlines()
         with tempfolder.open(self._DECIFILE, 'w') as decifile_handle:
             decifile_handle.writelines(decifile_txt)
@@ -1180,13 +1180,15 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             adens_folder = retrieved
 
         # list of den_lm_ir files (anomalous density per atom)
-        BDG_POT_FILES = [i for i in adens_folder.list_object_names() if self._BDG_POT.split('.')[0] in i]
+        BDG_POT_FILES = [
+            i for i in adens_folder.base.repository.list_object_names() if self._BDG_POT.split('.')[0] in i
+        ]
 
         # add 'den-lm_ir' files to input
         for BdG_pot in BDG_POT_FILES:
             self.report(f'Copy BdG potential {BdG_pot} from {adens_folder.uuid}')
             # read from parent
-            with adens_folder.open(BdG_pot, 'r') as file_handle:
+            with adens_folder.base.repository.open(BdG_pot, 'r') as file_handle:
                 file_txt = file_handle.readlines()
             # write to tempfolder
             with tempfolder.open(BdG_pot, 'w') as file_handle:
@@ -1312,10 +1314,10 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         if parent_calc is not None:
             retrieved = parent_calc.outputs.retrieved
             # copy old file to tempfolder
-            if self._LDAUPOT + '_new' in retrieved.list_object_names():
+            if self._LDAUPOT + '_new' in retrieved.base.repository.list_object_names():
                 has_ldaupot = True
                 with tempfolder.open(self._LDAUPOT + '_old', u'w') as newfile:
-                    with retrieved.open(self._LDAUPOT + '_new', u'r') as oldfile:
+                    with retrieved.base.repository.open(self._LDAUPOT + '_new', u'r') as oldfile:
                         newfile.writelines(oldfile.readlines())
 
         return has_ldaupot

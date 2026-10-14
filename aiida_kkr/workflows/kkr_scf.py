@@ -694,7 +694,9 @@ class kkr_scf_wc(WorkChain):
         # set params and remote folder to input if voronoi step is skipped
         if not run_voronoi:
             self.ctx.last_remote = inputs.remote_data
-            num_parents = len(self.ctx.last_remote.get_incoming(node_class=orm.CalcJobNode).all_link_labels())
+            num_parents = len(
+                self.ctx.last_remote.base.links.get_incoming(node_class=orm.CalcJobNode).all_link_labels()
+            )
             if num_parents == 0:
                 pk_last_remote = self.ctx.last_remote.inputs.last_RemoteData.outputs.output_kkr_scf_wc_ParameterResults.get_dict(
                 ).get('last_calc_nodeinfo').get('pk')
@@ -908,7 +910,7 @@ class kkr_scf_wc(WorkChain):
                 try:
                     # check if calculation did start (maybe cluster had some hiccup)
                     calc = self.ctx.calcs[-1]
-                    has_output_node = len(calc.get_outgoing(link_label_filter='output_parameters').all()) > 0
+                    has_output_node = len(calc.base.links.get_outgoing(link_label_filter='output_parameters').all()) > 0
                     self.report(
                         'INFO: last KKR calculation failed. '
                         'Probably because the cluster had some issue. '
@@ -1059,7 +1061,7 @@ class kkr_scf_wc(WorkChain):
         """Change EMIN if core states are too close."""
 
         # get parent calculation (either Voronoi or KkrCalculation)
-        parent_calc = self.ctx.last_remote.get_incoming(node_class=orm.CalcJobNode).first().node
+        parent_calc = self.ctx.last_remote.base.links.get_incoming(node_class=orm.CalcJobNode).first().node
 
         # get highest lying core state
         parent_calc_out = parent_calc.outputs.output_parameters
@@ -1263,7 +1265,7 @@ class kkr_scf_wc(WorkChain):
         """Check for convergence and store the results of the last calculation."""
         self.report('INFO: inspecting kkr results step')
 
-        self.report(f'Caching info: {self.ctx.last_calc.get_cache_source()}')
+        self.report(f'Caching info: {self.ctx.last_calc.base.caching.get_cache_source()}')
 
         self.ctx.calcs.append(self.ctx.last_calc)
         self.ctx.kkr_step_success = True
@@ -1721,7 +1723,7 @@ class kkr_scf_wc(WorkChain):
                     f'emin ({emin} Ry) of voronoi output. '
                     f'Setting automatically to {emin_cont - self.ctx.delta_e * eV2Ry}Ry'
                 )
-            with self.ctx.last_calc.outputs.retrieved.open('out_potential') as _file:
+            with self.ctx.last_calc.outputs.retrieved.base.repository.open('out_potential') as _file:
                 self.ctx.efermi = get_ef_from_potfile(_file)
             emax = self.ctx.dos_params['emax']
             if emax < self.ctx.efermi + self.ctx.delta_e * eV2Ry:

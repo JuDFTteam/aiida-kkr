@@ -11,7 +11,7 @@ from ..conftest import kkrhost_local_code, data_dir, import_with_migration
 
 
 @pytest.mark.timeout(240, method='thread')
-def test_jij(clear_database_before_test, kkrhost_local_code, enable_archive_cache, ndarrays_regression):
+def test_jij(aiida_profile_clean, kkrhost_local_code, enable_archive_cache, ndarrays_regression):
     """
     Jij test with SOC
     """
@@ -70,7 +70,7 @@ def test_jij(clear_database_before_test, kkrhost_local_code, enable_archive_cach
 
 
 @pytest.mark.timeout(240, method='thread')
-def test_jij_soc(clear_database_before_test, kkrhost_local_code, enable_archive_cache, ndarrays_regression):
+def test_jij_soc(aiida_profile_clean, kkrhost_local_code, enable_archive_cache, ndarrays_regression):
     """
     Jij test with SOC
     """

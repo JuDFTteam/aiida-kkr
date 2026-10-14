@@ -128,7 +128,9 @@ class CoupleImpurityData(object):
         else:
             jij_info = node.outputs.JijInfo.get_dict()['text']
 
-        impurity_info = (node.get_outgoing(node_class=kkr_imp_sub_wc).all()[0].node.inputs.impurity_info.get_dict())
+        impurity_info = (
+            node.base.links.get_outgoing(node_class=kkr_imp_sub_wc).all()[0].node.inputs.impurity_info.get_dict()
+        )
         zimp = impurity_info['Zimp']
         imp_cls = impurity_info['imp_cls']
 
@@ -417,11 +419,11 @@ def get_imp_node_from_input(impurity_output_node):
     from aiida_kkr.calculations.kkrimp import KkrimpCalculation
     imp_out = impurity_output_node
 
-    kkrimpcalc_parents = imp_out.get_incoming(node_class=KkrimpCalculation).all()
+    kkrimpcalc_parents = imp_out.base.links.get_incoming(node_class=KkrimpCalculation).all()
     if len(kkrimpcalc_parents) > 0:
         parent_imp1_wc_or_calc = kkrimpcalc_parents[0].node
     else:
-        inc = imp_out.get_incoming(link_label_filter='workflow_info').all()
+        inc = imp_out.base.links.get_incoming(link_label_filter='workflow_info').all()
         if len(inc) != 1:
             raise ValueError('More input WorkChainNodes are found.')
         parent_imp1_wc_or_calc = inc[0].node

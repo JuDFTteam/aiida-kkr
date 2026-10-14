@@ -15,8 +15,13 @@ def open_context_to_stack(stack, out_folder, outfile_name, rw_mode=u'r'):
 
     :returns: the file handle or None if the filename was None
     """
+    from aiida.orm import Node
+
     if outfile_name is not None:
-        outfile = stack.enter_context(out_folder.open(outfile_name, rw_mode))
+        # AiiDA nodes (e.g. the retrieved FolderData) expose their files via `base.repository`,
+        # plain folders (e.g. the SandboxFolder of a calculation) have `open` directly
+        folder = out_folder.base.repository if isinstance(out_folder, Node) else out_folder
+        outfile = stack.enter_context(folder.open(outfile_name, rw_mode))
     else:
         outfile = None
     return outfile

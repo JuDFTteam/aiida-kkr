@@ -6,11 +6,10 @@ import matplotlib
 
 matplotlib.use('Agg')  # needs to be done before pyplot is imported
 from matplotlib.pyplot import gcf, title
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
 from .conftest import import_with_migration
 
 
-@pytest.mark.usefixtures('aiida_profile', 'clear_database')
+@pytest.mark.usefixtures('aiida_profile_clean')
 class Test_plot_kkr(object):
     """
     Tests for the plot_kkr tool

@@ -462,8 +462,8 @@ def get_parent_paranode(remote_data):
     """
     Return the input parameter of the parent calculation giving the remote_data node
     """
-    inp_calc = remote_data.get_incoming(link_label_filter='remote_folder').first().node
-    inp_para = inp_calc.get_incoming(link_label_filter='parameters').first().node
+    inp_calc = remote_data.base.links.get_incoming(link_label_filter='remote_folder').first().node
+    inp_para = inp_calc.base.links.get_incoming(link_label_filter='parameters').first().node
     return inp_para
 
 

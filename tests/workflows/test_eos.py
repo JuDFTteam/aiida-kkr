@@ -7,7 +7,7 @@ from aiida.engine import run_get_node
 
 
 @pytest.mark.timeout(600, method='thread')
-def test_eos_wc_Cu_simple(clear_database_before_test, voronoi_local_code, kkrhost_local_code, enable_archive_cache):
+def test_eos_wc_Cu_simple(aiida_profile_clean, voronoi_local_code, kkrhost_local_code, enable_archive_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow
     """

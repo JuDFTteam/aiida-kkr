@@ -161,8 +161,8 @@ class KKRnanoCalculation(CalcJob):
         parameters = self.inputs.parameters.get_dict()
         #passed_lattice_const = self.inputs.passed_lattice_param_angs.value
         nonco_angles = self.inputs.nocoangles.get_dict()
-        #parent_calc=self.inputs.parent_folder#.get_incoming(node_class=CalcJobNode).first().node
-        #parent_calc_calc_node=parent_calc.get_incoming(node_class=CalcJobNode).first().node
+        #parent_calc=self.inputs.parent_folder#.base.links.get_incoming(node_class=CalcJobNode).first().node
+        #parent_calc_calc_node=parent_calc.base.links.get_incoming(node_class=CalcJobNode).first().node
         #structure = self._find_parent_struc_from_voro_or_stwpd(parent_calc_calc_node)[0].get_pymatgen_structure()
         #parent_outfolder = parent_calc_calc_node.outputs.retrieved
         code = self.inputs.code
@@ -200,8 +200,8 @@ class KKRnanoCalculation(CalcJob):
         elif not hasattr(self.inputs, 'strucwithpot') and hasattr(self.inputs, 'parent_folder'):
             use_strucwithpot = False
             passed_lattice_const = self.inputs.passed_lattice_param_angs.value
-            parent_calc = self.inputs.parent_folder  #.get_incoming(node_class=CalcJobNode).first().node
-            parent_calc_calc_node = parent_calc.get_incoming(node_class=CalcJobNode).first().node
+            parent_calc = self.inputs.parent_folder  #.base.links.get_incoming(node_class=CalcJobNode).first().node
+            parent_calc_calc_node = parent_calc.base.links.get_incoming(node_class=CalcJobNode).first().node
 
             #Find structure unless convert mode is activated, as for that no structure is needed
             if not convert:
@@ -507,7 +507,7 @@ class KKRnanoCalculation(CalcJob):
         """find files to copy from the parent_folder's retrieved to the input of a KKRnano calculation"""
         #Note: the check if a non-empty copylist is needed, i. e. if started
         # from a parent calculation, is done in prepare_for_submission
-        parent_calc = parent_calc_remote.get_incoming(node_class=CalcJobNode).first().node
+        parent_calc = parent_calc_remote.base.links.get_incoming(node_class=CalcJobNode).first().node
         retrieved = parent_calc.outputs.retrieved
 
         local_copy_list = []
@@ -529,7 +529,7 @@ class KKRnanoCalculation(CalcJob):
         """
 
         # extract parent calculation
-        parent_calcs = parent_calc_folder.get_incoming(node_class=CalcJobNode)
+        parent_calcs = parent_calc_folder.base.links.get_incoming(node_class=CalcJobNode)
         n_parents = len(parent_calcs.all_link_labels())
         if n_parents != 1:
             raise UniquenessError(
@@ -668,7 +668,7 @@ length should be {} )'.format(str(type(default_entry)), str(len(default_value)))
         is_KKR = False
         if calc.process_type == 'aiida.calculations:kkr.kkrnano':
             retrieved_node = calc.get_retrieved_node()
-            if True:  #'out_potential' in retrieved_node.list_object_names():
+            if True:  #'out_potential' in retrieved_node.base.repository.list_object_names():
                 is_KKR = True
 
         return is_KKR
@@ -689,7 +689,7 @@ length should be {} )'.format(str(type(default_entry)), str(len(default_value)))
         Check if parent_folder has strucwithpot information in its input
         """
         success = True
-        link_labels = parent_folder.get_incoming().all_link_labels()
+        link_labels = parent_folder.base.links.get_incoming().all_link_labels()
         if 'strucwithpot' not in link_labels and 'structure' not in link_labels:
             success = False
         return success

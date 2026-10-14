@@ -16,7 +16,7 @@ def echo_process_results(node):
     from aiida.common.links import LinkType
 
     class_name = node.process_class.__name__
-    outputs = node.get_outgoing(link_type=(LinkType.CREATE, LinkType.RETURN)).all()
+    outputs = node.base.links.get_outgoing(link_type=(LinkType.CREATE, LinkType.RETURN)).all()
 
     if node.is_finished and node.exit_message:
         state = f'{node.process_state.value} [{node.exit_status}] `{node.exit_message}`'

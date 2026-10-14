@@ -99,7 +99,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs):
     # and construct output potential
     with SandboxFolder() as tempfolder:
         # Get abolute paths of input files from parent calc and filename
-        parent_calcs = parent_calc_folder.get_incoming(node_class=CalcJobNode).all()
+        parent_calcs = parent_calc_folder.base.links.get_incoming(node_class=CalcJobNode).all()
         n_parents = len(parent_calcs)
         if n_parents != 1:
             raise UniquenessError(
@@ -125,7 +125,7 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs):
 
         # Copy optional files?
         if pot2 is not None and parent_calc_folder2 is not None:
-            parent_calcs = parent_calc_folder2.get_incoming(node_class=CalcJobNode).all()
+            parent_calcs = parent_calc_folder2.base.links.get_incoming(node_class=CalcJobNode).all()
             n_parents = len(parent_calcs)
             if n_parents != 1:
                 raise UniquenessError(
@@ -135,10 +135,10 @@ def neworder_potential_wf(settings_node, parent_calc_folder, **kwargs):
                 )
             else:
                 parent_calc2 = parent_calcs[0].node
-            if pot2 not in parent_calc2.outputs.retrieved.list_object_names():
+            if pot2 not in parent_calc2.outputs.retrieved.base.repository.list_object_names():
                 raise InputValidationError(
                     'neworder_potential_wf: pot2 does not exist', pot2,
-                    parent_calc.outputs.retrieved.list_object_names()
+                    parent_calc.outputs.retrieved.base.repository.list_object_names()
                 )
 
         # open files in context (if name is None the fhandle will just be None and then ignored)
@@ -201,7 +201,7 @@ def extract_potname_from_remote(parent_calc_folder):
     pot_name = None
     # extract list of parents (can only extract the parent calculation
     # if there is only a single incoming link to follow)
-    parents = parent_calc_folder.get_incoming(node_class=CalcJobNode)
+    parents = parent_calc_folder.base.links.get_incoming(node_class=CalcJobNode)
     if len(list(parents)) == 1:
         parent = parents.first().node
         # now extract the pot_name dependeing on the parent calculation's type

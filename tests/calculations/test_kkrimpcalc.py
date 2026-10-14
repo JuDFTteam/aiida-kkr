@@ -28,7 +28,7 @@ class Test_kkrimp_calculation(object):
         # now create a SingleFileData node containing the impurity starting potential
         from aiida_kkr.tools import neworder_potential_wf
         from numpy import loadtxt
-        with GF_host_calc.outputs.retrieved.open('scoef') as _f:
+        with GF_host_calc.outputs.retrieved.base.repository.open('scoef') as _f:
             neworder_pot1 = [int(i) for i in loadtxt(_f, skiprows=1)[:, 3] - 1]
         settings_dict = {'pot1': 'out_potential', 'out_pot': 'potential_imp', 'neworder': neworder_pot1}
         settings = Dict(settings_dict)
@@ -84,11 +84,11 @@ class Test_kkrimp_calculation(object):
         with enable_archive_cache(data_dir / 'kkrimp_cached.aiida'):
             out, node = run_get_node(builder)
         print(out, node)
-        print('cache_source:', node.get_hash())
-        print('cache_source:', node.get_cache_source())
-        print('code objects to hash:', node._get_objects_to_hash())
+        print('cache_source:', node.base.caching.get_hash())
+        print('cache_source:', node.base.caching.get_cache_source())
+        print('code objects to hash:', node.base.caching._get_objects_to_hash())
         print('ignored attributes:', node._hash_ignored_attributes)
-        assert node.get_cache_source() is not None
+        assert node.base.caching.get_cache_source() is not None
         print(out['output_parameters'].get_dict())
         assert out['output_parameters']['parser_errors'] == []
 

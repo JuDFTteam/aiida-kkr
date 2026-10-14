@@ -6,8 +6,8 @@ load_profile()
 # load essential aiida classes
 from aiida.orm import Code
 from aiida.orm import DataFactory
-StructureData = DataFactory('structure')
-ParameterData = DataFactory('parameter')
+StructureData = DataFactory('core.structure')
+ParameterData = DataFactory('core.dict')
 
 # load kkrparms class which is a useful tool to create the set of input parameters for KKR-family of calculations
 from aiida_kkr.tools.kkr_params import kkrparams

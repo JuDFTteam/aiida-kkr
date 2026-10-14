@@ -39,7 +39,7 @@ def cmd_import(filename, kkrpara, verbose, dry_run):
     FILENAME is the name/path of the inputcard file to use.
 
     If you want to import a structure from another file type you can use
-    'verdi data structure import -ase <filename>' instead.
+    'verdi data core.structure import ase <filename>' instead.
     """
 
     kkr_para = kkrparams()

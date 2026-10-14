@@ -5,8 +5,8 @@ from aiida import load_profile
 load_profile()
 # load essential aiida classes
 from aiida.orm import Code, DataFactory, load_node
-StructureData = DataFactory('structure')
-ParameterData = DataFactory('parameter')
+StructureData = DataFactory('core.structure')
+ParameterData = DataFactory('core.dict')
 
 # helper function:
 def wait_for_it(calc, maxwait=300):

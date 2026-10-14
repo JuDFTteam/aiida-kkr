@@ -6,7 +6,6 @@
 from builtins import object
 import pytest
 from numpy import sort
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
 from .conftest import import_with_migration
 
 

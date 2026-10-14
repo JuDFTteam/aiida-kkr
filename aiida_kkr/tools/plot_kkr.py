@@ -37,7 +37,7 @@ def get_datetime_from_str(calc, verbose=False):
     from datetime import datetime
     # get last time stamp of scheduler from calculation attribute
     try:
-        last_time_on_computer = calc.attributes['scheduler_lastchecktime']
+        last_time_on_computer = calc.base.attributes.get('scheduler_lastchecktime')
     except:
         raise ValueError('Failed to get "scheduler_lastchecktime" from calculation.')
     # parse date and time from string
@@ -539,21 +539,21 @@ class plot_kkr(object):
         node = get_node(node)
 
         # basic aiida nodes
-        if isinstance(node, DataFactory('structure')):
+        if isinstance(node, DataFactory('core.structure')):
             if return_name_only:
                 return 'struc'
             self.plot_struc(node, **kwargs)
-        elif isinstance(node, DataFactory('dict')):
+        elif isinstance(node, DataFactory('core.dict')):
             if return_name_only:
                 return 'para'
             print('node dict:')
             pprint(node.get_dict())
-        elif isinstance(node, DataFactory('remote')):
+        elif isinstance(node, DataFactory('core.remote')):
             if return_name_only:
                 return 'remote'
             print('computer name:', node.get_computer_name())
             print('remote path:', node.get_remote_path())
-        elif isinstance(node, DataFactory('folder')):
+        elif isinstance(node, DataFactory('core.folder')):
             if return_name_only:
                 return 'folder'
             print('abs path:')
@@ -624,8 +624,8 @@ class plot_kkr(object):
         """print inputs and outputs of nodes without showing 'CALL' and 'CREATE' links in workflows."""
         from pprint import pprint
         # extract inputs and outputs
-        inputs = node.get_incoming().all_nodes()
-        outputs = node.get_outgoing()
+        inputs = node.base.links.get_incoming().all_nodes()
+        outputs = node.base.links.get_outgoing()
         """
         all_out_labels = outputs.all_link_labels()
         for label in list(all_out_labels):
@@ -939,8 +939,8 @@ class plot_kkr(object):
         if not silent:
             from pprint import pprint
             print('results dict (entries with `...` have been removed for this writeout for the sake of shortness):')
-            if 'output_parameters' in node.get_outgoing().all_link_labels():
-                results_dict = node.get_outgoing().get_node_by_label('output_parameters').get_dict()
+            if 'output_parameters' in node.base.links.get_outgoing().all_link_labels():
+                results_dict = node.base.links.get_outgoing().get_node_by_label('output_parameters').get_dict()
                 # remove symmetry descriptions from resuts dict before writting output
                 if 'symmetries_group' in list(results_dict.keys()):
                     results_dict['symmetries_group']['symmetry_description'] = '...'
@@ -986,7 +986,7 @@ class plot_kkr(object):
         from aiida import __version__ as aiida_core_version
 
         if node.is_finished_ok:
-            retlist = node.outputs.retrieved.list_object_names()
+            retlist = node.outputs.retrieved.base.repository.list_object_names()
             has_dos = 'dos.atom1' in retlist
             has_qvec = 'qvec.dat' in retlist
             has_qdos = False
@@ -1033,7 +1033,7 @@ class plot_kkr(object):
                     else:
                         if int(aiida_core_version.split('.')[0]) < 2:
                             ef = get_ef_from_parent(node)
-                            with node.outputs.retrieved.open('qvec.dat') as f:
+                            with node.outputs.retrieved.base.repository.open('qvec.dat') as f:
                                 FSqdos2D(f.name.replace('qvec.dat', ''), logscale=logscale, ef=ef, **kwargs)
                             # maybe save as file
                             save_fig_to_file(kwargs, 'plot_kkr_out_FS.png')
@@ -1042,7 +1042,7 @@ class plot_kkr(object):
 
             # dos only if qdos was not plotted already
             if has_dos and not has_qdos:
-                with node.outputs.retrieved.open('dos.atom1', mode='r') as f:
+                with node.outputs.retrieved.base.repository.open('dos.atom1', mode='r') as f:
                     if not nofig:
                         figure()
                     dosplot(f, **kwargs)
@@ -1131,7 +1131,7 @@ class plot_kkr(object):
 
         # call imp_sub plotting from here
         from aiida_kkr.workflows import kkr_imp_sub_wc
-        sub_wf = [i.node for i in node.get_outgoing(node_class=kkr_imp_sub_wc).all()]
+        sub_wf = [i.node for i in node.base.links.get_outgoing(node_class=kkr_imp_sub_wc).all()]
         if len(sub_wf) > 0:
             self.plot_kkrimp_sub_wc(sub_wf[0], **kwargs)
 
@@ -1143,7 +1143,7 @@ class plot_kkr(object):
             print('in plot_kkrimp_sub_wc')
             print('kwargs:', kwargs)
 
-        impcalcs = [i.node for i in node.get_outgoing(node_class=KkrimpCalculation).all()]
+        impcalcs = [i.node for i in node.base.links.get_outgoing(node_class=KkrimpCalculation).all()]
 
         # plot impurity cluster
         if len(impcalcs) > 0 and kwargs.get('strucplot', False):
@@ -1387,7 +1387,7 @@ class plot_kkr(object):
             BSF = node.outputs.BS_Data.get_array('BlochSpectralFunction')
             eng = node.outputs.BS_Data.get_array('energy_points')
             Kpts = node.outputs.BS_Data.get_array('Kpts')
-            k_label = node.outputs.BS_Data.extras['k-labels']
+            k_label = node.outputs.BS_Data.base.extras.get('k-labels')
 
             ixlbl = [int(i) for i in k_label.keys()]
             sxlbl = [i for i in k_label.values()]
@@ -1489,14 +1489,14 @@ class plot_kkr(object):
         # follow links until DOS data has been found
         d = None
         d_int = None
-        for link_triple in node.get_outgoing().all():
+        for link_triple in node.base.links.get_outgoing().all():
             if link_triple.link_label == 'last_doscal_dosdata':
                 d = link_triple.node
             elif link_triple.link_label == 'last_doscal_dosdata_interpol':
                 d_int = link_triple.node
             elif 'CALL_WORK' in link_triple.link_label:
                 if link_triple.link_label == 'kkr_dos_wc':
-                    for link_triple2 in node.get_outgoing().all():
+                    for link_triple2 in node.base.links.get_outgoing().all():
                         if link_triple2.link_label == 'dos_data':
                             d = link_triple2.node
                         elif link_triple2.link_label == 'dos_data_interpol':
@@ -1528,7 +1528,7 @@ class plot_kkr(object):
         # now add lines for emin, core states, EF
 
         # extract data for dos and energy contour plotting
-        if 'last_voronoi_results' in node.get_outgoing().all_link_labels():
+        if 'last_voronoi_results' in node.base.links.get_outgoing().all_link_labels():
             params_dict = node.outputs.last_voronoi_results.get_dict()
         else:
             params_dict = {}
@@ -1600,7 +1600,7 @@ class plot_kkr(object):
             rms_goal = None
             # deal with unfinished workflow
             rms, neutr, etot, efermi = [], [], [], []
-            outdict = node.get_outgoing(node_class=CalcJobNode)
+            outdict = node.base.links.get_outgoing(node_class=CalcJobNode)
             pks_calcs = sort([i.node.pk for i in outdict.all()])
             for pk in pks_calcs:
                 node = load_node(pk)
@@ -1661,7 +1661,7 @@ class plot_kkr(object):
         d = None
         d_int = None
         from aiida_kkr.workflows import kkr_dos_wc
-        links_dos = node.get_outgoing(node_class=kkr_dos_wc).all()
+        links_dos = node.base.links.get_outgoing(node_class=kkr_dos_wc).all()
         if len(links_dos) > 0:
             dosnode = links_dos[0].node
             if 'dos_data' in dosnode.outputs:
@@ -1748,7 +1748,7 @@ class plot_kkr(object):
         fig_open = False
         plotted_kkr_scf = False
         plotted_kkr_start = False
-        outdict = node.get_outgoing()
+        outdict = node.base.links.get_outgoing()
         for key in outdict.all():
             if key.link_label != 'CALL_CALC':
                 tmpnode = key.node
@@ -1958,7 +1958,7 @@ def get_ef_from_parent(node):
     """Extract Fermi level from parent calculation"""
 
     try:
-        parent_calc = node.inputs.parent_folder.get_incoming().first().node
+        parent_calc = node.inputs.parent_folder.base.links.get_incoming().first().node
         try:
             # parent is KkrCalc
             ef = parent_calc.outputs.output_parameters.get_dict()['fermi_energy']
@@ -1966,7 +1966,7 @@ def get_ef_from_parent(node):
             # parent is scf workflow
             ef = parent_calc.outputs.last_calc_out['fermi_energy']
     except:
-        with node.outputs.retrieved.open('output.0.txt', mode='r') as file_handle:
+        with node.outputs.retrieved.base.repository.open('output.0.txt', mode='r') as file_handle:
             txt = file_handle.readlines()
             iline = search_string('Fermi energy =', txt)
             if iline >= 0:
@@ -1982,7 +1982,7 @@ def get_ef_from_parent(node):
 
 def get_a0_from_node(node):
     """Extract factor 2pi/alat from inputcard"""
-    with node.outputs.retrieved.open('inputcard') as _f:
+    with node.outputs.retrieved.base.repository.open('inputcard') as _f:
         txt = _f.readlines()
         txt = [line for line in txt if 'ALATBASIS' in line]
     if len(txt) == 0:
@@ -1996,10 +1996,10 @@ def get_qdos_filenames(node):
     """get the sorted list of qdos filenames and find number of energy points"""
     # get qdos filenames
     retrieved = node.outputs.retrieved
-    qdos_filenames = np.sort([i for i in retrieved.list_object_names() if 'qdos.' in i])
+    qdos_filenames = np.sort([i for i in retrieved.base.repository.list_object_names() if 'qdos.' in i])
 
     # read number of energy points
-    with retrieved.open(qdos_filenames[0]) as _f:
+    with retrieved.base.repository.open(qdos_filenames[0]) as _f:
         ne = len(set(np.loadtxt(_f)[:, 0]))
 
     return qdos_filenames, ne
@@ -2009,14 +2009,14 @@ def get_qdos_data_from_node(node, qdos_filenames):
     """Extract the qdos data (summed over all atoms)"""
     from aiida import orm
 
-    if 'saved_dispersion_data_uuid' in node.extras:
+    if 'saved_dispersion_data_uuid' in node.base.extras.keys():
         # only return the existing numpy array if it exists
-        data = orm.load_node(node.extras['saved_dispersion_data_uuid']).get_array('data')
+        data = orm.load_node(node.base.extras.get('saved_dispersion_data_uuid')).get_array('data')
     else:
         # read qdos data and store as extra
         for i, fname in enumerate(qdos_filenames):
             # read data from qdos file
-            with node.outputs.retrieved.open(fname) as _f:
+            with node.outputs.retrieved.base.repository.open(fname) as _f:
                 tmp = np.loadtxt(_f)
             # sum up all contributions
             if i == 0:
@@ -2035,6 +2035,6 @@ def get_qdos_data_from_node(node, qdos_filenames):
         data_node = orm.ArrayData()
         data_node.set_array('data', data)
         data_node.store()
-        node.set_extra('saved_dispersion_data_uuid', data_node.uuid)
+        node.base.extras.set('saved_dispersion_data_uuid', data_node.uuid)
 
     return data
