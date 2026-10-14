@@ -634,6 +634,15 @@ class kkr_imp_wc(WorkChain):
             updatenode.description = 'Overwritten voronoi input parameter from kkr_imp_wc input.'
             calc_params = update_params_wf(calc_params, updatenode)
 
+        # KKRimp stops if a potential's ALAT differs from the host GF write-out's by more than 1e-11,
+        # which happens when the write-out used another masci-tools Ang->Bohr constant than this daemon
+        if self.ctx.do_gf_calc:
+            GF_host_calc = load_node(self.ctx.gf_writeout.outputs.workflow_info.get_dict().get('pk_flexcalc'))
+        alat_gf = get_alat_override(GF_host_calc, structure_host)
+        if alat_gf is not None:
+            self.report(f'INFO: use ALATBASIS={alat_gf} of host GF write-out (pk {GF_host_calc.pk}) for voroaux')
+            calc_params = update_params_wf(calc_params, Dict({'alat_override': alat_gf, 'add_direct': True}))
+
         # for every impurity, generate a structure and launch the voronoi workflow
         # to get the auxiliary impurity startpotentials
         self.ctx.voro_calcs = {}
@@ -933,3 +942,25 @@ def change_struc_imp_aux_wf(struc, imp_info):  # Note: works for single imp at c
         isite += 1
 
     return new_struc
+
+
+def get_alat_override(gf_calc, structure):
+    """
+    Return the ALATBASIS of the host GF write-out calculation if it differs from the alat a new
+    inputcard would get for `structure` (by more than KKRimp's tolerance of 1e-11), else None.
+    """
+    import re
+    from masci_tools.io.common_functions import get_Ang2aBohr, get_alat_from_bravais
+
+    try:
+        inputcard = gf_calc.base.repository.get_object_content('inputcard')
+    except (FileNotFoundError, OSError):
+        return None
+    match = re.search(r'^\s*ALATBASIS\s*=\s*(\S+)', inputcard, re.MULTILINE)
+    if match is None:
+        return None
+    alat_gf = float(match.group(1))
+    alat_new = get_alat_from_bravais(np.array(structure.cell) * get_Ang2aBohr(), is3D=structure.pbc[2])
+    if abs(alat_gf - alat_new) <= 1e-11:
+        return None
+    return alat_gf

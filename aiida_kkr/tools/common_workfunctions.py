@@ -11,7 +11,7 @@ from masci_tools.io.kkr_params import kkrparams
 from builtins import str
 
 # keys that are used by aiida-kkr some something else than KKR parameters
-_ignored_keys = ['ef_set', 'use_input_alat', '<NEWVERSION_BDG>', '<DECOUPLE_SPINS_CHEBY>']
+_ignored_keys = ['ef_set', 'use_input_alat', 'alat_override', '<NEWVERSION_BDG>', '<DECOUPLE_SPINS_CHEBY>']
 _ignored_keys += [i.upper() for i in _ignored_keys]
 
 
@@ -148,7 +148,13 @@ def update_params(node, nodename=None, nodedesc=None, strict=False, **kwargs):
 
     # create new node
     if not add_direct:
-        ParaNode = Dict(params.values)
+        values = params.values
+        # kkrparams drops unknown keys; keep alat_override (set by kkr_imp_wc) through kkr_startpot_wc's updates
+        # ponytail: the other _ignored_keys are still dropped here as before, changing that alters existing nodes
+        for source in (inp_params, kwargs):
+            if source.get('alat_override') is not None:
+                values['alat_override'] = source['alat_override']
+        ParaNode = Dict(values)
     else:
         ParaNode = Dict(params)
     ParaNode.label = nodename
@@ -487,6 +493,10 @@ def generate_inputcard_from_structure(
     :param isvoronoi: tell whether or not the parameter set is for a voronoi calculation or kkr calculation (have different lists of mandatory keys)
     :param use_input_alat: True/False, determines whether the input alat value is taken or the new alat is computed from the Bravais vectors
 
+    :note: If `parameters` contains `alat_override`, that value is written as ALATBASIS while BRAVAIS and
+           RBASIS stay in units of the alat computed from the structure (no rescaling). kkr_imp_wc uses
+           this to match the ALAT of a stored host GF, which KKRimp checks to 1e-11.
+
 
     :note: assumes valid structure and parameters, i.e. for 2D case all necessary
            information has to be given. This is checked with function
@@ -640,8 +650,18 @@ def generate_inputcard_from_structure(
         params.set_value(key, input_dict[key], silent=True)
 
     # Write input to file (the parameters that are set here are not allowed to be modfied externally)
+    alat_override = parameters.get_dict().get('alat_override')
+    if alat_override is not None:
+        wmess = f'write ALATBASIS={alat_override} from alat_override instead of computed alat {alat}'
+        print(f'WARNING: {wmess}')
+        warnings.append(wmess)
     params.set_multiple_values(
-        BRAVAIS=bravais, ALATBASIS=alat, NAEZ=naez, ZATOM=charges, RBASIS=positions, CARTESIAN=True
+        BRAVAIS=bravais,
+        ALATBASIS=alat if alat_override is None else alat_override,
+        NAEZ=naez,
+        ZATOM=charges,
+        RBASIS=positions,
+        CARTESIAN=True
     )
     # for CPA case:
     if len(weights) > naez:
