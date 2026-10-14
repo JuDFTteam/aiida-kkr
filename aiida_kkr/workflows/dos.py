@@ -290,7 +290,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         # remote_folder node is not from KkrCalculation but kkr_scf_wc workflow
         input_remote = self.inputs.remote_data
         # check if input_remote has single KkrCalculation parent
-        parents = input_remote.get_incoming(node_class=orm.CalcJobNode)
+        parents = input_remote.base.links.get_incoming(node_class=orm.CalcJobNode)
         nparents = len(parents.all_link_labels())
         if nparents != 1:
             # extract parent workflow and get uuid of last calc from output node
@@ -364,7 +364,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         econt_new['NPOL'] = 0
         econt_new['NPT1'] = 0
         econt_new['NPT3'] = 0
-        parent_calc = self.inputs.remote_data.get_incoming(node_class=orm.CalcJobNode).first().node
+        parent_calc = self.inputs.remote_data.base.links.get_incoming(node_class=orm.CalcJobNode).first().node
         if parent_calc.process_label == 'VoronoiCalculation':
             # for the voronoi calculation we need to calculate the Fermi level since it is not in the output parameters directly
             voro_out_para = parent_calc.outputs.output_parameters.get_dict()
@@ -430,7 +430,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             self.report('used nonco angles from input to workflow')
         else:
             # extract from the parent calculation
-            parent_calc = remote.get_incoming(node_class=orm.CalcJobNode).first().node
+            parent_calc = remote.base.links.get_incoming(node_class=orm.CalcJobNode).first().node
             if 'initial_noco_angles' in parent_calc.inputs:
                 noco_angles = extract_noco_angles(
                     fix_dir_threshold=orm.Float(1e-6),  # make small enough
@@ -464,7 +464,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         """
 
         # check wether or not calculation was taken from cached node
-        caching_info = f'INFO: cache_source of dos calc node: {self.ctx.dosrun.get_cache_source()}'
+        caching_info = f'INFO: cache_source of dos calc node: {self.ctx.dosrun.base.caching.get_cache_source()}'
         print(caching_info)
         self.report(caching_info)
 
@@ -474,7 +474,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             error = (f'ERROR: DOS calculation failed somehow it is in state {self.ctx.dosrun.process_state}')
             print(error)
             from pprint import pprint
-            pprint(self.ctx.dosrun.attributes)
+            pprint(self.ctx.dosrun.base.attributes.all)
             print('stdout', self.ctx.dosrun.get_scheduler_stdout())
             print('stderr', self.ctx.dosrun.get_scheduler_stderr())
             self.report(error)
@@ -518,7 +518,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         # interpol dos file and store to XyData nodes
         if has_dosrun:
             dos_retrieved = self.ctx.dosrun.outputs.retrieved
-            if 'complex.dos' in dos_retrieved.list_object_names():
+            if 'complex.dos' in dos_retrieved.base.repository.list_object_names():
                 dosXyDatas = parse_dosfiles(dos_retrieved)
 
         # collect output nodes with link labels

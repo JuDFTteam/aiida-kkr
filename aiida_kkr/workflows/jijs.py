@@ -185,7 +185,7 @@ class kkr_jij_wc(WorkChain):
 
         # save parent calculation
         input_remote = self.inputs.remote_data
-        parents = input_remote.get_incoming(node_class=CalcJobNode).all()
+        parents = input_remote.base.links.get_incoming(node_class=CalcJobNode).all()
         if len(parents) != 1:
             # check if parent is unique
             return self.exit_codes.ERROR_INVALID_PARENT  # pylint: disable=no-member

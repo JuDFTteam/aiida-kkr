@@ -48,7 +48,7 @@ class KKRnanoParser(Parser):
 
     def _get_lines(self, retrieved_folder, output_file_name):
         """returns list of string lines"""
-        with retrieved_folder.open(output_file_name, 'r') as f:
+        with retrieved_folder.base.repository.open(output_file_name, 'r') as f:
             lines = f.readlines()
         return lines
 
@@ -322,9 +322,9 @@ class KKRnanoParser(Parser):
             return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
 
         # check what is inside the folder
-        list_of_files = retrieved_folder.list_object_names()
+        list_of_files = retrieved_folder.base.repository.list_object_names()
 
-        calc_node = retrieved_folder.get_incoming(node_class=CalcJobNode).first().node
+        calc_node = retrieved_folder.base.links.get_incoming(node_class=CalcJobNode).first().node
 
         #Check if a StrucWithPotData object was used as input and take then corresponding structure or
         #if a parent_structure has to be found

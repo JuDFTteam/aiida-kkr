@@ -18,7 +18,7 @@ class _Inputs(dict):
 
 
 def _outgoing_stub(nodes):
-    """Stand-in for the result of Node.get_outgoing(...)."""
+    """Stand-in for the result of Node.base.links.get_outgoing(...)."""
     return SimpleNamespace(all=lambda: nodes)
 
 
@@ -27,7 +27,7 @@ def _workchain_stub(voro_finished_ok=True, gf_finished_ok=True, do_gf_calc=True,
     last_voro_calc = SimpleNamespace(
         is_finished_ok=voro_finished_ok,
         pk=1234,
-        get_outgoing=lambda **kwargs: _outgoing_stub([]),
+        base=SimpleNamespace(links=SimpleNamespace(get_outgoing=lambda **kwargs: _outgoing_stub([]))),
     )
     gf_writeout = SimpleNamespace(is_finished_ok=gf_finished_ok, pk=5678)
     return SimpleNamespace(

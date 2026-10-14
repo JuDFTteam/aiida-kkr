@@ -82,7 +82,7 @@ def get_builder_basic(label, kkrhost_local_code, kkrimp_local_code):
 
 
 def test_combine_imps(
-    clear_database_before_test,
+    aiida_profile_clean,
     kkrhost_local_code,
     kkrimp_local_code,
     enable_archive_cache,
@@ -115,7 +115,7 @@ def test_combine_imps(
 
 
 def test_combine_imps_params_kkr_overwrite(
-    clear_database_before_test,
+    aiida_profile_clean,
     kkrhost_local_code,
     kkrimp_local_code,
     enable_archive_cache,
@@ -149,7 +149,7 @@ def test_combine_imps_params_kkr_overwrite(
 
 
 def test_combine_imps_reuse_gf(
-    clear_database_before_test,
+    aiida_profile_clean,
     kkrhost_local_code,
     kkrimp_local_code,
     enable_archive_cache,
@@ -196,12 +196,13 @@ def _fake_kkr_imp_wc(settings_LDAU=None):
     from aiida_kkr.workflows import kkr_imp_wc, kkr_imp_sub_wc
 
     def outgoing(node):
-        return lambda node_class: SimpleNamespace(first=lambda: SimpleNamespace(node=node))
+        get_outgoing = lambda node_class: SimpleNamespace(first=lambda: SimpleNamespace(node=node))
+        return SimpleNamespace(links=SimpleNamespace(get_outgoing=get_outgoing))
 
     calc = SimpleNamespace(outputs=SimpleNamespace(retrieved='retrieved_of_kkrimp_calc'))
     inputs = AttributeDict({'settings_LDAU': settings_LDAU} if settings_LDAU is not None else {})
-    sub = SimpleNamespace(process_class=kkr_imp_sub_wc, inputs=inputs, get_outgoing=outgoing(calc))
-    return SimpleNamespace(process_class=kkr_imp_wc, get_outgoing=outgoing(sub))
+    sub = SimpleNamespace(process_class=kkr_imp_sub_wc, inputs=inputs, base=outgoing(calc))
+    return SimpleNamespace(process_class=kkr_imp_wc, base=outgoing(sub))
 
 
 @pytest.mark.parametrize('imp1_ldau', [None, 'settings_LDAU_of_imp1'])

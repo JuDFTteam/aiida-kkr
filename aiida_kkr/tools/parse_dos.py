@@ -17,8 +17,8 @@ def parse_dosfiles(dos_retrieved):
     if BdG files are found we also parse and return those results
     """
 
-    if 'complex.dos' in dos_retrieved.list_object_names():
-        with dos_retrieved.open('complex.dos') as dosfolder:
+    if 'complex.dos' in dos_retrieved.base.repository.list_object_names():
+        with dos_retrieved.base.repository.open('complex.dos') as dosfolder:
             ef, dos, dos_int = interpolate_dos(dosfolder, return_original=True)
     else:
         raise ValueError('`complex.dos` not found in retrieved')
@@ -28,8 +28,8 @@ def parse_dosfiles(dos_retrieved):
 
     for labeladd in ['_eh', '_he', '_hole']:
         # also try tp parse BdG output
-        if 'complex.dos' + labeladd in dos_retrieved.list_object_names():
-            with dos_retrieved.open('complex.dos' + labeladd) as dosfolder:
+        if 'complex.dos' + labeladd in dos_retrieved.base.repository.list_object_names():
+            with dos_retrieved.base.repository.open('complex.dos' + labeladd) as dosfolder:
                 ef, dos, dos_int = interpolate_dos(dosfolder, return_original=True)
             dosnode, dosnode2 = make_XyData_nodes(dos, dos_int, ef, labeladd)
             return_nodes['dos_data' + labeladd] = dosnode

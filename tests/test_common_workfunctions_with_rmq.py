@@ -6,7 +6,6 @@
 from builtins import object
 import pytest
 from numpy import sort
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
 from .conftest import import_with_migration
 
 
@@ -61,12 +60,12 @@ class Test_common_workfunctions_rmq(object):
         from aiida_kkr.tools import neworder_potential_wf
         import_with_migration('files/db_dump_kkrflex_create.tar.gz')
         GF_host_calc = load_node('baabef05-f418-4475-bba5-ef0ee3fd5ca6').outputs
-        with GF_host_calc.retrieved.open('scoef') as _f:
+        with GF_host_calc.retrieved.base.repository.open('scoef') as _f:
             neworder_pot1 = [int(i) for i in loadtxt(_f, skiprows=1)[:, 3] - 1]
         settings_dict = {'pot1': 'out_potential', 'out_pot': 'potential_imp', 'neworder': neworder_pot1}
         settings = Dict(settings_dict)
         startpot_imp_sfd = neworder_potential_wf(settings_node=settings, parent_calc_folder=GF_host_calc.remote_folder)
-        assert startpot_imp_sfd.get_object_content(
+        assert startpot_imp_sfd.base.repository.get_object_content(
             startpot_imp_sfd.filename
         )[::1000
           ] == u'C12807143D556463084.6+55 7D117 9D-87 0+25\n20.70351.75\n0521259.2+491.0-462. 02621D74112D03547T00 4D02116D502 6D39\n96.20261.50941.4944.7+30 98-29 .5-3625D07193.58104D0773D27252285417D341 9.506544D548447094.9+38 91063 54-08 6D28277.60909.98111'

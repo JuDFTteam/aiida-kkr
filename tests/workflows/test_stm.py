@@ -13,7 +13,7 @@ from ..conftest import voronoi_local_code, kkrhost_local_code, test_dir, data_di
 )
 @pytest.mark.timeout(900, method='thread')
 def test_stm_wc(
-    clear_database_before_test, voronoi_local_code, kkrhost_local_code, kkrimp_local_code, enable_archive_cache,
+    aiida_profile_clean, voronoi_local_code, kkrhost_local_code, kkrimp_local_code, enable_archive_cache,
     ndarrays_regression
 ):
     """

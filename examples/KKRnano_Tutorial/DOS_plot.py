@@ -54,7 +54,8 @@ def plot_DOS_atoms(
     """
     if manual_fermi == False:
         try:
-            parent_calc = output_dict.get_incoming().all_nodes()[0].inputs.parent_folder.get_incoming().all_nodes()[0]
+            parent_folder = output_dict.base.links.get_incoming().all_nodes()[0].inputs.parent_folder
+            parent_calc = parent_folder.base.links.get_incoming().all_nodes()[0]
             efermi = parent_calc.outputs.output_parameters.get_dict()['fermi_energy_in_ryd'][-1]
         except:
             print('WARNING: Reading Efermi failed!')

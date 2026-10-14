@@ -8,7 +8,7 @@ from ..conftest import voronoi_local_code, kkrhost_local_code, data_dir, import_
 
 
 @pytest.mark.timeout(240, method='thread')
-def test_kkrflex_writeout_wc(clear_database_before_test, kkrhost_local_code, enable_archive_cache):
+def test_kkrflex_writeout_wc(aiida_profile_clean, kkrhost_local_code, enable_archive_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow
     """
@@ -66,7 +66,7 @@ def test_kkrflex_writeout_wc(clear_database_before_test, kkrhost_local_code, ena
     kkrflex_calc = load_node(n.get('pk_flexcalc'))
     kkrflex_retrieved = kkrflex_calc.outputs.retrieved
     for name in 'tmat green atominfo intercell_cmoms intercell_ref'.split():
-        assert 'kkrflex_' + name in kkrflex_retrieved.list_object_names()
+        assert 'kkrflex_' + name in kkrflex_retrieved.base.repository.list_object_names()
 
 
 #run test manually

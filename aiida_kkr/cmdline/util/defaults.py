@@ -114,7 +114,7 @@ def get_kkrpara_defaults():
         params = Dict(defaults)
         params.label = 'Default KKR parameters'
         params.description = f'Version of the KKR params: {version}'
-        params.extras['aiida-kkr_cmdline_info'] = 'kkr_default_params'  # pylint: disable=no-member
+        params.base.extras.set('aiida-kkr_cmdline_info', 'kkr_default_params')  # pylint: disable=no-member
         params.store()
     else:
         params = results[0]  # pylint: disable=unsubscriptable-object

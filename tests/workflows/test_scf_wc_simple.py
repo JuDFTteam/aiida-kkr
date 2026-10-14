@@ -26,7 +26,7 @@ def print_clean_inouts(node):
 
 
 @pytest.mark.timeout(300, method='thread')
-def test_scf_wc_Cu_simple(clear_database_before_test, voronoi_local_code, kkrhost_local_code, enable_archive_cache):
+def test_scf_wc_Cu_simple(aiida_profile_clean, voronoi_local_code, kkrhost_local_code, enable_archive_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow
     """

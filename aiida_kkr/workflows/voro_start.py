@@ -625,7 +625,7 @@ class kkr_startpot_wc(WorkChain):
         """
 
         # check wether or not calculation was taken from cached node
-        caching_info = f'INFO: cache_source of voro calc node: {self.ctx.voro_calc.get_cache_source()}'
+        caching_info = f'INFO: cache_source of voro calc node: {self.ctx.voro_calc.base.caching.get_cache_source()}'
         print(caching_info)
         self.report(caching_info)
 
@@ -636,7 +636,7 @@ class kkr_startpot_wc(WorkChain):
 
         print('check_voro_calc', self.ctx.voro_calc, self.ctx.voro_calc.is_finished_ok)
         from pprint import pprint
-        pprint(self.ctx.voro_calc.attributes)
+        pprint(self.ctx.voro_calc.base.attributes.all)
 
         # check calculation state (calculation must be completed)
         if not self.ctx.voro_calc.is_finished_ok:
@@ -690,8 +690,8 @@ class kkr_startpot_wc(WorkChain):
             potfile_name = VoronoiCalculation._OUT_POTENTIAL_voronoi
             if 'parent_KKR' in self.ctx.voro_calc.inputs:
                 potfile_name = VoronoiCalculation._POTENTIAL_IN_OVERWRITE
-            print(ret.list_object_names(), potfile_name)
-            with ret.open(potfile_name) as _file:
+            print(ret.base.repository.list_object_names(), potfile_name)
+            with ret.base.repository.open(potfile_name) as _file:
                 self.ctx.efermi = get_ef_from_potfile(_file)
 
         emin_dos = self.ctx.dos_params_dict['emin'] * eV2Ry + self.ctx.efermi
@@ -763,7 +763,7 @@ class kkr_startpot_wc(WorkChain):
             code = self.inputs.kkr
             print('VORO_CALC:', self.ctx.voro_calc)
             print('VORO_CALC ok?', self.ctx.voro_calc.is_finished_ok)
-            print('OUTGOINGS:', self.ctx.voro_calc.get_outgoing().all())
+            print('OUTGOINGS:', self.ctx.voro_calc.base.links.get_outgoing().all())
             remote = self.ctx.voro_calc.outputs.remote_folder
             wf_label = 'DOS calculation'
             wf_desc = 'subworkflow of a DOS calculation that perform a singe-shot KKR calc.'
@@ -790,7 +790,7 @@ class kkr_startpot_wc(WorkChain):
             doscal = self.ctx.doscal
             print('check doscal', doscal)
             from pprint import pprint
-            pprint(doscal.attributes)
+            pprint(doscal.base.attributes.all)
             try:
                 dos_outdict = doscal.outputs.results_wf.get_dict()
                 print(dos_outdict)

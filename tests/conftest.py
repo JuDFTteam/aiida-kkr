@@ -56,7 +56,7 @@ def aiida_localhost_serial(tmp_path):  # pylint: disable=redefined-outer-name
     name = 'localhost-test'
 
     try:
-        computer = Computer.objects.get(label=name)
+        computer = Computer.collection.get(label=name)
     except NotExistent:
         if int(aiida_core_version.split('.')[0]) < 2:
             # old name before aiida-core v2.0
@@ -110,7 +110,7 @@ def aiida_local_code_factory_prepend(aiida_localhost_serial):  # pylint: disable
         """
         from aiida.orm import Code
 
-        codes = Code.objects.find(filters={'label': executable})  # pylint: disable=no-member
+        codes = Code.collection.find(filters={'label': executable})  # pylint: disable=no-member
         if codes:
             return codes[0]
 
@@ -153,7 +153,7 @@ def reuse_local_code(aiida_local_code_factory_prepend):
                 import_data(full_import_path, silent=True)
             else:
                 import_archive(archive_path, **import_kwargs)
-            codes = Code.objects.find(filters={'label': executable})  # pylint: disable=no-member
+            codes = Code.collection.find(filters={'label': executable})  # pylint: disable=no-member
             code = codes[0]
             code.computer.configure()
 
@@ -264,7 +264,7 @@ def generate_remote_data():
         if entry_point_name is not None:
             creator = CalcJobNode(computer=computer, process_type=entry_point)
             creator.set_option('resources', {'num_machines': 1, 'num_mpiprocs_per_machine': 1})
-            remote.add_incoming(creator, link_type=LinkType.CREATE, link_label='remote_folder')
+            remote.base.links.add_incoming(creator, link_type=LinkType.CREATE, link_label='remote_folder')
             creator.store()
 
         return remote

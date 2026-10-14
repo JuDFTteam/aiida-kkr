@@ -37,11 +37,11 @@ def get_host_structure(impurity_workflow_or_calc):
         host_parent = impurity_workflow_or_calc.inputs.host_Greenfunction_folder
         # Here 'impurity_workflow_or_calc.process_class== combine_imps_wc' occurs circular import with this present module
     elif impurity_workflow_or_calc.process_class.__name__ == 'combine_imps_wc':
-        imp_sub_wc = impurity_workflow_or_calc.get_outgoing(node_class=kkr_imp_sub_wc).first().node
-        kkr_imp_calc = imp_sub_wc.get_outgoing(node_class=KkrimpCalculation).all()[-1].node
+        imp_sub_wc = impurity_workflow_or_calc.base.links.get_outgoing(node_class=kkr_imp_sub_wc).first().node
+        kkr_imp_calc = imp_sub_wc.base.links.get_outgoing(node_class=KkrimpCalculation).all()[-1].node
         host_parent = kkr_imp_calc.inputs.host_Greenfunction_folder
     elif impurity_workflow_or_calc.process_class == kkr_imp_sub_wc:
-        kkr_imp_calc = impurity_workflow_or_calc.get_outgoing(node_class=KkrimpCalculation).all()[-1].node
+        kkr_imp_calc = impurity_workflow_or_calc.base.links.get_outgoing(node_class=KkrimpCalculation).all()[-1].node
         host_parent = kkr_imp_calc.inputs.host_Greenfunction_folder
     elif 'remote_data' in impurity_workflow_or_calc.inputs:
         # this is the case if impurity_workflow_or_calc workflow is kkr_imp_sub
@@ -87,8 +87,8 @@ def make_potfile_sfd(**kwargs):
     import os
 
     # Create a SinglefileData node
-    SinglefileData = DataFactory('singlefile')
-    out_potential_content = retrieved.get_object_content('out_potential')
+    SinglefileData = DataFactory('core.singlefile')
+    out_potential_content = retrieved.base.repository.get_object_content('out_potential')
 
     # Create a temporary file
     temp_dir = tempfile.gettempdir()
@@ -111,7 +111,7 @@ def extract_potfile_from_retrieved(retrieved):
     """
 
     # check if retrieved has already a single file data child with given link label
-    children = [res.node for res in retrieved.get_outgoing(link_label_filter='create_potfile_sfd').all()]
+    children = [res.node for res in retrieved.base.links.get_outgoing(link_label_filter='create_potfile_sfd').all()]
     if len(children) > 0 and 'result' in children[0].outputs:
         potfile_sfd = children[0].outputs.result
         print('take existing node')
@@ -136,7 +136,7 @@ def get_nspin_and_pot(imp):
         if imp.process_class == kkr_imp_sub_wc:
             imp_sub = imp
         else:
-            imp_sub = imp.get_outgoing(node_class=kkr_imp_sub_wc).first().node
+            imp_sub = imp.base.links.get_outgoing(node_class=kkr_imp_sub_wc).first().node
 
         nspin = get_nspin(imp_sub)
 

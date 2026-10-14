@@ -82,8 +82,8 @@ class Test_kkr_calculation(object):
         with enable_archive_cache(data_dir / 'kkr_cached.aiida'):
             out, node = run_get_node(builder)
         print((node, out))
-        print((node.get_cache_source()))
-        assert node.get_cache_source() is not None
+        print((node.base.caching.get_cache_source()))
+        assert node.base.caching.get_cache_source() is not None
         out_dict = node.outputs.output_parameters.get_dict()
         from pprint import pprint
         pprint(out_dict)
@@ -182,7 +182,7 @@ class Test_kkr_calculation(object):
         out = run(builder)
         print(out)
 
-    def test_kkr_increased_lmax(self, clear_database_before_test, kkrhost_local_code, enable_archive_cache):
+    def test_kkr_increased_lmax(self, aiida_profile_clean, kkrhost_local_code, enable_archive_cache):
         """
         run kkr calculation from output of previous calculation but with increased lmax
         (done with auxiliary voronoi calculation which is imported here).
@@ -216,26 +216,26 @@ class Test_kkr_calculation(object):
         # now run or load from cached data
         with enable_archive_cache(data_dir / 'kkr_increased_lmax.aiida'):
             out, node = run_get_node(builder)
-        print('cache_source:', node.get_hash())
-        print('cache_source:', node.get_cache_source())
-        print('code objects to hash:', node._get_objects_to_hash())
+        print('cache_source:', node.base.caching.get_hash())
+        print('cache_source:', node.base.caching.get_cache_source())
+        print('code objects to hash:', node.base.caching._get_objects_to_hash())
         print('ignored attributes:', node._hash_ignored_attributes)
 
-        print('output files', node.outputs.retrieved.list_object_names())
+        print('output files', node.outputs.retrieved.base.repository.list_object_names())
         print('std.out')
-        with node.outputs.retrieved.open('_scheduler-stdout.txt') as f:
+        with node.outputs.retrieved.base.repository.open('_scheduler-stdout.txt') as f:
             print(f.readlines())
         print('std.err')
-        with node.outputs.retrieved.open('_scheduler-stderr.txt') as f:
+        with node.outputs.retrieved.base.repository.open('_scheduler-stderr.txt') as f:
             print(f.readlines())
         print('inputcard')
-        with node.outputs.retrieved.open('inputcard') as f:
+        with node.outputs.retrieved.base.repository.open('inputcard') as f:
             print(f.readlines())
         print('out_kkr')
-        with node.outputs.retrieved.open('out_kkr') as f:
+        with node.outputs.retrieved.base.repository.open('out_kkr') as f:
             print(f.readlines())
         print('output.000.txt')
-        with node.outputs.retrieved.open('output.000.txt') as f:
+        with node.outputs.retrieved.base.repository.open('output.000.txt') as f:
             print(f.readlines())
 
         # inspect result
@@ -244,9 +244,9 @@ class Test_kkr_calculation(object):
         assert node.inputs.parameters.get_dict().get('LMAX') == 3
         # check if parent voronoi calculation had parent_KKR input
         from aiida.orm import RemoteData
-        input_remote = node.get_incoming(node_class=RemoteData).first().node
-        v = input_remote.get_incoming().first().node
-        assert 'parent_KKR' in [i.link_label for i in v.get_incoming()]
+        input_remote = node.base.links.get_incoming(node_class=RemoteData).first().node
+        v = input_remote.base.links.get_incoming().first().node
+        assert 'parent_KKR' in [i.link_label for i in v.base.links.get_incoming()]
 
     def test_kkr_gf_writeout_full_impcls(self, kkrhost_local_code):
         """

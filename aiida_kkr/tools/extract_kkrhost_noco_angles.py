@@ -25,8 +25,8 @@ def extract_noco_angles(**kwargs):
 
     last_retrieved = kwargs['last_retrieved']
     noco_out_name = KkrCalculation._NONCO_ANGLES_OUT
-    if noco_out_name in last_retrieved.list_object_names():
-        with last_retrieved.open(noco_out_name) as noco_file:
+    if noco_out_name in last_retrieved.base.repository.list_object_names():
+        with last_retrieved.base.repository.open(noco_out_name) as noco_file:
             noco_angles_new = loadtxt(noco_file, usecols=[0, 1])
             # check if theta and phi change less than fix_dir_threshold
             fix_dir = [

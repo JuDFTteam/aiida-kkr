@@ -44,7 +44,7 @@ def get_builder(dosmode, kkrhost_local_code, voronoi_local_code):
     return builder
 
 
-def test_decimate(clear_database_before_test, kkrhost_local_code, voronoi_local_code, enable_archive_cache):
+def test_decimate(aiida_profile_clean, kkrhost_local_code, voronoi_local_code, enable_archive_cache):
     """
     test for decimation workflow
     """
@@ -66,17 +66,17 @@ def test_decimate(clear_database_before_test, kkrhost_local_code, voronoi_local_
     ]:
         assert key in out
 
-    print(out['out_retrieved_calc_decimate'].list_object_names())
+    print(out['out_retrieved_calc_decimate'].base.repository.list_object_names())
     from pprint import pprint
-    with out['out_retrieved_calc_decimate'].open('inputcard') as _f:
+    with out['out_retrieved_calc_decimate'].base.repository.open('inputcard') as _f:
         pprint(_f.readlines())
-    with out['out_retrieved_calc_decimate'].open('out_kkr') as _f:
+    with out['out_retrieved_calc_decimate'].base.repository.open('out_kkr') as _f:
         pprint(_f.readlines())
     assert min(out['out_params_calc_decimate']['convergence_group']['charge_neutrality_all_iterations']) < 0.01
 
 
 def test_decimate_dos(
-    clear_database_before_test, kkrhost_local_code, voronoi_local_code, enable_archive_cache, ndarrays_regression
+    aiida_profile_clean, kkrhost_local_code, voronoi_local_code, enable_archive_cache, ndarrays_regression
 ):
     """
     test for decimation workflow
@@ -89,14 +89,14 @@ def test_decimate_dos(
     print((out, node))
 
     # check outcome
-    assert 'lmdos.06.2.dat' in out['out_retrieved_calc_decimate'].list_object_names()
-    with out['out_retrieved_calc_decimate'].open('lmdos.06.2.dat') as _f:
+    assert 'lmdos.06.2.dat' in out['out_retrieved_calc_decimate'].base.repository.list_object_names()
+    with out['out_retrieved_calc_decimate'].base.repository.open('lmdos.06.2.dat') as _f:
         dos = np.loadtxt(_f)
     ndarrays_regression.check({'dos': dos})
 
 
 def test_decimate_bandstruc(
-    clear_database_before_test, kkrhost_local_code, voronoi_local_code, enable_archive_cache, ndarrays_regression
+    aiida_profile_clean, kkrhost_local_code, voronoi_local_code, enable_archive_cache, ndarrays_regression
 ):
     """
     test for decimation workflow
@@ -114,15 +114,15 @@ def test_decimate_bandstruc(
     print((out, node))
 
     # check outcome
-    print(out['out_retrieved_calc_decimate'].list_object_names())
+    print(out['out_retrieved_calc_decimate'].base.repository.list_object_names())
     from pprint import pprint
-    with out['out_retrieved_calc_decimate'].open('inputcard') as _f:
+    with out['out_retrieved_calc_decimate'].base.repository.open('inputcard') as _f:
         pprint(_f.readlines())
-    with out['out_retrieved_calc_decimate'].open('out_kkr') as _f:
+    with out['out_retrieved_calc_decimate'].base.repository.open('out_kkr') as _f:
         pprint(_f.readlines())
 
     # check outcome
-    assert 'qdos.06.2.dat' in out['out_retrieved_calc_decimate'].list_object_names()
-    with out['out_retrieved_calc_decimate'].open('qdos.06.2.dat') as _f:
+    assert 'qdos.06.2.dat' in out['out_retrieved_calc_decimate'].base.repository.list_object_names()
+    with out['out_retrieved_calc_decimate'].base.repository.open('qdos.06.2.dat') as _f:
         qdos = np.loadtxt(_f)
     ndarrays_regression.check({'qdos': qdos})

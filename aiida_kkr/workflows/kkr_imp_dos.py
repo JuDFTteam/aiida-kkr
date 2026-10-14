@@ -295,7 +295,7 @@ label: {self.ctx.label_wf}
 
         if 'imp_pot_sfd' in inputs:
             # check if input potential has incoming return link
-            if len(inputs.imp_pot_sfd.get_incoming(link_type=LinkType.RETURN).all()) == 0:
+            if len(inputs.imp_pot_sfd.base.links.get_incoming(link_type=LinkType.RETURN).all()) == 0:
                 inputs_ok = self._imp_pot_not_from_wf(inputs_ok)
             else:
                 gf_writeout_calc = self._imp_pot_from_wf()
@@ -314,7 +314,7 @@ label: {self.ctx.label_wf}
         elif 'kkrimp_remote' in self.inputs:
             self.report('[INFO] use `kkrimp_remote` input node')
             # extract imp_info node from parent KKRimp calculation
-            parent_impcalc = self.inputs.kkrimp_remote.get_incoming(node_class=CalcJobNode).first().node
+            parent_impcalc = self.inputs.kkrimp_remote.base.links.get_incoming(node_class=CalcJobNode).first().node
             self.ctx.imp_info = parent_impcalc.inputs.impurity_info
         else:
             self.report('neither `imp_pot_sfd` nor `kkrimp_remote` node in inputs')
@@ -358,7 +358,7 @@ label: {self.ctx.label_wf}
         # if return link is found get input nodes automatically
         message = 'INFO: get converged host RemoteData node and impurity_info node from database'
         self.report(message)
-        self.ctx.kkr_imp_wf = self.inputs.imp_pot_sfd.get_incoming(node_class=kkr_imp_sub_wc).first().node
+        self.ctx.kkr_imp_wf = self.inputs.imp_pot_sfd.base.links.get_incoming(node_class=kkr_imp_sub_wc).first().node
         message = f'INFO: found underlying kkr impurity workflow (pk: {self.ctx.kkr_imp_wf.pk})'
         self.report(message)
         self.ctx.imp_info = self.ctx.kkr_imp_wf.inputs.impurity_info
@@ -367,7 +367,7 @@ label: {self.ctx.label_wf}
 
         if 'remote_data' in self.ctx.kkr_imp_wf.inputs:
             remote_data_gf_writeout = self.ctx.kkr_imp_wf.inputs.remote_data
-            gf_writeout_calc = remote_data_gf_writeout.get_incoming(node_class=CalcJobNode).first().node
+            gf_writeout_calc = remote_data_gf_writeout.base.links.get_incoming(node_class=CalcJobNode).first().node
             self.ctx.conv_host_remote = gf_writeout_calc.inputs.parent_folder
             message = 'INFO: imported converged_host_remote (pk: {}) and impurity_info from database'.format(
                 self.ctx.conv_host_remote.pk
@@ -469,7 +469,7 @@ label: {self.ctx.label_wf}
         else:
             # use gf_writeout from input
             gf_writeout_remote = self.inputs.gf_dos_remote
-            gf_writeout_calc = gf_writeout_remote.get_incoming(node_class=CalcJobNode).first().node
+            gf_writeout_calc = gf_writeout_remote.base.links.get_incoming(node_class=CalcJobNode).first().node
             self.ctx.pk_flexcalc = gf_writeout_calc.pk
 
         self.ctx.gf_writeout_remote = gf_writeout_remote
@@ -642,7 +642,7 @@ label: {self.ctx.label_wf}
         # here we look for the dos files or the tarball containing the dos files:
         dos_retrieved = last_calc.outputs.retrieved
 
-        if KkrimpCalculation._FILENAME_TAR in dos_retrieved.list_object_names():
+        if KkrimpCalculation._FILENAME_TAR in dos_retrieved.base.repository.list_object_names():
             # deal with packed output files (overwrites dos_retrieved with sandbox into which files are extracted
             # this way the unpacked files are deleted after parsing and only the tarball is kept in the retrieved directory
 
@@ -654,7 +654,7 @@ label: {self.ctx.label_wf}
                 with tempfolder.open('.dummy', 'w') as tmpfile:
                     tempfolder_path = os.path.dirname(tmpfile.name)
                 # get path of tarfile
-                with dos_retrieved.open(KkrimpCalculation._FILENAME_TAR) as tf:
+                with dos_retrieved.base.repository.open(KkrimpCalculation._FILENAME_TAR) as tf:
                     tfpath = tf.name
 
                 # extract file from tarfile of retrieved to tempfolder
@@ -686,14 +686,15 @@ label: {self.ctx.label_wf}
             folder_abspath = folder.abspath
             filelist = os.listdir(folder_abspath)
         else:
-            filelist = folder.list_object_names()
+            filelist = folder.base.repository.list_object_names()
 
         # check if out_ldos* files are there and parse dos files
         if 'out_ldos.interpol.atom=01_spin1.dat' in filelist or 'out_ldos.interpol.atom=001_spin1.dat' in filelist:
             # extract EF and number of atoms from kkrflex_writeout calculation
             kkrflex_writeout = load_node(self.ctx.pk_flexcalc)
-            parent_calc_kkr_converged = kkrflex_writeout.inputs.parent_folder.get_incoming(node_class=CalcJobNode
-                                                                                           ).first().node
+            parent_calc_kkr_converged = kkrflex_writeout.inputs.parent_folder.base.links.get_incoming(
+                node_class=CalcJobNode
+            ).first().node
             ef = parent_calc_kkr_converged.outputs.output_parameters.get_dict().get('fermi_energy')
             last_calc_output_params = last_calc.outputs.output_parameters
             natom = last_calc_output_params.get_dict().get('number_of_atoms_in_unit_cell')
@@ -738,23 +739,23 @@ def parse_impdosfiles(folder, natom, nspin, ef, use_lmdos):
             if use_lmdos.value:
                 name0 = 'out_lmdos'
             fname = name0 + '.atom=%0.2i_spin%i.dat' % (iatom, ispin)
-            if fname in folder.list_object_names():
+            if fname in folder.base.repository.list_object_names():
                 # old file names with 2 digits for atom index
-                with folder.open(fname) as dosfile:
+                with folder.base.repository.open(fname) as dosfile:
                     tmp = loadtxt(dosfile)
                     dos.append(tmp)
 
-                with folder.open(name0 + '.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                with folder.base.repository.open(name0 + '.interpol.atom=%0.2i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     tmp = loadtxt(dosfile)
                     if len(tmp) > 0:
                         dos_int.append(tmp)
             else:
                 # new file names with 3 digits for atom numbers
-                with folder.open(name0 + '.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                with folder.base.repository.open(name0 + '.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     tmp = loadtxt(dosfile)
                     dos.append(tmp)
 
-                with folder.open(name0 + '.interpol.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
+                with folder.base.repository.open(name0 + '.interpol.atom=%0.3i_spin%i.dat' % (iatom, ispin)) as dosfile:
                     try:
                         tmp = loadtxt(dosfile)
                     except:

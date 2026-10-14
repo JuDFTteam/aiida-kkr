@@ -313,7 +313,7 @@ class kkr_decimation_wc(WorkChain):
         # extract correct remote folder of last calculation if input remote_folder node is not from KkrCalculation but kkr_scf_wc workflow
         input_remote = self.inputs.remote_data
         # check if input_remote has single KkrCalculation parent
-        parents = input_remote.get_incoming(node_class=KkrCalculation)
+        parents = input_remote.base.links.get_incoming(node_class=KkrCalculation)
         nparents = len(parents.all_link_labels())
         if nparents != 1:
             return self.exit_codes.ERROR_INVALID_INPUT_REMOTE_DATA  # pylint: disable=no-member
@@ -352,7 +352,7 @@ class kkr_decimation_wc(WorkChain):
         else:
             # extract startpots and structures from parent calculation
             deci_remote = self.inputs.remote_data
-            deci_calc = deci_remote.get_incoming(node_class=KkrCalculation).first().node
+            deci_calc = deci_remote.base.links.get_incoming(node_class=KkrCalculation).first().node
 
             struc_substrate, voro_substrate = VoronoiCalculation.find_parent_structure(deci_calc.inputs.deciout_parent)
             self.ctx.struc_substrate = struc_substrate
@@ -365,9 +365,9 @@ class kkr_decimation_wc(WorkChain):
             self.ctx.startpot_substrate = voro_substrate.inputs.potential_overwrite
             self.ctx.startpot_decimate = voro_deci.inputs.potential_overwrite
 
-            startpot_calcfun = struc_deci.get_incoming(link_label_filter='result').first().node
+            startpot_calcfun = struc_deci.base.links.get_incoming(link_label_filter='result').first().node
             slab_calc_remote = startpot_calcfun.inputs.slab_calc
-            self.ctx.slab_calc = slab_calc_remote.get_incoming(node_class=KkrCalculation).first().node
+            self.ctx.slab_calc = slab_calc_remote.base.links.get_incoming(node_class=KkrCalculation).first().node
 
         # get input params for deci-out and decimation steps
         self.ctx.params_overwrite = None
@@ -597,10 +597,10 @@ class kkr_decimation_wc(WorkChain):
         # create substrate startpot
         Nlayer_deci = len(self.ctx.struc_decimation.sites)
         if self.ctx.use_left:
-            nrbasis = self.ctx.struc_decimation.extras['kkr_settings']['NRBASIS']
+            nrbasis = self.ctx.struc_decimation.base.extras.get('kkr_settings')['NRBASIS']
             new_pot_indices = list(range(Nlayer_deci, Nlayer_deci + nrbasis))
         else:
-            nlbasis = self.ctx.struc_decimation.extras['kkr_settings']['NLBASIS']
+            nlbasis = self.ctx.struc_decimation.base.extras.get('kkr_settings')['NLBASIS']
             new_pot_indices = list(range(nlayer_slab - Nlayer_deci - nlbasis, nlayer_slab - Nlayer_deci))
 
         settings = Dict({
@@ -747,7 +747,7 @@ def get_deci_structure(nprinc, nplayer, slab_calc, use_left=True):
             kkr_settings['<RBLEFT>'] = kkr_settings['<RBLEFT>'][0]
     kkr_settings['NPRINCD'] = nprinc
     # save as extras to decimation structure
-    struc_deci.extras['kkr_settings'] = kkr_settings
+    struc_deci.base.extras.set('kkr_settings', kkr_settings)
 
     return struc_deci
 
@@ -844,7 +844,7 @@ def _make_d_deci(d, struc_deci, params_overwrite, slab_alat, use_left=True):
         ddeci.set_value('DECIFILES', ['vacuum', 'decifile'])
     else:
         ddeci.set_value('DECIFILES', ['decifile', 'vacuum'])
-    ddeci.set_multiple_values(**struc_deci.extras['kkr_settings'])
+    ddeci.set_multiple_values(**struc_deci.base.extras.get('kkr_settings'))
 
     # add decimate runopt
     runopts = ddeci.get_value('RUNOPT')

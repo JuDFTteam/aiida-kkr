@@ -60,17 +60,18 @@ class KkrimpParser(Parser):
             return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
 
         # check what is inside the folder
-        list_of_files = out_folder.list_object_names()
+        list_of_files = out_folder.base.repository.list_object_names()
 
         file_errors = []
         files = {}
 
         # Get the node of the parent calculation (useful for the imp calculations)
-        calc = out_folder.get_incoming(node_class=CalcJobNode).first().node
+        calc = out_folder.base.links.get_incoming(node_class=CalcJobNode).first().node
 
         # figure out if this is a DOS calculation (if not specified in the input already)
         if doscalc is None:
-            parent_host_calc = calc.inputs.host_Greenfunction_folder.get_incoming(node_class=CalcJobNode).first().node
+            parent_host_calc = calc.inputs.host_Greenfunction_folder.base.links.get_incoming(node_class=CalcJobNode
+                                                                                             ).first().node
             # This parameter discriminates if it is a DOS calc or not
             npol = parent_host_calc.inputs.parameters.get_dict().get('NPOL', 1)
             doscalc = (npol == 0)
@@ -162,7 +163,7 @@ class KkrimpParser(Parser):
         The icrit index determines how critical it is if a file
         is not found (1=critical error, 2=only a warning).
         """
-        if fname in self.retrieved.list_object_names():
+        if fname in self.retrieved.base.repository.list_object_names():
             files[keyname] = fname
         else:
             # file not

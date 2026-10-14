@@ -82,23 +82,23 @@ def test_voronoi_cached(aiida_profile_clean, voronoi_local_code, enable_archive_
 
     # check output
     print('out, node:', out, node)
-    print('cache_source:', node.get_cache_source())
-    print('hash', node.get_hash())
-    print('_get_objects_to_hash', node._get_objects_to_hash())
+    print('cache_source:', node.base.caching.get_cache_source())
+    print('hash', node.base.caching.get_hash())
+    print('_get_objects_to_hash', node.base.caching._get_objects_to_hash())
     print('ignored attributes:', node._hash_ignored_attributes)
     print('===== code =====')
-    print('hash:', voronoi_local_code.get_hash())
-    print('objects to hash:', voronoi_local_code._get_objects_to_hash())
+    print('hash:', voronoi_local_code.base.caching.get_hash())
+    print('objects to hash:', voronoi_local_code.base.caching._get_objects_to_hash())
     print('ignored attributes:', voronoi_local_code._hash_ignored_attributes)
     print('===== structure =====')
-    print('structure hash:', structure.get_hash())
-    print('objects to hash:', structure._get_objects_to_hash())
+    print('structure hash:', structure.base.caching.get_hash())
+    print('objects to hash:', structure.base.caching._get_objects_to_hash())
     print('ignored attributes:', structure._hash_ignored_attributes)
     print('===== parameters =====')
-    print('hash:', parameters.get_hash())
-    print('objects to hash:', parameters._get_objects_to_hash())
+    print('hash:', parameters.base.caching.get_hash())
+    print('objects to hash:', parameters.base.caching._get_objects_to_hash())
     print('ignored attributes:', parameters._hash_ignored_attributes)
-    assert node.get_cache_source() is not None
+    assert node.base.caching.get_cache_source() is not None
 
 
 def test_voronoi_after_kkr(aiida_profile_clean, voronoi_local_code, enable_archive_cache, nopytest=False):
@@ -137,9 +137,9 @@ def test_voronoi_after_kkr(aiida_profile_clean, voronoi_local_code, enable_archi
     if not nopytest:
         with enable_archive_cache(data_dir / 'voronoi_after_kkr.aiida'):
             out, node = run_get_node(builder)
-        print('hash:', node.get_hash())
-        print('cache_source:', node.get_cache_source())
-        print('code objects to hash:', node._get_objects_to_hash())
+        print('hash:', node.base.caching.get_hash())
+        print('cache_source:', node.base.caching.get_cache_source())
+        print('code objects to hash:', node.base.caching._get_objects_to_hash())
         print('ignored attributes:', node._hash_ignored_attributes)
     else:
         out, node = run_get_node(builder)
@@ -158,4 +158,4 @@ def test_voronoi_after_kkr(aiida_profile_clean, voronoi_local_code, enable_archi
     assert out_dict.get_dict().get('parser_errors') == []
 
     # check if overwrite_potential file is present
-    assert 'overwrite_potential' in ret.list_object_names()
+    assert 'overwrite_potential' in ret.base.repository.list_object_names()

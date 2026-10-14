@@ -46,7 +46,7 @@ def get_scoef_single_imp(host_structure, impinfo_node):
     :type: numpy.array
     """
     # check if we can read it from a node extra
-    if 'imp_cls' not in impinfo_node.extras:
+    if 'imp_cls' not in impinfo_node.base.extras.keys():
         impinfo = impinfo_node.get_dict()
         Rcut = impinfo.get('Rcut', None)
         hcut = impinfo.get('hcut', -1.)
@@ -58,9 +58,9 @@ def get_scoef_single_imp(host_structure, impinfo_node):
         clust = clust[(clust[:, -1]).argsort()]
 
         # save as extra for second run
-        impinfo_node.set_extra('imp_cls', clust)
+        impinfo_node.base.extras.set('imp_cls', clust)
     else:
-        clust = np.array(impinfo_node.extras['imp_cls'])
+        clust = np.array(impinfo_node.base.extras.get('imp_cls'))
 
     return clust
 

@@ -68,7 +68,7 @@ Then we set some settings of the workflow parameters (this step is optional)::
 
     # create workflow settings
     from aiida.orm import DataFactory
-    ParameterData = DataFactory('parameter')
+    ParameterData = DataFactory('core.dict')
     workflow_settings = ParameterData(dict={'dos_params':{'emax': 1, 'tempr': 200, 'emin': -1,
                                                           'kmesh': [20, 20, 20], 'nepts': 81}})
     
@@ -158,7 +158,7 @@ To access into the data
    bsf = BS_Data.get_array('BlochSpectralFunction')
    kpts = BS_Data.get_array('Kpts')
    eng_pts = BS_Data.get_array('energy_points')
-   k_label= BS_Data.extras['k-labels']
+   k_label= BS_Data.base.extras.get('k-labels')
 
 The ``bsf`` array is a 2d-numpy array and contains the Bloch spectral function (k and energy resolved density) and ``k_label`` give the python dict archiving the high-symmetry points, ``index:label``, in kpts.
 
@@ -292,7 +292,7 @@ Now we create a structure node for the system we want to calculate::
 
     # create Copper bulk aiida Structure
     from aiida.orm import DataFactory
-    StructureData = DataFactory('structure')
+    StructureData = DataFactory('core.structure')
     alat = 3.61 # lattice constant in Angstroem
     bravais = alat*array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]]) # Bravais matrix in Ang. units
     Cu = StructureData(cell=bravais)
@@ -302,7 +302,7 @@ Finally we run the ``kkr_startpot_wc`` workflow (here using the defaults for the
 
     from aiida_kkr.workflows.voro_start import kkr_startpot_wc
     from aiida.work import run
-    ParameterData = DataFactory('parameter')
+    ParameterData = DataFactory('core.dict')
     run(kkr_startpot_wc, structure=Cu, voronoi=vorocode, kkr=kkrcode, calc_parameters=ParameterData(dict=kkr_settings.get_dict()))
 
     
@@ -374,7 +374,7 @@ Case 1: Start from previous calculation
 
     from aiida_kkr.workflows.kkr_scf import kkr_scf_wc
     from aiida.work import run
-    ParameterData = DataFactory('parameter')
+    ParameterData = DataFactory('core.dict')
     run(kkr_scf_wc, kkr=kkrcode, calc_parameters=ParameterData(dict=kkr_settings.get_dict()), remote_data=last_vorono_remote)
     
 
@@ -386,7 +386,7 @@ Case 2: Start from structure and run voronoi calculation first
     # create Copper bulk aiida Structure
     fro numpy import array
     from aiida.orm import DataFactory
-    StructureData = DataFactory('structure')
+    StructureData = DataFactory('core.structure')
     alat = 3.61 # lattice constant in Angstroem
     bravais = alat*array([[0.5, 0.5, 0], [0.5, 0, 0.5], [0, 0.5, 0.5]]) # Bravais matrix in Ang. units
     Cu = StructureData(cell=bravais)
@@ -444,7 +444,7 @@ Then we set some settings of the options parameters (this step is optional)::
 
     # create workflow settings
     from aiida.orm import DataFactory
-    ParameterData = DataFactory('parameter')
+    ParameterData = DataFactory('core.dict')
     options = ParameterData(dict={'use_mpi':'false', 'queue_name':'viti_node', 'walltime_sec' : 60*60*2,  
                                             'resources':{'num_machines':1, 'num_mpiprocs_per_machine':1}})
     

@@ -19,11 +19,11 @@ def get_anomalous_density_data(retrieved, rename_files=None):
 
     :returns: anomalous_density FolderData which contains the (possibly renamed) anomalous density files
     """
-    BdG_files = [i for i in retrieved.list_object_names() if 'den_lm_ir' in i]
+    BdG_files = [i for i in retrieved.base.repository.list_object_names() if 'den_lm_ir' in i]
 
     anomalous_density = FolderData()
     for fname in BdG_files:
-        with retrieved.open(fname, 'r') as _fin:
+        with retrieved.base.repository.open(fname, 'r') as _fin:
             # default is to use the same name as in the input
             fname_out = fname
 
@@ -43,6 +43,6 @@ def get_anomalous_density_data(retrieved, rename_files=None):
 
             if fname_out is not None:
                 # copy input file to FolderData node, maybe with changed name
-                anomalous_density.put_object_from_filelike(_fin, fname_out)
+                anomalous_density.base.repository.put_object_from_filelike(_fin, fname_out)
 
     return anomalous_density

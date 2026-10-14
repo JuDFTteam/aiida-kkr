@@ -7,7 +7,7 @@ from ..conftest import voronoi_local_code, kkrhost_local_code, test_dir, data_di
 
 
 @pytest.mark.timeout(500, method='thread')
-def test_kkr_startpot_wc_Cu(clear_database_before_test, voronoi_local_code, kkrhost_local_code, enable_archive_cache):
+def test_kkr_startpot_wc_Cu(aiida_profile_clean, voronoi_local_code, kkrhost_local_code, enable_archive_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow
     """
@@ -72,10 +72,10 @@ def test_kkr_startpot_wc_Cu(clear_database_before_test, voronoi_local_code, kkrh
 
     kkrcalc = [i for i in node.called_descendants if i.process_label == 'KkrCalculation'][0]
     vorocalc = [i for i in node.called_descendants if i.process_label == 'VoronoiCalculation'][0]
-    print('hashes of computed voro and kkr calcs', vorocalc.get_hash(), kkrcalc.get_hash())
-    print('was cached (voro/kkr)?', vorocalc.get_cache_source(), kkrcalc.get_cache_source())
-    print('caching info voro', vorocalc._get_objects_to_hash())
-    print('caching info kkr ', kkrcalc._get_objects_to_hash())
+    print('hashes of computed voro and kkr calcs', vorocalc.base.caching.get_hash(), kkrcalc.base.caching.get_hash())
+    print('was cached (voro/kkr)?', vorocalc.base.caching.get_cache_source(), kkrcalc.base.caching.get_cache_source())
+    print('caching info voro', vorocalc.base.caching._get_objects_to_hash())
+    print('caching info kkr ', kkrcalc.base.caching._get_objects_to_hash())
 
     # find imported and new calculations
     from aiida_kkr.calculations import VoronoiCalculation, KkrCalculation
@@ -87,13 +87,13 @@ def test_kkr_startpot_wc_Cu(clear_database_before_test, voronoi_local_code, kkrh
     print('\n\nvoronoi calculations:', voro_calcs)
     for calc in voro_calcs:
         code = calc[0].inputs.code
-        print('hash', calc[0].get_hash())
-        print('was cached?', calc[0].get_cache_source())
-        print('caching info', calc[0]._get_objects_to_hash())
-        print('code info:', code.get_hash())
-        print('code info:', code._get_objects_to_hash())
+        print('hash', calc[0].base.caching.get_hash())
+        print('was cached?', calc[0].base.caching.get_cache_source())
+        print('caching info', calc[0].base.caching._get_objects_to_hash())
+        print('code info:', code.base.caching.get_hash())
+        print('code info:', code.base.caching._get_objects_to_hash())
         print('code info:', code._hash_ignored_attributes)
-        print('code attrs:', code.attributes)
+        print('code attrs:', code.base.attributes.all)
 
     qub = QueryBuilder()
     qub.append(KkrCalculation)
@@ -102,7 +102,7 @@ def test_kkr_startpot_wc_Cu(clear_database_before_test, voronoi_local_code, kkrh
 
 
 @pytest.mark.timeout(500, method='thread')
-def test_kkr_startpot_parent_KKR(clear_database_before_test, voronoi_local_code, enable_archive_cache):
+def test_kkr_startpot_parent_KKR(aiida_profile_clean, voronoi_local_code, enable_archive_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow
     """

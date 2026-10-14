@@ -5,7 +5,7 @@ from aiida import load_profile
 load_profile()
 # load essential aiida classes
 from aiida.orm import DataFactory, load_node
-ParameterData = DataFactory('parameter')
+ParameterData = DataFactory('core.dict')
 
 
 # some settings:

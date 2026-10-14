@@ -236,7 +236,7 @@ class kkr_flex_wc(WorkChain):
         # is not from KKRCalculation but kkr_scf_wc workflow
         input_remote = self.inputs.remote_data
         # check if input_remote has single KKRCalculation parent
-        parents = input_remote.get_incoming(node_class=CalcJobNode)
+        parents = input_remote.base.links.get_incoming(node_class=CalcJobNode)
         nparents = len(parents.all_link_labels())
         if nparents != 1:
             # extract parent workflow and get uuid of last calc from output node
@@ -337,14 +337,14 @@ class kkr_flex_wc(WorkChain):
             if self.ctx.dos_run or self.ctx.ef_shift != 0:
                 # extract Fermi energy in Ry
                 remote_data_parent = self.inputs.remote_data
-                parent_calc = remote_data_parent.get_incoming(link_label_filter='remote_folder').first().node
+                parent_calc = remote_data_parent.base.links.get_incoming(link_label_filter='remote_folder').first().node
                 ef = parent_calc.outputs.output_parameters.get_dict().get('fermi_energy')
                 # check if ef needs to be taken from a voronoi parent
                 if ef is None:
-                    objects = parent_calc.outputs.retrieved.list_object_names()
+                    objects = parent_calc.outputs.retrieved.base.repository.list_object_names()
                     fname = VoronoiCalculation._OUT_POTENTIAL_voronoi
                     if fname in objects:
-                        with parent_calc.outputs.retrieved.open(fname) as _f:
+                        with parent_calc.outputs.retrieved.base.repository.open(fname) as _f:
                             ef = get_ef_from_potfile(_f)
                 if ef is None:
                     return self.exit_codes.ERROR_NO_EF_FOUND  # pylint: disable=no-member

@@ -13,7 +13,7 @@ from ..conftest import import_with_migration
 
 
 @pytest.mark.timeout(240, method='thread')
-def test_bs_wc_Cu(clear_database_before_test, kkrhost_local_code, enable_archive_cache, ndarrays_regression):
+def test_bs_wc_Cu(aiida_profile_clean, kkrhost_local_code, enable_archive_cache, ndarrays_regression):
     """
     minimal bandstructure calculation for Cu bulk
     """

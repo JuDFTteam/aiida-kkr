@@ -603,6 +603,6 @@ def get_imp_info_from_parent(parent_calc):
     Returns None if no input node of this name is found.
     """
     imp_info = None
-    if 'impurity_info' in parent_calc.get_incoming().all_link_labels():
-        imp_info = parent_calc.get_incoming().get_node_by_label('impurity_info')
+    if 'impurity_info' in parent_calc.base.links.get_incoming().all_link_labels():
+        imp_info = parent_calc.base.links.get_incoming().get_node_by_label('impurity_info')
     return imp_info

@@ -9,7 +9,7 @@ from aiida import orm
 
 @pytest.mark.timeout(900, method='thread')
 def test_imp_BdG_wc(
-    clear_database_before_test, kkrimp_local_code, kkrhost_local_code, voronoi_local_code, enable_archive_cache,
+    aiida_profile_clean, kkrimp_local_code, kkrhost_local_code, voronoi_local_code, enable_archive_cache,
     ndarrays_regression
 ):
     """

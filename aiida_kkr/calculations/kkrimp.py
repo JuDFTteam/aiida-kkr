@@ -312,7 +312,7 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
         host_parent = self.inputs.host_Greenfunction_folder
 
         # extract parent calculation
-        parent_calcs = host_parent.get_incoming(node_class=CalcJob)
+        parent_calcs = host_parent.base.links.get_incoming(node_class=CalcJob)
         n_parents = len(parent_calcs.all_link_labels())
         if n_parents != 1:
             raise UniquenessError(
@@ -399,7 +399,7 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
 
         # check if host parent was KKRFLEX calculation
         hostfolder = parent_calc.outputs.retrieved
-        with hostfolder.open(KkrCalculation._DEFAULT_INPUT_FILE) as fhandle:
+        with hostfolder.base.repository.open(KkrCalculation._DEFAULT_INPUT_FILE) as fhandle:
             # use read_keywords_from_inputcard of kkrparams class
             params_host_calc = kkrparams(params_type='kkr')
             params_host_calc.read_keywords_from_inputcard(inputcard=fhandle)
@@ -417,7 +417,7 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
         # extract information from Efshift host GF input node (not mandatory)
         if 'host_Greenfunction_folder_Efshift' in self.inputs:
             host_parent_Efshift = self.inputs.host_Greenfunction_folder_Efshift
-            parent_calcs_Efshift = host_parent_Efshift.get_incoming(node_class=CalcJob)
+            parent_calcs_Efshift = host_parent_Efshift.base.links.get_incoming(node_class=CalcJob)
             parent_calc_Efshift = parent_calcs_Efshift.first().node
             hostfolder_Efshift = parent_calc_Efshift.outputs.retrieved
         else:
@@ -425,11 +425,11 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
 
         kkrflex_file_paths = {}
         for filename in self._ALL_KKRFLEX_FILES:
-            if filename in hostfolder.list_object_names():
+            if filename in hostfolder.base.repository.list_object_names():
                 kkrflex_file_paths[filename] = hostfolder
             # take tmat and green file from Fermi level overwrite directory (second GF_writeout calculation)
             if hostfolder_Efshift is not None and filename in [self._KKRFLEX_TMAT, self._KKRFLEX_GREEN]:
-                if filename in hostfolder_Efshift.list_object_names():
+                if filename in hostfolder_Efshift.base.repository.list_object_names():
                     kkrflex_file_paths[filename] = hostfolder_Efshift
 
         # extract shapes array from parameters read from inputcard
@@ -448,7 +448,7 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
 
         # extract shapefun path for read-in
         shapefun_path = {}
-        if VoronoiCalculation._SHAPEFUN in voro_parent.outputs.retrieved.list_object_names():
+        if VoronoiCalculation._SHAPEFUN in voro_parent.outputs.retrieved.base.repository.list_object_names():
             shapefun_path = voro_parent.outputs.retrieved
         else:
             shapefun_path = None
@@ -527,8 +527,8 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
         # overwrite keys if found in parent_calc (previous KKRimp calculation)
         # here `parent_calc_folder` is the `remote` output node of the previous KKRimp calculation
         if parent_calc_folder is not None:
-            parent_calc = parent_calc_folder.get_incoming().get_node_by_label('remote_folder')
-            params_parent = parent_calc.get_incoming().get_node_by_label('parameters')
+            parent_calc = parent_calc_folder.base.links.get_incoming().get_node_by_label('remote_folder')
+            params_parent = parent_calc.base.links.get_incoming().get_node_by_label('parameters')
         else:
             params_parent = None
         if params_parent is not None:
@@ -563,7 +563,9 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
         change kkrflex_atominfo to match impurity case
         """
         # read in atominfo file as it is written out
-        with kkrflex_file_paths[KkrCalculation._KKRFLEX_ATOMINFO].open(KkrCalculation._KKRFLEX_ATOMINFO) as file:
+        with kkrflex_file_paths[KkrCalculation._KKRFLEX_ATOMINFO].base.repository.open(
+            KkrCalculation._KKRFLEX_ATOMINFO
+        ) as file:
             atominfo = file.readlines()
 
         #TODO implement logic to extract this info from imp_info
@@ -647,7 +649,7 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
         # now create impurity shapefun (reads scoef file)
         with tempfolder.open(KkrCalculation._SCOEF, u'r') as scoef_file:
             with tempfolder.open(KkrimpCalculation._SHAPEFUN, u'w') as shapefun_new:
-                with shapefun.open(KkrimpCalculation._SHAPEFUN, u'r') as shapefun_file:
+                with shapefun.base.repository.open(KkrimpCalculation._SHAPEFUN, u'r') as shapefun_file:
                     shapelen = len(shapefun_file.readlines())
                     if shapelen > 1:
                         modify_potential().shapefun_from_scoef(scoef_file, shapefun_file, shapes, shapefun_new)
@@ -661,17 +663,18 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
             potfile_name, potfile_folder = impurity_potential.filename, impurity_potential
         elif parent_calc_folder is not None:
             self.report(
-                f'parent_calc_folder {parent_calc_folder} {parent_calc_folder.get_incoming().all_link_labels()}'
+                f'parent_calc_folder {parent_calc_folder} {parent_calc_folder.base.links.get_incoming().all_link_labels()}'
             )
-            retrieved = parent_calc_folder.get_incoming(node_class=CalcJobNode
-                                                        ).first().node.get_outgoing().get_node_by_label('retrieved')
+            retrieved = parent_calc_folder.base.links.get_incoming(
+                node_class=CalcJobNode
+            ).first().node.base.links.get_outgoing().get_node_by_label('retrieved')
             self.report(f'potfile {retrieved} {self._OUT_POTENTIAL}')
 
             # extract file from host's tarball (extract to tempfolder and use from there, this way the unnessesary files are deleted once submission is done)
             tar_filenames = []
-            if self._FILENAME_TAR in retrieved.list_object_names():
+            if self._FILENAME_TAR in retrieved.base.repository.list_object_names():
                 # get path of tarfile
-                with retrieved.open(self._FILENAME_TAR) as tf:
+                with retrieved.base.repository.open(self._FILENAME_TAR) as tf:
                     tfpath = tf.name
                 # extract file from tarfile of retrieved to tempfolder
                 with tarfile.open(tfpath) as tf:
@@ -682,9 +685,9 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
                         tf.extract(filename, tempfolder_path)  # extract to tempfolder
             else:  # otherwise copy from retrieved to tempfolder (rest of calculation needs files to be in tempfolder)
                 filename = self._OUT_POTENTIAL
-                if filename in retrieved.list_object_names():
+                if filename in retrieved.base.repository.list_object_names():
                     with tempfolder.open(filename, u'w') as newfile:
-                        with retrieved.open(filename, u'r') as oldfile:
+                        with retrieved.base.repository.open(filename, u'r') as oldfile:
                             newfile.writelines(oldfile.readlines())
                     self.report('copied potfile from retrieved to tempfolder')
 
@@ -845,13 +848,13 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
         # find renormalization factor
         if wfac_renorm:
             # option 1: found wfac_renorm in Kkrhost parent's input parameters
-            with GFhost_folder.open('inputcard') as f:
+            with GFhost_folder.base.repository.open('inputcard') as f:
                 txt = f.readlines()
             iline = search_string('WFAC_RENORM', txt)
         else:
             # option 2: host parent is a Lloyd calculation
             # extract renormalization factor and create kkrflex_llyfac file (contains one value only)
-            with GFhost_folder.open('output.000.txt') as f:
+            with GFhost_folder.base.repository.open('output.000.txt') as f:
                 txt = f.readlines()
             iline = search_string('RENORM_LLY: Renormalization factor of total charge', txt)
 
@@ -1010,7 +1013,7 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
             retrieve_list.append(self._OUT_LMDOS_INTERPOL)
             # add Jij of E file if Jij mode
             if calcjijmat > 0:
-                with kkrflex_file_paths[self._KKRFLEX_TMAT].open(self._KKRFLEX_TMAT, 'r') as f:
+                with kkrflex_file_paths[self._KKRFLEX_TMAT].base.repository.open(self._KKRFLEX_TMAT, 'r') as f:
                     txt = []
                     for iline in range(3):
                         txt.append(f.readline())
@@ -1138,8 +1141,9 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
         has_ldaupot = False
 
         if parent_calc_folder is not None:
-            retrieved = parent_calc_folder.get_incoming(node_class=CalcJobNode
-                                                        ).first().node.get_outgoing().get_node_by_label('retrieved')
+            retrieved = parent_calc_folder.base.links.get_incoming(
+                node_class=CalcJobNode
+            ).first().node.base.links.get_outgoing().get_node_by_label('retrieved')
             # extract file from host's tarball (extract to tempfolder and use from there, this way the unnessesary files are deleted once submission is done)
             has_ldaupot = self.get_ldaupot_from_retrieved(retrieved, tempfolder)
 
@@ -1211,13 +1215,13 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
         """
         tar_filenames = []
         has_ldaupot = False
-        if self._FILENAME_TAR in retrieved.list_object_names():
+        if self._FILENAME_TAR in retrieved.base.repository.list_object_names():
             # get path of tempfolder
             with tempfolder.open('.dummy', 'w') as tmpfile:
                 tempfolder_path = os.path.dirname(tmpfile.name)
 
             # get path of tarfile
-            with retrieved.open(self._FILENAME_TAR) as tf:
+            with retrieved.base.repository.open(self._FILENAME_TAR) as tf:
                 tfpath = tf.name
 
             # extract file from tarfile of retrieved to tempfolder
@@ -1237,10 +1241,10 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
                 os.remove(os.path.join(tempfolder_path, '.dummy'))
 
         else:  # otherwise copy from retrieved to tempfolder (rest of calculation needs files to be in tempfolder)
-            if self._LDAUPOT in retrieved.list_object_names():
+            if self._LDAUPOT in retrieved.base.repository.list_object_names():
                 has_ldaupot = True
                 with tempfolder.open(self._LDAUPOT + '_old', u'w') as newfile:
-                    with retrieved.open(self._LDAUPOT, u'r') as oldfile:
+                    with retrieved.base.repository.open(self._LDAUPOT, u'r') as oldfile:
                         newfile.writelines(oldfile.readlines())
 
         return has_ldaupot

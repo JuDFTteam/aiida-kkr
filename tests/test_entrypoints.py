@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 from builtins import object
 import pytest
-from aiida.manage.tests.pytest_fixtures import clear_database, clear_database_after_test
 
 
 @pytest.mark.usefixtures('aiida_profile')
@@ -66,7 +65,7 @@ class TestAiida_kkr_entrypoints(object):
         from aiida.orm import Data
         from aiida_kkr.data.kkrstructure import KkrstructureData
 
-        StructureData = DataFactory('structure')
+        StructureData = DataFactory('core.structure')
         kkrstruc = DataFactory('kkr.kkrstructure')
         assert kkrstruc == KkrstructureData
         assert isinstance(kkrstruc(), Data)

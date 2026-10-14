@@ -57,7 +57,7 @@ class VoronoiParser(Parser):
             return self.exit_codes.ERROR_NO_RETRIEVED_FOLDER
 
         # check what is inside the folder
-        list_of_files = out_folder.list_object_names()
+        list_of_files = out_folder.base.repository.list_object_names()
 
         # we need at least the output file name as defined in calcs.py
         if VoronoiCalculation._OUTPUT_FILE_NAME not in list_of_files:
@@ -69,9 +69,9 @@ class VoronoiParser(Parser):
         # get path to files and catch errors if files are not present
         file_errors = []
         potfile_name = VoronoiCalculation._OUT_POTENTIAL_voronoi
-        if potfile_name not in out_folder.list_object_names():
+        if potfile_name not in out_folder.base.repository.list_object_names():
             # cover case where potfile is overwritten from input to voronoi calculation
-            if VoronoiCalculation._POTENTIAL_IN_OVERWRITE in out_folder.list_object_names():
+            if VoronoiCalculation._POTENTIAL_IN_OVERWRITE in out_folder.base.repository.list_object_names():
                 potfile_name = VoronoiCalculation._POTENTIAL_IN_OVERWRITE
             else:
                 file_errors.append(
@@ -81,22 +81,22 @@ class VoronoiParser(Parser):
                 potfile_name = None
 
         outfile_name = VoronoiCalculation._OUTPUT_FILE_NAME
-        if outfile_name not in out_folder.list_object_names():
+        if outfile_name not in out_folder.base.repository.list_object_names():
             file_errors.append(f'Critical error! outfile not found {outfile_name}')
             outfile_name = None
 
         atominfo_name = VoronoiCalculation._ATOMINFO
-        if atominfo_name not in out_folder.list_object_names():
+        if atominfo_name not in out_folder.base.repository.list_object_names():
             file_errors.append(f'Critical error! atominfo not found {atominfo_name}')
             atominfo_name = None
 
         radii_name = VoronoiCalculation._RADII
-        if radii_name not in out_folder.list_object_names():
+        if radii_name not in out_folder.base.repository.list_object_names():
             file_errors.append(f'Critical error! radii not found {radii_name}')
             radii_name = None
 
         inputfile_name = VoronoiCalculation._INPUT_FILE_NAME
-        if inputfile_name not in out_folder.list_object_names():
+        if inputfile_name not in out_folder.base.repository.list_object_names():
             file_errors.append(f'Critical error! inputfile not found {inputfile_name}')
             inputfile_name = None
 

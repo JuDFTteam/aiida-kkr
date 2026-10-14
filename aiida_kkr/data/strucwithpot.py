@@ -49,7 +49,7 @@ and lists of SingleFileData potential and shape files have to be provided.'
         """
         The AiiDA original StructureData object
         """
-        return load_node(self.get_attribute('structure'))
+        return load_node(self.base.attributes.get('structure'))
 
     @structure.setter
     def structure(self, struc):
@@ -60,14 +60,14 @@ and lists of SingleFileData potential and shape files have to be provided.'
         :raise ValueError:
         """
         struc.store()
-        self.set_attribute('structure', struc.uuid)
+        self.base.attributes.set('structure', struc.uuid)
 
     @property
     def shapes(self):
         """
         The shape list in exactly the same order as stored in the StructureData object
         """
-        return [load_node(item) for item in self.get_attribute('shapes')]
+        return [load_node(item) for item in self.base.attributes.get('shapes')]
 
     @shapes.setter
     def shapes(self, shape_list):
@@ -79,14 +79,14 @@ and lists of SingleFileData potential and shape files have to be provided.'
         for item in shape_list:
             item.store()
         shape_list_uuids = [item.uuid for item in shape_list]
-        self.set_attribute('shapes', shape_list_uuids)
+        self.base.attributes.set('shapes', shape_list_uuids)
 
     @property
     def potentials(self):
         """
         The potential list in exactly the same order as stored in the StructureData object
         """
-        return [load_node(item) for item in self.get_attribute('potentials')]
+        return [load_node(item) for item in self.base.attributes.get('potentials')]
 
     @potentials.setter
     def potentials(self, potential_list):
@@ -98,14 +98,14 @@ and lists of SingleFileData potential and shape files have to be provided.'
         for item in potential_list:
             item.store()
         potential_list_uuids = [item.uuid for item in potential_list]
-        self.set_attribute('potentials', potential_list_uuids)
+        self.base.attributes.set('potentials', potential_list_uuids)
 
     @property
     def specified_lattice_constant(self):
         """
         The specified_lattice_constant to use in the input file of KKR calculations in angs
         """
-        return load_node(self.get_attribute('specified_lattice_constant'))
+        return load_node(self.base.attributes.get('specified_lattice_constant'))
 
     @specified_lattice_constant.setter
     def specified_lattice_constant(self, specified_lattice_constant):
@@ -115,7 +115,7 @@ and lists of SingleFileData potential and shape files have to be provided.'
         :raise ValueError:
         """
         specified_lattice_constant.store()
-        self.set_attribute('specified_lattice_constant', specified_lattice_constant.uuid)
+        self.base.attributes.set('specified_lattice_constant', specified_lattice_constant.uuid)
 
     def make_shapefun(self):
         """
@@ -178,7 +178,7 @@ and lists of SingleFileData potential and shape files have to be provided.'
         #shapefun
         shapelist = []
         try:
-            with calcnode.outputs.retrieved.open('shapefun') as _f:
+            with calcnode.outputs.retrieved.base.repository.open('shapefun') as _f:
                 shapes = _f.readlines()
         except:
             calcnode.outputs.remote_folder.getfile('shapefun', f'{cwd}/shapefun')
@@ -202,15 +202,17 @@ and lists of SingleFileData potential and shape files have to be provided.'
 
             print(path)
             abs_path = f'{cwd}/{shape_no_filename}'
-            self.put_object_from_file(abs_path, shape_no_filename)  #Problem has to be called via instance
-            self.set_attribute(shape_no_filename.replace('.', ''), shape_no_filename)
-            with self.open(shape_no_filename, 'r') as _f:
+            self.base.repository.put_object_from_file(
+                abs_path, shape_no_filename
+            )  #Problem has to be called via instance
+            self.base.attributes.set(shape_no_filename.replace('.', ''), shape_no_filename)
+            with self.base.repository.open(shape_no_filename, 'r') as _f:
                 shapelist.append(SinglefileData(_f.name))
         print('__________')
         #potential
         potentiallist = []
         try:
-            with calcnode.outputs.retrieved.open('output.pot') as _f:
+            with calcnode.outputs.retrieved.base.repository.open('output.pot') as _f:
                 potentials = _f.readlines()
         except:
             filename = 'out_potential'
@@ -242,9 +244,11 @@ and lists of SingleFileData potential and shape files have to be provided.'
                 path = os.path.realpath(file.name)
             print('local path: ', path)
             abs_path = f'{cwd}/{potential_no_filename}'
-            self.put_object_from_file(abs_path, potential_no_filename)  #Problem has to be called via instance
-            self.set_attribute(potential_no_filename.replace('.', ''), potential_no_filename)
-            with self.open(potential_no_filename, 'r') as _f:
+            self.base.repository.put_object_from_file(
+                abs_path, potential_no_filename
+            )  #Problem has to be called via instance
+            self.base.attributes.set(potential_no_filename.replace('.', ''), potential_no_filename)
+            with self.base.repository.open(potential_no_filename, 'r') as _f:
                 potentiallist.append(SinglefileData(_f.name))
                 print('repository path: ', _f)
         print('__________')
@@ -276,9 +280,9 @@ and lists of SingleFileData potential and shape files have to be provided.'
             )
         structure = find_parent_structure(calcnode)[0]
         pot_list = []
-        for item in calcnode.outputs.retrieved.list_object_names():
+        for item in calcnode.outputs.retrieved.base.repository.list_object_names():
             if item.find('vpot') == 0:
-                with calcnode.outputs.retrieved.open(item) as _f:
+                with calcnode.outputs.retrieved.base.repository.open(item) as _f:
                     path = _f.name
                 pot_list.append(SinglefileData(path))
 
@@ -291,7 +295,7 @@ and lists of SingleFileData potential and shape files have to be provided.'
         #using the shapefun of either the input voronoi calculation or input strucwithpot object
         shape_list = []
         # best approach probably not to piggyback on the found structure and find the corresponding structure based on the first voronoi calculation that appears, or strucwithpot input
-        #parent_calc=self.inputs.parent_folder#.get_incoming(node_class=CalcJobNode).first().node
+        #parent_calc=self.inputs.parent_folder#.base.links.get_incoming(node_class=CalcJobNode).first().node
 
         #find shapefunction
         shape_list = self.find_parent_shapefun(calcnode)
@@ -346,13 +350,13 @@ and lists of SingleFileData potential and shape files have to be provided.'
                     shapelist = []
                 abs_path = f'{cwd}/{filename}'
                 parent_folder.getfile(filename, f'{cwd}/{filename}')
-                self.put_object_from_file(abs_path, filename)
-                self.set_attribute(filename.replace('.', ''), filename)
+                self.base.repository.put_object_from_file(abs_path, filename)
+                self.base.attributes.set(filename.replace('.', ''), filename)
                 os.remove(filename)
-                with self.open(filename, 'r') as _f:
-                    shapelist.append(SinglefileData(_f.name))
+                with self.base.repository.open(filename, 'r') as _f:
+                    shapelist.append(SinglefileData(_f.name))  # pylint: disable=no-member
                     print('Found shape in repsitory:')
-                    print(_f.name)
+                    print(_f.name)  # pylint: disable=no-member
                 has_shapefun_file = False
                 found_shapes = True
         if 'shapefun' in parent_folder_listdir and not found_shapes:
@@ -382,10 +386,12 @@ and lists of SingleFileData potential and shape files have to be provided.'
                     path = os.path.realpath(file.name)
                 print(path)
                 abs_path = f'{cwd}/{shape_no_filename}'
-                self.put_object_from_file(abs_path, shape_no_filename)  #Problem has to be called via instance
-                self.set_attribute(shape_no_filename.replace('.', ''), shape_no_filename)
-                with self.open(shape_no_filename, 'r') as _f:
-                    shapelist.append(SinglefileData(_f.name))
+                self.base.repository.put_object_from_file(
+                    abs_path, shape_no_filename
+                )  #Problem has to be called via instance
+                self.base.attributes.set(shape_no_filename.replace('.', ''), shape_no_filename)
+                with self.base.repository.open(shape_no_filename, 'r') as _f:
+                    shapelist.append(SinglefileData(_f.name))  # pylint: disable=no-member
                 os.remove(shape_no_filename)
             has_shapefun_file = True
         if has_shapefun_file:

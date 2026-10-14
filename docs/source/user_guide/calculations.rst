@@ -58,7 +58,7 @@ First we create an aiida structure::
     
     # get aiida StructureData class:
     from aiida.plugins import DataFactory
-    StructureData = DataFactory('structure')
+    StructureData = DataFactory('core.structure')
 
 Then we create the aiida StructureData node (here for bulk Cu)::
     
@@ -86,7 +86,7 @@ and set at least the mandatory parameters::
     
 finally create an aiida Dict node and fill with the dictionary of parameters::
 
-    Dict = DataFactory('dict') # use DataFactory to get ParamerterData class
+    Dict = DataFactory('core.dict') # use DataFactory to get ParamerterData class
     ParaNode = Dict(dict=params.get_dict())
 
     
@@ -280,7 +280,7 @@ Here we take the remote folder of the converged calculation to reuse settings an
 
 Now we extract the parameters of the kkr calculation and add the ``KKRFLEX`` run-option::
 
-    kkrcalc_converged = kkr_converged_parent_folder.get_incoming().first().node
+    kkrcalc_converged = kkr_converged_parent_folder.base.links.get_incoming().first().node
     kkr_params_dict = kkrcalc_converged.inputs.parameters.get_dict()
     kkr_params_dict['RUNOPT'] = ['KKRFLEX']
     
@@ -292,7 +292,7 @@ Now we create a new KKR calculation and set input nodes::
 
     code = kkrcalc_converged.inputs.code # take the same code as in the calculation before
     builder= code.get_builder()
-    resources = kkrcalc_converged.attributes['resources']
+    resources = kkrcalc_converged.base.attributes.get('resources')
     builder.metadata.options = {'resources': resources}
     builder.parameters = ParaNode
     builder.parent_folder = kkr_converged_parent_folder
@@ -360,7 +360,7 @@ of the input parameters accordingly (i.e. energy contour like in DOS run)::
     builder = kkrcode.get_builder()
     builder.kpoints = kpts # pass kpoints as input
     builder.parent_folder = kkr_calc_converged.outputs.remote_folder
-    builder.metadata.options = {'resources': kkr_calc_converged.attributes['resources']}
+    builder.metadata.options = {'resources': kkr_calc_converged.base.attributes.get('resources')}
     # change parameters to qdos settings (E range and number of points)
     from masci_tools.io.kkr_params import kkrparams
     qdos_params = kkrparams(**kkr_calc_converged.inputs.parameters.get_dict()) # reuse old settings
@@ -403,7 +403,7 @@ example) in the input node to a new KKR calculation::
     kkrcode = kkr_calc_converged.inputs.code
     builder = kkrcode.get_builder()
     builder.parent_folder = kkr_calc_converged.outputs.remote_folder
-    builder.metadata.options = {'resources': kkr_calc_converged.attributes['resources']}
+    builder.metadata.options = {'resources': kkr_calc_converged.base.attributes.get('resources')}
     # change parameters to Jij settings ('XCPL' runopt and JIJRAD parameter)
     from aiida_kkr.tools.kkr_params import kkrparams
     Jij_params = kkrparams(**kkr_calc_converged.inputs.parameters.get_dict()) # reuse old settings
@@ -786,8 +786,8 @@ Download: :download:`this example script <../examples/kkr_short_example.py>`
     # load essential aiida classes
     from aiida.orm import Code
     from aiida.orm import DataFactory
-    StructureData = DataFactory('structure')
-    Dict = DataFactory('parameter')
+    StructureData = DataFactory('core.structure')
+    Dict = DataFactory('core.dict')
     
     # load kkrparms class which is a useful tool to create the set of input parameters for KKR-family of calculations
     from aiida_kkr.tools.kkr_params import kkrparams
@@ -1109,7 +1109,7 @@ Download: :download:`this example script <../examples/kkrimp_dos_example.py>`
     load_profile()
     # load essential aiida classes
     from aiida.orm import DataFactory, load_node
-    Dict = DataFactory('parameter')
+    Dict = DataFactory('core.dict')
     
 
     # some settings:
@@ -1237,8 +1237,8 @@ Download: :download:`this example script <../examples/kkr_bandstruc_example.py>`
     load_profile()
     # load essential aiida classes
     from aiida.orm import Code, DataFactory, load_node
-    StructureData = DataFactory('structure')
-    Dict = DataFactory('parameter')
+    StructureData = DataFactory('core.structure')
+    Dict = DataFactory('core.dict')
     
     # helper function:
     def wait_for_it(calc, maxwait=300):

@@ -7,7 +7,7 @@ from aiida.engine import run_get_node
 
 
 @pytest.mark.timeout(300, method='thread')
-def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_local_code, enable_archive_cache):
+def test_dos_startpot_wc(aiida_profile_clean, kkrimp_local_code, kkrhost_local_code, enable_archive_cache):
     """
     simple Cu noSOC, FP, lmax2 full example using scf workflow for impurity host-in-host
     """
@@ -25,7 +25,7 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     print('import', o)
     # gf_workflow = load_node('0adfe62d-05aa-4c79-90ca-86b1753612a2')
     gf_workflow = [i for i in load_group(o).nodes if i.label == 'GF_writeout Cu bulk'][0]
-    GF_host_calc = gf_workflow.get_outgoing(node_class=KkrCalculation).first().node
+    GF_host_calc = gf_workflow.base.links.get_outgoing(node_class=KkrCalculation).first().node
     print('GF_host_calc', GF_host_calc)
 
     # set workflow settings
@@ -47,7 +47,7 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
     options = Dict(options)
 
     # now create a SingleFileData node containing the impurity starting potential
-    with GF_host_calc.outputs.retrieved.open('scoef') as _f:
+    with GF_host_calc.outputs.retrieved.base.repository.open('scoef') as _f:
         neworder_pot1 = [int(i) for i in loadtxt(_f, skiprows=1)[:, 3] - 1]
     settings_dict = {'pot1': 'out_potential', 'out_pot': 'potential_imp', 'neworder': neworder_pot1}
     settings = Dict(settings_dict)
@@ -81,7 +81,7 @@ def test_dos_startpot_wc(clear_database_before_test, kkrimp_local_code, kkrhost_
         out, node = run_get_node(builder)
     print(node)
     print(out)
-    for i in node.get_outgoing(node_class=WorkChainNode).all():
+    for i in node.base.links.get_outgoing(node_class=WorkChainNode).all():
         print(i.node, list(i.node.outputs))
 
     assert 'last_calc_info' in list(out.keys())
