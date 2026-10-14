@@ -8,8 +8,14 @@ coverage:
   range: "0...100"
 
   status:
-    project: yes
-    patch: yes
+    project:
+      default:
+        # tolerate small drops, e.g. from mechanical refactors that delete a covered line
+        threshold: 0.5%
+    patch:
+      default:
+        # report patch coverage, but do not fail a PR that only touches already untested code
+        informational: true
     changes: no
 
 parsers:
