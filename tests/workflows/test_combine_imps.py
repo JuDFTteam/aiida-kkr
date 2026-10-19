@@ -234,6 +234,110 @@ def test_get_ldau_combined_kkr_imp_wc_inputs(monkeypatch, imp1_ldau):
         }]
 
 
+def _fake_combine_imps(**inputs):
+    """stand-in for a combine_imps_wc instance that has run `start` and `update_params` with these inputs"""
+    from types import SimpleNamespace
+    from plumpy.utils import AttributesFrozendict
+    from aiida.common import AttributeDict
+
+    inputs.setdefault('scf', {})
+    inputs = AttributesFrozendict({
+        k: AttributesFrozendict(v) if k in ('scf', 'host_gf') else v for k, v in inputs.items()
+    })
+    fake_self = SimpleNamespace(
+        inputs=inputs, ctx=AttributeDict(), report=print, _wf_default=combine_imps_wc._wf_default
+    )
+    if 'wf_parameters_overwrite' in inputs:
+        fake_self.ctx.wf_parameters_overwrite = inputs.wf_parameters_overwrite.get_dict()
+    fake_self.ctx.run_options = dict(combine_imps_wc._wf_default)
+    combine_imps_wc.update_params(fake_self)
+    return fake_self
+
+
+def test_update_params_nested_overwrite_reaches_sub_workflows(aiida_profile, monkeypatch):
+    """nested wf_parameters_overwrite reaches the wf_parameters given to kkr_imp_sub_wc and kkr_flex_wc (#212)"""
+    from types import SimpleNamespace
+    import aiida_kkr.workflows._combine_imps as combine_imps_module
+
+    fake_self = _fake_combine_imps(
+        scf={
+            'wf_parameters': Dict({
+                'nsteps': 2,
+                'strmix': 0.1
+            }),
+            'kkrimp': 'kkrimp_code'
+        },
+        host_gf={'wf_parameters': Dict({'retrieve_kkrflex': True})},
+        gf_host_remote='gf_remote',
+        wf_parameters_overwrite=Dict({
+            'global': {
+                'jij_run': True
+            },
+            'scf': {
+                'nsteps': 50
+            },
+            'host_gf': {
+                'retrieve_kkrflex': False
+            },
+        }),
+    )
+    assert fake_self.ctx.scf_wf_parameters == {'nsteps': 50, 'strmix': 0.1}
+    assert fake_self.ctx.wf_parameters_flex == {'retrieve_kkrflex': False}
+    assert fake_self.ctx.run_options['jij_run'] is True
+    assert combine_imps_wc._wf_default['jij_run'] is False  # class defaults are not changed
+
+    # run_kkrimp_scf passes the merged parameters on
+    builder = SimpleNamespace(metadata=SimpleNamespace())
+    monkeypatch.setattr(combine_imps_module.kkr_imp_sub_wc, 'get_builder', lambda: builder)
+    fake_self.ctx.update(
+        imp1=SimpleNamespace(label='imp1'),
+        imp2=SimpleNamespace(label='imp2'),
+        imp_info_combined='imp_info',
+        combined_potentials='pot'
+    )
+    fake_self.get_ldau_combined = lambda: (False, {})
+    fake_self.submit = lambda b: SimpleNamespace(uuid='uuid')
+    combine_imps_wc.run_kkrimp_scf(fake_self)
+    assert builder.wf_parameters.get_dict() == {'nsteps': 50, 'strmix': 0.1}
+
+
+def test_update_params_flat_overwrite(aiida_profile):
+    """flat keys keep working: scf keys go to the scf parameters, run options to the run options"""
+    fake_self = _fake_combine_imps(
+        scf={'wf_parameters': Dict({'nsteps': 2})},
+        host_gf={'wf_parameters': Dict({'retrieve_kkrflex': True})},
+        wf_parameters_overwrite=Dict({
+            'nsteps': 50,
+            'jij_run': True,
+            'retrieve_kkrflex': False
+        }),
+    )
+    assert fake_self.ctx.scf_wf_parameters == {'nsteps': 50}
+    assert fake_self.ctx.wf_parameters_flex == {'retrieve_kkrflex': False}
+    assert fake_self.ctx.run_options['jij_run'] is True
+
+
+def test_update_params_optional_inputs_omitted(aiida_profile):
+    """neither scf.wf_parameters nor the host_gf namespace are needed (#212)"""
+    from aiida_kkr.workflows._combine_imps import _wf_parameters_node
+
+    fake_self = _fake_combine_imps(gf_host_remote='gf_remote')
+    assert fake_self.ctx.scf_wf_parameters == {}
+    assert fake_self.ctx.wf_parameters_flex == {}
+    # nothing to pass on: the sub-workflows use their defaults
+    assert _wf_parameters_node(fake_self.inputs.scf, fake_self.ctx.scf_wf_parameters) is None
+
+
+def test_wf_parameters_node_reuses_unchanged_input(aiida_profile):
+    """unchanged parameters pass the input node itself on (keeps provenance and caching), changed ones a new Dict"""
+    from aiida_kkr.workflows._combine_imps import _wf_parameters_node
+
+    given = Dict({'nsteps': 2})
+    assert _wf_parameters_node({'wf_parameters': given}, {'nsteps': 2}) is given
+    new = _wf_parameters_node({'wf_parameters': given}, {'nsteps': 3})
+    assert new is not given and new.get_dict() == {'nsteps': 3}
+
+
 # run manual:
 if __name__ == '__main__':
     from aiida import load_profile

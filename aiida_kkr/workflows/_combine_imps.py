@@ -19,7 +19,7 @@ from masci_tools.io.common_functions import get_Ry2eV
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.3.6'
+__version__ = '0.3.7'
 __contributors__ = (u'Philipp Rüßmann , Rubel Mozumder, David Antognini Silva')
 
 # activate debug writeout
@@ -55,8 +55,11 @@ class combine_imps_wc(WorkChain):
     :param host_gf.options: (Dict), optional, computer options for kkr_flex_wc
     :param host_gf.params_kkr_overwrite: (Dict), optional, needed for kkr calculation for GF writeout
 
-    :param wf_parameters_overwrite: (Dict), optional, specifications for wf_parameters of kkr_imp_sub_wc as well
-                                  as well as wf_parameters of kkr_flex_wc.
+    :param wf_parameters_overwrite: (Dict), optional, overrides with the nested shape of get_wf_defaults():
+                                  {'global': run options, 'scf': wf_parameters of kkr_imp_sub_wc,
+                                  'host_gf': wf_parameters of kkr_flex_wc}. Flat top-level keys are also accepted;
+                                  they go to the scf parameters, or to the run options or the host GF parameters
+                                  if they are known there.
     :param gf_host_remote: (RemoteData), optional, remote folder of a previous kkrflex writeout step
                           calculations containing the flexfiles and will be used for combine host GF.
 
@@ -93,7 +96,7 @@ class combine_imps_wc(WorkChain):
         return {
             'global': cls._wf_default.copy(),
             'scf': kkr_imp_sub_wc.get_wf_defaults(),
-            'ghost_gf': kkr_flex_wc.get_wf_defaults()
+            'host_gf': kkr_flex_wc.get_wf_defaults()
         }
 
     @classmethod
@@ -164,7 +167,9 @@ vectors of the host system's structure."""
             'wf_parameters_overwrite',
             valid_type=Dict,
             required=False,
-            help='To add or edit wf_parameters in scf namespace and add run optioins, if needed'
+            help="""Overrides with the nested shape of `get_wf_defaults()`: `global` (run options), `scf` (wf_parameters
+of kkr_imp_sub_wc) and `host_gf` (wf_parameters of kkr_flex_wc). Flat top-level keys go to the scf parameters, or to
+the run options or the host GF parameters if they are known there."""
         )
         spec.input(
             'gf_host_remote',
@@ -232,12 +237,12 @@ If given then the writeout step of the host GF is omitted."""
         message = f'INFO: started combine_imps_wc workflow version {self._workflowversion}'
         self.report(message)
 
-        self.ctx.run_options = self._wf_default
+        self.ctx.run_options = dict(self._wf_default)  # copy, update_params changes it
         self.ctx.allow_unconverged_inputs = self._wf_default.get('allow_unconverged_inputs', False)
         if 'wf_parameters_overwrite' in self.inputs:
             self.ctx.wf_parameters_overwrite = self.inputs.wf_parameters_overwrite.get_dict()
             self.ctx.allow_unconverged_inputs = self.ctx.wf_parameters_overwrite.get('global', {}).get(
-                'allow_unconverged_inputs', False
+                'allow_unconverged_inputs', self.ctx.wf_parameters_overwrite.get('allow_unconverged_inputs', False)
             )
 
         exit_code, self.ctx.imp1 = self.get_imp_node_from_input(iimp=1)
@@ -266,8 +271,6 @@ If given then the writeout step of the host GF is omitted."""
         self.ctx.scf_kkrimp = self.inputs.scf.kkrimp
         if 'options' in self.inputs.scf:
             self.ctx.scf_options = self.inputs.scf.options
-        if 'wf_parameters' in self.inputs.scf:
-            self.ctx.scf_wf_parameters = self.inputs.scf.wf_parameters
         # Add some run option here
         self.ctx.jij_option = False
         self.ctx.offset_imp2 = self.inputs.offset_imp2
@@ -640,9 +643,10 @@ If given then the writeout step of the host GF is omitted."""
         builder.impurity_info = self.ctx.imp_info_combined
         builder.kkr = self.inputs.host_gf.kkr
 
-        if 'wf_parameters' in self.inputs.host_gf:
-            self.report(f'set wf_parameters {self.inputs.host_gf.wf_parameters.get_dict()}')
-            builder.wf_parameters = self.inputs.host_gf.wf_parameters
+        wf_parameters_flex = _wf_parameters_node(self.inputs.host_gf, self.ctx.wf_parameters_flex)
+        if wf_parameters_flex is not None:
+            self.report(f'set wf_parameters {wf_parameters_flex.get_dict()}')
+            builder.wf_parameters = wf_parameters_flex
 
         if 'options' in self.inputs.host_gf:
             builder.options = self.inputs.host_gf.options
@@ -726,54 +730,54 @@ If given then the writeout step of the host GF is omitted."""
     # To collate and combine the wf_parameters_overwrite and scf_wf_parameters
     def update_params(self):
         """
-        Update the parameters in scf_wf_parameters according to wf_parameters_overwrite if
-        any change occur there and also add the run options.
+        Merge wf_parameters_overwrite into the wf_parameters of kkr_imp_sub_wc and kkr_flex_wc and the run options.
+        Flat top-level keys are merged into the scf parameters first (keys known to the host GF parameters or the
+        run options are moved there), then the nested 'global', 'scf' and 'host_gf' sections are applied.
         """
 
-        scf_wf_parameters = self.ctx.scf_wf_parameters.get_dict()
-
-        if 'wf_parameters' in self.inputs.host_gf:
-            wf_parameters_flex = self.inputs.host_gf.wf_parameters.get_dict()
-        else:
-            wf_parameters_flex = {}
+        scf_wf_parameters = {}
+        if 'wf_parameters' in self.inputs.scf:
+            scf_wf_parameters = self.inputs.scf.wf_parameters.get_dict()
+        host_gf_inputs = self.inputs.get('host_gf', {})  # the host_gf namespace may be omitted
+        wf_parameters_flex = {}
+        if 'wf_parameters' in host_gf_inputs:
+            wf_parameters_flex = host_gf_inputs['wf_parameters'].get_dict()
         run_options = self.ctx.run_options
-        # Update the scf_wf_parameters from the wf_parameters_overwrite
+
+        wf_parameters_overwrite = {}
         if 'wf_parameters_overwrite' in self.inputs:
-            wf_parameters_overwrite = self.ctx.wf_parameters_overwrite
+            wf_parameters_overwrite = dict(self.ctx.wf_parameters_overwrite)
+        sections = {name: wf_parameters_overwrite.pop(name, {}) for name in ('global', 'scf', 'host_gf')}
+        if 'ghost_gf' in wf_parameters_overwrite:
+            self.report('WARNING: key "ghost_gf" in wf_parameters_overwrite is deprecated, use "host_gf"')
+            sections['host_gf'] = {**wf_parameters_overwrite.pop('ghost_gf'), **sections['host_gf']}
 
-            for key, val in wf_parameters_overwrite.items():
-                # Update the scf_wf_parameters from wf_parameters_overwrite
-                if key in list(scf_wf_parameters.keys()):
-                    if wf_parameters_overwrite[key] != scf_wf_parameters[key]:
-                        scf_old_val = scf_wf_parameters[key]
-                        scf_wf_parameters[key] = val
-                        msg = f'INFO: Parameter value of {key} set from {scf_old_val} to {val}'
-                        self.report(msg)
-                else:
-                    scf_wf_parameters[key] = val
+        # Update the scf_wf_parameters from the flat keys of wf_parameters_overwrite
+        for key, val in wf_parameters_overwrite.items():
+            if key in scf_wf_parameters and scf_wf_parameters[key] != val:
+                self.report(f'INFO: Parameter value of {key} set from {scf_wf_parameters[key]} to {val}')
+            scf_wf_parameters[key] = val
 
-        # Update the wf_parameters_flex and run_options from the scf_wf_parameters
-        key_list = []
-        for key, val in scf_wf_parameters.items():
-            if key in list(wf_parameters_flex.keys()) or key in list(run_options.keys()):
-                # Here preparing the wf parameters for kkr_flex_wc
-                if key in list(wf_parameters_flex.keys()):
-                    deflt_val = wf_parameters_flex[key]
-                    wf_parameters_flex[key] = scf_wf_parameters.get(key, deflt_val)
-                # Here preparing the some run option
-                if key in list(run_options.keys()):
-                    deflt_val = run_options[key]
-                    run_options[key] = scf_wf_parameters.get(key, deflt_val)
-                    self.report(f'INFO: Probable run option <{key}> is updated here as <{run_options[key]}>')
-                key_list.append(key)
-        # Here to remove keys from scf_wf_parameters that are needed only for gf_writeout_step and run_option
-        val_list = [scf_wf_parameters.pop(key, None) for key in key_list[:]]
+        # Move keys of the wf_parameters_flex and run_options from the scf_wf_parameters
+        for key in list(scf_wf_parameters):
+            if key in wf_parameters_flex or key in run_options:
+                val = scf_wf_parameters.pop(key)
+                if key in wf_parameters_flex:
+                    wf_parameters_flex[key] = val
+                if key in run_options:
+                    run_options[key] = val
+                    self.report(f'INFO: Probable run option <{key}> is updated here as <{val}>')
+
+        # the nested sections are applied last, they are explicit about their target
+        run_options.update(sections['global'])
+        scf_wf_parameters.update(sections['scf'])
+        wf_parameters_flex.update(sections['host_gf'])
 
         self.report('INFO: The wf_parameters Dict for kkr_imp_sub_wc is ready.')
 
         self.ctx.run_options = run_options
         self.ctx.wf_parameters_flex = wf_parameters_flex
-        self.ctx.scf_wf_parameters = Dict(scf_wf_parameters)
+        self.ctx.scf_wf_parameters = scf_wf_parameters
 
     def run_kkrimp_scf(self):
         """
@@ -800,8 +804,9 @@ If given then the writeout step of the host GF is omitted."""
         builder.kkrimp = self.inputs.scf.kkrimp
         if 'options' in self.inputs.scf:
             builder.options = self.inputs.scf.options
-        if 'wf_parameters' in self.inputs.scf:
-            builder.wf_parameters = self.inputs.scf.wf_parameters
+        wf_parameters = _wf_parameters_node(self.inputs.scf, self.ctx.scf_wf_parameters)
+        if wf_parameters is not None:
+            builder.wf_parameters = wf_parameters
         if 'params_overwrite' in self.inputs.scf:
             builder.params_overwrite = self.inputs.scf.params_overwrite
 
@@ -1026,6 +1031,19 @@ If given then the writeout step of the host GF is omitted."""
         if is_jij_exist:
             self.out('JijData', jij_parsed_dict['Jijdata'])
             self.out('JijInfo', jij_parsed_dict['info'])
+
+
+def _wf_parameters_node(namespace, merged):
+    """
+    Return the wf_parameters node to pass on to a sub-workflow: the input node of `namespace` if the merged
+    parameters equal its content (keeps provenance and caching), a new Dict otherwise, or None if both are empty.
+    """
+    given = namespace.get('wf_parameters')
+    if given is not None and given.get_dict() == merged:
+        return given
+    if merged:
+        return Dict(merged)
+    return None
 
 
 @calcfunction
