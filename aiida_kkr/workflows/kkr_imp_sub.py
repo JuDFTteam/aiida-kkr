@@ -5,7 +5,7 @@ and some helper methods to do so with AiiDA
 """
 
 from aiida import __version__ as aiida_core_version
-from aiida.orm import Float, Code, CalcJobNode, RemoteData, StructureData, Dict, SinglefileData, FolderData, Bool
+from aiida.orm import Float, Code, CalcJobNode, RemoteData, StructureData, Dict, SinglefileData, FolderData, Bool, Int
 from aiida.engine import WorkChain, ToContext, while_, if_, calcfunction
 from masci_tools.io.kkr_params import kkrparams
 from aiida_kkr.tools import test_and_get_codenode, get_inputs_kkrimp, kick_out_corestates_wf, get_ldaumatrices, get_LDAU_initmatrices_dict
@@ -17,7 +17,7 @@ from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.12.0'
+__version__ = '0.12.1'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann', u'David Antognini Silva')
 
 #TODO: work on return results function
@@ -785,11 +785,16 @@ class kkr_imp_sub_wc(WorkChain):
         if last_remote is None:
             # make sure no core states are in energy contour
             # extract emin from output of GF host calculation
-            GF_out_params = host_GF.base.links.get_incoming(link_label_filter='remote_folder'
-                                                            ).first().node.outputs.output_parameters
-            emin = GF_out_params.get_dict().get('energy_contour_group').get('emin')
+            GF_calc = host_GF.base.links.get_incoming(link_label_filter='remote_folder').first().node
+            emin = GF_calc.outputs.output_parameters.get_dict().get('energy_contour_group').get('emin')
+            # KKRimp inherits LMAX of the host GF, core states with l>LMAX are kept
+            lmax = GF_calc.inputs.parameters.get_dict().get('LMAX')
             # then use this value to get rid of all core states that are lower than emin (return the same input potential if no states have been removed
-            imp_pot = kick_out_corestates_wf(imp_pot, Float(emin))
+            if lmax is None:
+                self.report('WARNING: no LMAX in host GF parameters, core states with l>LMAX may be kicked out')
+                imp_pot = kick_out_corestates_wf(imp_pot, Float(emin))
+            else:
+                imp_pot = kick_out_corestates_wf(imp_pot, Float(emin), Int(lmax))
             if 'impurity_info' in self.inputs:
                 message = 'INFO: using impurity_info node as input for kkrimp calculation'
                 self.report(message)
