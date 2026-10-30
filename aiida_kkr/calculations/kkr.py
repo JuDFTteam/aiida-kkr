@@ -25,7 +25,7 @@ __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
 
-__version__ = '0.13.2'
+__version__ = '0.13.3'
 
 __contributors__ = ('Jens Bröder', 'Philipp Rüßmann')
 
@@ -954,12 +954,13 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         with tempfolder.open(self._INPUT_FILE_NAME) as input_file:
             params.read_keywords_from_inputcard(input_file)
         emin = params.get_value('EMIN')
+        lmax = params.get_value('LMAX')
 
-        # run kick_out_corestates routine to remove core states that lie above emin
+        # run kick_out_corestates routine to remove core states that lie above emin (core states with l>LMAX are kept)
         potcopy_info = [i for i in local_copy_list if i[2] == self._POTENTIAL][0]
         with tempfolder.open(self._POTENTIAL, 'w') as potfile_out:
             with load_node(potcopy_info[0]).base.repository.open(potcopy_info[1]) as potfile_in:
-                num_deleted = kick_out_corestates(potfile_in, potfile_out, emin)
+                num_deleted = kick_out_corestates(potfile_in, potfile_out, emin, lmax=lmax)
 
         # remove changed potential from local copy list (already in tempfolder without overlapping core states)
         if num_deleted > 0:
