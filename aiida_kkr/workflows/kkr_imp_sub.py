@@ -13,11 +13,12 @@ from aiida_kkr.calculations.kkrimp import KkrimpCalculation
 from numpy import array
 import tarfile, os
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
+from aiida_kkr.tools.common_workfunctions import get_extra_options
 
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.12.1'
+__version__ = '0.12.2'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Ruessmann', u'David Antognini Silva')
 
 #TODO: work on return results function
@@ -280,6 +281,7 @@ class kkr_imp_sub_wc(WorkChain):
         self.ctx.custom_scheduler_commands = options_dict.get(
             'custom_scheduler_commands', self._options_default['custom_scheduler_commands']
         )
+        self.ctx.extra_options = get_extra_options(options_dict)
 
         # set workflow parameters from input, or defaults
         self.ctx.max_number_runs = wf_dict.get('kkr_runmax', self._wf_default['kkr_runmax'])
@@ -781,6 +783,7 @@ class kkr_imp_sub_wc(WorkChain):
         }
         if self.ctx.custom_scheduler_commands:
             options['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
+        options.update(self.ctx.extra_options)
 
         if last_remote is None:
             # make sure no core states are in energy contour

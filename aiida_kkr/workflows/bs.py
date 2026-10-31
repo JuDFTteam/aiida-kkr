@@ -8,7 +8,7 @@ also known as Bloch spectral function.
 from aiida.orm import Code, Dict, RemoteData, StructureData, Float, Str, WorkChainNode, load_node, CalcJobNode, ArrayData, KpointsData
 from aiida.engine import WorkChain, ToContext, calcfunction
 from aiida.tools.data.array.kpoints import get_explicit_kpoints_path
-from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
+from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr, get_extra_options
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
@@ -20,7 +20,7 @@ import numpy as np
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.8'
+__version__ = '0.1.9'
 __contributors__ = (u'Rubel Mozumder', u'Philipp Rüßmann')
 
 
@@ -217,6 +217,9 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
         )
         self.ctx.queue = options_dict.get('queue_name', self._options_default['queue_name'])
         self.ctx.custom_scheduler_commands = options_dict.get('custom_scheduler_commands', '')
+        self.ctx.extra_options = get_extra_options(
+            options_dict, ('append_text', 'prepend_text', 'additional_retrieve_list')
+        )
         self.ctx.BS_params_dict = wf_dict
         self.ctx.BS_kkrparams = None  # is set in set_params_BS
         self.ctx.BS_kpoints = None
@@ -444,6 +447,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             options['prepend_text'] = self.ctx.prepend_text
         if self.ctx.additional_retrieve_list:
             options['additional_retrieve_list'] = self.ctx.additional_retrieve_list
+        options.update(self.ctx.extra_options)
 
         # get inputs for band structure calculation
         inputs = get_inputs_kkr(

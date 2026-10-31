@@ -24,6 +24,7 @@ from aiida_kkr.tools.extract_kkrhost_noco_angles import extract_noco_angles
 from aiida_kkr.tools.common_workfunctions import (
     test_and_get_codenode,
     get_inputs_kkr,
+    get_extra_options,
     get_parent_paranode,
     update_params_wf,
 )
@@ -33,7 +34,7 @@ from aiida_kkr.workflows.dos import kkr_dos_wc
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.11.2'
+__version__ = '0.11.3'
 __contributors__ = (u'Jens Broeder', u'Philipp Rüßmann', u'David Antognini Silva')
 
 eV2Ry = 1.0 / get_Ry2eV()
@@ -478,13 +479,15 @@ class kkr_scf_wc(WorkChain):
             'custom_scheduler_commands',
             self._options_default['custom_scheduler_commands'],
         )
+        self.ctx.extra_options = get_extra_options(options_dict)
         self.ctx.options_params_dict = orm.Dict(
             dict={
                 'withmpi': self.ctx.withmpi,
                 'resources': self.ctx.resources,
                 'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
                 'queue_name': self.ctx.queue,
-                'custom_scheduler_commands': self.ctx.custom_scheduler_commands
+                'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
+                **self.ctx.extra_options
             }
         )
 
@@ -1240,6 +1243,7 @@ class kkr_scf_wc(WorkChain):
         }
         if self.ctx.custom_scheduler_commands:
             options['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
+        options.update(self.ctx.extra_options)
 
         inputs = get_inputs_kkr(
             code,

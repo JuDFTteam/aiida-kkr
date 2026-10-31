@@ -8,12 +8,12 @@ from aiida_kkr.workflows.kkr_imp_dos import kkr_imp_dos_wc
 from aiida_kkr.workflows.gf_writeout import kkr_flex_wc
 from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
 from aiida_kkr.tools.find_parent import get_calc_from_remote
-from aiida_kkr.tools.common_workfunctions import test_and_get_codenode
+from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_extra_options
 
 __copyright__ = (u'Copyright (c), 2024, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.6'
+__version__ = '0.1.7'
 __contributors__ = (u'Raffaele Aliberti', u'David Antognini Silva', u'Philipp Rüßmann')
 _VERBOSE_ = False
 
@@ -279,12 +279,14 @@ Please provide already converged kkrflex files, or the kkr builder to evaluate t
         self.ctx.custom_scheduler_commands = options_dict.get(
             'custom_scheduler_commands', self._options_default['custom_scheduler_commands']
         )
+        self.ctx.extra_options = get_extra_options(options_dict)
         self.ctx.options_params_dict = Dict({
             'withmpi': self.ctx.withmpi,
             'resources': self.ctx.resources,
             'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
             'queue_name': self.ctx.queue,
-            'custom_scheduler_commands': self.ctx.custom_scheduler_commands
+            'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
+            **self.ctx.extra_options
         })
 
         # Set workflow parameters for the KKR imputrity calculations
