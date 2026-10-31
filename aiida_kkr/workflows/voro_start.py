@@ -15,7 +15,7 @@ from aiida_kkr.calculations.voro import VoronoiCalculation
 from aiida_kkr.workflows.dos import kkr_dos_wc
 from aiida_kkr.tools import find_cluster_radius
 from aiida_kkr.tools.common_workfunctions import (
-    test_and_get_codenode, update_params, update_params_wf, get_inputs_voronoi
+    test_and_get_codenode, update_params, update_params_wf, get_inputs_voronoi, get_extra_options
 )
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
 
@@ -24,7 +24,7 @@ __copyright__ = (
     'IAS-1/PGI-1, Germany. All rights reserved.'
 )
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.14.0'
+__version__ = '0.14.1'
 __contributors__ = u'Philipp Rüßmann'
 
 eV2Ry = 1.0 / get_Ry2eV()
@@ -332,6 +332,7 @@ class kkr_startpot_wc(WorkChain):
             'custom_scheduler_commands',
             self._options_default['custom_scheduler_commands'],
         )
+        self.ctx.extra_options = get_extra_options(options_dict)
 
         # set DOS parameters
         self.ctx.dos_params_dict = wf_dict.get(
@@ -583,7 +584,8 @@ class kkr_startpot_wc(WorkChain):
             'queue_name': self.ctx.queue,
             'resources': self.ctx.resources,
             'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
-            'custom_scheduler_commands': self.ctx.custom_scheduler_commands
+            'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
+            **self.ctx.extra_options
         }
 
         if 'structure' in self.inputs:
@@ -752,7 +754,8 @@ class kkr_startpot_wc(WorkChain):
                 'resources': self.ctx.resources,
                 'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
                 'withmpi': self.ctx.withmpi,
-                'custom_scheduler_commands': self.ctx.custom_scheduler_commands
+                'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
+                **self.ctx.extra_options
             }
             options_node = orm.Dict(dict=options_dict)
             options_node.label = 'options'

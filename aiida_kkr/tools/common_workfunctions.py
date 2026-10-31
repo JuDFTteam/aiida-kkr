@@ -352,6 +352,17 @@ def truncate_string(string, max_length):
     return string
 
 
+def get_extra_options(options_dict, handled=()):
+    """
+    Return the run options a workflow does not set itself, so that they are passed on unchanged
+    (e.g. environment_variables, prepend_text, account, qos).
+    :param options_dict: options input of the workflow
+    :param handled: further option names the workflow sets itself
+    """
+    handled = {'withmpi', 'resources', 'max_wallclock_seconds', 'queue_name', 'custom_scheduler_commands', *handled}
+    return {key: val for key, val in options_dict.items() if key not in handled}
+
+
 def get_inputs_common(
     calculation,
     code,

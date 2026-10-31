@@ -14,6 +14,7 @@ from aiida_kkr.tools.common_workfunctions import (
     get_parent_paranode,
     update_params_wf,
     get_inputs_kkr,
+    get_extra_options,
 )
 from aiida_kkr.calculations.kkr import KkrCalculation
 from aiida_kkr.calculations.voro import VoronoiCalculation
@@ -26,7 +27,7 @@ from aiida_kkr.workflows.bs import set_energy_params
 __copyright__ = (u'Copyright (c), 2017, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.8.4'
+__version__ = '0.8.5'
 __contributors__ = u'Philipp Rüßmann'
 
 
@@ -243,6 +244,9 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             'custom_scheduler_commands',
             self._options_default['custom_scheduler_commands'],
         )
+        self.ctx.extra_options = get_extra_options(
+            options_dict, ('append_text', 'prepend_text', 'additional_retrieve_list')
+        )
 
         self.ctx.dos_params_dict = self.inputs.wf_parameters.get_dict()
         self.ctx.dos_kkrparams = None  # is set in set_params_dos
@@ -418,6 +422,7 @@ Settings for running a LDA+U calculation. The Dict node should be of the form
             options['prepend_text'] = self.ctx.prepend_text
         if self.ctx.additional_retrieve_list:
             options['additional_retrieve_list'] = self.ctx.additional_retrieve_list
+        options.update(self.ctx.extra_options)
 
         inputs = get_inputs_kkr(
             code, remote, options, label, description, parameters=params, serial=(not self.ctx.withmpi)

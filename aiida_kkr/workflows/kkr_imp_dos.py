@@ -18,11 +18,12 @@ from aiida_kkr.calculations import KkrimpCalculation
 import tarfile
 import os
 from aiida_kkr.tools.save_output_nodes import create_out_dict_node
+from aiida_kkr.tools.common_workfunctions import get_extra_options
 
 __copyright__ = (u'Copyright (c), 2019, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.7.2'
+__version__ = '0.7.3'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 
 # activate verbose output, for debugging only
@@ -238,12 +239,14 @@ class kkr_imp_dos_wc(WorkChain):
         self.ctx.custom_scheduler_commands = options_dict.get(
             'custom_scheduler_commands', self._options_default['custom_scheduler_commands']
         )
+        self.ctx.extra_options = get_extra_options(options_dict)
         self.ctx.options_params_dict = Dict({
             'withmpi': self.ctx.withmpi,
             'resources': self.ctx.resources,
             'max_wallclock_seconds': self.ctx.max_wallclock_seconds,
             'queue_name': self.ctx.queue,
-            'custom_scheduler_commands': self.ctx.custom_scheduler_commands
+            'custom_scheduler_commands': self.ctx.custom_scheduler_commands,
+            **self.ctx.extra_options
         })
 
         # set workflow parameters for the KKR imputrity calculations

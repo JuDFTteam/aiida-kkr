@@ -7,7 +7,7 @@ some helper methods to do so with AiiDA
 from aiida.orm import Code, load_node, Bool
 from aiida.engine import WorkChain, ToContext, if_
 from masci_tools.io.kkr_params import kkrparams
-from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr
+from aiida_kkr.tools.common_workfunctions import test_and_get_codenode, get_parent_paranode, update_params_wf, get_inputs_kkr, get_extra_options
 from aiida_kkr.calculations import KkrCalculation, KkrimpCalculation, VoronoiCalculation
 from aiida.engine import CalcJob
 from aiida.orm import CalcJobNode
@@ -22,7 +22,7 @@ import os
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.6.0'
+__version__ = '0.6.1'
 __contributors__ = (u'Fabian Bertoldo', u'Philipp Rüßmann')
 
 # ToDo: add more default values to wf_parameters
@@ -181,6 +181,7 @@ class kkr_flex_wc(WorkChain):
         self.ctx.custom_scheduler_commands = options_dict.get(
             'custom_scheduler_commands', self._options_default['custom_scheduler_commands']
         )
+        self.ctx.extra_options = get_extra_options(options_dict)
 
         self.ctx.ef_shift = wf_dict.get('ef_shift', self._wf_default['ef_shift'])
         self.ctx.dos_run = wf_dict.get('dos_run', self._wf_default['dos_run'])
@@ -403,6 +404,7 @@ class kkr_flex_wc(WorkChain):
         }
         if self.ctx.custom_scheduler_commands:
             options['custom_scheduler_commands'] = self.ctx.custom_scheduler_commands
+        options.update(self.ctx.extra_options)
         inputs = get_inputs_kkr(
             code,
             remote,
