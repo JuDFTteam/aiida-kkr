@@ -12,7 +12,7 @@ from masci_tools.io.common_functions import get_alat_from_bravais
 __copyright__ = (u'Copyright (c), 2023, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 __contributors__ = (u'Philipp Rüßmann')
 
 # activate debug writeout
@@ -55,7 +55,7 @@ def get_scoef_single_imp(host_structure, impinfo_node):
 
         clust = create_scoef_array(host_structure, Rcut, hcut, cylinder_orient, ilayer_center)
         # sort after distance
-        clust = clust[(clust[:, -1]).argsort()]
+        clust = clust[(clust[:, -1]).argsort(kind='stable')]
 
         # save as extra for second run
         impinfo_node.base.extras.set('imp_cls', clust)
@@ -63,6 +63,35 @@ def get_scoef_single_imp(host_structure, impinfo_node):
         clust = np.array(impinfo_node.base.extras.get('imp_cls'))
 
     return clust
+
+
+def order_like_gf_scoef(clust, gf_retrieved):
+    """
+    Reorder the rows of an impurity cluster to the order of the scoef file used by the host GF writeout.
+
+    The impurity potential of a KKRimp calculation follows the atom order of the scoef file of its host GF writeout.
+    A cluster rebuilt later (or cached from such a rebuild) can list equidistant atoms in a different order,
+    so row i of the cluster would not belong to row i of the potential any more.
+
+    :param clust: impurity cluster (columns x, y, z, ilayer, Z, distance; units of `get_alat_from_bravais`)
+    :param gf_retrieved: retrieved FolderData of the host GF writeout (contains scoef)
+    :return: clust with its rows in the order of the scoef file
+    """
+    with gf_retrieved.base.repository.open('scoef') as _f:
+        scoef = np.loadtxt(_f, skiprows=1, ndmin=2)
+    if len(scoef) != len(clust):
+        raise ValueError(
+            f'impurity cluster ({len(clust)} atoms) does not match the scoef file of the host GF writeout '
+            f'({len(scoef)} atoms)'
+        )
+    # scoef can be in different alat units (e.g. ALATBASIS of the writeout), compare in units of the largest distance
+    pos_scoef = scoef[:, :3] / scoef[:, -1].max()
+    pos_clust = clust[:, :3] / clust[:, -1].max()
+    dist = np.linalg.norm(pos_scoef[:, None, :] - pos_clust[None, :, :], axis=-1)
+    order = dist.argmin(axis=1)
+    if len(set(order)) != len(order) or dist[range(len(order)), order].max() > 1e-4:
+        raise ValueError('impurity cluster positions do not match the scoef file of the host GF writeout')
+    return clust[order]
 
 
 def get_inplane_neighbor(host_structure, i_neighbor, r_out_of_plane):
@@ -97,7 +126,7 @@ def get_inplane_neighbor(host_structure, i_neighbor, r_out_of_plane):
     alat = get_alat_from_bravais(cell, host_structure.pbc[2])
     dist = np.array(dist)
     dist[:, 2:] = dist[:, 2:] / alat
-    dist_sort_list = dist[:, -1].argsort()
+    dist_sort_list = dist[:, -1].argsort(kind='stable')
 
     # find in-plane neighbor
     r_offset = dist[dist_sort_list[i_neighbor]][2:5]  # element 0 is no offset
@@ -165,11 +194,23 @@ def combine_clusters(clust1, clust2_offset, single_single, debug=False):
 
 
 def create_combined_imp_info(
-    host_structure, impinfo1, impinfo2, offset_imp2, imps_info_in_exact_cluster, single_single, debug=False
+    host_structure,
+    impinfo1,
+    impinfo2,
+    offset_imp2,
+    imps_info_in_exact_cluster,
+    single_single,
+    gf_retrieved1=None,
+    gf_retrieved2=None,
+    debug=False
 ):
     """
     create impurity clusters from impinfo nodes and combine these putting the second
     impurity to the i_neighbor_inplane-th in-plane neighbor
+
+    gf_retrieved1/gf_retrieved2 are the retrieved folders of the host GF writeouts of the single impurities.
+    If given, the rebuilt single-impurity clusters are put in the atom order of their scoef files, which is
+    the order of the impurity potentials that are combined later.
     """
     #TODO: Try it with the self object in the in the input
 
@@ -184,9 +225,13 @@ def create_combined_imp_info(
     elif single_single:
         # create cluster of imp1
         clust1 = get_scoef_single_imp(host_structure, impinfo1)
+        if gf_retrieved1 is not None:
+            clust1 = order_like_gf_scoef(clust1, gf_retrieved1)
 
     # do the same for imp2
     clust2 = get_scoef_single_imp(host_structure, impinfo2)
+    if gf_retrieved2 is not None:
+        clust2 = order_like_gf_scoef(clust2, gf_retrieved2)
 
     # set zimp in scoef file (not used by the code but makes it easier to read the files / debug)
     if single_single:
@@ -249,7 +294,14 @@ def create_combined_imp_info(
 
 @calcfunction
 def create_combined_imp_info_cf(
-    host_structure, impinfo1, impinfo2, offset_imp2, imps_info_in_exact_cluster, single_single
+    host_structure,
+    impinfo1,
+    impinfo2,
+    offset_imp2,
+    imps_info_in_exact_cluster,
+    single_single,
+    gf_retrieved1=None,
+    gf_retrieved2=None
 ):
     """
     create impurity clusters from impinfo nodes and combine these putting the second
@@ -257,5 +309,6 @@ def create_combined_imp_info_cf(
     """
 
     return create_combined_imp_info(
-        host_structure, impinfo1, impinfo2, offset_imp2, imps_info_in_exact_cluster, single_single
+        host_structure, impinfo1, impinfo2, offset_imp2, imps_info_in_exact_cluster, single_single, gf_retrieved1,
+        gf_retrieved2
     )

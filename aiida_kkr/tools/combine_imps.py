@@ -10,7 +10,6 @@ from aiida.common import InputValidationError
 from aiida.common.folders import SandboxFolder
 from aiida_kkr.tools.tools_kkrimp import modify_potential
 from aiida_kkr.calculations import VoronoiCalculation, KkrimpCalculation
-from aiida_kkr.workflows import kkr_imp_sub_wc
 from .imp_cluster_tools import (
     pos_exists_already, get_inplane_neighbor, get_scoef_single_imp, get_zimp, combine_clusters,
     create_combined_imp_info, create_combined_imp_info_cf
@@ -20,7 +19,7 @@ from aiida_kkr.tools import get_ldaumatrices, get_LDAU_initmatrices_dict
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.3.4'
+__version__ = '0.3.5'
 __contributors__ = (u'Philipp Rüßmann, David Antognini Silva')
 
 # activate debug writeout
@@ -32,6 +31,9 @@ def get_host_structure(impurity_workflow_or_calc):
     extract host structure from impurity
     """
     #TODO extract host parent no from input but take into account calculation of host GF from inside kkrimp full workflow
+    # local import, a module-level one is circular (aiida_kkr.workflows imports this module)
+    from aiida_kkr.workflows.kkr_imp_sub import kkr_imp_sub_wc
+
     print(f'impurity_workflow_or_calc: {impurity_workflow_or_calc}')
     if impurity_workflow_or_calc.process_class == KkrimpCalculation:
         host_parent = impurity_workflow_or_calc.inputs.host_Greenfunction_folder
