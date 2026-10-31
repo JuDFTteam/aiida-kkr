@@ -19,7 +19,7 @@ from masci_tools.io.common_functions import get_Ry2eV
 __copyright__ = (u'Copyright (c), 2020, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.3.7'
+__version__ = '0.3.8'
 __contributors__ = (u'Philipp Rüßmann , Rubel Mozumder, David Antognini Silva')
 
 # activate debug writeout
@@ -46,6 +46,9 @@ class combine_imps_wc(WorkChain):
     :offset_imp2:(Dict), required, offset of the second impurity with respect to the first impurity position.
                  e.g. {'index:0 or 1}, the replacement by the second impurity will take place at the same cell
                         or at the next nearest cell respectively.
+                 Alternatively {'r_offset': [x, y, z]}, the cartesian offset vector in units of the host's lattice
+                 constant as given by `masci_tools.io.common_functions.get_alat_from_bravais`; 'index' is then
+                 not needed and ignored.
 
     :param scf.kkrimp: (Code), mandatory, KKRimp code needed to submit kkr_imp_wc
     :param scf.wf_parameters: (Dict), optional, KKRimp code needed to submit kkr_imp_sub_wc
@@ -74,6 +77,7 @@ class combine_imps_wc(WorkChain):
     :return JijData: (ArrayData) Consists magnetic interaction data among the magnetic impurity atoms,
                     such as vector distance(rx, ry, rz) between atoms, spin interaction magnetude J,
                     Dzyaloshinskii-Moriya vector magnitude, and Dzyaloshinskii-Moriya vector component(Dx, Dy, Dz)
+                    (see `parse_Jij` for the sign and normalisation conventions)
     :return JijInfo :(Dict) Consists description about the JijData.
 
     """
@@ -157,11 +161,12 @@ Use these output Dict nodes:
             'offset_imp2',
             valid_type=Dict,
             required=True,
-            help="""Offset of the secon impurity with respect to the first impurity.
-Can be given either via the 'vector' or the 'index' keys in the dictionary.
-The 'vector' option allows to give the offset vector in cartesian units and
-the 'index' option allows to five the offset vector in units of the lattice
-vectors of the host system's structure."""
+            help="""Offset of the second impurity with respect to the first impurity.
+Can be given either via the 'r_offset' or the 'index' keys in the dictionary.
+'r_offset' is the cartesian offset vector in units of the host's lattice constant
+(`masci_tools.io.common_functions.get_alat_from_bravais` of the host structure);
+if it is given, 'index' is not needed and ignored. 'index' selects the n-th
+in-plane neighbor of the first impurity (0 is the same position)."""
         )
         spec.input(
             'wf_parameters_overwrite',
@@ -265,7 +270,7 @@ If given then the writeout step of the host GF is omitted."""
         self.ctx.host_structure = host_structure1
 
         # settings for offset between imps
-        self.ctx.i_neighbor_inplane = self.inputs.offset_imp2['index']
+        self.ctx.i_neighbor_inplane = self.inputs.offset_imp2.get('index')
 
         # preserve the inputs from scf namespace to context
         self.ctx.scf_kkrimp = self.inputs.scf.kkrimp
@@ -401,7 +406,7 @@ If given then the writeout step of the host GF is omitted."""
                     parent_imp1_wc_or_calc, parent_imp2_wc_or_calc, parent_input_offset
                 )
             # Now to add the input impurity info and off set of the present combine_imps_wc
-            imps_info_in_exact_cluster['offset_imps'].append(self.ctx.offset_imp2['index'])
+            imps_info_in_exact_cluster['offset_imps'].append(self.ctx.offset_imp2.get('index'))
 
             Zimp_2 = imp2_impurity_info.get_dict()['Zimp']
             if isinstance(Zimp_2, list):
@@ -434,6 +439,28 @@ If given then the writeout step of the host GF is omitted."""
         impinfo = parent_calc.inputs.impurity_info
 
         return impinfo
+
+    def get_host_gf_retrieved(self, imp_calc):
+        """
+        Return the retrieved folder of the host GF writeout of a single-impurity calculation or workflow
+        (its scoef file defines the atom order of the impurity potential), None if it cannot be found
+        """
+        try:
+            if imp_calc.process_class == KkrimpCalculation:
+                gf_remote = imp_calc.inputs.host_Greenfunction_folder
+            elif imp_calc.process_class == kkr_imp_sub_wc:
+                gf_remote = imp_calc.inputs.remote_data
+            elif imp_calc.process_class == kkr_imp_wc:
+                gf_remote = imp_calc.base.links.get_outgoing(node_class=kkr_imp_sub_wc).first().node.inputs.remote_data
+            else:
+                return None
+            retrieved = gf_remote.base.links.get_incoming(node_class=CalcJobNode).first().node.outputs.retrieved
+        except (AttributeError, KeyError):
+            retrieved = None
+        if retrieved is None or 'scoef' not in retrieved.base.repository.list_object_names():
+            self.report(f'WARNING: no scoef of the host GF writeout found for {imp_calc}, cluster order not checked')
+            return None
+        return retrieved
 
     def imps_info_exact_cluster_2imps(self, single_imp1_wc, single_imp2_wc, offset_imp2):
         """
@@ -568,12 +595,21 @@ If given then the writeout step of the host GF is omitted."""
             return exit_code
 
         imps_info_in_exact_cluster = self.ctx.imps_info_in_exact_cluster
-        if single_single:
+        same_layer = (
+            'ilayer_center' in impinfo1.get_dict() and 'ilayer_center' in impinfo2.get_dict() and
+            impinfo1['ilayer_center'] == impinfo2['ilayer_center']
+        )
+        if 'r_offset' in offset_imp2.get_dict():
+            # index is not used, only check that the second impurity is not put on top of the first one
+            if single_single and same_layer and np.linalg.norm(offset_imp2['r_offset']) < 1e-6:
+                return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL  # pylint: disable=maybe-no-member
+            if not single_single:
+                self.report('WARNING: r_offset given, overlap with earlier impurities is not checked')
+        elif single_single:
             if offset_imp2.get_dict()['index'] < 0:
                 return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL  # pylint: disable=maybe-no-member
-            if 'ilayer_center' in impinfo1.get_dict() and 'ilayer_center' in impinfo2.get_dict():
-                if impinfo1['ilayer_center'] == impinfo2['ilayer_center'] and self.inputs.offset_imp2['index'] < 1:
-                    return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL  # pylint: disable=maybe-no-member
+            if same_layer and offset_imp2['index'] < 1:
+                return self.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL  # pylint: disable=maybe-no-member
         else:
             imp_offset_index = offset_imp2['index']
             imp2_ilayer = impinfo2['ilayer_center']
@@ -599,9 +635,17 @@ If given then the writeout step of the host GF is omitted."""
             return self.exit_codes.ERROR_INPUT_NOT_SINGLE_IMP_CALC  # pylint: disable=maybe-no-member
         self.report(f'DEBURG: This is the exact imps: {imps_info_in_exact_cluster}')
 
+        # put the rebuilt single-impurity clusters in the atom order of their potentials (scoef of their host GF)
+        gf_retrieved = {}
+        if single_single:
+            gf_retrieved['gf_retrieved1'] = self.get_host_gf_retrieved(self.ctx.imp1)
+        gf_retrieved['gf_retrieved2'] = self.get_host_gf_retrieved(self.ctx.imp2)
+        gf_retrieved = {key: val for key, val in gf_retrieved.items() if val is not None}
+
         # create combined cluster, offset of second imp is extracted from i_neighbor_inplane
         out_dict = create_combined_imp_info_cf(
-            host_structure, impinfo1, impinfo2, offset_imp2, Dict(dict=imps_info_in_exact_cluster), Bool(single_single)
+            host_structure, impinfo1, impinfo2, offset_imp2, Dict(dict=imps_info_in_exact_cluster), Bool(single_single),
+            **gf_retrieved
         )
 
         self.ctx.imp_info_combined = out_dict['imp_info_combined']
@@ -985,8 +1029,6 @@ If given then the writeout step of the host GF is omitted."""
         # Parse_jij and collect some info
         is_jij_exist = self.ctx.jij_option
         if is_jij_exist:
-            impurity1_output_node = self.inputs.impurity1_output_node
-            impurity2_output_node = self.inputs.impurity2_output_node
             jij_calc = self.ctx.imp_scf_combined_jij
             jij_retrieved = jij_calc.outputs.retrieved
             impurity_info = kkrimp_scf_sub.inputs.impurity_info
@@ -997,7 +1039,7 @@ If given then the writeout step of the host GF is omitted."""
                     'is_finished_ok': jij_calc.is_finished_ok
                 }
             }
-            jij_parsed_dict = parse_Jij(jij_retrieved, impurity_info, impurity1_output_node, impurity2_output_node)
+            jij_parsed_dict = parse_Jij(jij_retrieved, impurity_info)
         # collect outputs of host_gf sub_workflow if it was done
         if 'gf_host_remote' not in self.inputs:
             gf_writeout = self.ctx.gf_writeout
@@ -1047,61 +1089,32 @@ def _wf_parameters_node(namespace, merged):
 
 
 @calcfunction
-def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_node):
-    """parser output of Jij calculation and return as ArrayData node"""
+def parse_Jij(retrieved, impurity_info):
+    """
+    Parse the output of a Jij calculation and return it as ArrayData node.
 
-    # Collect the zimp for impurity_output_node
-    try:
-        imp1_z = impurity1_output_node.base.links.get_incoming(node_class=kkr_imp_wc
-                                                               ).first().node.inputs.impurity_info.get_dict()['Zimp']
-    except AttributeError:
-        try:
-            impurity1_output_node_combine = impurity1_output_node.base.links.get_incoming(node_class=combine_imps_wc
-                                                                                          ).first().node
-            imp1_z = impurity1_output_node_combine.base.links.get_outgoing(
-                node_class=kkr_imp_sub_wc
-            ).first().node.inputs.impurity_info.get_dict()['Zimp']
-        except AttributeError:
-            try:
-                imp1_z = impurity1_output_node.base.links.get_incoming(
-                    node_class=kkr_imp_sub_wc
-                ).first().node.inputs.impurity_info.get_dict()['Zimp']
-            except AttributeError:
-                imp1_z = impurity1_output_node.base.links.get_incoming(
-                    node_class=KkrimpCalculation
-                ).first().node.inputs.impurity_info.get_dict()['Zimp']
+    Conventions of the stored data (unchanged since the first version):
 
-    try:
-        imp2_z = impurity2_output_node.base.links.get_incoming(node_class=kkr_imp_wc
-                                                               ).first().node.inputs.impurity_info.get_dict()['Zimp']
-    except AttributeError:
-        try:
-            impurity2_output_node_combine = impurity2_output_node.base.links.get_incoming(node_class=combine_imps_wc
-                                                                                          ).first().node
-            imp2_z = impurity2_output_node_combine.base.links.get_outgoing(
-                node_class=kkr_imp_sub_wc
-            ).first().node.inputs.impurity_info.get_dict()['Zimp']
-        except AttributeError:
-            try:
-                imp2_z = impurity2_output_node.base.links.get_incoming(
-                    node_class=kkr_imp_sub_wc
-                ).first().node.inputs.impurity_info.get_dict()['Zimp']
-            except AttributeError:
-                imp2_z = impurity2_output_node.base.links.get_incoming(
-                    node_class=KkrimpCalculation
-                ).first().node.inputs.impurity_info.get_dict()['Zimp']
+    * all values in meV, with an overall sign change so that J > 0 is ferromagnetic,
+      i.e. J_kl = -Ry2eV*1000 * Jraw_kl of the KKRimp output
+    * J is the isotropic part, the trace of the 3x3 tensor divided by 3
+    * the Dzyaloshinskii-Moriya vector is D = (J_yz - J_zy, J_zx - J_xz, J_xy - J_yx), i.e. twice the axial
+      vector of the antisymmetric part (J - J^T)/2 that most spin-model codes use
+    * only pairs i < j of impurity sites are listed; JijData rows are
+      [rx, ry, rz, J, |D|, Dx, Dy, Dz] with r = r_j - r_i in units of the lattice constant
+
+    :param retrieved: retrieved folder of the KKRimp Jij calculation (contains out_Jijmatrix)
+    :param impurity_info: impurity info node of that calculation (imp_cls, Rimp_rel)
+    """
 
     with retrieved.base.repository.open('out_Jijmatrix') as _f:
         jijdata = np.loadtxt(_f)
 
     impurity_info = impurity_info.get_dict()
     pos = np.array(impurity_info['imp_cls'])
-    z = np.array(impurity_info['imp_cls'])[:, 4]
 
-    if not isinstance(imp1_z, list):
-        Vpos = list(np.where(z == imp1_z)[0]) + list(np.where(z == imp2_z)[0])
-    else:
-        Vpos = [np.where(z == i)[0][0] for i in imp1_z] + list(np.where(z == imp2_z)[0])
+    # impurity sites are found by position (several impurities can have the same Z, host atoms too)
+    Vpos = [int(np.argmin(np.linalg.norm(pos[:, :3] - np.array(r)[:3], axis=1))) for r in impurity_info['Rimp_rel']]
     Ry2eV = get_Ry2eV()
 
     # extract number of atoms
@@ -1147,7 +1160,7 @@ def parse_Jij(retrieved, impurity_info, impurity1_output_node, impurity2_output_
     plotdata = []
 
     #return jij_combined_iter
-    out_txt = 'Output Jij values between V impurities:\n i          j           Jij (meV)           Dij(meV)            D/J             i_zimp          j_zimp \n---------------------------------------------------------------------------\n'
+    out_txt = 'Output Jij values between impurities:\n i          j           Jij (meV)           Dij(meV)            D/J             i_zimp          j_zimp \n---------------------------------------------------------------------------\n'
     for iatom in range(natom - 1):
         for jatom in range(natom)[iatom + 1:]:
             if iatom != jatom and iatom in Vpos and jatom in Vpos:

@@ -3,6 +3,7 @@
 if __name__ != '__main__':
     import pytest
     from ..conftest import kkrimp_local_code, kkrhost_local_code, test_dir, data_dir
+import numpy as np
 from aiida.orm import load_node, Dict, load_group
 from aiida.engine import run_get_node
 from aiida_kkr.workflows import combine_imps_wc, kkr_scf_wc
@@ -336,6 +337,133 @@ def test_wf_parameters_node_reuses_unchanged_input(aiida_profile):
     assert _wf_parameters_node({'wf_parameters': given}, {'nsteps': 2}) is given
     new = _wf_parameters_node({'wf_parameters': given}, {'nsteps': 3})
     assert new is not given and new.get_dict() == {'nsteps': 3}
+
+
+def test_import_tools_combine_imps_alone():
+    """aiida_kkr.tools.combine_imps can be imported in a fresh interpreter (no circular import with workflows)"""
+    import subprocess
+    import sys
+    subprocess.run([sys.executable, '-c', 'from aiida_kkr.tools.combine_imps import get_host_structure'], check=True)
+
+
+def _cluster_with_ties():
+    """single-impurity cluster (alat units) with two pairs of equidistant atoms"""
+    pos = np.array([[0., 0., 0.], [0.5, 0., 0.], [-0.5, 0., 0.], [0., 0.6, 0.], [0., -0.6, 0.], [0.3, 0.3, 0.6]])
+    dist = np.linalg.norm(pos, axis=1)
+    return np.column_stack([pos, np.zeros(len(pos)), np.full(len(pos), 29.), dist])
+
+
+def _gf_retrieved_with_scoef(scoef, tmp_path):
+    from aiida.orm import FolderData
+    from aiida_kkr.tools.tools_kkrimp import write_scoef
+    write_scoef(scoef, tmp_path / 'scoef')
+    retrieved = FolderData()
+    retrieved.base.repository.put_object_from_file(tmp_path / 'scoef', 'scoef')
+    return retrieved
+
+
+def test_order_like_gf_scoef(aiida_profile, tmp_path):
+    """the rebuilt cluster is put in the atom order of the host GF's scoef, also if that is in other alat units"""
+    from aiida_kkr.tools.imp_cluster_tools import order_like_gf_scoef
+
+    clust = _cluster_with_ties()
+    # scoef of the GF writeout: mirror pairs swapped and in units of a 0.41851 times smaller lattice constant
+    order_gf = [0, 2, 1, 4, 3, 5]
+    scoef = clust[order_gf].copy()
+    scoef[:, :3] /= 0.41851
+    scoef[:, -1] /= 0.41851
+    reordered = order_like_gf_scoef(clust, _gf_retrieved_with_scoef(scoef, tmp_path))
+    assert np.array_equal(reordered, clust[order_gf])
+
+    # a different cluster cannot be mapped
+    with pytest.raises(ValueError):
+        order_like_gf_scoef(clust[:-1], _gf_retrieved_with_scoef(scoef, tmp_path))
+    shifted = scoef.copy()
+    shifted[3, 0] += 0.1
+    with pytest.raises(ValueError):
+        order_like_gf_scoef(clust, _gf_retrieved_with_scoef(shifted, tmp_path))
+
+
+def _jij_retrieved(natom):
+    """out_Jijmatrix of a Jij run with natom sites, Jraw_kl(i, j) = -(i + j) for all components"""
+    from io import StringIO
+    from aiida.orm import FolderData
+    jij = np.zeros((3, natom, natom, 3, 3))
+    for i in range(natom):
+        for j in range(natom):
+            jij[:, i, j] = -(i + j)
+    retrieved = FolderData()
+    txt = StringIO()
+    np.savetxt(txt, jij.reshape(-1, 3))
+    retrieved.base.repository.put_object_from_bytes(txt.getvalue().encode(), 'out_Jijmatrix')
+    return retrieved
+
+
+@pytest.mark.parametrize(
+    'zimp, rimp_rel, expected_pairs',
+    [
+        # three impurities of the same species (Mn-Mn + Mn), all three must be in JijData
+        ([25, 25, 25], [[0, 0, 0], [0.5, 0, 0], [0, 0.6, 0]], [(0, 1), (0, 3), (1, 3)]),
+        # two impurities in a host that contains the impurity species: no host sites in JijData
+        ([29, 29], [[0, 0, 0], [0, 0.6, 0]], [(0, 3)]),
+    ],
+)
+def test_parse_jij_finds_impurities_by_position(aiida_profile, zimp, rimp_rel, expected_pairs):
+    from aiida_kkr.workflows._combine_imps import parse_Jij
+
+    clust = _cluster_with_ties()
+    for r in rimp_rel:
+        clust[np.argmin(np.linalg.norm(clust[:, :3] - r, axis=1)), 4] = zimp[0]
+    impurity_info = Dict({'imp_cls': clust, 'Zimp': zimp, 'Rimp_rel': rimp_rel})
+    # call the plain function, the calcfunction would need a running broker
+    out = parse_Jij.__wrapped__(_jij_retrieved(len(clust)), impurity_info)
+    jijdata = out['Jijdata'].get_array('JijData')
+    assert len(jijdata) == len(expected_pairs)
+    for row, (i, j) in zip(jijdata, expected_pairs):
+        assert np.allclose(row[:3], clust[j, :3] - clust[i, :3])
+    assert 'between impurities' in out['info']['text']
+
+
+def test_r_offset_without_index(aiida_profile, monkeypatch):
+    """offset_imp2 with r_offset only: no KeyError and no false 'neighbor too small' error"""
+    from types import SimpleNamespace
+    from aiida.common import AttributeDict
+    from aiida.orm import Bool
+    import aiida_kkr.workflows._combine_imps as combine_imps_module
+
+    calls = {}
+
+    def fake_create_combined_imp_info_cf(*args, **kwargs):
+        calls['args'], calls['kwargs'] = args, kwargs
+        return {'imp_info_combined': 'imp_info', 'kickout_info': 'kickout'}
+
+    monkeypatch.setattr(combine_imps_module, 'create_combined_imp_info_cf', fake_create_combined_imp_info_cf)
+    impinfo = Dict({'Zimp': 25, 'ilayer_center': 0, 'Rcut': 1.0})
+    fake_self = SimpleNamespace(
+        ctx=AttributeDict({
+            'imp1': SimpleNamespace(inputs={}, name='imp1'),
+            'imp2': SimpleNamespace(inputs={}, name='imp2'),
+            'single_vs_single': True,
+            'host_structure': 'host'
+        }),
+        inputs=AttributeDict({'offset_imp2': Dict({'r_offset': [0.5, 0., 0.]})}),
+        report=print,
+        exit_codes=combine_imps_wc.exit_codes,
+        get_impinfo_from_hostGF=lambda imp: impinfo,
+        extract_imps_info_exact_cluster=lambda: (0, {
+            'Zimps': [25, 25],
+            'ilayers': [0, 0],
+            'offset_imps': [0, None]
+        }),
+        get_and_check_zimp_list=lambda impinfo: ([25], True),
+        get_host_gf_retrieved=lambda imp: 'gf_retrieved_' + imp.name,
+    )
+    assert combine_imps_wc.create_big_cluster(fake_self) is None
+    assert calls['kwargs'] == {'gf_retrieved1': 'gf_retrieved_imp1', 'gf_retrieved2': 'gf_retrieved_imp2'}
+
+    # r_offset on top of the first impurity is still refused
+    fake_self.inputs = AttributeDict({'offset_imp2': Dict({'r_offset': [0., 0., 0.]})})
+    assert combine_imps_wc.create_big_cluster(fake_self) == combine_imps_wc.exit_codes.ERROR_INPLANE_NEIGHBOR_TOO_SMALL
 
 
 # run manual:

@@ -16,7 +16,7 @@ from aiida.common.exceptions import InputValidationError
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH,'
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.7.0'
+__version__ = '0.7.1'
 __contributors__ = u'Philipp Rüßmann'
 
 
@@ -545,7 +545,8 @@ def create_scoef_array(structure, radius, h=-1, vector=[0., 0., 1.], i=0, alat_i
     c[:, -1] = c[:, -1] / alat  # rescale distances
 
     #sort the data from c with respect to distance to the centered atom
-    m = c[:, -1].argsort()
+    # (stable sort: the order of equidistant atoms must not depend on the numpy version)
+    m = c[:, -1].argsort(kind='stable')
     c = c[m]
 
     return c
