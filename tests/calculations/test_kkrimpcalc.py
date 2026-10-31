@@ -93,6 +93,26 @@ class Test_kkrimp_calculation(object):
         assert out['output_parameters']['parser_errors'] == []
 
 
+@pytest.mark.parametrize(
+    'filename, text, expected',
+    [
+        # KKRhost with WFAC_RENORM support writes the renormalized weights to kkrflex_green
+        ('output.0.txt', ' ATTENTION: Renormalizing energy weights with factor:   9.90154151E-01\n', True),
+        ('out_kkr', ' ATTENTION: Renormalizing energy weights with factor:   9.90154151E-01\n', True),
+        # older KKRhost ignores the keyword, then KKRimp has to apply it (LLYsimple)
+        ('output.0.txt', ' some other output\n', False),
+    ],
+)
+def test_host_renormalized_weights(aiida_profile, filename, text, expected):
+    """LLYsimple is only needed if the host GF writeout did not renormalize the energy weights itself"""
+    from aiida.orm import FolderData
+    from aiida_kkr.calculations import KkrimpCalculation
+
+    retrieved = FolderData()
+    retrieved.base.repository.put_object_from_bytes(text.encode(), filename)
+    assert KkrimpCalculation._host_renormalized_weights(None, retrieved) is expected
+
+
 #run test manually
 if __name__ == '__main__':
     from aiida import load_profile

@@ -23,7 +23,7 @@ import numpy as np
 __copyright__ = (u'Copyright (c), 2018, Forschungszentrum Jülich GmbH, '
                  'IAS-1/PGI-1, Germany. All rights reserved.')
 __license__ = 'MIT license, see LICENSE.txt file'
-__version__ = '0.10.2'
+__version__ = '0.10.3'
 __contributors__ = (u'Philipp Rüßmann', u'Fabian Bertoldo')
 
 #TODO: implement 'ilayer_center' consistency check
@@ -799,8 +799,11 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
         if 'LLOYD' in runopts:
             runflag = self._use_lloyd(runflag, GFhost_folder, tempfolder)
         # alternative to Lloyd mode: renormalization factor of energy integration weights
-        if params_host.get_value('WFAC_RENORM') is not None:
-            if params_host.get_value('WFAC_RENORM'):
+        if params_host.get_value('WFAC_RENORM'):
+            if self._host_renormalized_weights(GFhost_folder):
+                # the energy weights written to kkrflex_green are already renormalized, LLYsimple would apply it twice
+                self.logger.info('host GF writeout renormalized the energy weights, LLYsimple is not used')
+            else:
                 runflag = self._use_lloyd(runflag, GFhost_folder, tempfolder, True)
 
         # now set runflags
@@ -838,6 +841,19 @@ Note: The length of the 'shifts' attribute should be an array with three numbers
             with tempfolder.open(self._KKRFLEX_SOCFAC, 'w') as kkrflex_socfac:
                 for socscl in socscale:
                     kkrflex_socfac.write(f' {socscl}\n')
+
+    def _host_renormalized_weights(self, GFhost_folder):
+        """
+        Check if the KKRhost GF writeout applied WFAC_RENORM to the energy weights itself
+        (KKRhost versions that know WFAC_RENORM print this and write the renormalized weights to kkrflex_green,
+        older versions ignore the keyword)
+        """
+        for filename in (KkrCalculation._OUTPUT_0_INIT, KkrCalculation._DEFAULT_OUTPUT_FILE):
+            if filename in GFhost_folder.base.repository.list_object_names():
+                with GFhost_folder.base.repository.open(filename) as f:
+                    if 'Renormalizing energy weights' in f.read():
+                        return True
+        return False
 
     def _use_lloyd(self, runflag, GFhost_folder, tempfolder, wfac_renorm=False):
         """Use the LLYsimple version of KKRimp code with the average renormalization factor from the host calculation"""
